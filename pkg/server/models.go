@@ -14,40 +14,14 @@
 	limitations under the License.
 */
 
-package keyset
+package server
 
-import (
-	"github.com/dexidp/dex/storage"
-	"gopkg.in/square/go-jose.v2"
-	"sync"
-	"time"
-)
+import "github.com/loopholelabs/auth/pkg/token/identity"
 
-type KeySet struct {
-	storage storage.Storage
-	updater *updater
-	mu      sync.RWMutex
-}
+type ExchangeResponse identity.TokenResponse
+type RefreshResponse identity.TokenResponse
 
-type updater struct {
-	done     chan struct{}
-	keys     []jose.JSONWebKey
-	rotation time.Time
-	err      error
-}
-
-func NewPublic(storage storage.Storage) *Public {
-	return &Public{
-		KeySet: KeySet{
-			storage: storage,
-		},
-	}
-}
-
-func NewPrivate(storage storage.Storage) *Private {
-	return &Private{
-		KeySet: KeySet{
-			storage: storage,
-		},
-	}
+type RefreshError struct {
+	Error            string `json:"error"`
+	ErrorDescription string `json:"error_description"`
 }

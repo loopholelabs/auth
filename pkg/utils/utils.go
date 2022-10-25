@@ -14,40 +14,16 @@
 	limitations under the License.
 */
 
-package keyset
+package utils
 
-import (
-	"github.com/dexidp/dex/storage"
-	"gopkg.in/square/go-jose.v2"
-	"sync"
-	"time"
-)
+import "time"
 
-type KeySet struct {
-	storage storage.Storage
-	updater *updater
-	mu      sync.RWMutex
+// Int64ToTime converts an int64 to a time.Time in a standardized way
+func Int64ToTime(i int64) time.Time {
+	return time.UnixMilli(i).UTC()
 }
 
-type updater struct {
-	done     chan struct{}
-	keys     []jose.JSONWebKey
-	rotation time.Time
-	err      error
-}
-
-func NewPublic(storage storage.Storage) *Public {
-	return &Public{
-		KeySet: KeySet{
-			storage: storage,
-		},
-	}
-}
-
-func NewPrivate(storage storage.Storage) *Private {
-	return &Private{
-		KeySet: KeySet{
-			storage: storage,
-		},
-	}
+// TimeToInt64 converts a time.Time to an int64 in a standardized way
+func TimeToInt64(t time.Time) int64 {
+	return t.UTC().UnixMilli()
 }

@@ -14,40 +14,13 @@
 	limitations under the License.
 */
 
-package keyset
+package tokenKind
 
-import (
-	"github.com/dexidp/dex/storage"
-	"gopkg.in/square/go-jose.v2"
-	"sync"
-	"time"
+type Kind string
+
+const (
+	OAuthKind        Kind = "oauth"
+	APITokenKind     Kind = "api"
+	ServiceTokenKind Kind = "service"
+	RefreshTokenKind Kind = "refresh"
 )
-
-type KeySet struct {
-	storage storage.Storage
-	updater *updater
-	mu      sync.RWMutex
-}
-
-type updater struct {
-	done     chan struct{}
-	keys     []jose.JSONWebKey
-	rotation time.Time
-	err      error
-}
-
-func NewPublic(storage storage.Storage) *Public {
-	return &Public{
-		KeySet: KeySet{
-			storage: storage,
-		},
-	}
-}
-
-func NewPrivate(storage storage.Storage) *Private {
-	return &Private{
-		KeySet: KeySet{
-			storage: storage,
-		},
-	}
-}
