@@ -23,7 +23,7 @@ import (
 )
 
 func NewTestDatabase(t *testing.T) *Default {
-	d, err := New("sqlite3", ":memory:?_fk=1", logrus.New())
+	d, err := New("sqlite3", ":memory:?_fk=1", "sqlite3", ":memory:?_fk=1", logrus.New())
 	require.NoError(t, err)
 
 	return d

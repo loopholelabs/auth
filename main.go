@@ -34,7 +34,7 @@ func main() {
 
 	logger.Infof("Config: %+v", conf)
 
-	d, err := database.New(conf.Database.Type, conf.Database.URL, logrus.NewEntry(logger).WithField("COMPONENT", "DATABASE"))
+	d, err := database.New(conf.Database.Type, conf.Database.URL, conf.DexDatabase.Type, conf.DexDatabase.URL, logrus.NewEntry(logger).WithField("COMPONENT", "DATABASE"))
 	if err != nil {
 		panic(err)
 	}

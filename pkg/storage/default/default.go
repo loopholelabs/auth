@@ -46,7 +46,7 @@ type Default struct {
 	dexStorage.Storage
 }
 
-func New(connector string, url string, logger log.Logger) (*Default, error) {
+func New(connector string, url string, dexConnector string, dexURL string, logger log.Logger) (*Default, error) {
 	logger.Infof("connecting to %s database at %s", connector, url)
 	client, err := ent.Open(connector, url)
 	if err != nil {
@@ -61,10 +61,10 @@ func New(connector string, url string, logger log.Logger) (*Default, error) {
 
 	logger.Infof("creating database for dex")
 	var st dexStorage.Storage
-	switch connector {
+	switch dexConnector {
 	case dialect.Postgres:
 		logger.Infof("using postgres dialect")
-		parsed, err := parsePG(url)
+		parsed, err := parsePG(dexURL)
 		if err != nil {
 			return nil, err
 		}
