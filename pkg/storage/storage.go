@@ -31,8 +31,5 @@ type Storage interface {
 	UserExists(id string) (bool, error)
 
 	GetAPIKey(id string) (*APIKey, error)
-	CreateAPIKey(key *APIKey) error
-
 	GetServiceKey(id string, valid ServiceKeyValid, update ServiceKeyUpdate) (*ServiceKey, error)
-	CreateServiceKey(key *ServiceKey) error
 }

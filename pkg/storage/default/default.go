@@ -138,15 +138,6 @@ func (d *Default) GetAPIKey(id string) (*storage.APIKey, error) {
 	}, nil
 }
 
-func (d *Default) CreateAPIKey(key *storage.APIKey) error {
-	u, err := d.client.User.Query().Where(user.Username(key.User)).Only(context.Background())
-	if err != nil {
-		return err
-	}
-	_, err = d.client.APIKey.Create().SetOwner(u).SetValue(key.ID).SetSecret(key.Secret).Save(context.Background())
-	return err
-}
-
 func (d *Default) GetServiceKey(id string, valid storage.ServiceKeyValid, update storage.ServiceKeyUpdate) (*storage.ServiceKey, error) {
 	s, err := d.client.ServiceKey.Query().Where(servicekey.Value(id)).Only(context.Background())
 	if err != nil {
@@ -186,15 +177,6 @@ func (d *Default) GetServiceKey(id string, valid storage.ServiceKeyValid, update
 	}
 
 	return sk, nil
-}
-
-func (d *Default) CreateServiceKey(key *storage.ServiceKey) error {
-	u, err := d.client.User.Query().Where(user.Username(key.User)).Only(context.Background())
-	if err != nil {
-		return err
-	}
-	_, err = d.client.ServiceKey.Create().SetOwner(u).SetValue(key.ID).SetSecret(key.Secret).SetResource(key.Resource).SetNumUsed(key.NumUsed).SetMaxUses(key.MaxUses).SetExpires(key.Expires).Save(context.Background())
-	return err
 }
 
 func (d *Default) NewUser(claims *identity.IDToken) error {
