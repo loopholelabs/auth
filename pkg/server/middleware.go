@@ -122,7 +122,7 @@ func (s *Server) parseAndModify(jwt *jwt.JSONWebToken) (string, error) {
 				s.logger.Errorf("error while creating new user: %s", err)
 				return "", NewUserError
 			}
-			s.logger.Infof("created new user", claims.Email)
+			s.logger.Infof("created new user %s", claims.Email)
 		} else {
 
 		}
