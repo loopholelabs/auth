@@ -14,20 +14,17 @@
 	limitations under the License.
 */
 
-package utils
+package database
 
-import "time"
+import (
+	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/require"
+	"testing"
+)
 
-// Int64ToTime converts an int64 to a time.Time in a standardized way
-func Int64ToTime(i int64) time.Time {
-	return time.UnixMilli(i).UTC()
-}
+func NewTestDatabase(t *testing.T) *Default {
+	d, err := New("sqlite3", ":memory:?_fk=1", logrus.New())
+	require.NoError(t, err)
 
-// TimeToInt64 converts a time.Time to an int64 in a standardized way
-func TimeToInt64(t time.Time) int64 {
-	return t.UTC().UnixMilli()
-}
-
-func TimeInt64Now() int64 {
-	return TimeToInt64(time.Now())
+	return d
 }

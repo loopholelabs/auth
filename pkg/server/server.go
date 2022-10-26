@@ -65,7 +65,7 @@ type Server struct {
 	privateKeys *keyset.Private
 }
 
-func NewServer(options *options.Options) (*Server, error) {
+func New(options *options.Options) (*Server, error) {
 	err := options.Validate()
 	if err != nil {
 		return nil, fmt.Errorf("invalid options for auth server: %w", err)
@@ -513,17 +513,45 @@ func CreateClient(st storage.Storage, id string, secret string, redirect []strin
 	})
 }
 
-func BootstrapConnectors(storage storage.Storage) error {
+func BootstrapConnectors(storage storage.Storage, github *providers.GithubProvider) error {
 	connectors, err := storage.ListConnectors()
 	if err != nil {
 		return err
 	}
-	if len(connectors) == 0 {
-		return storage.CreateConnector(dexStorage.Connector{
-			ID:   server.LocalConnector,
-			Type: server.LocalConnector,
-			Name: DefaultConnectorName,
-		})
+	if github == nil {
+		if len(connectors) == 0 {
+			return storage.CreateConnector(dexStorage.Connector{
+				ID:     server.LocalConnector,
+				Type:   server.LocalConnector,
+				Name:   DefaultConnectorName,
+				Config: []byte("{}"),
+			})
+		}
+		return nil
 	}
+
+	if len(connectors) > 0 {
+		_ = storage.DeleteConnector(server.LocalConnector)
+	}
+
+	if github != nil {
+		configBytes, err := json.Marshal(github.Convert())
+		if err != nil {
+			return err
+		}
+
+		connector := dexStorage.Connector{
+			ID:     github.ID,
+			Type:   githubID,
+			Name:   "Github",
+			Config: configBytes,
+		}
+
+		err = storage.CreateConnector(connector)
+		if err != nil && !errors.Is(err, dexStorage.ErrAlreadyExists) {
+			return err
+		}
+	}
+
 	return nil
 }
