@@ -29,6 +29,7 @@ import (
 	"github.com/loopholelabs/auth/pkg/storage/default/ent/servicekey"
 	"github.com/loopholelabs/auth/pkg/storage/default/ent/user"
 	"github.com/loopholelabs/auth/pkg/token/identity"
+	"github.com/sirupsen/logrus"
 	"net"
 	nurl "net/url"
 	"strconv"
@@ -56,6 +57,8 @@ func New(connector string, url string, logger log.Logger) (*Default, error) {
 		return nil, err
 	}
 
+	logrus.Infof("Connecting to %s database", connector)
+
 	var st dexStorage.Storage
 	switch connector {
 	case dialect.Postgres:
@@ -63,6 +66,9 @@ func New(connector string, url string, logger log.Logger) (*Default, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		logrus.Infof("Parsed Postgres URL: %v", parsed)
+
 		port, err := strconv.Atoi(parsed["port"])
 		if err != nil {
 			return nil, err

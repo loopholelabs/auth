@@ -18,7 +18,6 @@ package config
 
 import (
 	"github.com/joho/godotenv"
-	"github.com/sirupsen/logrus"
 	"os"
 	"strconv"
 )
@@ -116,8 +115,6 @@ func New() Config {
 	if err != nil {
 		numClients = 0
 	}
-
-	logrus.Info("Number of clients: ", numClients)
 
 	clients := make([]Client, numClients)
 	for i := 0; i < numClients; i++ {
