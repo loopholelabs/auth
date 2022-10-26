@@ -54,10 +54,11 @@ type GithubOAuth struct {
 }
 
 type Client struct {
-	ID     string `json:"id"`
-	Secret string `json:"secret"`
-	Public bool   `json:"public"`
-	Logo   string `json:"logo"`
+	ID          string `json:"id"`
+	Secret      string `json:"secret"`
+	RedirectURI string `json:"redirect_uri"`
+	Public      bool   `json:"public"`
+	Logo        string `json:"logo"`
 }
 
 func New() Config {
@@ -121,10 +122,11 @@ func New() Config {
 	clients := make([]Client, numClients)
 	for i := 0; i < numClients; i++ {
 		clients[i] = Client{
-			ID:     os.Getenv("CLIENT_" + strconv.Itoa(i) + "_ID"),
-			Secret: os.Getenv("CLIENT_" + strconv.Itoa(i) + "_SECRET"),
-			Public: os.Getenv("CLIENT_"+strconv.Itoa(i)+"_PUBLIC") == "true",
-			Logo:   os.Getenv("CLIENT_" + strconv.Itoa(i) + "_LOGO"),
+			ID:          os.Getenv("CLIENT_" + strconv.Itoa(i) + "_ID"),
+			Secret:      os.Getenv("CLIENT_" + strconv.Itoa(i) + "_SECRET"),
+			RedirectURI: os.Getenv("CLIENT_" + strconv.Itoa(i) + "_REDIRECT_URI"),
+			Public:      os.Getenv("CLIENT_"+strconv.Itoa(i)+"_PUBLIC") == "true",
+			Logo:        os.Getenv("CLIENT_" + strconv.Itoa(i) + "_LOGO"),
 		}
 	}
 

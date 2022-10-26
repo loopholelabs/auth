@@ -18,7 +18,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	dexStorage "github.com/dexidp/dex/storage"
 	"github.com/loopholelabs/auth/pkg/config"
 	"github.com/loopholelabs/auth/pkg/options"
@@ -64,7 +63,7 @@ func main() {
 	}
 
 	for _, c := range conf.Clients {
-		err = server.CreateClient(d, c.ID, c.Secret, []string{fmt.Sprintf("%s/callback", conf.Issuer)}, c.Public, c.ID, c.Logo)
+		err = server.CreateClient(d, c.ID, c.Secret, []string{c.RedirectURI}, c.Public, c.ID, c.Logo)
 		if err != nil && !errors.Is(err, dexStorage.ErrAlreadyExists) {
 			panic(err)
 		}
