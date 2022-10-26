@@ -18,12 +18,47 @@ package token
 
 import (
 	"encoding/json"
+	"github.com/google/uuid"
 	"github.com/loopholelabs/auth/pkg/keyset"
-	"github.com/loopholelabs/auth/pkg/storage"
 	"github.com/loopholelabs/auth/pkg/token/tokenKind"
+	"github.com/loopholelabs/auth/pkg/utils"
 	"gopkg.in/square/go-jose.v2"
 	"time"
 )
+
+// ServiceKey should be of the form "S.<ID>.<SECRET>" - when the secret is stored in the database, it should be hashed
+// to a byte slice.
+//
+// The 'S' prefix is used to differentiate between API keys and Service Keys.
+type ServiceKey struct {
+	Created  int64
+	ID       string
+	Secret   []byte
+	User     string
+	Resource string
+	NumUsed  int64
+	MaxUses  int64
+	Expires  int64
+}
+
+func NewServiceKey(user string, resource string, maxUses int64, expires int64) (*ServiceKey, string, error) {
+	id := uuid.New().String()
+	secret := uuid.New().String()
+	encoded := Encode("S", id, secret)
+	hashedSecret, err := Hash(secret)
+	if err != nil {
+		return nil, "", err
+	}
+	return &ServiceKey{
+		Created:  utils.TimeToInt64(time.Now()),
+		ID:       id,
+		Secret:   hashedSecret,
+		User:     user,
+		Resource: resource,
+		MaxUses:  maxUses,
+		Expires:  expires,
+	}, encoded, nil
+}
 
 type ServiceClaims struct {
 	ID       string `json:"id"`
@@ -39,7 +74,7 @@ type ServiceToken struct {
 	ServiceClaims
 }
 
-func NewServiceToken(issuer string, serviceKey *storage.ServiceKey, audience Audience) *ServiceToken {
+func NewServiceToken(issuer string, serviceKey *ServiceKey, audience Audience) *ServiceToken {
 	return &ServiceToken{
 		BaseClaims: BaseClaims{
 			Issuer:   issuer,

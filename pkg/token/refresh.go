@@ -19,7 +19,6 @@ package token
 import (
 	"encoding/json"
 	"github.com/loopholelabs/auth/pkg/keyset"
-	"github.com/loopholelabs/auth/pkg/storage"
 	"github.com/loopholelabs/auth/pkg/token/tokenKind"
 	"gopkg.in/square/go-jose.v2"
 	"time"
@@ -39,7 +38,7 @@ type RefreshToken struct {
 	RefreshClaims
 }
 
-func NewRefreshTokenForAPIKey(issuer string, apiKey *storage.APIKey, audience Audience) *RefreshToken {
+func NewRefreshTokenForAPIKey(issuer string, apiKey *APIKey, audience Audience) *RefreshToken {
 	return &RefreshToken{
 		BaseClaims: BaseClaims{
 			Issuer:   issuer,
@@ -56,7 +55,7 @@ func NewRefreshTokenForAPIKey(issuer string, apiKey *storage.APIKey, audience Au
 	}
 }
 
-func NewRefreshTokenForServiceKey(issuer string, serviceKey *storage.ServiceKey, audience Audience) *RefreshToken {
+func NewRefreshTokenForServiceKey(issuer string, serviceKey *ServiceKey, audience Audience) *RefreshToken {
 	return &RefreshToken{
 		BaseClaims: BaseClaims{
 			Issuer:   issuer,

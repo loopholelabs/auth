@@ -18,12 +18,40 @@ package token
 
 import (
 	"encoding/json"
+	"github.com/google/uuid"
 	"github.com/loopholelabs/auth/pkg/keyset"
-	"github.com/loopholelabs/auth/pkg/storage"
 	"github.com/loopholelabs/auth/pkg/token/tokenKind"
+	"github.com/loopholelabs/auth/pkg/utils"
 	"gopkg.in/square/go-jose.v2"
 	"time"
 )
+
+// APIKey should be of the form "A.<ID>.<SECRET>" - when the secret is stored in the database, it should be hashed
+// to a byte slice.
+//
+// The 'A' prefix is used to differentiate between API keys and Service Keys.
+type APIKey struct {
+	Created int64
+	ID      string
+	Secret  []byte
+	User    string
+}
+
+func NewAPIKey(user string) (*APIKey, string, error) {
+	id := uuid.New().String()
+	secret := uuid.New().String()
+	encoded := Encode("A", id, secret)
+	hashedSecret, err := Hash(secret)
+	if err != nil {
+		return nil, "", err
+	}
+	return &APIKey{
+		Created: utils.TimeToInt64(time.Now()),
+		ID:      id,
+		Secret:  hashedSecret,
+		User:    user,
+	}, encoded, nil
+}
 
 type APIClaims struct {
 	ID string `json:"id"`
@@ -38,7 +66,7 @@ type APIToken struct {
 	APIClaims
 }
 
-func NewAPIToken(issuer string, apiKey *storage.APIKey, audience Audience) *APIToken {
+func NewAPIToken(issuer string, apiKey *APIKey, audience Audience) *APIToken {
 	return &APIToken{
 		BaseClaims: BaseClaims{
 			Issuer:   issuer,

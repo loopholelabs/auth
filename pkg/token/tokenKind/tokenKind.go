@@ -18,6 +18,11 @@ package tokenKind
 
 type Kind string
 
+var LUT = map[string]Kind{
+	"A": APITokenKind,
+	"S": ServiceTokenKind,
+}
+
 const (
 	OAuthKind        Kind = "oauth"
 	APITokenKind     Kind = "api"

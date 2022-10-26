@@ -41,17 +41,17 @@ func Hash(secret string) ([]byte, error) {
 	return bcrypt.GenerateFromPassword([]byte(secret), bcrypt.DefaultCost)
 }
 
-func Encode(identifier string, secret string) string {
-	return fmt.Sprintf("%s%s%s", identifier, Separator, secret)
+func Encode(kind string, identifier string, secret string) string {
+	return fmt.Sprintf("%s%s%s%s%s", kind, Separator, identifier, Separator, secret)
 }
 
-func Decode(encoded string) (string, string, error) {
+func Decode(encoded string) (string, string, string, error) {
 	separated := strings.Split(encoded, Separator)
-	if len(separated) != 2 {
-		return "", "", MalformedTokenError
+	if len(separated) != 3 {
+		return "", "", "", MalformedTokenError
 	}
 
-	return separated[0], separated[1], nil
+	return separated[0], separated[1], separated[2], nil
 }
 
 func Verify(secret string, hash []byte) bool {

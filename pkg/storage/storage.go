@@ -2,34 +2,20 @@ package storage
 
 import (
 	dexStorage "github.com/dexidp/dex/storage"
+	"github.com/loopholelabs/auth/pkg/token"
 )
 
-type ServiceKeyValid func(key *ServiceKey) error
-type ServiceKeyUpdate func(key *ServiceKey)
-
-type APIKey struct {
-	Created int64
-	ID      string
-	Secret  []byte
-	User    string
-}
-
-type ServiceKey struct {
-	Created  int64
-	ID       string
-	Secret   []byte
-	User     string
-	Resource string
-	NumUsed  int64
-	MaxUses  int64
-	Expires  int64
-}
+type ServiceKeyValid func(key *token.ServiceKey) error
+type ServiceKeyUpdate func(key *token.ServiceKey)
 
 type Storage interface {
 	dexStorage.Storage
 
 	UserExists(id string) (bool, error)
 
-	GetAPIKey(id string) (*APIKey, error)
-	GetServiceKey(id string, valid ServiceKeyValid, update ServiceKeyUpdate) (*ServiceKey, error)
+	GetAPIKey(id string) (*token.APIKey, error)
+	CreateAPIKey(apiKey *token.APIKey) error
+
+	GetServiceKey(id string, valid ServiceKeyValid, update ServiceKeyUpdate) (*token.ServiceKey, error)
+	CreateServiceKey(serviceKey *token.ServiceKey) error
 }

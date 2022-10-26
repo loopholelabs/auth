@@ -28,6 +28,7 @@ import (
 	"github.com/loopholelabs/auth/pkg/storage/default/ent/apikey"
 	"github.com/loopholelabs/auth/pkg/storage/default/ent/servicekey"
 	"github.com/loopholelabs/auth/pkg/storage/default/ent/user"
+	"github.com/loopholelabs/auth/pkg/token"
 	"github.com/loopholelabs/auth/pkg/token/identity"
 	"github.com/sirupsen/logrus"
 	"net"
@@ -119,7 +120,7 @@ func (d *Default) UserExists(id string) (bool, error) {
 	return d.client.User.Query().Where(user.Username(id)).Exist(context.Background())
 }
 
-func (d *Default) GetAPIKey(id string) (*storage.APIKey, error) {
+func (d *Default) GetAPIKey(id string) (*token.APIKey, error) {
 	a, err := d.client.APIKey.Query().Where(apikey.Value(id)).Only(context.Background())
 	if err != nil {
 		return nil, err
@@ -130,7 +131,7 @@ func (d *Default) GetAPIKey(id string) (*storage.APIKey, error) {
 		return nil, err
 	}
 
-	return &storage.APIKey{
+	return &token.APIKey{
 		Created: a.CreatedAt,
 		ID:      a.Value,
 		Secret:  a.Secret,
@@ -138,7 +139,16 @@ func (d *Default) GetAPIKey(id string) (*storage.APIKey, error) {
 	}, nil
 }
 
-func (d *Default) GetServiceKey(id string, valid storage.ServiceKeyValid, update storage.ServiceKeyUpdate) (*storage.ServiceKey, error) {
+func (d *Default) CreateAPIKey(key *token.APIKey) error {
+	u, err := d.client.User.Query().Where(user.Username(key.User)).Only(context.Background())
+	if err != nil {
+		return err
+	}
+	_, err = d.client.APIKey.Create().SetOwner(u).SetValue(key.ID).SetSecret(key.Secret).Save(context.Background())
+	return err
+}
+
+func (d *Default) GetServiceKey(id string, valid storage.ServiceKeyValid, update storage.ServiceKeyUpdate) (*token.ServiceKey, error) {
 	s, err := d.client.ServiceKey.Query().Where(servicekey.Value(id)).Only(context.Background())
 	if err != nil {
 		return nil, err
@@ -149,7 +159,7 @@ func (d *Default) GetServiceKey(id string, valid storage.ServiceKeyValid, update
 		return nil, err
 	}
 
-	sk := &storage.ServiceKey{
+	sk := &token.ServiceKey{
 		Created:  s.CreatedAt,
 		ID:       s.Value,
 		Secret:   s.Secret,
@@ -177,6 +187,15 @@ func (d *Default) GetServiceKey(id string, valid storage.ServiceKeyValid, update
 	}
 
 	return sk, nil
+}
+
+func (d *Default) CreateServiceKey(key *token.ServiceKey) error {
+	u, err := d.client.User.Query().Where(user.Username(key.User)).Only(context.Background())
+	if err != nil {
+		return err
+	}
+	_, err = d.client.ServiceKey.Create().SetOwner(u).SetValue(key.ID).SetSecret(key.Secret).SetResource(key.Resource).SetNumUsed(key.NumUsed).SetMaxUses(key.MaxUses).SetExpires(key.Expires).Save(context.Background())
+	return err
 }
 
 func (d *Default) NewUser(claims *identity.IDToken) error {

@@ -7,6 +7,7 @@ require (
 	github.com/AppsFlyer/go-sundheit v0.5.0
 	github.com/dexidp/dex v0.0.0-20221011121916-54c9e8231fb8
 	github.com/gofiber/fiber/v2 v2.39.0
+	github.com/google/uuid v1.3.0
 	github.com/joho/godotenv v1.4.0
 	github.com/lib/pq v1.10.7
 	github.com/mattn/go-sqlite3 v1.14.15
@@ -41,7 +42,6 @@ require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
-	github.com/google/uuid v1.3.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.1.0 // indirect
 	github.com/googleapis/gax-go/v2 v2.4.0 // indirect
 	github.com/gorilla/handlers v1.5.1 // indirect

@@ -144,129 +144,136 @@ func (s *Server) githubProviderID(name string) string {
 	return fmt.Sprintf("github-%s", name)
 }
 
-// Exchange godoc
-// @Summary      Exchange API Key or Service Key for a JWT and a Refresh Token
-// @Description  Exchange API Key or Service Key for a JWT and a Refresh Token
-// @Tags         auth
-// @Accept       x-www-form-urlencoded
-// @Produce      json
-// @Param        kind formData string  true  "Key Kind"
-// @Param        key formData string  true  "Key Value"
-// @Success      200  {object} ExchangeResponse
-// @Failure      400  {string} string
-// @Failure      401  {string} string
-// @Failure      500  {string} string
-// @Router       /exchange [post]
 func (s *Server) exchange(ctx *fiber.Ctx) error {
-	if string(ctx.Request().Header.ContentType()) == fiber.MIMEApplicationForm {
-		kind := ctx.FormValue("kind")
-		if kind == "" {
-			return fiber.NewError(fiber.StatusUnauthorized, "kind is required")
-		}
+	if string(ctx.Request().Header.ContentType()) == fiber.MIMEApplicationForm && ctx.FormValue("grant_type") == "authorization_code" {
+		if key := ctx.FormValue("code"); len(key) != 73 {
+			if clientID := ctx.FormValue("client_id"); clientID != "" {
+				client, err := s.storage.GetClient(clientID)
+				if err != nil || (!client.Public && (client.Secret != ctx.FormValue("client_secret"))) {
+					return ctx.Status(fiber.StatusUnauthorized).JSON(ExchangeError{
+						Error:            "invalid_client",
+						ErrorDescription: "invalid client",
+					})
+				}
+			}
 
-		key := ctx.FormValue("key")
-		if len(key) != 73 {
-			return fiber.NewError(fiber.StatusUnauthorized, "key is required")
-		}
-
-		tokenIdentifier, tokenSecret, err := token.Decode(key)
-		if err != nil {
-			return fiber.NewError(fiber.StatusUnauthorized, "invalid key")
-		}
-
-		switch tokenKind.Kind(kind) {
-		case tokenKind.APITokenKind:
-			apiKey, err := s.storage.GetAPIKey(tokenIdentifier)
+			kind, tokenIdentifier, tokenSecret, err := token.Decode(key)
 			if err != nil {
-				return fiber.NewError(fiber.StatusUnauthorized, "invalid API Key")
-			}
-			if !token.Verify(tokenSecret, apiKey.Secret) {
-				return fiber.NewError(fiber.StatusUnauthorized, "invalid API Key")
-			}
-			apiToken := token.NewAPIToken(s.options.Issuer, apiKey, identity.MachineAudiences)
-			refreshToken := token.NewRefreshTokenForAPIKey(s.options.Issuer, apiKey, identity.MachineAudiences)
-
-			signedAPIToken, err := apiToken.Sign(s.privateKeys, jose.RS256)
-			if err != nil {
-				return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-			}
-			signedRefreshToken, err := refreshToken.Sign(s.privateKeys, jose.RS256)
-			if err != nil {
-				return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+				return ctx.Status(fiber.StatusBadRequest).JSON(ExchangeError{
+					Error:            "invalid_grant",
+					ErrorDescription: "invalid or malformed key",
+				})
 			}
 
-			return ctx.JSON(ExchangeResponse{
-				AccessToken:  signedAPIToken,
-				TokenType:    "Bearer",
-				ExpiresIn:    int((time.Minute * 5).Seconds()),
-				RefreshToken: signedRefreshToken,
+			switch tokenKind.LUT[kind] {
+			case tokenKind.APITokenKind:
+				apiKey, err := s.storage.GetAPIKey(tokenIdentifier)
+				if err != nil {
+					return ctx.Status(fiber.StatusBadRequest).JSON(ExchangeError{
+						Error:            "invalid_grant",
+						ErrorDescription: "invalid or malformed api key",
+					})
+				}
+				if !token.Verify(tokenSecret, apiKey.Secret) {
+					return ctx.Status(fiber.StatusBadRequest).JSON(ExchangeError{
+						Error:            "invalid_grant",
+						ErrorDescription: "invalid or malformed api key",
+					})
+				}
+				apiToken := token.NewAPIToken(s.options.Issuer, apiKey, identity.MachineAudiences)
+				refreshToken := token.NewRefreshTokenForAPIKey(s.options.Issuer, apiKey, identity.MachineAudiences)
+
+				signedAPIToken, err := apiToken.Sign(s.privateKeys, jose.RS256)
+				if err != nil {
+					return ctx.Status(fiber.StatusInternalServerError).JSON(ExchangeError{
+						Error:            "server_error",
+						ErrorDescription: "internal server error",
+					})
+				}
+
+				signedRefreshToken, err := refreshToken.Sign(s.privateKeys, jose.RS256)
+				if err != nil {
+					return ctx.Status(fiber.StatusInternalServerError).JSON(ExchangeError{
+						Error:            "server_error",
+						ErrorDescription: "internal server error",
+					})
+				}
+
+				return ctx.JSON(ExchangeResponse{
+					AccessToken:  signedAPIToken,
+					TokenType:    "Bearer",
+					ExpiresIn:    int((time.Minute * 5).Seconds()),
+					RefreshToken: signedRefreshToken,
+				})
+			case tokenKind.ServiceTokenKind:
+				valid := func(key *token.ServiceKey) error {
+					if key.Expires > 0 && utils.Int64ToTime(key.Expires).Before(time.Now()) {
+						return errors.New("service key has expired")
+					}
+					if key.MaxUses > 0 && key.NumUsed >= key.MaxUses {
+						return errors.New("service key has reached max uses")
+					}
+					if !token.Verify(tokenSecret, key.Secret) {
+						return errors.New("invalid service key")
+					}
+
+					return nil
+				}
+
+				update := func(key *token.ServiceKey) {
+					key.NumUsed++
+				}
+
+				serviceKey, err := s.storage.GetServiceKey(tokenIdentifier, valid, update)
+				if err != nil {
+					return ctx.Status(fiber.StatusBadRequest).JSON(ExchangeError{
+						Error:            "invalid_grant",
+						ErrorDescription: "invalid or malformed service key",
+					})
+				}
+
+				serviceToken := token.NewServiceToken(s.options.Issuer, serviceKey, identity.MachineAudiences)
+				refreshToken := token.NewRefreshTokenForServiceKey(s.options.Issuer, serviceKey, identity.MachineAudiences)
+
+				signedServiceToken, err := serviceToken.Sign(s.privateKeys, jose.RS256)
+				if err != nil {
+					return ctx.Status(fiber.StatusInternalServerError).JSON(ExchangeError{
+						Error:            "server_error",
+						ErrorDescription: "internal server error",
+					})
+				}
+
+				signedRefreshToken, err := refreshToken.Sign(s.privateKeys, jose.RS256)
+				if err != nil {
+					return ctx.Status(fiber.StatusInternalServerError).JSON(ExchangeError{
+						Error:            "server_error",
+						ErrorDescription: "internal server error",
+					})
+				}
+
+				return ctx.JSON(ExchangeResponse{
+					AccessToken:  signedServiceToken,
+					TokenType:    "Bearer",
+					ExpiresIn:    int((time.Minute * 5).Seconds()),
+					RefreshToken: signedRefreshToken,
+				})
+			}
+			return ctx.Status(fiber.StatusBadRequest).JSON(ExchangeError{
+				Error:            "invalid_grant",
+				ErrorDescription: "invalid or malformed key",
 			})
-		case tokenKind.ServiceTokenKind:
-			valid := func(key *storage.ServiceKey) error {
-				if key.Expires > 0 && utils.Int64ToTime(key.Expires).Before(time.Now()) {
-					return errors.New("service key has expired")
-				}
-				if key.MaxUses > 0 && key.NumUsed >= key.MaxUses {
-					return errors.New("service key has reached max uses")
-				}
-				if !token.Verify(tokenSecret, key.Secret) {
-					return errors.New("invalid service key")
-				}
-
-				return nil
-			}
-
-			update := func(key *storage.ServiceKey) {
-				key.NumUsed++
-			}
-
-			serviceKey, err := s.storage.GetServiceKey(tokenIdentifier, valid, update)
-			if err != nil {
-				return fiber.NewError(fiber.StatusUnauthorized, "invalid Service Key")
-			}
-
-			serviceToken := token.NewServiceToken(s.options.Issuer, serviceKey, identity.MachineAudiences)
-			refreshToken := token.NewRefreshTokenForServiceKey(s.options.Issuer, serviceKey, identity.MachineAudiences)
-
-			signedServiceToken, err := serviceToken.Sign(s.privateKeys, jose.RS256)
-			if err != nil {
-				return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-			}
-
-			signedRefreshToken, err := refreshToken.Sign(s.privateKeys, jose.RS256)
-			if err != nil {
-				return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-			}
-
-			return ctx.JSON(ExchangeResponse{
-				AccessToken:  signedServiceToken,
-				TokenType:    "Bearer",
-				ExpiresIn:    int((time.Minute * 5).Seconds()),
-				RefreshToken: signedRefreshToken,
-			})
-		default:
-			return fiber.NewError(fiber.StatusBadRequest, "invalid token kind")
 		}
+		return ctx.Status(fiber.StatusBadRequest).JSON(ExchangeError{
+			Error:            "invalid_request",
+			ErrorDescription: "invalid request",
+		})
 	}
-
-	return fiber.NewError(fiber.StatusBadRequest, "invalid content type")
+	return ctx.Status(fiber.StatusBadRequest).JSON(ExchangeError{
+		Error:            "unsupported_grant_type",
+		ErrorDescription: "unsupported grant type",
+	})
 }
 
-// Refresh godoc
-// @Summary      Exchange a Refresh Token
-// @Description  Exchange a Refresh Token
-// @Tags         auth
-// @Accept       x-www-form-urlencoded
-// @Produce      json
-// @Param        grantType formData string  true  "Grant Type"
-// @Param        refreshToken formData string  true  "Refresh Token"
-// @Param        clientID formData string  true  "Client ID"
-// @Param        clientSecret formData string  false  "Client Secret"
-// @Success      200  {object} RefreshResponse
-// @Failure      400  {object} RefreshError
-// @Failure      401  {object} RefreshError
-// @Failure      500  {object} RefreshError
-// @Router       /refresh [post]
 func (s *Server) refresh(ctx *fiber.Ctx) error {
 	if string(ctx.Request().Header.ContentType()) == fiber.MIMEApplicationForm && ctx.FormValue("grant_type") == "refresh_token" {
 		if refreshToken := ctx.FormValue("refresh_token"); refreshToken != "" {

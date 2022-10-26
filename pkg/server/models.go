@@ -18,10 +18,13 @@ package server
 
 import "github.com/loopholelabs/auth/pkg/token/identity"
 
-type ExchangeResponse identity.TokenResponse
-type RefreshResponse identity.TokenResponse
-
-type RefreshError struct {
+type TokenError struct {
 	Error            string `json:"error"`
 	ErrorDescription string `json:"error_description"`
 }
+
+type ExchangeResponse identity.TokenResponse
+type RefreshResponse identity.TokenResponse
+
+type ExchangeError TokenError
+type RefreshError TokenError
