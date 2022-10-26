@@ -28,9 +28,13 @@ import (
 )
 
 func main() {
+	logger := logrus.New()
+	logger.Info("Starting Auth Server")
 	conf := config.New()
 
-	d, err := database.New(conf.Database.Type, conf.Database.URL, logrus.New())
+	logger.Infof("Config: %+v", conf)
+
+	d, err := database.New(conf.Database.Type, conf.Database.URL, logrus.NewEntry(logger).WithField("COMPONENT", "DATABASE"))
 	if err != nil {
 		panic(err)
 	}

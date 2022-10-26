@@ -27,13 +27,14 @@ func init() {
 }
 
 type Config struct {
-	Debug    bool     `json:"debug"`
-	Listen   string   `json:"listen"`
-	Issuer   string   `json:"issuer"`
-	TLS      bool     `json:"tls"`
-	Database Database `json:"database"`
-	OAuth    OAuth    `json:"oauth"`
-	Clients  []Client `json:"clients"`
+	Debug       bool     `json:"debug"`
+	Listen      string   `json:"listen"`
+	Issuer      string   `json:"issuer"`
+	TLS         bool     `json:"tls"`
+	Database    Database `json:"database"`
+	DexDatabase Database `json:"dex_database"`
+	OAuth       OAuth    `json:"oauth"`
+	Clients     []Client `json:"clients"`
 }
 
 type Database struct {
@@ -91,6 +92,16 @@ func New() Config {
 		databaseURL = ":memory:?_fk=1"
 	}
 
+	dexDatabaseType, exists := os.LookupEnv("DEX_DATABASE_TYPE")
+	if !exists {
+		dexDatabaseType = "sqlite3"
+	}
+
+	dexDatabaseURL, exists := os.LookupEnv("DEX_DATABASE_URL")
+	if !exists {
+		dexDatabaseURL = ":memory:?_fk=1"
+	}
+
 	oauthGithubEnabled, err := strconv.ParseBool(os.Getenv("OAUTH_GITHUB_ENABLED"))
 	if err != nil {
 		oauthGithubEnabled = false
@@ -135,6 +146,10 @@ func New() Config {
 		Database: Database{
 			Type: databaseType,
 			URL:  databaseURL,
+		},
+		DexDatabase: Database{
+			Type: dexDatabaseType,
+			URL:  dexDatabaseURL,
 		},
 		OAuth: OAuth{
 			GithubOAuth: GithubOAuth{

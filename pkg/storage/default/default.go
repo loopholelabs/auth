@@ -47,27 +47,29 @@ type Default struct {
 }
 
 func New(connector string, url string, logger log.Logger) (*Default, error) {
+	logger.Infof("connecting to %s database at %s", connector, url)
 	client, err := ent.Open(connector, url)
 	if err != nil {
 		return nil, err
 	}
 
+	logger.Infof("running database migrations")
 	err = client.Schema.Create(context.Background())
 	if err != nil {
 		return nil, err
 	}
 
-	logrus.Infof("Connecting to %s database", connector)
-
+	logger.Infof("creating database for dex")
 	var st dexStorage.Storage
 	switch connector {
 	case dialect.Postgres:
+		logger.Infof("using postgres dialect")
 		parsed, err := parsePG(url)
 		if err != nil {
 			return nil, err
 		}
 
-		logrus.Infof("Parsed Postgres URL: %v", parsed)
+		logrus.Infof("parsed postgres url: %+v", parsed)
 
 		port, err := strconv.Atoi(parsed["port"])
 		if err != nil {
@@ -92,6 +94,7 @@ func New(connector string, url string, logger log.Logger) (*Default, error) {
 			return nil, err
 		}
 	case dialect.SQLite:
+		logger.Infof("using sqlite dialect")
 		s := dexSQL.SQLite3{
 			File: url,
 		}
@@ -103,6 +106,8 @@ func New(connector string, url string, logger log.Logger) (*Default, error) {
 	default:
 		return nil, fmt.Errorf("unsupported connector %s", connector)
 	}
+
+	logrus.Info("created database for dex")
 
 	return &Default{
 		client:  client,
