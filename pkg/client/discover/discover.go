@@ -17,6 +17,7 @@
 package discover
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/cli/oauth"
 	"golang.org/x/oauth2"
@@ -63,6 +64,7 @@ func Discover(transport http.RoundTripper, issuer string) (*Discovery, error) {
 	}
 
 	d := new(Discovery)
+	err = json.Unmarshal(body, d)
 	if err != nil {
 		ct := resp.Header.Get("Content-Type")
 		mediaType, _, parseErr := mime.ParseMediaType(ct)
