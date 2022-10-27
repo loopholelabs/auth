@@ -17,6 +17,7 @@
 package client
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"fmt"
@@ -24,6 +25,7 @@ import (
 	"github.com/loopholelabs/auth/pkg/client/discover"
 	"github.com/loopholelabs/auth/pkg/token/tokenKind"
 	"golang.org/x/oauth2"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -53,6 +55,8 @@ func (c *CompatibleClient) PostForm(uri string, data url.Values) (*http.Response
 	for k, v := range data {
 		req.Form.Set(k, v[0])
 	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Body = io.NopCloser(bytes.NewBufferString(req.Form.Encode()))
 	return c.transport.RoundTrip(req)
 }
 
