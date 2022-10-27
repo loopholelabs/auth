@@ -68,8 +68,21 @@ func main() {
 
 	for _, c := range conf.Clients {
 		err = server.CreateClient(d, c.ID, c.Secret, []string{c.RedirectURI}, c.Public, c.ID, c.Logo)
-		if err != nil && !errors.Is(err, dexStorage.ErrAlreadyExists) {
-			panic(err)
+		if err != nil {
+			if errors.Is(err, dexStorage.ErrAlreadyExists) {
+				cl, err := server.GetClient(d, c.ID)
+				if err != nil {
+					panic(err)
+				}
+				if cl.Secret != c.Secret || len(cl.RedirectURIs) != 1 || cl.RedirectURIs[0] != c.RedirectURI || cl.Public != c.Public || cl.LogoURL != c.Logo {
+					err = server.UpdateClient(d, c.ID, c.Secret, []string{c.RedirectURI}, c.Public, c.ID, c.Logo)
+					if err != nil {
+						panic(err)
+					}
+				}
+			} else {
+				panic(err)
+			}
 		}
 	}
 

@@ -520,6 +520,22 @@ func CreateClient(st storage.Storage, id string, secret string, redirect []strin
 	})
 }
 
+func GetClient(st storage.Storage, id string) (dexStorage.Client, error) {
+	return st.GetClient(id)
+}
+
+func UpdateClient(st storage.Storage, id string, secret string, redirect []string, public bool, name string, logo string) error {
+	return st.UpdateClient(id, func(old dexStorage.Client) (dexStorage.Client, error) {
+		old.Secret = secret
+		old.RedirectURIs = redirect
+		old.Public = public
+		old.Name = name
+		old.LogoURL = logo
+
+		return old, nil
+	})
+}
+
 func BootstrapConnectors(storage storage.Storage, github *providers.GithubProvider) error {
 	connectors, err := storage.ListConnectors()
 	if err != nil {
