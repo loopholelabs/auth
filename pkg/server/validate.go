@@ -19,7 +19,6 @@ package server
 import (
 	"encoding/json"
 	"github.com/gofiber/fiber/v2"
-	"github.com/loopholelabs/auth/pkg/keyset"
 	"github.com/loopholelabs/auth/pkg/token"
 	"github.com/loopholelabs/auth/pkg/token/identity"
 	"github.com/loopholelabs/auth/pkg/token/tokenKind"
@@ -37,14 +36,14 @@ const (
 	ServiceKey    = "service"
 )
 
-func (s *Server) Validate(clientID string, keySet *keyset.Public) fiber.Handler {
+func (s *Server) Validate(clientID string) fiber.Handler {
 	return func(ctx *fiber.Ctx) error {
 		authorizationHeader := ctx.Request().Header.Peek("Authorization")
 		if authorizationHeader == nil || len(authorizationHeader) <= len(BearerPrefix) {
 			return fiber.NewError(fiber.StatusUnauthorized, "invalid authorization header")
 		}
 
-		partialToken, payload, err := token.PartialPopulate(keySet, string(authorizationHeader[len(BearerPrefix):]))
+		partialToken, payload, err := token.PartialPopulate(s.publicKeys, string(authorizationHeader[len(BearerPrefix):]))
 		if err != nil {
 			return fiber.NewError(fiber.StatusUnauthorized, err.Error())
 		}
