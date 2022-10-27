@@ -83,7 +83,7 @@ func main() {
 					}
 					logger.Infof("Client %s updated", c.ID)
 				} else {
-					logger.Infof("Client %s does not need to be updated (%+v)", c.ID, cl)
+					logger.Infof("Client %s does not need to be updated", c.ID, cl)
 				}
 			} else {
 				panic(err)
