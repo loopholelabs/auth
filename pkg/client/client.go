@@ -61,21 +61,28 @@ func (c *CompatibleClient) PostForm(uri string, data url.Values) (*http.Response
 }
 
 func UnauthenticatedClient(endpoint string, basePath string, schemes []string, tlsConfig *tls.Config) (*client.Runtime, *http.Client) {
-	transport := &http.Transport{
-		TLSClientConfig: tlsConfig,
-	}
-	httpClient := &http.Client{Transport: transport}
-
 	if strings.HasPrefix(endpoint, "https://") {
 		endpoint = strings.TrimPrefix(endpoint, "https://")
 	}
 	if strings.HasPrefix(endpoint, "http://") {
 		endpoint = strings.TrimPrefix(endpoint, "http://")
 	}
+
+	transport := &http.Transport{
+		TLSClientConfig: tlsConfig,
+	}
+	httpClient := &http.Client{Transport: transport}
 	return client.NewWithClient(endpoint, basePath, schemes, httpClient), httpClient
 }
 
 func AuthenticatedClient(endpoint string, basePath string, schemes []string, tlsConfig *tls.Config, authEndpoint string, clientID string, kind tokenKind.Kind, token *Token) (TokenSource, *client.Runtime, error) {
+	if strings.HasPrefix(endpoint, "https://") {
+		endpoint = strings.TrimPrefix(endpoint, "https://")
+	}
+	if strings.HasPrefix(endpoint, "http://") {
+		endpoint = strings.TrimPrefix(endpoint, "http://")
+	}
+
 	_, hc := UnauthenticatedClient(endpoint, basePath, schemes, tlsConfig)
 
 	var conf *Config
