@@ -66,6 +66,12 @@ func UnauthenticatedClient(endpoint string, basePath string, schemes []string, t
 	}
 	httpClient := &http.Client{Transport: transport}
 
+	if strings.HasPrefix(endpoint, "https://") {
+		endpoint = strings.TrimPrefix(endpoint, "https://")
+	}
+	if strings.HasPrefix(endpoint, "http://") {
+		endpoint = strings.TrimPrefix(endpoint, "http://")
+	}
 	return client.NewWithClient(endpoint, basePath, schemes, httpClient), httpClient
 }
 
