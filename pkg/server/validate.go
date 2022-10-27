@@ -18,6 +18,7 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"github.com/gofiber/fiber/v2"
 	"github.com/loopholelabs/auth/pkg/keyset"
 	"github.com/loopholelabs/auth/pkg/token"
@@ -37,79 +38,120 @@ const (
 	ServiceKey    = "service"
 )
 
-func Validate(clientID string, issuer string, keySet keyset.Verifier) fiber.Handler {
+type Identity struct {
+	Kind       tokenKind.Kind
+	Claims     interface{}
+	Identifier string
+	Key        string
+}
+
+func ValidateHandler(clientIDs []string, issuer string, keySet keyset.Verifier) fiber.Handler {
+	validate := Validate(clientIDs, issuer, keySet)
 	return func(ctx *fiber.Ctx) error {
 		authorizationHeader := ctx.Request().Header.Peek("Authorization")
 		if authorizationHeader == nil || len(authorizationHeader) <= len(BearerPrefix) {
 			return fiber.NewError(fiber.StatusUnauthorized, "invalid authorization header")
 		}
 
-		partialToken, payload, err := token.PartialPopulate(keySet, string(authorizationHeader[len(BearerPrefix):]))
+		i, err := validate(string(authorizationHeader[len(BearerPrefix):]))
 		if err != nil {
 			return fiber.NewError(fiber.StatusUnauthorized, err.Error())
 		}
 
+		ctx.Locals(KindKey, i.Kind)
+		ctx.Locals(ClaimsKey, i.Claims)
+		ctx.Locals(IdentifierKey, i.Identifier)
+		switch i.Kind {
+		case tokenKind.APITokenKind:
+			ctx.Locals(APIKey, i.Key)
+		case tokenKind.ServiceTokenKind:
+			ctx.Locals(ServiceKey, i.Key)
+		}
+
+		return ctx.Next()
+	}
+}
+
+func Validate(clientIDs []string, issuer string, keySet keyset.Verifier) func(rawToken string) (*Identity, error) {
+	return func(rawToken string) (*Identity, error) {
+		partialToken, payload, err := token.PartialPopulate(keySet, rawToken)
+		if err != nil {
+			return nil, err
+		}
+
 		if !partialToken.ValidExpiry() {
-			return fiber.NewError(fiber.StatusUnauthorized, "token expired")
+			return nil, errors.New("token expired")
 		}
 
 		if !partialToken.ValidIssuer(issuer) {
-			return fiber.NewError(fiber.StatusUnauthorized, "invalid issuer")
+			return nil, errors.New("invalid issuer")
 		}
 
 		switch partialToken.Kind {
 		case tokenKind.APITokenKind:
 			if !partialToken.ValidAudience(identity.MachineAudience) {
-				return fiber.NewError(fiber.StatusUnauthorized, "invalid audience")
+				return nil, errors.New("invalid audience")
 			}
 			apiClaims := new(token.APIClaims)
 			err = json.Unmarshal(payload, apiClaims)
 			if err != nil {
-				return fiber.NewError(fiber.StatusUnauthorized, err.Error())
+				return nil, err
 			}
 			if !apiClaims.Valid() {
-				return fiber.NewError(fiber.StatusUnauthorized, "invalid claims")
+				return nil, errors.New("invalid claims")
 			}
 
-			ctx.Locals(KindKey, tokenKind.APITokenKind)
-			ctx.Locals(ClaimsKey, apiClaims)
-			ctx.Locals(IdentifierKey, partialToken.Subject)
-			ctx.Locals(APIKey, apiClaims.ID)
+			return &Identity{
+				Kind:       tokenKind.APITokenKind,
+				Claims:     apiClaims,
+				Identifier: partialToken.Subject,
+				Key:        apiClaims.ID,
+			}, nil
 		case tokenKind.ServiceTokenKind:
 			if !partialToken.ValidAudience(identity.MachineAudience) {
-				return fiber.NewError(fiber.StatusUnauthorized, "invalid audience")
+				return nil, errors.New("invalid audience")
 			}
 			serviceClaims := new(token.ServiceClaims)
 			err = json.Unmarshal(payload, serviceClaims)
 			if err != nil {
-				return fiber.NewError(fiber.StatusUnauthorized, err.Error())
+				return nil, err
 			}
 			if !serviceClaims.Valid() {
-				return fiber.NewError(fiber.StatusUnauthorized, "invalid claims")
+				return nil, errors.New("invalid claims")
 			}
 
-			ctx.Locals(KindKey, tokenKind.ServiceTokenKind)
-			ctx.Locals(ClaimsKey, serviceClaims)
-			ctx.Locals(IdentifierKey, partialToken.Subject)
-			ctx.Locals(ServiceKey, serviceClaims.ID)
+			return &Identity{
+				Kind:       tokenKind.ServiceTokenKind,
+				Claims:     serviceClaims,
+				Identifier: partialToken.Subject,
+				Key:        serviceClaims.ID,
+			}, nil
 		case tokenKind.OAuthKind:
-			if !partialToken.ValidAudience(clientID) {
-				return fiber.NewError(fiber.StatusUnauthorized, "invalid audience")
+			validAudience := false
+			for _, clientID := range clientIDs {
+				if partialToken.ValidAudience(clientID) {
+					validAudience = true
+					break
+				}
+			}
+			if !validAudience {
+				return nil, errors.New("invalid audience")
 			}
 			idClaims := new(identity.IDClaims)
 			err = json.Unmarshal(payload, idClaims)
 			if err != nil {
-				return fiber.NewError(fiber.StatusUnauthorized, err.Error())
+				return nil, err
 			}
 
-			ctx.Locals(KindKey, tokenKind.OAuthKind)
-			ctx.Locals(ClaimsKey, idClaims)
-			ctx.Locals(IdentifierKey, partialToken.Subject)
+			return &Identity{
+				Kind:       tokenKind.OAuthKind,
+				Claims:     idClaims,
+				Identifier: partialToken.Subject,
+			}, nil
 		case tokenKind.RefreshTokenKind:
 			fallthrough
 		default:
-			return fiber.NewError(fiber.StatusUnauthorized, "invalid token kind")
+			return nil, errors.New("invalid token kind")
 		}
-		return ctx.Next()
 	}
 }
