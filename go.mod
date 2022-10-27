@@ -2,9 +2,7 @@ module github.com/loopholelabs/auth
 
 go 1.18
 
-replace (
-	github.com/cli/oauth => github.com/loopholelabs/oauth v0.9.1-0.20220527202752-e34b38d3c015
-)
+replace github.com/cli/oauth => github.com/loopholelabs/oauth v0.9.1-0.20221027010438-97eb30e6b176
 
 require (
 	entgo.io/ent v0.11.3
