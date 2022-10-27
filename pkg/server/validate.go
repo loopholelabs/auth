@@ -37,7 +37,7 @@ const (
 	ServiceKey    = "service"
 )
 
-func Validate(clientID string, issuer string, keySet *keyset.Public) fiber.Handler {
+func Validate(clientID string, issuer string, keySet keyset.Verifier) fiber.Handler {
 	return func(ctx *fiber.Ctx) error {
 		authorizationHeader := ctx.Request().Header.Peek("Authorization")
 		if authorizationHeader == nil || len(authorizationHeader) <= len(BearerPrefix) {

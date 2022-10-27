@@ -36,6 +36,10 @@ type updater struct {
 	err      error
 }
 
+type Verifier interface {
+	Verify(jws *jose.JSONWebSignature) ([]byte, error)
+}
+
 func NewPublic(storage storage.Storage) *Public {
 	return &Public{
 		KeySet: KeySet{
@@ -50,4 +54,8 @@ func NewPrivate(storage storage.Storage) *Private {
 			storage: storage,
 		},
 	}
+}
+
+func NewRemote(jwksURL string) *Remote {
+	return newRemote(jwksURL, time.Now)
 }

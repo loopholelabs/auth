@@ -74,7 +74,7 @@ type OAuthTime struct {
 
 type PartialToken BaseClaims
 
-func PartialPopulate(keySet *keyset.Public, token string) (*PartialToken, []byte, error) {
+func PartialPopulate(keySet keyset.Verifier, token string) (*PartialToken, []byte, error) {
 	sig, err := jose.ParseSigned(token)
 	if err != nil {
 		return nil, nil, err
