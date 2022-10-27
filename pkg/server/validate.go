@@ -87,11 +87,19 @@ func Validate(clientIDs []string, issuer string, keySet keyset.Verifier) func(ra
 			return nil, errors.New("invalid issuer")
 		}
 
+		validAudience := false
+		for _, clientID := range clientIDs {
+			if partialToken.ValidAudience(clientID) {
+				validAudience = true
+				break
+			}
+		}
+		if !validAudience {
+			return nil, errors.New("invalid audience")
+		}
+
 		switch partialToken.Kind {
 		case tokenKind.APITokenKind:
-			if !partialToken.ValidAudience(identity.MachineAudience) {
-				return nil, errors.New("invalid audience")
-			}
 			apiClaims := new(token.APIClaims)
 			err = json.Unmarshal(payload, apiClaims)
 			if err != nil {
@@ -108,9 +116,6 @@ func Validate(clientIDs []string, issuer string, keySet keyset.Verifier) func(ra
 				Key:        apiClaims.ID,
 			}, nil
 		case tokenKind.ServiceTokenKind:
-			if !partialToken.ValidAudience(identity.MachineAudience) {
-				return nil, errors.New("invalid audience")
-			}
 			serviceClaims := new(token.ServiceClaims)
 			err = json.Unmarshal(payload, serviceClaims)
 			if err != nil {
@@ -127,16 +132,6 @@ func Validate(clientIDs []string, issuer string, keySet keyset.Verifier) func(ra
 				Key:        serviceClaims.ID,
 			}, nil
 		case tokenKind.OAuthKind:
-			validAudience := false
-			for _, clientID := range clientIDs {
-				if partialToken.ValidAudience(clientID) {
-					validAudience = true
-					break
-				}
-			}
-			if !validAudience {
-				return nil, errors.New("invalid audience")
-			}
 			idClaims := new(identity.IDClaims)
 			err = json.Unmarshal(payload, idClaims)
 			if err != nil {

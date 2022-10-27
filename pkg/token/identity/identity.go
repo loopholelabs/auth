@@ -18,14 +18,6 @@ package identity
 
 import "github.com/loopholelabs/auth/pkg/token"
 
-const (
-	MachineAudience = "machine"
-)
-
-var (
-	MachineAudiences = token.Audience{MachineAudience}
-)
-
 type FederatedIDClaims struct {
 	ConnectorID string `json:"connector_id,omitempty"`
 	UserID      string `json:"user_id,omitempty"`

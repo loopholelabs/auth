@@ -33,7 +33,6 @@ import (
 	"github.com/loopholelabs/auth/pkg/refreshpolicy"
 	"github.com/loopholelabs/auth/pkg/storage"
 	"github.com/loopholelabs/auth/pkg/token"
-	"github.com/loopholelabs/auth/pkg/token/identity"
 	"github.com/loopholelabs/auth/pkg/token/tokenKind"
 	"github.com/loopholelabs/auth/pkg/utils"
 	"github.com/valyala/fasthttp/fasthttpadaptor"
@@ -147,14 +146,19 @@ func (s *Server) githubProviderID(name string) string {
 func (s *Server) exchange(ctx *fiber.Ctx) error {
 	if string(ctx.Request().Header.ContentType()) == fiber.MIMEApplicationForm && ctx.FormValue("grant_type") == "authorization_code" {
 		if key := ctx.FormValue("code"); len(key) != 73 {
-			if clientID := ctx.FormValue("client_id"); clientID != "" {
-				client, err := s.storage.GetClient(clientID)
-				if err != nil || (!client.Public && (client.Secret != ctx.FormValue("client_secret"))) {
-					return ctx.Status(fiber.StatusUnauthorized).JSON(ExchangeError{
-						Error:            "invalid_client",
-						ErrorDescription: "invalid client",
-					})
-				}
+			clientID := ctx.FormValue("client_id")
+			if clientID == "" {
+				return ctx.Status(fiber.StatusUnauthorized).JSON(ExchangeError{
+					Error:            "invalid_client",
+					ErrorDescription: "invalid client",
+				})
+			}
+			client, err := s.storage.GetClient(clientID)
+			if err != nil || (!client.Public && (client.Secret != ctx.FormValue("client_secret"))) {
+				return ctx.Status(fiber.StatusUnauthorized).JSON(ExchangeError{
+					Error:            "invalid_client",
+					ErrorDescription: "invalid client",
+				})
 			}
 
 			kind, tokenIdentifier, tokenSecret, err := token.Decode(key)
@@ -180,8 +184,8 @@ func (s *Server) exchange(ctx *fiber.Ctx) error {
 						ErrorDescription: "invalid or malformed api key",
 					})
 				}
-				apiToken := token.NewAPIToken(s.options.Issuer, apiKey, identity.MachineAudiences)
-				refreshToken := token.NewRefreshTokenForAPIKey(s.options.Issuer, apiKey, identity.MachineAudiences)
+				apiToken := token.NewAPIToken(s.options.Issuer, apiKey, token.Audience{clientID})
+				refreshToken := token.NewRefreshTokenForAPIKey(s.options.Issuer, apiKey, token.Audience{clientID})
 
 				signedAPIToken, err := apiToken.Sign(s.privateKeys, jose.RS256)
 				if err != nil {
@@ -232,8 +236,8 @@ func (s *Server) exchange(ctx *fiber.Ctx) error {
 					})
 				}
 
-				serviceToken := token.NewServiceToken(s.options.Issuer, serviceKey, identity.MachineAudiences)
-				refreshToken := token.NewRefreshTokenForServiceKey(s.options.Issuer, serviceKey, identity.MachineAudiences)
+				serviceToken := token.NewServiceToken(s.options.Issuer, serviceKey, token.Audience{clientID})
+				refreshToken := token.NewRefreshTokenForServiceKey(s.options.Issuer, serviceKey, token.Audience{clientID})
 
 				signedServiceToken, err := serviceToken.Sign(s.privateKeys, jose.RS256)
 				if err != nil {
@@ -277,17 +281,22 @@ func (s *Server) exchange(ctx *fiber.Ctx) error {
 func (s *Server) refresh(ctx *fiber.Ctx) error {
 	if string(ctx.Request().Header.ContentType()) == fiber.MIMEApplicationForm && ctx.FormValue("grant_type") == "refresh_token" {
 		if refreshToken := ctx.FormValue("refresh_token"); refreshToken != "" {
-			if clientID := ctx.FormValue("client_id"); clientID != "" {
-				client, err := s.storage.GetClient(clientID)
-				if err != nil || (!client.Public && (client.Secret != ctx.FormValue("client_secret"))) {
-					return ctx.Status(fiber.StatusUnauthorized).JSON(RefreshError{
-						Error:            "invalid_client",
-						ErrorDescription: "invalid client",
-					})
-				}
+			clientID := ctx.FormValue("client_id")
+			if clientID == "" {
+				return ctx.Status(fiber.StatusUnauthorized).JSON(ExchangeError{
+					Error:            "invalid_client",
+					ErrorDescription: "invalid client",
+				})
+			}
+			client, err := s.storage.GetClient(clientID)
+			if err != nil || (!client.Public && (client.Secret != ctx.FormValue("client_secret"))) {
+				return ctx.Status(fiber.StatusUnauthorized).JSON(ExchangeError{
+					Error:            "invalid_client",
+					ErrorDescription: "invalid client",
+				})
 			}
 			var r token.RefreshToken
-			err := r.Populate(refreshToken, s.publicKeys)
+			err = r.Populate(refreshToken, s.publicKeys)
 			if err != nil {
 				return ctx.Status(fiber.StatusBadRequest).JSON(RefreshError{
 					Error:            "invalid_grant",
@@ -312,8 +321,7 @@ func (s *Server) refresh(ctx *fiber.Ctx) error {
 			switch r.For {
 			case tokenKind.APITokenKind:
 				if apiKey, err := s.storage.GetAPIKey(r.ID); err == nil {
-
-					apiToken := token.NewAPIToken(s.options.Issuer, apiKey, identity.MachineAudiences)
+					apiToken := token.NewAPIToken(s.options.Issuer, apiKey, token.Audience{clientID})
 					r.Expiry = token.Time(time.Now().Add(time.Hour * 24 * 7))
 					r.IssuedAt = token.Time(time.Now())
 
@@ -347,7 +355,7 @@ func (s *Server) refresh(ctx *fiber.Ctx) error {
 				}
 			case tokenKind.ServiceTokenKind:
 				if serviceKey, err := s.storage.GetServiceKey(r.ID, nil, nil); err == nil {
-					serviceToken := token.NewServiceToken(s.options.Issuer, serviceKey, identity.MachineAudiences)
+					serviceToken := token.NewServiceToken(s.options.Issuer, serviceKey, token.Audience{clientID})
 					r.Expiry = token.Time(time.Now().Add(time.Hour * 24 * 7))
 					r.IssuedAt = token.Time(time.Now())
 
