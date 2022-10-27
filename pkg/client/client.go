@@ -42,7 +42,7 @@ func NewCompatibleClient(transport http.RoundTripper) *CompatibleClient {
 }
 
 func (c *CompatibleClient) PostForm(uri string, data url.Values) (*http.Response, error) {
-	if !(strings.HasPrefix("https://", uri) || strings.HasPrefix("http://", uri)) {
+	if !(strings.HasPrefix(uri, "https://") || strings.HasPrefix(uri, "http://")) {
 		uri = "https://" + uri
 	}
 	req, err := http.NewRequest("POST", uri, nil)
