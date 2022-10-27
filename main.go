@@ -70,15 +70,18 @@ func main() {
 		err = server.CreateClient(d, c.ID, c.Secret, []string{c.RedirectURI}, c.Public, c.ID, c.Logo)
 		if err != nil {
 			if errors.Is(err, dexStorage.ErrAlreadyExists) {
+				logger.Infof("Client %s already exists, checking if it needs to be updated", c.ID)
 				cl, err := server.GetClient(d, c.ID)
 				if err != nil {
 					panic(err)
 				}
 				if cl.Secret != c.Secret || len(cl.RedirectURIs) != 1 || cl.RedirectURIs[0] != c.RedirectURI || cl.Public != c.Public || cl.LogoURL != c.Logo {
+					logger.Infof("Client %s needs to be updated", c.ID)
 					err = server.UpdateClient(d, c.ID, c.Secret, []string{c.RedirectURI}, c.Public, c.ID, c.Logo)
 					if err != nil {
 						panic(err)
 					}
+					logger.Infof("Client %s updated", c.ID)
 				}
 			} else {
 				panic(err)
