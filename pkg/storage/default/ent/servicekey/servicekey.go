@@ -9,6 +9,8 @@ const (
 	FieldID = "id"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
+	// FieldName holds the string denoting the name field in the database.
+	FieldName = "name"
 	// FieldValue holds the string denoting the value field in the database.
 	FieldValue = "value"
 	// FieldSecret holds the string denoting the secret field in the database.
@@ -38,6 +40,7 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldCreatedAt,
+	FieldName,
 	FieldValue,
 	FieldSecret,
 	FieldResource,
@@ -70,8 +73,12 @@ func ValidColumn(column string) bool {
 var (
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() int64
+	// NameValidator is a validator for the "name" field. It is called by the builders before save.
+	NameValidator func(string) error
 	// ValueValidator is a validator for the "value" field. It is called by the builders before save.
 	ValueValidator func(string) error
+	// SecretValidator is a validator for the "secret" field. It is called by the builders before save.
+	SecretValidator func([]byte) error
 	// DefaultResource holds the default value on creation for the "resource" field.
 	DefaultResource string
 	// DefaultNumUsed holds the default value on creation for the "num_used" field.

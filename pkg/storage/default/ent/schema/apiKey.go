@@ -16,6 +16,7 @@ type APIKey struct {
 func (APIKey) Fields() []ent.Field {
 	return []ent.Field{
 		field.Int64("created_at").Immutable().DefaultFunc(utils.TimeInt64Now),
+		field.String("name").NotEmpty().Immutable(),
 		field.String("value").Unique().NotEmpty().Immutable(),
 		field.Bytes("secret").Immutable(),
 	}

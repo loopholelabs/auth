@@ -32,6 +32,7 @@ import (
 // The 'S' prefix is used to differentiate between API keys and Service Keys.
 type ServiceKey struct {
 	Created  int64
+	Name     string
 	ID       string
 	Secret   []byte
 	User     string
@@ -41,7 +42,7 @@ type ServiceKey struct {
 	Expires  int64
 }
 
-func NewServiceKey(user string, resource string, maxUses int64, expires int64) (*ServiceKey, string, error) {
+func NewServiceKey(name string, user string, resource string, maxUses int64, expires int64) (*ServiceKey, string, error) {
 	id := uuid.New().String()
 	secret := uuid.New().String()
 	encoded := Encode("S", id, secret)
@@ -51,6 +52,7 @@ func NewServiceKey(user string, resource string, maxUses int64, expires int64) (
 	}
 	return &ServiceKey{
 		Created:  utils.TimeToInt64(time.Now()),
+		Name:     name,
 		ID:       id,
 		Secret:   hashedSecret,
 		User:     user,
@@ -62,6 +64,7 @@ func NewServiceKey(user string, resource string, maxUses int64, expires int64) (
 
 type ServiceClaims struct {
 	ID       string `json:"id"`
+	Name     string `json:"name"`
 	Resource string `json:"resource"`
 }
 
@@ -86,6 +89,7 @@ func NewServiceToken(issuer string, serviceKey *ServiceKey, audience Audience) *
 		},
 		ServiceClaims: ServiceClaims{
 			ID:       serviceKey.ID,
+			Name:     serviceKey.Name,
 			Resource: serviceKey.Resource,
 		},
 	}

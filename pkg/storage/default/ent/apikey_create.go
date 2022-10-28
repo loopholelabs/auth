@@ -34,6 +34,12 @@ func (akc *APIKeyCreate) SetNillableCreatedAt(i *int64) *APIKeyCreate {
 	return akc
 }
 
+// SetName sets the "name" field.
+func (akc *APIKeyCreate) SetName(s string) *APIKeyCreate {
+	akc.mutation.SetName(s)
+	return akc
+}
+
 // SetValue sets the "value" field.
 func (akc *APIKeyCreate) SetValue(s string) *APIKeyCreate {
 	akc.mutation.SetValue(s)
@@ -153,6 +159,14 @@ func (akc *APIKeyCreate) check() error {
 	if _, ok := akc.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "APIKey.created_at"`)}
 	}
+	if _, ok := akc.mutation.Name(); !ok {
+		return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "APIKey.name"`)}
+	}
+	if v, ok := akc.mutation.Name(); ok {
+		if err := apikey.NameValidator(v); err != nil {
+			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "APIKey.name": %w`, err)}
+		}
+	}
 	if _, ok := akc.mutation.Value(); !ok {
 		return &ValidationError{Name: "value", err: errors.New(`ent: missing required field "APIKey.value"`)}
 	}
@@ -198,6 +212,14 @@ func (akc *APIKeyCreate) createSpec() (*APIKey, *sqlgraph.CreateSpec) {
 			Column: apikey.FieldCreatedAt,
 		})
 		_node.CreatedAt = value
+	}
+	if value, ok := akc.mutation.Name(); ok {
+		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: apikey.FieldName,
+		})
+		_node.Name = value
 	}
 	if value, ok := akc.mutation.Value(); ok {
 		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{

@@ -34,6 +34,12 @@ func (skc *ServiceKeyCreate) SetNillableCreatedAt(i *int64) *ServiceKeyCreate {
 	return skc
 }
 
+// SetName sets the "name" field.
+func (skc *ServiceKeyCreate) SetName(s string) *ServiceKeyCreate {
+	skc.mutation.SetName(s)
+	return skc
+}
+
 // SetValue sets the "value" field.
 func (skc *ServiceKeyCreate) SetValue(s string) *ServiceKeyCreate {
 	skc.mutation.SetValue(s)
@@ -225,6 +231,14 @@ func (skc *ServiceKeyCreate) check() error {
 	if _, ok := skc.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "ServiceKey.created_at"`)}
 	}
+	if _, ok := skc.mutation.Name(); !ok {
+		return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "ServiceKey.name"`)}
+	}
+	if v, ok := skc.mutation.Name(); ok {
+		if err := servicekey.NameValidator(v); err != nil {
+			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "ServiceKey.name": %w`, err)}
+		}
+	}
 	if _, ok := skc.mutation.Value(); !ok {
 		return &ValidationError{Name: "value", err: errors.New(`ent: missing required field "ServiceKey.value"`)}
 	}
@@ -235,6 +249,11 @@ func (skc *ServiceKeyCreate) check() error {
 	}
 	if _, ok := skc.mutation.Secret(); !ok {
 		return &ValidationError{Name: "secret", err: errors.New(`ent: missing required field "ServiceKey.secret"`)}
+	}
+	if v, ok := skc.mutation.Secret(); ok {
+		if err := servicekey.SecretValidator(v); err != nil {
+			return &ValidationError{Name: "secret", err: fmt.Errorf(`ent: validator failed for field "ServiceKey.secret": %w`, err)}
+		}
 	}
 	if _, ok := skc.mutation.Resource(); !ok {
 		return &ValidationError{Name: "resource", err: errors.New(`ent: missing required field "ServiceKey.resource"`)}
@@ -282,6 +301,14 @@ func (skc *ServiceKeyCreate) createSpec() (*ServiceKey, *sqlgraph.CreateSpec) {
 			Column: servicekey.FieldCreatedAt,
 		})
 		_node.CreatedAt = value
+	}
+	if value, ok := skc.mutation.Name(); ok {
+		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: servicekey.FieldName,
+		})
+		_node.Name = value
 	}
 	if value, ok := skc.mutation.Value(); ok {
 		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{

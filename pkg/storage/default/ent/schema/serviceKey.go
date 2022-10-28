@@ -16,8 +16,9 @@ type ServiceKey struct {
 func (ServiceKey) Fields() []ent.Field {
 	return []ent.Field{
 		field.Int64("created_at").Immutable().DefaultFunc(utils.TimeInt64Now),
+		field.String("name").NotEmpty().Immutable(),
 		field.String("value").Unique().NotEmpty().Immutable(),
-		field.Bytes("secret").Immutable(),
+		field.Bytes("secret").NotEmpty().Immutable(),
 		field.String("resource").Default(""),
 		field.Int64("num_used").Default(0),
 		field.Int64("max_uses").Default(0),

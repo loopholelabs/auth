@@ -18,6 +18,8 @@ type ServiceKey struct {
 	ID int `json:"id,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt int64 `json:"created_at,omitempty"`
+	// Name holds the value of the "name" field.
+	Name string `json:"name,omitempty"`
 	// Value holds the value of the "value" field.
 	Value string `json:"value,omitempty"`
 	// Secret holds the value of the "secret" field.
@@ -67,7 +69,7 @@ func (*ServiceKey) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case servicekey.FieldID, servicekey.FieldCreatedAt, servicekey.FieldNumUsed, servicekey.FieldMaxUses, servicekey.FieldExpires:
 			values[i] = new(sql.NullInt64)
-		case servicekey.FieldValue, servicekey.FieldResource:
+		case servicekey.FieldName, servicekey.FieldValue, servicekey.FieldResource:
 			values[i] = new(sql.NullString)
 		case servicekey.ForeignKeys[0]: // user_servicekeys
 			values[i] = new(sql.NullInt64)
@@ -97,6 +99,12 @@ func (sk *ServiceKey) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
 			} else if value.Valid {
 				sk.CreatedAt = value.Int64
+			}
+		case servicekey.FieldName:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field name", values[i])
+			} else if value.Valid {
+				sk.Name = value.String
 			}
 		case servicekey.FieldValue:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -176,6 +184,9 @@ func (sk *ServiceKey) String() string {
 	builder.WriteString(fmt.Sprintf("id=%v, ", sk.ID))
 	builder.WriteString("created_at=")
 	builder.WriteString(fmt.Sprintf("%v", sk.CreatedAt))
+	builder.WriteString(", ")
+	builder.WriteString("name=")
+	builder.WriteString(sk.Name)
 	builder.WriteString(", ")
 	builder.WriteString("value=")
 	builder.WriteString(sk.Value)

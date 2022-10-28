@@ -39,6 +39,7 @@ type APIKeyMutation struct {
 	id            *int
 	created_at    *int64
 	addcreated_at *int64
+	name          *string
 	value         *string
 	secret        *[]byte
 	clearedFields map[string]struct{}
@@ -203,6 +204,42 @@ func (m *APIKeyMutation) ResetCreatedAt() {
 	m.addcreated_at = nil
 }
 
+// SetName sets the "name" field.
+func (m *APIKeyMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *APIKeyMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the APIKey entity.
+// If the APIKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *APIKeyMutation) ResetName() {
+	m.name = nil
+}
+
 // SetValue sets the "value" field.
 func (m *APIKeyMutation) SetValue(s string) {
 	m.value = &s
@@ -333,9 +370,12 @@ func (m *APIKeyMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *APIKeyMutation) Fields() []string {
-	fields := make([]string, 0, 3)
+	fields := make([]string, 0, 4)
 	if m.created_at != nil {
 		fields = append(fields, apikey.FieldCreatedAt)
+	}
+	if m.name != nil {
+		fields = append(fields, apikey.FieldName)
 	}
 	if m.value != nil {
 		fields = append(fields, apikey.FieldValue)
@@ -353,6 +393,8 @@ func (m *APIKeyMutation) Field(name string) (ent.Value, bool) {
 	switch name {
 	case apikey.FieldCreatedAt:
 		return m.CreatedAt()
+	case apikey.FieldName:
+		return m.Name()
 	case apikey.FieldValue:
 		return m.Value()
 	case apikey.FieldSecret:
@@ -368,6 +410,8 @@ func (m *APIKeyMutation) OldField(ctx context.Context, name string) (ent.Value, 
 	switch name {
 	case apikey.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
+	case apikey.FieldName:
+		return m.OldName(ctx)
 	case apikey.FieldValue:
 		return m.OldValue(ctx)
 	case apikey.FieldSecret:
@@ -387,6 +431,13 @@ func (m *APIKeyMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetCreatedAt(v)
+		return nil
+	case apikey.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
 		return nil
 	case apikey.FieldValue:
 		v, ok := value.(string)
@@ -468,6 +519,9 @@ func (m *APIKeyMutation) ResetField(name string) error {
 	switch name {
 	case apikey.FieldCreatedAt:
 		m.ResetCreatedAt()
+		return nil
+	case apikey.FieldName:
+		m.ResetName()
 		return nil
 	case apikey.FieldValue:
 		m.ResetValue()
@@ -561,6 +615,7 @@ type ServiceKeyMutation struct {
 	id            *int
 	created_at    *int64
 	addcreated_at *int64
+	name          *string
 	value         *string
 	secret        *[]byte
 	resource      *string
@@ -730,6 +785,42 @@ func (m *ServiceKeyMutation) AddedCreatedAt() (r int64, exists bool) {
 func (m *ServiceKeyMutation) ResetCreatedAt() {
 	m.created_at = nil
 	m.addcreated_at = nil
+}
+
+// SetName sets the "name" field.
+func (m *ServiceKeyMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *ServiceKeyMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the ServiceKey entity.
+// If the ServiceKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ServiceKeyMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *ServiceKeyMutation) ResetName() {
+	m.name = nil
 }
 
 // SetValue sets the "value" field.
@@ -1066,9 +1157,12 @@ func (m *ServiceKeyMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ServiceKeyMutation) Fields() []string {
-	fields := make([]string, 0, 7)
+	fields := make([]string, 0, 8)
 	if m.created_at != nil {
 		fields = append(fields, servicekey.FieldCreatedAt)
+	}
+	if m.name != nil {
+		fields = append(fields, servicekey.FieldName)
 	}
 	if m.value != nil {
 		fields = append(fields, servicekey.FieldValue)
@@ -1098,6 +1192,8 @@ func (m *ServiceKeyMutation) Field(name string) (ent.Value, bool) {
 	switch name {
 	case servicekey.FieldCreatedAt:
 		return m.CreatedAt()
+	case servicekey.FieldName:
+		return m.Name()
 	case servicekey.FieldValue:
 		return m.Value()
 	case servicekey.FieldSecret:
@@ -1121,6 +1217,8 @@ func (m *ServiceKeyMutation) OldField(ctx context.Context, name string) (ent.Val
 	switch name {
 	case servicekey.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
+	case servicekey.FieldName:
+		return m.OldName(ctx)
 	case servicekey.FieldValue:
 		return m.OldValue(ctx)
 	case servicekey.FieldSecret:
@@ -1148,6 +1246,13 @@ func (m *ServiceKeyMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetCreatedAt(v)
+		return nil
+	case servicekey.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
 		return nil
 	case servicekey.FieldValue:
 		v, ok := value.(string)
@@ -1293,6 +1398,9 @@ func (m *ServiceKeyMutation) ResetField(name string) error {
 	switch name {
 	case servicekey.FieldCreatedAt:
 		m.ResetCreatedAt()
+		return nil
+	case servicekey.FieldName:
+		m.ResetName()
 		return nil
 	case servicekey.FieldValue:
 		m.ResetValue()

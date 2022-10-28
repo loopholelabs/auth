@@ -18,6 +18,8 @@ type APIKey struct {
 	ID int `json:"id,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt int64 `json:"created_at,omitempty"`
+	// Name holds the value of the "name" field.
+	Name string `json:"name,omitempty"`
 	// Value holds the value of the "value" field.
 	Value string `json:"value,omitempty"`
 	// Secret holds the value of the "secret" field.
@@ -59,7 +61,7 @@ func (*APIKey) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case apikey.FieldID, apikey.FieldCreatedAt:
 			values[i] = new(sql.NullInt64)
-		case apikey.FieldValue:
+		case apikey.FieldName, apikey.FieldValue:
 			values[i] = new(sql.NullString)
 		case apikey.ForeignKeys[0]: // user_apikeys
 			values[i] = new(sql.NullInt64)
@@ -89,6 +91,12 @@ func (ak *APIKey) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
 			} else if value.Valid {
 				ak.CreatedAt = value.Int64
+			}
+		case apikey.FieldName:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field name", values[i])
+			} else if value.Valid {
+				ak.Name = value.String
 			}
 		case apikey.FieldValue:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -144,6 +152,9 @@ func (ak *APIKey) String() string {
 	builder.WriteString(fmt.Sprintf("id=%v, ", ak.ID))
 	builder.WriteString("created_at=")
 	builder.WriteString(fmt.Sprintf("%v", ak.CreatedAt))
+	builder.WriteString(", ")
+	builder.WriteString("name=")
+	builder.WriteString(ak.Name)
 	builder.WriteString(", ")
 	builder.WriteString("value=")
 	builder.WriteString(ak.Value)

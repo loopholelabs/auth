@@ -12,6 +12,7 @@ var (
 	APIKeysColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "created_at", Type: field.TypeInt64},
+		{Name: "name", Type: field.TypeString},
 		{Name: "value", Type: field.TypeString, Unique: true},
 		{Name: "secret", Type: field.TypeBytes},
 		{Name: "user_apikeys", Type: field.TypeInt, Nullable: true},
@@ -24,7 +25,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "api_keys_users_apikeys",
-				Columns:    []*schema.Column{APIKeysColumns[4]},
+				Columns:    []*schema.Column{APIKeysColumns[5]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -34,6 +35,7 @@ var (
 	ServiceKeysColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "created_at", Type: field.TypeInt64},
+		{Name: "name", Type: field.TypeString},
 		{Name: "value", Type: field.TypeString, Unique: true},
 		{Name: "secret", Type: field.TypeBytes},
 		{Name: "resource", Type: field.TypeString, Default: ""},
@@ -50,7 +52,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "service_keys_users_servicekeys",
-				Columns:    []*schema.Column{ServiceKeysColumns[8]},
+				Columns:    []*schema.Column{ServiceKeysColumns[9]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.SetNull,
 			},

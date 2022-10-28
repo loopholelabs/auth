@@ -21,8 +21,12 @@ func init() {
 	apikeyDescCreatedAt := apikeyFields[0].Descriptor()
 	// apikey.DefaultCreatedAt holds the default value on creation for the created_at field.
 	apikey.DefaultCreatedAt = apikeyDescCreatedAt.Default.(func() int64)
+	// apikeyDescName is the schema descriptor for name field.
+	apikeyDescName := apikeyFields[1].Descriptor()
+	// apikey.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	apikey.NameValidator = apikeyDescName.Validators[0].(func(string) error)
 	// apikeyDescValue is the schema descriptor for value field.
-	apikeyDescValue := apikeyFields[1].Descriptor()
+	apikeyDescValue := apikeyFields[2].Descriptor()
 	// apikey.ValueValidator is a validator for the "value" field. It is called by the builders before save.
 	apikey.ValueValidator = apikeyDescValue.Validators[0].(func(string) error)
 	servicekeyFields := schema.ServiceKey{}.Fields()
@@ -31,24 +35,32 @@ func init() {
 	servicekeyDescCreatedAt := servicekeyFields[0].Descriptor()
 	// servicekey.DefaultCreatedAt holds the default value on creation for the created_at field.
 	servicekey.DefaultCreatedAt = servicekeyDescCreatedAt.Default.(func() int64)
+	// servicekeyDescName is the schema descriptor for name field.
+	servicekeyDescName := servicekeyFields[1].Descriptor()
+	// servicekey.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	servicekey.NameValidator = servicekeyDescName.Validators[0].(func(string) error)
 	// servicekeyDescValue is the schema descriptor for value field.
-	servicekeyDescValue := servicekeyFields[1].Descriptor()
+	servicekeyDescValue := servicekeyFields[2].Descriptor()
 	// servicekey.ValueValidator is a validator for the "value" field. It is called by the builders before save.
 	servicekey.ValueValidator = servicekeyDescValue.Validators[0].(func(string) error)
+	// servicekeyDescSecret is the schema descriptor for secret field.
+	servicekeyDescSecret := servicekeyFields[3].Descriptor()
+	// servicekey.SecretValidator is a validator for the "secret" field. It is called by the builders before save.
+	servicekey.SecretValidator = servicekeyDescSecret.Validators[0].(func([]byte) error)
 	// servicekeyDescResource is the schema descriptor for resource field.
-	servicekeyDescResource := servicekeyFields[3].Descriptor()
+	servicekeyDescResource := servicekeyFields[4].Descriptor()
 	// servicekey.DefaultResource holds the default value on creation for the resource field.
 	servicekey.DefaultResource = servicekeyDescResource.Default.(string)
 	// servicekeyDescNumUsed is the schema descriptor for num_used field.
-	servicekeyDescNumUsed := servicekeyFields[4].Descriptor()
+	servicekeyDescNumUsed := servicekeyFields[5].Descriptor()
 	// servicekey.DefaultNumUsed holds the default value on creation for the num_used field.
 	servicekey.DefaultNumUsed = servicekeyDescNumUsed.Default.(int64)
 	// servicekeyDescMaxUses is the schema descriptor for max_uses field.
-	servicekeyDescMaxUses := servicekeyFields[5].Descriptor()
+	servicekeyDescMaxUses := servicekeyFields[6].Descriptor()
 	// servicekey.DefaultMaxUses holds the default value on creation for the max_uses field.
 	servicekey.DefaultMaxUses = servicekeyDescMaxUses.Default.(int64)
 	// servicekeyDescExpires is the schema descriptor for expires field.
-	servicekeyDescExpires := servicekeyFields[6].Descriptor()
+	servicekeyDescExpires := servicekeyFields[7].Descriptor()
 	// servicekey.DefaultExpires holds the default value on creation for the expires field.
 	servicekey.DefaultExpires = servicekeyDescExpires.Default.(int64)
 	userFields := schema.User{}.Fields()

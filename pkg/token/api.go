@@ -32,12 +32,13 @@ import (
 // The 'A' prefix is used to differentiate between API keys and Service Keys.
 type APIKey struct {
 	Created int64
+	Name    string
 	ID      string
 	Secret  []byte
 	User    string
 }
 
-func NewAPIKey(user string) (*APIKey, string, error) {
+func NewAPIKey(name string, user string) (*APIKey, string, error) {
 	id := uuid.New().String()
 	secret := uuid.New().String()
 	encoded := Encode("A", id, secret)
@@ -47,6 +48,7 @@ func NewAPIKey(user string) (*APIKey, string, error) {
 	}
 	return &APIKey{
 		Created: utils.TimeToInt64(time.Now()),
+		Name:    name,
 		ID:      id,
 		Secret:  hashedSecret,
 		User:    user,
@@ -54,7 +56,8 @@ func NewAPIKey(user string) (*APIKey, string, error) {
 }
 
 type APIClaims struct {
-	ID string `json:"id"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 func (c *APIClaims) Valid() bool {
@@ -77,7 +80,8 @@ func NewAPIToken(issuer string, apiKey *APIKey, audience Audience) *APIToken {
 			Kind:     tokenKind.APITokenKind,
 		},
 		APIClaims: APIClaims{
-			ID: apiKey.ID,
+			ID:   apiKey.ID,
+			Name: apiKey.Name,
 		},
 	}
 }
