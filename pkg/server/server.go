@@ -274,7 +274,7 @@ func (s *Server) exchange(ctx *fiber.Ctx) error {
 	}
 	return ctx.Status(fiber.StatusBadRequest).JSON(ExchangeError{
 		Error:            "unsupported_grant_type",
-		ErrorDescription: "unsupported grant type",
+		ErrorDescription: fmt.Sprintf("unsupported grant type: %s", ctx.FormValue("grant_type")),
 	})
 }
 
@@ -400,7 +400,7 @@ func (s *Server) refresh(ctx *fiber.Ctx) error {
 	}
 	return ctx.Status(fiber.StatusBadRequest).JSON(RefreshError{
 		Error:            "unsupported_grant_type",
-		ErrorDescription: "unsupported grant type",
+		ErrorDescription: fmt.Sprintf("unsupported grant type: %s", ctx.FormValue("grant_type")),
 	})
 }
 
