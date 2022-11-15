@@ -88,6 +88,7 @@ func New(connector string, url string, dexConnector string, dexURL string, logge
 				Mode:   parsed["sslmode"],
 				CAFile: parsed["sslrootcert"],
 			},
+			Options: parsed["options"],
 		}
 
 		st, err = pg.Open(logger)
@@ -223,7 +224,7 @@ func parsePG(url string) (map[string]string, error) {
 	}
 
 	escaper := strings.NewReplacer(`'`, `\'`, `\`, `\\`)
-	accrue := func(k, v string) {
+	append := func(k, v string) {
 		if v != "" {
 			values[k] = escaper.Replace(v)
 		}
@@ -231,26 +232,26 @@ func parsePG(url string) (map[string]string, error) {
 
 	if u.User != nil {
 		v := u.User.Username()
-		accrue("user", v)
+		append("user", v)
 
 		v, _ = u.User.Password()
-		accrue("password", v)
+		append("password", v)
 	}
 
 	if host, port, err := net.SplitHostPort(u.Host); err != nil {
-		accrue("host", u.Host)
+		append("host", u.Host)
 	} else {
-		accrue("host", host)
-		accrue("port", port)
+		append("host", host)
+		append("port", port)
 	}
 
 	if u.Path != "" {
-		accrue("dbname", u.Path[1:])
+		append("dbname", u.Path[1:])
 	}
 
 	q := u.Query()
 	for k := range q {
-		accrue(k, q.Get(k))
+		append(k, q.Get(k))
 	}
 
 	return values, nil

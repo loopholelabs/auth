@@ -4,6 +4,8 @@ go 1.18
 
 replace github.com/cli/oauth => github.com/loopholelabs/oauth v0.10.0
 
+replace github.com/dexidp/dex => github.com/loopholelabs/dex v0.0.0-20221115010751-2d5dae79c41f
+
 require (
 	entgo.io/ent v0.11.3
 	github.com/AppsFlyer/go-sundheit v0.5.0
@@ -14,9 +16,9 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/joho/godotenv v1.4.0
 	github.com/lib/pq v1.10.7
-	github.com/mattn/go-sqlite3 v1.14.15
+	github.com/mattn/go-sqlite3 v1.14.16
 	github.com/sirupsen/logrus v1.9.0
-	github.com/stretchr/testify v1.8.0
+	github.com/stretchr/testify v1.8.1
 	github.com/valyala/fasthttp v1.40.0
 	golang.org/x/crypto v0.1.0
 	golang.org/x/oauth2 v0.0.0-20220909003341-f21342109be1
@@ -25,7 +27,7 @@ require (
 
 require (
 	ariga.io/atlas v0.7.2-0.20220927111110-867ee0cca56a // indirect
-	cloud.google.com/go/compute v1.7.0 // indirect
+	cloud.google.com/go/compute v1.10.0 // indirect
 	github.com/Azure/go-ntlmssp v0.0.0-20220621081337-cb9428e4ac1e // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Masterminds/semver/v3 v3.1.1 // indirect
@@ -62,8 +64,8 @@ require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
-	github.com/googleapis/enterprise-certificate-proxy v0.1.0 // indirect
-	github.com/googleapis/gax-go/v2 v2.4.0 // indirect
+	github.com/googleapis/enterprise-certificate-proxy v0.2.0 // indirect
+	github.com/googleapis/gax-go/v2 v2.6.0 // indirect
 	github.com/gorilla/handlers v1.5.1 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/hashicorp/hcl/v2 v2.13.0 // indirect
@@ -104,10 +106,10 @@ require (
 	golang.org/x/net v0.1.0 // indirect
 	golang.org/x/sys v0.1.0 // indirect
 	golang.org/x/text v0.4.0 // indirect
-	google.golang.org/api v0.98.0 // indirect
+	google.golang.org/api v0.101.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/genproto v0.0.0-20220624142145-8cd45d7dbd1f // indirect
-	google.golang.org/grpc v1.49.0 // indirect
+	google.golang.org/genproto v0.0.0-20221018160656-63c7b68cfc55 // indirect
+	google.golang.org/grpc v1.50.1 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
