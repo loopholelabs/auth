@@ -40,8 +40,8 @@ type Session struct {
 	Organization string       `json:"organization"`
 }
 
-// NewSession returns a new session for a user with the given provider key, user ID, and organization
-func NewSession(provider provider.Key, userID string, organization string) *Session {
+// New returns a new session for a user with the given provider key, user ID, and organization
+func New(provider provider.Key, userID string, organization string) *Session {
 	return &Session{
 		Creation:     time.Now(),
 		Expiry:       time.Now().Add(Expiry),

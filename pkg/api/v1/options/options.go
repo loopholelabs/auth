@@ -17,8 +17,8 @@
 package options
 
 import (
+	"github.com/loopholelabs/auth/pkg/manager"
 	"github.com/loopholelabs/auth/pkg/provider/github"
-	"github.com/loopholelabs/auth/pkg/session"
 )
 
 type Github func() *github.Github
@@ -33,11 +33,11 @@ func WithGithub(github Github) Modifier {
 
 type Options struct {
 	github  Github
-	manager *session.Manager
+	manager *manager.Manager
 	nextURL string
 }
 
-func New(manager *session.Manager, nextURL string, modifiers ...Modifier) *Options {
+func New(manager *manager.Manager, nextURL string, modifiers ...Modifier) *Options {
 	options := &Options{
 		manager: manager,
 		nextURL: nextURL,
@@ -54,7 +54,7 @@ func (o *Options) Github() *github.Github {
 	return o.github()
 }
 
-func (o *Options) Manager() *session.Manager {
+func (o *Options) Manager() *manager.Manager {
 	return o.manager
 }
 

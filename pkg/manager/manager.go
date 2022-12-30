@@ -14,7 +14,7 @@
 	limitations under the License.
 */
 
-package session
+package manager
 
 import (
 	"context"
@@ -23,6 +23,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/loopholelabs/auth/internal/aes"
 	"github.com/loopholelabs/auth/pkg/provider"
+	"github.com/loopholelabs/auth/pkg/session"
 	"github.com/loopholelabs/auth/pkg/storage"
 	"github.com/rs/zerolog"
 	"sync"
@@ -53,7 +54,7 @@ type Manager struct {
 	sessionsMu sync.RWMutex
 }
 
-func NewManager(domain string, storage storage.Storage, logger *zerolog.Logger) *Manager {
+func New(domain string, storage storage.Storage, logger *zerolog.Logger) *Manager {
 	l := logger.With().Str("AUTH", "SESSION-MANAGER").Logger()
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Manager{
@@ -99,8 +100,8 @@ func (m *Manager) Start() error {
 		return err
 	}
 
-	for _, session := range sessions {
-		m.sessions[session] = struct{}{}
+	for _, sess := range sessions {
+		m.sessions[sess] = struct{}{}
 	}
 	m.sessionsMu.Unlock()
 
@@ -136,8 +137,8 @@ func (m *Manager) Session(ctx *fiber.Ctx, provider provider.Key, userID string, 
 		}
 	}
 
-	session := NewSession(provider, userID, organization)
-	data, err := json.Marshal(session)
+	sess := session.New(provider, userID, organization)
+	data, err := json.Marshal(sess)
 	if err != nil {
 		m.logger.Error().Err(err).Msg("failed to marshal session")
 		return false, ctx.Status(fiber.StatusInternalServerError).SendString("failed to marshal session")
@@ -153,7 +154,7 @@ func (m *Manager) Session(ctx *fiber.Ctx, provider provider.Key, userID string, 
 		return false, ctx.Status(fiber.StatusInternalServerError).SendString("failed to encrypt session")
 	}
 
-	err = m.storage.SetSession(ctx.Context(), session.ID, session.UserID, session.Organization, session.Expiry)
+	err = m.storage.SetSession(ctx.Context(), sess.ID, sess.UserID, sess.Organization, sess.Expiry)
 	if err != nil {
 		m.logger.Error().Err(err).Msg("failed to set session")
 		return false, ctx.Status(fiber.StatusInternalServerError).SendString("failed to set session")
@@ -163,7 +164,7 @@ func (m *Manager) Session(ctx *fiber.Ctx, provider provider.Key, userID string, 
 		Name:     KeyString,
 		Value:    string(encrypted),
 		Domain:   m.domain,
-		Expires:  session.Expiry,
+		Expires:  sess.Expiry,
 		Secure:   true,
 		HTTPOnly: true,
 		SameSite: fiber.CookieSameSiteLaxMode,
@@ -172,7 +173,7 @@ func (m *Manager) Session(ctx *fiber.Ctx, provider provider.Key, userID string, 
 	return true, nil
 }
 
-func (m *Manager) GetSession(ctx *fiber.Ctx) (*Session, error) {
+func (m *Manager) GetSession(ctx *fiber.Ctx) (*session.Session, error) {
 	cookie := ctx.Cookies(KeyString)
 	if cookie == "" {
 		return nil, ctx.Status(fiber.StatusUnauthorized).SendString("no session cookie")
@@ -204,22 +205,22 @@ func (m *Manager) GetSession(ctx *fiber.Ctx) (*Session, error) {
 		}
 	}
 
-	session := new(Session)
-	err = json.Unmarshal(decrypted, session)
+	sess := new(session.Session)
+	err = json.Unmarshal(decrypted, sess)
 	if err != nil {
 		m.logger.Error().Err(err).Msg("failed to unmarshal session")
 		return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to unmarshal session")
 	}
 
-	if session.Expired() {
+	if sess.Expired() {
 		return nil, ctx.Status(fiber.StatusUnauthorized).SendString("session expired")
 	}
 
 	m.sessionsMu.RLock()
-	_, exists := m.sessions[session.ID]
+	_, exists := m.sessions[sess.ID]
 	m.sessionsMu.RUnlock()
 	if !exists {
-		exists, err = m.storage.SessionExists(ctx.Context(), session.ID)
+		exists, err = m.storage.SessionExists(ctx.Context(), sess.ID)
 		if err != nil {
 			m.logger.Error().Err(err).Msg("failed to check if session exists")
 			return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to check if session exists")
@@ -229,9 +230,9 @@ func (m *Manager) GetSession(ctx *fiber.Ctx) (*Session, error) {
 		}
 	}
 
-	if session.CloseToExpiry() {
-		session.Refresh()
-		data, err := json.Marshal(session)
+	if sess.CloseToExpiry() {
+		sess.Refresh()
+		data, err := json.Marshal(sess)
 		if err != nil {
 			m.logger.Error().Err(err).Msg("failed to marshal refreshed session")
 			return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to marshal session")
@@ -243,7 +244,7 @@ func (m *Manager) GetSession(ctx *fiber.Ctx) (*Session, error) {
 			return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to encrypt session")
 		}
 
-		err = m.storage.SetSession(ctx.Context(), session.ID, session.UserID, session.Organization, session.Expiry)
+		err = m.storage.SetSession(ctx.Context(), sess.ID, sess.UserID, sess.Organization, sess.Expiry)
 		if err != nil {
 			m.logger.Error().Err(err).Msg("failed to set refreshed session")
 			return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to set session")
@@ -253,22 +254,22 @@ func (m *Manager) GetSession(ctx *fiber.Ctx) (*Session, error) {
 			Name:     KeyString,
 			Value:    string(encrypted),
 			Domain:   m.domain,
-			Expires:  session.Expiry,
+			Expires:  sess.Expiry,
 			Secure:   true,
 			HTTPOnly: true,
 			SameSite: fiber.CookieSameSiteLaxMode,
 		})
 	}
 
-	return session, nil
+	return sess, nil
 }
 
 func (m *Manager) Validate(ctx *fiber.Ctx) error {
-	session, err := m.GetSession(ctx)
-	if session == nil {
+	sess, err := m.GetSession(ctx)
+	if sess == nil {
 		return err
 	}
-	ctx.Locals(LocalKey, session)
+	ctx.Locals(LocalKey, sess)
 	return ctx.Next()
 }
 
