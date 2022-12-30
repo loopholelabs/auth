@@ -23,6 +23,8 @@ import (
 
 type Github func() *github.Github
 
+type NextURL func() string
+
 type Modifier func(*Options)
 
 func WithGithub(github Github) Modifier {
@@ -33,11 +35,11 @@ func WithGithub(github Github) Modifier {
 
 type Options struct {
 	github  Github
+	nextURL NextURL
 	manager *manager.Manager
-	nextURL string
 }
 
-func New(manager *manager.Manager, nextURL string, modifiers ...Modifier) *Options {
+func New(manager *manager.Manager, nextURL NextURL, modifiers ...Modifier) *Options {
 	options := &Options{
 		manager: manager,
 		nextURL: nextURL,
@@ -59,5 +61,5 @@ func (o *Options) Manager() *manager.Manager {
 }
 
 func (o *Options) NextURL() string {
-	return o.nextURL
+	return o.nextURL()
 }
