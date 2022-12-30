@@ -22,6 +22,7 @@ import (
 	"errors"
 	"github.com/gofiber/fiber/v2"
 	"github.com/loopholelabs/auth/internal/aes"
+	"github.com/loopholelabs/auth/pkg/claims"
 	"github.com/loopholelabs/auth/pkg/provider"
 	"github.com/loopholelabs/auth/pkg/session"
 	"github.com/loopholelabs/auth/pkg/storage"
@@ -52,6 +53,9 @@ type Manager struct {
 
 	sessions   map[string]struct{}
 	sessionsMu sync.RWMutex
+
+	registration   bool
+	registrationMu sync.RWMutex
 }
 
 func New(domain string, storage storage.Storage, logger *zerolog.Logger) *Manager {
@@ -74,12 +78,24 @@ func (m *Manager) Start() error {
 		m.secretKeyMu.Unlock()
 		return err
 	}
-
 	m.wg.Add(1)
 	go m.subscribeToSecretKeyEvents(secretKeyEvents)
-
 	m.secretKey, err = m.storage.GetSecretKey(m.ctx)
 	m.secretKeyMu.Unlock()
+	if err != nil {
+		return err
+	}
+
+	m.registrationMu.Lock()
+	registrationEvents, err := m.storage.SubscribeToRegistration(m.ctx)
+	if err != nil {
+		m.registrationMu.Unlock()
+		return err
+	}
+	m.wg.Add(1)
+	go m.subscribeToRegistrationEvents(registrationEvents)
+	m.registration, err = m.storage.GetRegistration(m.ctx)
+	m.registrationMu.Unlock()
 	if err != nil {
 		return err
 	}
@@ -90,16 +106,13 @@ func (m *Manager) Start() error {
 		m.sessionsMu.Unlock()
 		return err
 	}
-
 	m.wg.Add(1)
 	go m.subscribeToSessionEvents(sessionEvents)
-
 	sessions, err := m.storage.ListSessions(m.ctx)
 	if err != nil {
 		m.sessionsMu.Unlock()
 		return err
 	}
-
 	for _, sess := range sessions {
 		m.sessions[sess] = struct{}{}
 	}
@@ -122,7 +135,27 @@ func (m *Manager) Session(ctx *fiber.Ctx, provider provider.Key, userID string, 
 	}
 
 	if !exists {
-		return false, ctx.Status(fiber.StatusNotFound).SendString("user does not exist")
+		if organization != "" {
+			return false, ctx.Status(fiber.StatusNotFound).SendString("user does not exist")
+		}
+
+		m.registrationMu.RLock()
+		registration := m.registration
+		m.registrationMu.RUnlock()
+
+		if !registration {
+			return false, ctx.Status(fiber.StatusNotFound).SendString("user does not exist")
+		}
+
+		c := &claims.Claims{
+			UserID: userID,
+		}
+
+		err = m.storage.NewUser(ctx.Context(), c)
+		if err != nil {
+			m.logger.Error().Err(err).Msg("failed to create user")
+			return false, ctx.Status(fiber.StatusInternalServerError).SendString("failed to create user")
+		}
 	}
 
 	if organization != "" {
@@ -309,6 +342,22 @@ func (m *Manager) subscribeToSessionEvents(events <-chan *storage.SessionEvent) 
 				m.sessions[event.SessionID] = struct{}{}
 				m.sessionsMu.Unlock()
 			}
+		}
+	}
+}
+
+func (m *Manager) subscribeToRegistrationEvents(events <-chan *storage.RegistrationEvent) {
+	defer m.wg.Done()
+	for {
+		select {
+		case <-m.ctx.Done():
+			m.logger.Info().Msg("registration event subscription stopped")
+			return
+		case event := <-events:
+			m.logger.Info().Msg("registration updated")
+			m.registrationMu.Lock()
+			m.registration = event.Enabled
+			m.registrationMu.Unlock()
 		}
 	}
 }

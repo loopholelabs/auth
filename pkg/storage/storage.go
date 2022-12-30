@@ -18,6 +18,7 @@ package storage
 
 import (
 	"context"
+	"github.com/loopholelabs/auth/pkg/claims"
 	"time"
 )
 
@@ -30,10 +31,16 @@ type SessionEvent struct {
 	Deleted bool
 }
 
-// SecretKeyEvent is the event that is emitted when a secret key is rotated.
+// SecretKeyEvent is the event that is emitted when a secret key is rotated
 type SecretKeyEvent struct {
 	// SecretKey is the new secret key
 	SecretKey []byte
+}
+
+// RegistrationEvent is the event that is emitted when registration is enabled or disabled
+type RegistrationEvent struct {
+	// Enabled indicates whether registration is enabled
+	Enabled bool
 }
 
 type Storage interface {
@@ -48,6 +55,9 @@ type Storage interface {
 	SubscribeToSessions(ctx context.Context) (<-chan *SessionEvent, error)
 	GetSecretKey(ctx context.Context) ([]byte, error)
 
+	SubscribeToRegistration(ctx context.Context) (<-chan *RegistrationEvent, error)
+	GetRegistration(ctx context.Context) (bool, error)
+
 	RegistrationEnabled(ctx context.Context) (bool, error)
-	NewUser(ctx context.Context, userID string) error
+	NewUser(ctx context.Context, claims *claims.Claims) error
 }
