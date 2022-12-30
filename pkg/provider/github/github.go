@@ -71,7 +71,7 @@ type Github struct {
 }
 
 func New(clientID string, clientSecret string, database Database, logger *zerolog.Logger) *Github {
-	l := logger.With().Str("PROVIDER", "GITHUB").Logger()
+	l := logger.With().Str("AUTH", "GITHUB-OAUTH-PROVIDER").Logger()
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &Github{

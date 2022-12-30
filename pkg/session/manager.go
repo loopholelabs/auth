@@ -54,7 +54,7 @@ type Manager struct {
 }
 
 func NewManager(domain string, storage storage.Storage, logger *zerolog.Logger) *Manager {
-	l := logger.With().Str("COMPONENT", "SESSION").Logger()
+	l := logger.With().Str("AUTH", "SESSION-MANAGER").Logger()
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Manager{
 		logger:   &l,

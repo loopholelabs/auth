@@ -31,7 +31,7 @@ type Config struct {
 }
 
 func New(options *options.Options, logger *zerolog.Logger) *Config {
-	l := logger.With().Str("COMPONENT", "CONFIG").Logger()
+	l := logger.With().Str("ROUTER", "CONFIG").Logger()
 	i := &Config{
 		logger:  &l,
 		app:     utils.DefaultFiberApp(),

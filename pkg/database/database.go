@@ -37,26 +37,8 @@ type Database struct {
 	cancel context.CancelFunc
 }
 
-func (d *Database) SetGithubFlow(ctx context.Context, state string, organization string, verifier string, challenge string) error {
-	_, err := d.client.GithubFlow.Create().SetState(state).SetOrganization(organization).SetVerifier(verifier).SetChallenge(challenge).Save(ctx)
-	return err
-}
-
-func (d *Database) GetGithubFlow(ctx context.Context, state string) (*ent.GithubFlow, error) {
-	return d.client.GithubFlow.Query().Where(githubflow.State(state)).Only(ctx)
-}
-
-func (d *Database) DeleteGithubFlow(ctx context.Context, state string) error {
-	_, err := d.client.GithubFlow.Delete().Where(githubflow.State(state)).Exec(ctx)
-	return err
-}
-
-func (d *Database) GCGithubFlow(ctx context.Context, expiry time.Duration) (int, error) {
-	return d.client.GithubFlow.Delete().Where(githubflow.CreatedAtLT(time.Now().Add(expiry))).Exec(ctx)
-}
-
 func New(connector string, url string, logger *zerolog.Logger) (*Database, error) {
-	l := logger.With().Str(zerolog.CallerFieldName, "DATABASE").Logger()
+	l := logger.With().Str("AUTH", "DATABASE").Logger()
 
 	l.Debug().Msgf("connecting to %s (%s)", url, connector)
 	client, err := ent.Open(connector, url)
@@ -82,4 +64,22 @@ func New(connector string, url string, logger *zerolog.Logger) (*Database, error
 func (d *Database) Shutdown() error {
 	d.cancel()
 	return d.client.Close()
+}
+
+func (d *Database) SetGithubFlow(ctx context.Context, state string, organization string, verifier string, challenge string) error {
+	_, err := d.client.GithubFlow.Create().SetState(state).SetOrganization(organization).SetVerifier(verifier).SetChallenge(challenge).Save(ctx)
+	return err
+}
+
+func (d *Database) GetGithubFlow(ctx context.Context, state string) (*ent.GithubFlow, error) {
+	return d.client.GithubFlow.Query().Where(githubflow.State(state)).Only(ctx)
+}
+
+func (d *Database) DeleteGithubFlow(ctx context.Context, state string) error {
+	_, err := d.client.GithubFlow.Delete().Where(githubflow.State(state)).Exec(ctx)
+	return err
+}
+
+func (d *Database) GCGithubFlow(ctx context.Context, expiry time.Duration) (int, error) {
+	return d.client.GithubFlow.Delete().Where(githubflow.CreatedAtLT(time.Now().Add(expiry))).Exec(ctx)
 }

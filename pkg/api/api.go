@@ -39,7 +39,7 @@ type API struct {
 }
 
 func New(v1Options *v1Options.Options, logger *zerolog.Logger) *API {
-	l := logger.With().Str(zerolog.CallerFieldName, "AUTH API").Logger()
+	l := logger.With().Str("AUTH", "API").Logger()
 	s := &API{
 		logger:    &l,
 		app:       utils.DefaultFiberApp(),

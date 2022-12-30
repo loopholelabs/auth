@@ -30,7 +30,7 @@ type Github struct {
 }
 
 func New(options *options.Options, logger *zerolog.Logger) *Github {
-	l := logger.With().Str("COMPONENT", "GITHUB").Logger()
+	l := logger.With().Str("ROUTER", "GITHUB").Logger()
 	i := &Github{
 		logger:  &l,
 		app:     utils.DefaultFiberApp(),
