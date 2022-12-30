@@ -35,7 +35,6 @@ type API struct {
 	logger    *zerolog.Logger
 	app       *fiber.App
 	v1Options *v1Options.Options
-	listener  net.Listener
 }
 
 func New(v1Options *v1Options.Options, logger *zerolog.Logger) *API {
@@ -58,8 +57,7 @@ func (s *API) init() {
 }
 
 func (s *API) Start(addr string, host string, tls bool) error {
-	var err error
-	s.listener, err = net.Listen("tcp", addr)
+	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
 	}
@@ -68,9 +66,24 @@ func (s *API) Start(addr string, host string, tls bool) error {
 	if tls {
 		v1Docs.SwaggerInfoapi.Schemes = []string{"https"}
 	}
-	return s.app.Listener(s.listener)
+	return s.app.Listener(listener)
 }
 
 func (s *API) Stop() error {
-	return s.app.Shutdown()
+	err := s.app.Shutdown()
+	if err != nil {
+		return err
+	}
+
+	err = s.v1Options.Manager().Stop()
+	if err != nil {
+		return err
+	}
+
+	err = s.v1Options.Github().Stop()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
