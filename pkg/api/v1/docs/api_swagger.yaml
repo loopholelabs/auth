@@ -44,7 +44,7 @@ paths:
       tags:
       - config
   /github/callback:
-    post:
+    get:
       consumes:
       - application/json
       description: GithubCallback logs in a user with Github
@@ -76,7 +76,7 @@ paths:
       - github
       - callback
   /github/login:
-    post:
+    get:
       consumes:
       - application/json
       description: GithubLogin logs in a user with Github
@@ -107,7 +107,7 @@ paths:
       - github
       - login
   /github/login/{organization}:
-    post:
+    get:
       consumes:
       - application/json
       description: GithubLoginOrganization logs in a user with Github using a specific

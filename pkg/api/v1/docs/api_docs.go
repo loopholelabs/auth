@@ -79,7 +79,7 @@ const docTemplateapi = `{
             }
         },
         "/github/callback": {
-            "post": {
+            "get": {
                 "description": "GithubCallback logs in a user with Github",
                 "consumes": [
                     "application/json"
@@ -127,7 +127,7 @@ const docTemplateapi = `{
             }
         },
         "/github/login": {
-            "post": {
+            "get": {
                 "description": "GithubLogin logs in a user with Github",
                 "consumes": [
                     "application/json"
@@ -174,7 +174,7 @@ const docTemplateapi = `{
             }
         },
         "/github/login/{organization}": {
-            "post": {
+            "get": {
                 "description": "GithubLoginOrganization logs in a user with Github using a specific organization",
                 "consumes": [
                     "application/json"
