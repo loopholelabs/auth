@@ -72,6 +72,7 @@ func New(domain string, storage storage.Storage, logger *zerolog.Logger) *Manage
 }
 
 func (m *Manager) Start() error {
+	m.logger.Info().Msg("starting manager")
 	m.secretKeyMu.Lock()
 	secretKeyEvents, err := m.storage.SubscribeToSecretKey(m.ctx)
 	if err != nil {
@@ -80,11 +81,13 @@ func (m *Manager) Start() error {
 	}
 	m.wg.Add(1)
 	go m.subscribeToSecretKeyEvents(secretKeyEvents)
+	m.logger.Info().Msg("subscribed to secret key events")
 	m.secretKey, err = m.storage.GetSecretKey(m.ctx)
 	m.secretKeyMu.Unlock()
 	if err != nil {
 		return err
 	}
+	m.logger.Info().Msg("retrieved secret key")
 
 	m.registrationMu.Lock()
 	registrationEvents, err := m.storage.SubscribeToRegistration(m.ctx)
@@ -94,11 +97,13 @@ func (m *Manager) Start() error {
 	}
 	m.wg.Add(1)
 	go m.subscribeToRegistrationEvents(registrationEvents)
+	m.logger.Info().Msg("subscribed to registration events")
 	m.registration, err = m.storage.GetRegistration(m.ctx)
 	m.registrationMu.Unlock()
 	if err != nil {
 		return err
 	}
+	m.logger.Info().Msg("retrieved registration")
 
 	m.sessionsMu.Lock()
 	sessionEvents, err := m.storage.SubscribeToSessions(m.ctx)
@@ -108,6 +113,7 @@ func (m *Manager) Start() error {
 	}
 	m.wg.Add(1)
 	go m.subscribeToSessionEvents(sessionEvents)
+	m.logger.Info().Msg("subscribed to session events")
 	sessions, err := m.storage.ListSessions(m.ctx)
 	if err != nil {
 		m.sessionsMu.Unlock()
@@ -117,6 +123,7 @@ func (m *Manager) Start() error {
 		m.sessions[sess] = struct{}{}
 	}
 	m.sessionsMu.Unlock()
+	m.logger.Info().Msg("retrieved sessions")
 
 	return nil
 }
