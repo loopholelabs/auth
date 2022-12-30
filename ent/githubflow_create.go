@@ -56,12 +56,6 @@ func (gfc *GithubFlowCreate) SetState(s string) *GithubFlowCreate {
 	return gfc
 }
 
-// SetOrganization sets the "organization" field.
-func (gfc *GithubFlowCreate) SetOrganization(s string) *GithubFlowCreate {
-	gfc.mutation.SetOrganization(s)
-	return gfc
-}
-
 // SetVerifier sets the "verifier" field.
 func (gfc *GithubFlowCreate) SetVerifier(s string) *GithubFlowCreate {
 	gfc.mutation.SetVerifier(s)
@@ -71,6 +65,26 @@ func (gfc *GithubFlowCreate) SetVerifier(s string) *GithubFlowCreate {
 // SetChallenge sets the "challenge" field.
 func (gfc *GithubFlowCreate) SetChallenge(s string) *GithubFlowCreate {
 	gfc.mutation.SetChallenge(s)
+	return gfc
+}
+
+// SetNextURL sets the "next_url" field.
+func (gfc *GithubFlowCreate) SetNextURL(s string) *GithubFlowCreate {
+	gfc.mutation.SetNextURL(s)
+	return gfc
+}
+
+// SetOrganization sets the "organization" field.
+func (gfc *GithubFlowCreate) SetOrganization(s string) *GithubFlowCreate {
+	gfc.mutation.SetOrganization(s)
+	return gfc
+}
+
+// SetNillableOrganization sets the "organization" field if the given value is not nil.
+func (gfc *GithubFlowCreate) SetNillableOrganization(s *string) *GithubFlowCreate {
+	if s != nil {
+		gfc.SetOrganization(*s)
+	}
 	return gfc
 }
 
@@ -170,14 +184,6 @@ func (gfc *GithubFlowCreate) check() error {
 			return &ValidationError{Name: "state", err: fmt.Errorf(`ent: validator failed for field "GithubFlow.state": %w`, err)}
 		}
 	}
-	if _, ok := gfc.mutation.Organization(); !ok {
-		return &ValidationError{Name: "organization", err: errors.New(`ent: missing required field "GithubFlow.organization"`)}
-	}
-	if v, ok := gfc.mutation.Organization(); ok {
-		if err := githubflow.OrganizationValidator(v); err != nil {
-			return &ValidationError{Name: "organization", err: fmt.Errorf(`ent: validator failed for field "GithubFlow.organization": %w`, err)}
-		}
-	}
 	if _, ok := gfc.mutation.Verifier(); !ok {
 		return &ValidationError{Name: "verifier", err: errors.New(`ent: missing required field "GithubFlow.verifier"`)}
 	}
@@ -192,6 +198,14 @@ func (gfc *GithubFlowCreate) check() error {
 	if v, ok := gfc.mutation.Challenge(); ok {
 		if err := githubflow.ChallengeValidator(v); err != nil {
 			return &ValidationError{Name: "challenge", err: fmt.Errorf(`ent: validator failed for field "GithubFlow.challenge": %w`, err)}
+		}
+	}
+	if _, ok := gfc.mutation.NextURL(); !ok {
+		return &ValidationError{Name: "next_url", err: errors.New(`ent: missing required field "GithubFlow.next_url"`)}
+	}
+	if v, ok := gfc.mutation.NextURL(); ok {
+		if err := githubflow.NextURLValidator(v); err != nil {
+			return &ValidationError{Name: "next_url", err: fmt.Errorf(`ent: validator failed for field "GithubFlow.next_url": %w`, err)}
 		}
 	}
 	return nil
@@ -229,10 +243,6 @@ func (gfc *GithubFlowCreate) createSpec() (*GithubFlow, *sqlgraph.CreateSpec) {
 		_spec.SetField(githubflow.FieldState, field.TypeString, value)
 		_node.State = value
 	}
-	if value, ok := gfc.mutation.Organization(); ok {
-		_spec.SetField(githubflow.FieldOrganization, field.TypeString, value)
-		_node.Organization = value
-	}
 	if value, ok := gfc.mutation.Verifier(); ok {
 		_spec.SetField(githubflow.FieldVerifier, field.TypeString, value)
 		_node.Verifier = value
@@ -240,6 +250,14 @@ func (gfc *GithubFlowCreate) createSpec() (*GithubFlow, *sqlgraph.CreateSpec) {
 	if value, ok := gfc.mutation.Challenge(); ok {
 		_spec.SetField(githubflow.FieldChallenge, field.TypeString, value)
 		_node.Challenge = value
+	}
+	if value, ok := gfc.mutation.NextURL(); ok {
+		_spec.SetField(githubflow.FieldNextURL, field.TypeString, value)
+		_node.NextURL = value
+	}
+	if value, ok := gfc.mutation.Organization(); ok {
+		_spec.SetField(githubflow.FieldOrganization, field.TypeString, value)
+		_node.Organization = value
 	}
 	return _node, _spec
 }

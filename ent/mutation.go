@@ -51,9 +51,10 @@ type GithubFlowMutation struct {
 	id            *int
 	created_at    *time.Time
 	state         *string
-	organization  *string
 	verifier      *string
 	challenge     *string
+	next_url      *string
+	organization  *string
 	clearedFields map[string]struct{}
 	done          bool
 	oldValue      func(context.Context) (*GithubFlow, error)
@@ -230,42 +231,6 @@ func (m *GithubFlowMutation) ResetState() {
 	m.state = nil
 }
 
-// SetOrganization sets the "organization" field.
-func (m *GithubFlowMutation) SetOrganization(s string) {
-	m.organization = &s
-}
-
-// Organization returns the value of the "organization" field in the mutation.
-func (m *GithubFlowMutation) Organization() (r string, exists bool) {
-	v := m.organization
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldOrganization returns the old "organization" field's value of the GithubFlow entity.
-// If the GithubFlow object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *GithubFlowMutation) OldOrganization(ctx context.Context) (v string, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldOrganization is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldOrganization requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldOrganization: %w", err)
-	}
-	return oldValue.Organization, nil
-}
-
-// ResetOrganization resets all changes to the "organization" field.
-func (m *GithubFlowMutation) ResetOrganization() {
-	m.organization = nil
-}
-
 // SetVerifier sets the "verifier" field.
 func (m *GithubFlowMutation) SetVerifier(s string) {
 	m.verifier = &s
@@ -338,6 +303,91 @@ func (m *GithubFlowMutation) ResetChallenge() {
 	m.challenge = nil
 }
 
+// SetNextURL sets the "next_url" field.
+func (m *GithubFlowMutation) SetNextURL(s string) {
+	m.next_url = &s
+}
+
+// NextURL returns the value of the "next_url" field in the mutation.
+func (m *GithubFlowMutation) NextURL() (r string, exists bool) {
+	v := m.next_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNextURL returns the old "next_url" field's value of the GithubFlow entity.
+// If the GithubFlow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GithubFlowMutation) OldNextURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNextURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNextURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNextURL: %w", err)
+	}
+	return oldValue.NextURL, nil
+}
+
+// ResetNextURL resets all changes to the "next_url" field.
+func (m *GithubFlowMutation) ResetNextURL() {
+	m.next_url = nil
+}
+
+// SetOrganization sets the "organization" field.
+func (m *GithubFlowMutation) SetOrganization(s string) {
+	m.organization = &s
+}
+
+// Organization returns the value of the "organization" field in the mutation.
+func (m *GithubFlowMutation) Organization() (r string, exists bool) {
+	v := m.organization
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrganization returns the old "organization" field's value of the GithubFlow entity.
+// If the GithubFlow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GithubFlowMutation) OldOrganization(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrganization is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrganization requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrganization: %w", err)
+	}
+	return oldValue.Organization, nil
+}
+
+// ClearOrganization clears the value of the "organization" field.
+func (m *GithubFlowMutation) ClearOrganization() {
+	m.organization = nil
+	m.clearedFields[githubflow.FieldOrganization] = struct{}{}
+}
+
+// OrganizationCleared returns if the "organization" field was cleared in this mutation.
+func (m *GithubFlowMutation) OrganizationCleared() bool {
+	_, ok := m.clearedFields[githubflow.FieldOrganization]
+	return ok
+}
+
+// ResetOrganization resets all changes to the "organization" field.
+func (m *GithubFlowMutation) ResetOrganization() {
+	m.organization = nil
+	delete(m.clearedFields, githubflow.FieldOrganization)
+}
+
 // Where appends a list predicates to the GithubFlowMutation builder.
 func (m *GithubFlowMutation) Where(ps ...predicate.GithubFlow) {
 	m.predicates = append(m.predicates, ps...)
@@ -357,21 +407,24 @@ func (m *GithubFlowMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GithubFlowMutation) Fields() []string {
-	fields := make([]string, 0, 5)
+	fields := make([]string, 0, 6)
 	if m.created_at != nil {
 		fields = append(fields, githubflow.FieldCreatedAt)
 	}
 	if m.state != nil {
 		fields = append(fields, githubflow.FieldState)
 	}
-	if m.organization != nil {
-		fields = append(fields, githubflow.FieldOrganization)
-	}
 	if m.verifier != nil {
 		fields = append(fields, githubflow.FieldVerifier)
 	}
 	if m.challenge != nil {
 		fields = append(fields, githubflow.FieldChallenge)
+	}
+	if m.next_url != nil {
+		fields = append(fields, githubflow.FieldNextURL)
+	}
+	if m.organization != nil {
+		fields = append(fields, githubflow.FieldOrganization)
 	}
 	return fields
 }
@@ -385,12 +438,14 @@ func (m *GithubFlowMutation) Field(name string) (ent.Value, bool) {
 		return m.CreatedAt()
 	case githubflow.FieldState:
 		return m.State()
-	case githubflow.FieldOrganization:
-		return m.Organization()
 	case githubflow.FieldVerifier:
 		return m.Verifier()
 	case githubflow.FieldChallenge:
 		return m.Challenge()
+	case githubflow.FieldNextURL:
+		return m.NextURL()
+	case githubflow.FieldOrganization:
+		return m.Organization()
 	}
 	return nil, false
 }
@@ -404,12 +459,14 @@ func (m *GithubFlowMutation) OldField(ctx context.Context, name string) (ent.Val
 		return m.OldCreatedAt(ctx)
 	case githubflow.FieldState:
 		return m.OldState(ctx)
-	case githubflow.FieldOrganization:
-		return m.OldOrganization(ctx)
 	case githubflow.FieldVerifier:
 		return m.OldVerifier(ctx)
 	case githubflow.FieldChallenge:
 		return m.OldChallenge(ctx)
+	case githubflow.FieldNextURL:
+		return m.OldNextURL(ctx)
+	case githubflow.FieldOrganization:
+		return m.OldOrganization(ctx)
 	}
 	return nil, fmt.Errorf("unknown GithubFlow field %s", name)
 }
@@ -433,13 +490,6 @@ func (m *GithubFlowMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetState(v)
 		return nil
-	case githubflow.FieldOrganization:
-		v, ok := value.(string)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetOrganization(v)
-		return nil
 	case githubflow.FieldVerifier:
 		v, ok := value.(string)
 		if !ok {
@@ -453,6 +503,20 @@ func (m *GithubFlowMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetChallenge(v)
+		return nil
+	case githubflow.FieldNextURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNextURL(v)
+		return nil
+	case githubflow.FieldOrganization:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrganization(v)
 		return nil
 	}
 	return fmt.Errorf("unknown GithubFlow field %s", name)
@@ -483,7 +547,11 @@ func (m *GithubFlowMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *GithubFlowMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(githubflow.FieldOrganization) {
+		fields = append(fields, githubflow.FieldOrganization)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -496,6 +564,11 @@ func (m *GithubFlowMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *GithubFlowMutation) ClearField(name string) error {
+	switch name {
+	case githubflow.FieldOrganization:
+		m.ClearOrganization()
+		return nil
+	}
 	return fmt.Errorf("unknown GithubFlow nullable field %s", name)
 }
 
@@ -509,14 +582,17 @@ func (m *GithubFlowMutation) ResetField(name string) error {
 	case githubflow.FieldState:
 		m.ResetState()
 		return nil
-	case githubflow.FieldOrganization:
-		m.ResetOrganization()
-		return nil
 	case githubflow.FieldVerifier:
 		m.ResetVerifier()
 		return nil
 	case githubflow.FieldChallenge:
 		m.ResetChallenge()
+		return nil
+	case githubflow.FieldNextURL:
+		m.ResetNextURL()
+		return nil
+	case githubflow.FieldOrganization:
+		m.ResetOrganization()
 		return nil
 	}
 	return fmt.Errorf("unknown GithubFlow field %s", name)

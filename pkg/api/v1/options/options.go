@@ -34,11 +34,13 @@ func WithGithub(github Github) Modifier {
 type Options struct {
 	github  Github
 	manager *session.Manager
+	nextURL string
 }
 
-func New(manager *session.Manager, modifiers ...Modifier) *Options {
+func New(manager *session.Manager, nextURL string, modifiers ...Modifier) *Options {
 	options := &Options{
 		manager: manager,
+		nextURL: nextURL,
 	}
 
 	for _, modifier := range modifiers {
@@ -54,4 +56,8 @@ func (o *Options) Github() *github.Github {
 
 func (o *Options) Manager() *session.Manager {
 	return o.manager
+}
+
+func (o *Options) NextURL() string {
+	return o.nextURL
 }

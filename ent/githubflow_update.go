@@ -120,6 +120,9 @@ func (gfu *GithubFlowUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			}
 		}
 	}
+	if gfu.mutation.OrganizationCleared() {
+		_spec.ClearField(githubflow.FieldOrganization, field.TypeString)
+	}
 	if n, err = sqlgraph.UpdateNodes(ctx, gfu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{githubflow.Label}
@@ -245,6 +248,9 @@ func (gfuo *GithubFlowUpdateOne) sqlSave(ctx context.Context) (_node *GithubFlow
 				ps[i](selector)
 			}
 		}
+	}
+	if gfuo.mutation.OrganizationCleared() {
+		_spec.ClearField(githubflow.FieldOrganization, field.TypeString)
 	}
 	_node = &GithubFlow{config: gfuo.config}
 	_spec.Assign = _node.assignValues

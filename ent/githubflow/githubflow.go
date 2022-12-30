@@ -31,12 +31,14 @@ const (
 	FieldCreatedAt = "created_at"
 	// FieldState holds the string denoting the state field in the database.
 	FieldState = "state"
-	// FieldOrganization holds the string denoting the organization field in the database.
-	FieldOrganization = "organization"
 	// FieldVerifier holds the string denoting the verifier field in the database.
 	FieldVerifier = "verifier"
 	// FieldChallenge holds the string denoting the challenge field in the database.
 	FieldChallenge = "challenge"
+	// FieldNextURL holds the string denoting the next_url field in the database.
+	FieldNextURL = "next_url"
+	// FieldOrganization holds the string denoting the organization field in the database.
+	FieldOrganization = "organization"
 	// Table holds the table name of the githubflow in the database.
 	Table = "github_flows"
 )
@@ -46,9 +48,10 @@ var Columns = []string{
 	FieldID,
 	FieldCreatedAt,
 	FieldState,
-	FieldOrganization,
 	FieldVerifier,
 	FieldChallenge,
+	FieldNextURL,
+	FieldOrganization,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -66,10 +69,10 @@ var (
 	DefaultCreatedAt func() time.Time
 	// StateValidator is a validator for the "state" field. It is called by the builders before save.
 	StateValidator func(string) error
-	// OrganizationValidator is a validator for the "organization" field. It is called by the builders before save.
-	OrganizationValidator func(string) error
 	// VerifierValidator is a validator for the "verifier" field. It is called by the builders before save.
 	VerifierValidator func(string) error
 	// ChallengeValidator is a validator for the "challenge" field. It is called by the builders before save.
 	ChallengeValidator func(string) error
+	// NextURLValidator is a validator for the "next_url" field. It is called by the builders before save.
+	NextURLValidator func(string) error
 )

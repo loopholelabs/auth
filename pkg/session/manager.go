@@ -67,13 +67,42 @@ func NewManager(domain string, storage storage.Storage, logger *zerolog.Logger) 
 }
 
 func (m *Manager) Start() error {
-	events, err := m.storage.SubscribeToSessions(m.ctx)
+	m.secretKeyMu.Lock()
+	secretKeyEvents, err := m.storage.SubscribeToSecretKey(m.ctx)
 	if err != nil {
+		m.secretKeyMu.Unlock()
 		return err
 	}
 
 	m.wg.Add(1)
-	go m.subscribeToSessionEvents(events)
+	go m.subscribeToSecretKeyEvents(secretKeyEvents)
+
+	m.secretKey, err = m.storage.GetSecretKey(m.ctx)
+	m.secretKeyMu.Unlock()
+	if err != nil {
+		return err
+	}
+
+	m.sessionsMu.Lock()
+	sessionEvents, err := m.storage.SubscribeToSessions(m.ctx)
+	if err != nil {
+		m.sessionsMu.Unlock()
+		return err
+	}
+
+	m.wg.Add(1)
+	go m.subscribeToSessionEvents(sessionEvents)
+
+	sessions, err := m.storage.ListSessions(m.ctx)
+	if err != nil {
+		m.sessionsMu.Unlock()
+		return err
+	}
+
+	for _, session := range sessions {
+		m.sessions[session] = struct{}{}
+	}
+	m.sessionsMu.Unlock()
 
 	return nil
 }

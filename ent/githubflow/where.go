@@ -110,13 +110,6 @@ func State(v string) predicate.GithubFlow {
 	})
 }
 
-// Organization applies equality check predicate on the "organization" field. It's identical to OrganizationEQ.
-func Organization(v string) predicate.GithubFlow {
-	return predicate.GithubFlow(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldOrganization), v))
-	})
-}
-
 // Verifier applies equality check predicate on the "verifier" field. It's identical to VerifierEQ.
 func Verifier(v string) predicate.GithubFlow {
 	return predicate.GithubFlow(func(s *sql.Selector) {
@@ -128,6 +121,20 @@ func Verifier(v string) predicate.GithubFlow {
 func Challenge(v string) predicate.GithubFlow {
 	return predicate.GithubFlow(func(s *sql.Selector) {
 		s.Where(sql.EQ(s.C(FieldChallenge), v))
+	})
+}
+
+// NextURL applies equality check predicate on the "next_url" field. It's identical to NextURLEQ.
+func NextURL(v string) predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldNextURL), v))
+	})
+}
+
+// Organization applies equality check predicate on the "organization" field. It's identical to OrganizationEQ.
+func Organization(v string) predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldOrganization), v))
 	})
 }
 
@@ -291,105 +298,6 @@ func StateEqualFold(v string) predicate.GithubFlow {
 func StateContainsFold(v string) predicate.GithubFlow {
 	return predicate.GithubFlow(func(s *sql.Selector) {
 		s.Where(sql.ContainsFold(s.C(FieldState), v))
-	})
-}
-
-// OrganizationEQ applies the EQ predicate on the "organization" field.
-func OrganizationEQ(v string) predicate.GithubFlow {
-	return predicate.GithubFlow(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldOrganization), v))
-	})
-}
-
-// OrganizationNEQ applies the NEQ predicate on the "organization" field.
-func OrganizationNEQ(v string) predicate.GithubFlow {
-	return predicate.GithubFlow(func(s *sql.Selector) {
-		s.Where(sql.NEQ(s.C(FieldOrganization), v))
-	})
-}
-
-// OrganizationIn applies the In predicate on the "organization" field.
-func OrganizationIn(vs ...string) predicate.GithubFlow {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.GithubFlow(func(s *sql.Selector) {
-		s.Where(sql.In(s.C(FieldOrganization), v...))
-	})
-}
-
-// OrganizationNotIn applies the NotIn predicate on the "organization" field.
-func OrganizationNotIn(vs ...string) predicate.GithubFlow {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.GithubFlow(func(s *sql.Selector) {
-		s.Where(sql.NotIn(s.C(FieldOrganization), v...))
-	})
-}
-
-// OrganizationGT applies the GT predicate on the "organization" field.
-func OrganizationGT(v string) predicate.GithubFlow {
-	return predicate.GithubFlow(func(s *sql.Selector) {
-		s.Where(sql.GT(s.C(FieldOrganization), v))
-	})
-}
-
-// OrganizationGTE applies the GTE predicate on the "organization" field.
-func OrganizationGTE(v string) predicate.GithubFlow {
-	return predicate.GithubFlow(func(s *sql.Selector) {
-		s.Where(sql.GTE(s.C(FieldOrganization), v))
-	})
-}
-
-// OrganizationLT applies the LT predicate on the "organization" field.
-func OrganizationLT(v string) predicate.GithubFlow {
-	return predicate.GithubFlow(func(s *sql.Selector) {
-		s.Where(sql.LT(s.C(FieldOrganization), v))
-	})
-}
-
-// OrganizationLTE applies the LTE predicate on the "organization" field.
-func OrganizationLTE(v string) predicate.GithubFlow {
-	return predicate.GithubFlow(func(s *sql.Selector) {
-		s.Where(sql.LTE(s.C(FieldOrganization), v))
-	})
-}
-
-// OrganizationContains applies the Contains predicate on the "organization" field.
-func OrganizationContains(v string) predicate.GithubFlow {
-	return predicate.GithubFlow(func(s *sql.Selector) {
-		s.Where(sql.Contains(s.C(FieldOrganization), v))
-	})
-}
-
-// OrganizationHasPrefix applies the HasPrefix predicate on the "organization" field.
-func OrganizationHasPrefix(v string) predicate.GithubFlow {
-	return predicate.GithubFlow(func(s *sql.Selector) {
-		s.Where(sql.HasPrefix(s.C(FieldOrganization), v))
-	})
-}
-
-// OrganizationHasSuffix applies the HasSuffix predicate on the "organization" field.
-func OrganizationHasSuffix(v string) predicate.GithubFlow {
-	return predicate.GithubFlow(func(s *sql.Selector) {
-		s.Where(sql.HasSuffix(s.C(FieldOrganization), v))
-	})
-}
-
-// OrganizationEqualFold applies the EqualFold predicate on the "organization" field.
-func OrganizationEqualFold(v string) predicate.GithubFlow {
-	return predicate.GithubFlow(func(s *sql.Selector) {
-		s.Where(sql.EqualFold(s.C(FieldOrganization), v))
-	})
-}
-
-// OrganizationContainsFold applies the ContainsFold predicate on the "organization" field.
-func OrganizationContainsFold(v string) predicate.GithubFlow {
-	return predicate.GithubFlow(func(s *sql.Selector) {
-		s.Where(sql.ContainsFold(s.C(FieldOrganization), v))
 	})
 }
 
@@ -588,6 +496,218 @@ func ChallengeEqualFold(v string) predicate.GithubFlow {
 func ChallengeContainsFold(v string) predicate.GithubFlow {
 	return predicate.GithubFlow(func(s *sql.Selector) {
 		s.Where(sql.ContainsFold(s.C(FieldChallenge), v))
+	})
+}
+
+// NextURLEQ applies the EQ predicate on the "next_url" field.
+func NextURLEQ(v string) predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldNextURL), v))
+	})
+}
+
+// NextURLNEQ applies the NEQ predicate on the "next_url" field.
+func NextURLNEQ(v string) predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.NEQ(s.C(FieldNextURL), v))
+	})
+}
+
+// NextURLIn applies the In predicate on the "next_url" field.
+func NextURLIn(vs ...string) predicate.GithubFlow {
+	v := make([]any, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.In(s.C(FieldNextURL), v...))
+	})
+}
+
+// NextURLNotIn applies the NotIn predicate on the "next_url" field.
+func NextURLNotIn(vs ...string) predicate.GithubFlow {
+	v := make([]any, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.NotIn(s.C(FieldNextURL), v...))
+	})
+}
+
+// NextURLGT applies the GT predicate on the "next_url" field.
+func NextURLGT(v string) predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.GT(s.C(FieldNextURL), v))
+	})
+}
+
+// NextURLGTE applies the GTE predicate on the "next_url" field.
+func NextURLGTE(v string) predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.GTE(s.C(FieldNextURL), v))
+	})
+}
+
+// NextURLLT applies the LT predicate on the "next_url" field.
+func NextURLLT(v string) predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.LT(s.C(FieldNextURL), v))
+	})
+}
+
+// NextURLLTE applies the LTE predicate on the "next_url" field.
+func NextURLLTE(v string) predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.LTE(s.C(FieldNextURL), v))
+	})
+}
+
+// NextURLContains applies the Contains predicate on the "next_url" field.
+func NextURLContains(v string) predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.Contains(s.C(FieldNextURL), v))
+	})
+}
+
+// NextURLHasPrefix applies the HasPrefix predicate on the "next_url" field.
+func NextURLHasPrefix(v string) predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.HasPrefix(s.C(FieldNextURL), v))
+	})
+}
+
+// NextURLHasSuffix applies the HasSuffix predicate on the "next_url" field.
+func NextURLHasSuffix(v string) predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.HasSuffix(s.C(FieldNextURL), v))
+	})
+}
+
+// NextURLEqualFold applies the EqualFold predicate on the "next_url" field.
+func NextURLEqualFold(v string) predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.EqualFold(s.C(FieldNextURL), v))
+	})
+}
+
+// NextURLContainsFold applies the ContainsFold predicate on the "next_url" field.
+func NextURLContainsFold(v string) predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.ContainsFold(s.C(FieldNextURL), v))
+	})
+}
+
+// OrganizationEQ applies the EQ predicate on the "organization" field.
+func OrganizationEQ(v string) predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldOrganization), v))
+	})
+}
+
+// OrganizationNEQ applies the NEQ predicate on the "organization" field.
+func OrganizationNEQ(v string) predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.NEQ(s.C(FieldOrganization), v))
+	})
+}
+
+// OrganizationIn applies the In predicate on the "organization" field.
+func OrganizationIn(vs ...string) predicate.GithubFlow {
+	v := make([]any, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.In(s.C(FieldOrganization), v...))
+	})
+}
+
+// OrganizationNotIn applies the NotIn predicate on the "organization" field.
+func OrganizationNotIn(vs ...string) predicate.GithubFlow {
+	v := make([]any, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.NotIn(s.C(FieldOrganization), v...))
+	})
+}
+
+// OrganizationGT applies the GT predicate on the "organization" field.
+func OrganizationGT(v string) predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.GT(s.C(FieldOrganization), v))
+	})
+}
+
+// OrganizationGTE applies the GTE predicate on the "organization" field.
+func OrganizationGTE(v string) predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.GTE(s.C(FieldOrganization), v))
+	})
+}
+
+// OrganizationLT applies the LT predicate on the "organization" field.
+func OrganizationLT(v string) predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.LT(s.C(FieldOrganization), v))
+	})
+}
+
+// OrganizationLTE applies the LTE predicate on the "organization" field.
+func OrganizationLTE(v string) predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.LTE(s.C(FieldOrganization), v))
+	})
+}
+
+// OrganizationContains applies the Contains predicate on the "organization" field.
+func OrganizationContains(v string) predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.Contains(s.C(FieldOrganization), v))
+	})
+}
+
+// OrganizationHasPrefix applies the HasPrefix predicate on the "organization" field.
+func OrganizationHasPrefix(v string) predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.HasPrefix(s.C(FieldOrganization), v))
+	})
+}
+
+// OrganizationHasSuffix applies the HasSuffix predicate on the "organization" field.
+func OrganizationHasSuffix(v string) predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.HasSuffix(s.C(FieldOrganization), v))
+	})
+}
+
+// OrganizationIsNil applies the IsNil predicate on the "organization" field.
+func OrganizationIsNil() predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.IsNull(s.C(FieldOrganization)))
+	})
+}
+
+// OrganizationNotNil applies the NotNil predicate on the "organization" field.
+func OrganizationNotNil() predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.NotNull(s.C(FieldOrganization)))
+	})
+}
+
+// OrganizationEqualFold applies the EqualFold predicate on the "organization" field.
+func OrganizationEqualFold(v string) predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.EqualFold(s.C(FieldOrganization), v))
+	})
+}
+
+// OrganizationContainsFold applies the ContainsFold predicate on the "organization" field.
+func OrganizationContainsFold(v string) predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.ContainsFold(s.C(FieldOrganization), v))
 	})
 }
 

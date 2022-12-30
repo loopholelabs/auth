@@ -73,19 +73,17 @@ paths:
             type: string
       summary: GithubCallback logs in a user with Github
       tags:
-      - login
-      - callback
       - github
+      - callback
   /github/login:
     post:
       consumes:
       - application/json
       description: GithubLogin logs in a user with Github
       parameters:
-      - description: API Key Name
-        in: path
-        name: organization
-        required: true
+      - description: Next Redirect URL
+        in: query
+        name: next
         type: string
       produces:
       - application/json
@@ -106,8 +104,8 @@ paths:
             type: string
       summary: GithubLogin logs in a user with Github
       tags:
-      - login
       - github
+      - login
   /github/login/{organization}:
     post:
       consumes:
@@ -119,6 +117,10 @@ paths:
         in: path
         name: organization
         required: true
+        type: string
+      - description: Next Redirect URL
+        in: query
+        name: next
         type: string
       produces:
       - application/json
@@ -144,8 +146,9 @@ paths:
       summary: GithubLoginOrganization logs in a user with Github using a specific
         organization
       tags:
-      - login
       - github
+      - login
+      - organization
 schemes:
 - https
 swagger: "2.0"

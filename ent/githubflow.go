@@ -36,12 +36,14 @@ type GithubFlow struct {
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// State holds the value of the "state" field.
 	State string `json:"state,omitempty"`
-	// Organization holds the value of the "organization" field.
-	Organization string `json:"organization,omitempty"`
 	// Verifier holds the value of the "verifier" field.
 	Verifier string `json:"verifier,omitempty"`
 	// Challenge holds the value of the "challenge" field.
 	Challenge string `json:"challenge,omitempty"`
+	// NextURL holds the value of the "next_url" field.
+	NextURL string `json:"next_url,omitempty"`
+	// Organization holds the value of the "organization" field.
+	Organization string `json:"organization,omitempty"`
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -51,7 +53,7 @@ func (*GithubFlow) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case githubflow.FieldID:
 			values[i] = new(sql.NullInt64)
-		case githubflow.FieldState, githubflow.FieldOrganization, githubflow.FieldVerifier, githubflow.FieldChallenge:
+		case githubflow.FieldState, githubflow.FieldVerifier, githubflow.FieldChallenge, githubflow.FieldNextURL, githubflow.FieldOrganization:
 			values[i] = new(sql.NullString)
 		case githubflow.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
@@ -88,12 +90,6 @@ func (gf *GithubFlow) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				gf.State = value.String
 			}
-		case githubflow.FieldOrganization:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field organization", values[i])
-			} else if value.Valid {
-				gf.Organization = value.String
-			}
 		case githubflow.FieldVerifier:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field verifier", values[i])
@@ -105,6 +101,18 @@ func (gf *GithubFlow) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field challenge", values[i])
 			} else if value.Valid {
 				gf.Challenge = value.String
+			}
+		case githubflow.FieldNextURL:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field next_url", values[i])
+			} else if value.Valid {
+				gf.NextURL = value.String
+			}
+		case githubflow.FieldOrganization:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field organization", values[i])
+			} else if value.Valid {
+				gf.Organization = value.String
 			}
 		}
 	}
@@ -140,14 +148,17 @@ func (gf *GithubFlow) String() string {
 	builder.WriteString("state=")
 	builder.WriteString(gf.State)
 	builder.WriteString(", ")
-	builder.WriteString("organization=")
-	builder.WriteString(gf.Organization)
-	builder.WriteString(", ")
 	builder.WriteString("verifier=")
 	builder.WriteString(gf.Verifier)
 	builder.WriteString(", ")
 	builder.WriteString("challenge=")
 	builder.WriteString(gf.Challenge)
+	builder.WriteString(", ")
+	builder.WriteString("next_url=")
+	builder.WriteString(gf.NextURL)
+	builder.WriteString(", ")
+	builder.WriteString("organization=")
+	builder.WriteString(gf.Organization)
 	builder.WriteByte(')')
 	return builder.String()
 }

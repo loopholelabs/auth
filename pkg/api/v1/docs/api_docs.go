@@ -88,9 +88,8 @@ const docTemplateapi = `{
                     "application/json"
                 ],
                 "tags": [
-                    "login",
-                    "callback",
-                    "github"
+                    "github",
+                    "callback"
                 ],
                 "summary": "GithubCallback logs in a user with Github",
                 "responses": {
@@ -137,17 +136,16 @@ const docTemplateapi = `{
                     "application/json"
                 ],
                 "tags": [
-                    "login",
-                    "github"
+                    "github",
+                    "login"
                 ],
                 "summary": "GithubLogin logs in a user with Github",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "API Key Name",
-                        "name": "organization",
-                        "in": "path",
-                        "required": true
+                        "description": "Next Redirect URL",
+                        "name": "next",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -185,8 +183,9 @@ const docTemplateapi = `{
                     "application/json"
                 ],
                 "tags": [
+                    "github",
                     "login",
-                    "github"
+                    "organization"
                 ],
                 "summary": "GithubLoginOrganization logs in a user with Github using a specific organization",
                 "parameters": [
@@ -196,6 +195,12 @@ const docTemplateapi = `{
                         "name": "organization",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Next Redirect URL",
+                        "name": "next",
+                        "in": "query"
                     }
                 ],
                 "responses": {

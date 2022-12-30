@@ -56,10 +56,10 @@ func (a *Github) App() *fiber.App {
 // GithubLogin godoc
 // @Summary      GithubLogin logs in a user with Github
 // @Description  GithubLogin logs in a user with Github
-// @Tags         login, github
+// @Tags         github, login
 // @Accept       json
 // @Produce      json
-// @Param        organization path string true "API Key Name"
+// @Param        next query string false "Next Redirect URL"
 // @Success      307
 // @Header       307 {string} Location "Redirects to Github"
 // @Failure      401 {string} string
@@ -70,7 +70,8 @@ func (a *Github) GithubLogin(ctx *fiber.Ctx) error {
 	if a.options.Github() == nil {
 		return ctx.Status(fiber.StatusUnauthorized).SendString("github provider is not enabled")
 	}
-	redirect, err := a.options.Github().AuthURL(ctx.Context(), "")
+
+	redirect, err := a.options.Github().StartFlow(ctx.Context(), ctx.Query("next", a.options.NextURL()), "")
 	if err != nil {
 		a.logger.Error().Err(err).Msg("failed to get redirect")
 		return ctx.Status(fiber.StatusInternalServerError).SendString("failed to get redirect")
@@ -81,10 +82,11 @@ func (a *Github) GithubLogin(ctx *fiber.Ctx) error {
 // GithubLoginOrganization godoc
 // @Summary      GithubLoginOrganization logs in a user with Github using a specific organization
 // @Description  GithubLoginOrganization logs in a user with Github using a specific organization
-// @Tags         login, github
+// @Tags         github, login, organization
 // @Accept       json
 // @Produce      json
 // @Param        organization path string true "Organization"
+// @Param        next query string false "Next Redirect URL"
 // @Success      307
 // @Header       307 {string} Location "Redirects to Github"
 // @Failure      400 {string} string
@@ -102,7 +104,7 @@ func (a *Github) GithubLoginOrganization(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusBadRequest).SendString("organization is required")
 	}
 
-	redirect, err := a.options.Github().AuthURL(ctx.Context(), organization)
+	redirect, err := a.options.Github().StartFlow(ctx.Context(), ctx.Query("next", a.options.NextURL()), organization)
 	if err != nil {
 		a.logger.Error().Err(err).Msg("failed to get redirect")
 		return ctx.Status(fiber.StatusInternalServerError).SendString("failed to get redirect")
@@ -113,7 +115,7 @@ func (a *Github) GithubLoginOrganization(ctx *fiber.Ctx) error {
 // GithubCallback godoc
 // @Summary      GithubCallback logs in a user with Github
 // @Description  GithubCallback logs in a user with Github
-// @Tags         login, callback, github
+// @Tags         github, callback
 // @Accept       json
 // @Produce      json
 // @Success      200 {string} string
@@ -138,7 +140,7 @@ func (a *Github) GithubCallback(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusUnauthorized).SendString("state is required")
 	}
 
-	userID, organization, err := a.options.Github().GetUser(ctx.Context(), code, state)
+	userID, organization, nextURL, err := a.options.Github().CompleteFlow(ctx.Context(), code, state)
 	if err != nil {
 		a.logger.Error().Err(err).Msg("failed to get token")
 		return ctx.Status(fiber.StatusInternalServerError).SendString("failed to get token")
@@ -149,5 +151,5 @@ func (a *Github) GithubCallback(ctx *fiber.Ctx) error {
 		return err
 	}
 
-	return ctx.Status(fiber.StatusOK).SendString("login successful")
+	return ctx.Redirect(nextURL, fiber.StatusTemporaryRedirect)
 }

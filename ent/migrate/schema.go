@@ -29,9 +29,10 @@ var (
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "state", Type: field.TypeString, Unique: true},
-		{Name: "organization", Type: field.TypeString},
 		{Name: "verifier", Type: field.TypeString, Unique: true},
 		{Name: "challenge", Type: field.TypeString, Unique: true},
+		{Name: "next_url", Type: field.TypeString},
+		{Name: "organization", Type: field.TypeString, Nullable: true},
 	}
 	// GithubFlowsTable holds the schema information for the "github_flows" table.
 	GithubFlowsTable = &schema.Table{

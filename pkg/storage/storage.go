@@ -40,12 +40,14 @@ type Storage interface {
 	UserExists(ctx context.Context, userID string) (bool, error)
 	UserOrganizationExists(ctx context.Context, userID string, organization string) (bool, error)
 
+	SubscribeToSecretKey(ctx context.Context) (<-chan *SecretKeyEvent, error)
+	ListSessions(ctx context.Context) ([]string, error)
 	SessionExists(ctx context.Context, sessionID string) (bool, error)
 	SetSession(ctx context.Context, sessionID string, userID string, organization string, expiry time.Time) error
 
-	SubscribeToSecretKey(ctx context.Context) (<-chan *SecretKeyEvent, error)
 	SubscribeToSessions(ctx context.Context) (<-chan *SessionEvent, error)
+	GetSecretKey(ctx context.Context) ([]byte, error)
 
-	//RegistrationEnabled(ctx context.Context) (bool, error)
-	//NewUser(ctx context.Context, userID string) error
+	RegistrationEnabled(ctx context.Context) (bool, error)
+	NewUser(ctx context.Context, userID string) error
 }

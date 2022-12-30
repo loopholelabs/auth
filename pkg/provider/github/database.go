@@ -23,7 +23,7 @@ import (
 )
 
 type Database interface {
-	SetGithubFlow(ctx context.Context, state string, organization string, verifier string, challenge string) error
+	SetGithubFlow(ctx context.Context, state string, verifier string, challenge string, nextURL string, organization string) error
 	GetGithubFlow(ctx context.Context, state string) (*ent.GithubFlow, error)
 	DeleteGithubFlow(ctx context.Context, state string) error
 	GCGithubFlow(ctx context.Context, expiry time.Duration) (int, error)

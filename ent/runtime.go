@@ -39,16 +39,16 @@ func init() {
 	githubflowDescState := githubflowFields[1].Descriptor()
 	// githubflow.StateValidator is a validator for the "state" field. It is called by the builders before save.
 	githubflow.StateValidator = githubflowDescState.Validators[0].(func(string) error)
-	// githubflowDescOrganization is the schema descriptor for organization field.
-	githubflowDescOrganization := githubflowFields[2].Descriptor()
-	// githubflow.OrganizationValidator is a validator for the "organization" field. It is called by the builders before save.
-	githubflow.OrganizationValidator = githubflowDescOrganization.Validators[0].(func(string) error)
 	// githubflowDescVerifier is the schema descriptor for verifier field.
-	githubflowDescVerifier := githubflowFields[3].Descriptor()
+	githubflowDescVerifier := githubflowFields[2].Descriptor()
 	// githubflow.VerifierValidator is a validator for the "verifier" field. It is called by the builders before save.
 	githubflow.VerifierValidator = githubflowDescVerifier.Validators[0].(func(string) error)
 	// githubflowDescChallenge is the schema descriptor for challenge field.
-	githubflowDescChallenge := githubflowFields[4].Descriptor()
+	githubflowDescChallenge := githubflowFields[3].Descriptor()
 	// githubflow.ChallengeValidator is a validator for the "challenge" field. It is called by the builders before save.
 	githubflow.ChallengeValidator = githubflowDescChallenge.Validators[0].(func(string) error)
+	// githubflowDescNextURL is the schema descriptor for next_url field.
+	githubflowDescNextURL := githubflowFields[4].Descriptor()
+	// githubflow.NextURLValidator is a validator for the "next_url" field. It is called by the builders before save.
+	githubflow.NextURLValidator = githubflowDescNextURL.Validators[0].(func(string) error)
 }

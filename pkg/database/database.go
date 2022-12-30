@@ -66,8 +66,8 @@ func (d *Database) Shutdown() error {
 	return d.client.Close()
 }
 
-func (d *Database) SetGithubFlow(ctx context.Context, state string, organization string, verifier string, challenge string) error {
-	_, err := d.client.GithubFlow.Create().SetState(state).SetOrganization(organization).SetVerifier(verifier).SetChallenge(challenge).Save(ctx)
+func (d *Database) SetGithubFlow(ctx context.Context, state string, verifier string, challenge string, nextURL string, organization string) error {
+	_, err := d.client.GithubFlow.Create().SetState(state).SetVerifier(verifier).SetChallenge(challenge).SetNextURL(nextURL).SetOrganization(organization).Save(ctx)
 	return err
 }
 

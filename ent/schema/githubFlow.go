@@ -32,9 +32,10 @@ func (GithubFlow) Fields() []ent.Field {
 	return []ent.Field{
 		field.Time("created_at").Immutable().Default(time.Now),
 		field.String("state").Unique().Immutable().NotEmpty(),
-		field.String("organization").Immutable().NotEmpty(),
 		field.String("verifier").Unique().Immutable().NotEmpty(),
 		field.String("challenge").Unique().Immutable().NotEmpty(),
+		field.String("next_url").Immutable().NotEmpty(),
+		field.String("organization").Immutable().Optional(),
 	}
 }
 
