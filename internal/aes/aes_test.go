@@ -14,22 +14,25 @@
 	limitations under the License.
 */
 
-package utils
+package aes
 
 import (
-	"encoding/json"
-	"github.com/gofiber/fiber/v2"
-	"time"
+	"github.com/stretchr/testify/require"
+	"testing"
 )
 
-// DefaultFiberApp returns a new fiber app with sensible defaults
-func DefaultFiberApp() *fiber.App {
-	return fiber.New(fiber.Config{
-		DisableStartupMessage: true,
-		ReadTimeout:           time.Second * 10,
-		WriteTimeout:          time.Second * 10,
-		IdleTimeout:           time.Second * 10,
-		JSONEncoder:           json.Marshal,
-		JSONDecoder:           json.Unmarshal,
-	})
+func TestAES(t *testing.T) {
+	key := []byte("0123456789abcdef0123456789abcdef")
+	identifier := []byte("test")
+	content := []byte("content")
+
+	encrypted, err := Encrypt(key, identifier, content)
+	require.NoError(t, err)
+
+	decrypted, err := Decrypt(key, identifier, encrypted)
+	require.NoError(t, err)
+	require.Equal(t, content, decrypted)
+
+	_, err = Decrypt([]byte("0123456789abcdef0123456789abcdee"), identifier, encrypted)
+	require.ErrorIs(t, err, ErrInvalidContent)
 }

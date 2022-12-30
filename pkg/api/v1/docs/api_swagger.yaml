@@ -1,0 +1,151 @@
+basePath: /v1
+definitions:
+  models.GetConfigResponse:
+    properties:
+      github_enabled:
+        type: boolean
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: admin@loopholelabs.io
+    name: API Support
+  description: Auth API, V1
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: https://loopholelabs.io/privacy
+  title: Auth API V1
+  version: "1.0"
+paths:
+  /config:
+    get:
+      consumes:
+      - application/json
+      description: GetConfig gets the public configuration of the API
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.GetConfigResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: GetConfig gets the public configuration of the API
+      tags:
+      - config
+  /github/callback:
+    post:
+      consumes:
+      - application/json
+      description: GithubCallback logs in a user with Github
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "403":
+          description: Forbidden
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: GithubCallback logs in a user with Github
+      tags:
+      - login
+      - callback
+      - github
+  /github/login:
+    post:
+      consumes:
+      - application/json
+      description: GithubLogin logs in a user with Github
+      parameters:
+      - description: API Key Name
+        in: path
+        name: organization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "307":
+          description: Temporary Redirect
+          headers:
+            Location:
+              description: Redirects to Github
+              type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: GithubLogin logs in a user with Github
+      tags:
+      - login
+      - github
+  /github/login/{organization}:
+    post:
+      consumes:
+      - application/json
+      description: GithubLoginOrganization logs in a user with Github using a specific
+        organization
+      parameters:
+      - description: Organization
+        in: path
+        name: organization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "307":
+          description: Temporary Redirect
+          headers:
+            Location:
+              description: Redirects to Github
+              type: string
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: GithubLoginOrganization logs in a user with Github using a specific
+        organization
+      tags:
+      - login
+      - github
+schemes:
+- https
+swagger: "2.0"

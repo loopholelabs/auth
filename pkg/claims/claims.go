@@ -14,22 +14,10 @@
 	limitations under the License.
 */
 
-package utils
+package claims
 
-import (
-	"encoding/json"
-	"github.com/gofiber/fiber/v2"
-	"time"
-)
-
-// DefaultFiberApp returns a new fiber app with sensible defaults
-func DefaultFiberApp() *fiber.App {
-	return fiber.New(fiber.Config{
-		DisableStartupMessage: true,
-		ReadTimeout:           time.Second * 10,
-		WriteTimeout:          time.Second * 10,
-		IdleTimeout:           time.Second * 10,
-		JSONEncoder:           json.Marshal,
-		JSONDecoder:           json.Unmarshal,
-	})
+// Claims contains the claims for a user from an authentication provider
+type Claims struct {
+	// UserID is the unique identifier for the user. This is often an email address.
+	UserID string `json:"user_id"`
 }

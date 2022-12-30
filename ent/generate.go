@@ -14,22 +14,6 @@
 	limitations under the License.
 */
 
-package utils
+package ent
 
-import (
-	"encoding/json"
-	"github.com/gofiber/fiber/v2"
-	"time"
-)
-
-// DefaultFiberApp returns a new fiber app with sensible defaults
-func DefaultFiberApp() *fiber.App {
-	return fiber.New(fiber.Config{
-		DisableStartupMessage: true,
-		ReadTimeout:           time.Second * 10,
-		WriteTimeout:          time.Second * 10,
-		IdleTimeout:           time.Second * 10,
-		JSONEncoder:           json.Marshal,
-		JSONDecoder:           json.Unmarshal,
-	})
-}
+//go:generate go run -mod=mod entgo.io/ent/cmd/ent generate ./schema

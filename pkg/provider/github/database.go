@@ -14,22 +14,17 @@
 	limitations under the License.
 */
 
-package utils
+package github
 
 import (
-	"encoding/json"
-	"github.com/gofiber/fiber/v2"
+	"context"
+	"github.com/loopholelabs/auth/ent"
 	"time"
 )
 
-// DefaultFiberApp returns a new fiber app with sensible defaults
-func DefaultFiberApp() *fiber.App {
-	return fiber.New(fiber.Config{
-		DisableStartupMessage: true,
-		ReadTimeout:           time.Second * 10,
-		WriteTimeout:          time.Second * 10,
-		IdleTimeout:           time.Second * 10,
-		JSONEncoder:           json.Marshal,
-		JSONDecoder:           json.Unmarshal,
-	})
+type Database interface {
+	SetGithubFlow(ctx context.Context, state string, organization string, verifier string, challenge string) error
+	GetGithubFlow(ctx context.Context, state string) (*ent.GithubFlow, error)
+	DeleteGithubFlow(ctx context.Context, state string) error
+	GCGithubFlow(ctx context.Context, expiry time.Duration) (int, error)
 }

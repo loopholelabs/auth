@@ -14,22 +14,20 @@
 	limitations under the License.
 */
 
-package utils
+package provider
 
-import (
-	"encoding/json"
-	"github.com/gofiber/fiber/v2"
-	"time"
-)
+// Key uniquely identifies authentication providers
+type Key string
 
-// DefaultFiberApp returns a new fiber app with sensible defaults
-func DefaultFiberApp() *fiber.App {
-	return fiber.New(fiber.Config{
-		DisableStartupMessage: true,
-		ReadTimeout:           time.Second * 10,
-		WriteTimeout:          time.Second * 10,
-		IdleTimeout:           time.Second * 10,
-		JSONEncoder:           json.Marshal,
-		JSONDecoder:           json.Unmarshal,
-	})
+// Provider is an authentication provider that authorizes
+// a user and returns a set of claims
+type Provider interface {
+	// Key returns the authentication provider's unique key
+	Key() Key
+
+	// Start starts the Provider
+	Start() error
+
+	// Stop stops the Provider
+	Stop() error
 }
