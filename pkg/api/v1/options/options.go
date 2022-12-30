@@ -49,6 +49,12 @@ func New(manager *manager.Manager, nextURL NextURL, modifiers ...Modifier) *Opti
 		modifier(options)
 	}
 
+	if options.github == nil {
+		options.github = func() *github.Github {
+			return nil
+		}
+	}
+
 	return options
 }
 
