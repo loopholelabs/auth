@@ -80,9 +80,11 @@ func (s *API) Stop() error {
 		return err
 	}
 
-	err = s.v1Options.Github().Stop()
-	if err != nil {
-		return err
+	if s.v1Options.Github() != nil {
+		err = s.v1Options.Github().Stop()
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
