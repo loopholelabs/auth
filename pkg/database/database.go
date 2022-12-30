@@ -62,8 +62,17 @@ func New(connector string, url string, logger *zerolog.Logger) (*Database, error
 }
 
 func (d *Database) Shutdown() error {
-	d.cancel()
-	return d.client.Close()
+	if d.cancel != nil {
+		d.cancel()
+	}
+
+	if d.client != nil {
+		err := d.client.Close()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (d *Database) SetGithubFlow(ctx context.Context, state string, verifier string, challenge string, nextURL string, organization string) error {
