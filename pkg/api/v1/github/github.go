@@ -44,9 +44,9 @@ func New(options *options.Options, logger *zerolog.Logger) *Github {
 
 func (a *Github) init() {
 	a.logger.Debug().Msg("initializing")
-	a.app.Post("/login", a.GithubLogin)
-	a.app.Post("/login/:organization", a.GithubLoginOrganization)
-	a.app.Post("/callback", a.GithubCallback)
+	a.app.Get("/login", a.GithubLogin)
+	a.app.Get("/login/:organization", a.GithubLoginOrganization)
+	a.app.Get("/callback", a.GithubCallback)
 }
 
 func (a *Github) App() *fiber.App {
@@ -64,7 +64,7 @@ func (a *Github) App() *fiber.App {
 // @Header       307 {string} Location "Redirects to Github"
 // @Failure      401 {string} string
 // @Failure      500 {string} string
-// @Router       /github/login [post]
+// @Router       /github/login [get]
 func (a *Github) GithubLogin(ctx *fiber.Ctx) error {
 	a.logger.Debug().Msgf("received GithubLogin from %s", ctx.IP())
 	if a.options.Github() == nil {
@@ -92,7 +92,7 @@ func (a *Github) GithubLogin(ctx *fiber.Ctx) error {
 // @Failure      400 {string} string
 // @Failure      401 {string} string
 // @Failure      500 {string} string
-// @Router       /github/login/{organization} [post]
+// @Router       /github/login/{organization} [get]
 func (a *Github) GithubLoginOrganization(ctx *fiber.Ctx) error {
 	a.logger.Debug().Msgf("received GithubLoginOrganization from %s", ctx.IP())
 	if a.options.Github() == nil {
@@ -123,7 +123,7 @@ func (a *Github) GithubLoginOrganization(ctx *fiber.Ctx) error {
 // @Failure      403 {string} string
 // @Failure      404 {string} string
 // @Failure      500 {string} string
-// @Router       /github/callback [post]
+// @Router       /github/callback [get]
 func (a *Github) GithubCallback(ctx *fiber.Ctx) error {
 	a.logger.Debug().Msgf("received GithubCallback from %s", ctx.IP())
 	if a.options.Github() == nil {
