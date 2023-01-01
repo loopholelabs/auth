@@ -112,19 +112,9 @@ func (m *Manager) Start() error {
 	go m.subscribeToRegistrationEvents(registrationEvents)
 	m.logger.Info().Msg("subscribed to registration events")
 	m.registration, err = m.storage.GetRegistration(m.ctx)
+	m.registrationMu.Unlock()
 	if err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
-			m.logger.Info().Msg("no secret key found, generating new one")
-			m.registration = false
-			err = m.storage.SetRegistration(m.ctx, m.registration)
-			if err != nil {
-				m.registrationMu.Unlock()
-				return err
-			}
-		} else {
-			m.registrationMu.Unlock()
-			return err
-		}
+		return err
 	}
 	m.logger.Info().Msg("retrieved registration")
 
