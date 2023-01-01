@@ -92,8 +92,8 @@ func (m *Manager) Start() error {
 			m.logger.Info().Msg("no secret key found, generating new one")
 			m.secretKey = utils.RandomBytes(32)
 			err = m.storage.SetSecretKey(m.ctx, m.secretKey)
+			m.secretKeyMu.Unlock()
 			if err != nil {
-				m.secretKeyMu.Unlock()
 				return fmt.Errorf("failed to set secret key: %w", err)
 			}
 		} else {
@@ -143,6 +143,7 @@ func (m *Manager) Start() error {
 }
 
 func (m *Manager) Stop() error {
+	m.logger.Info().Msg("stopping manager")
 	m.cancel()
 	m.wg.Wait()
 	return nil
