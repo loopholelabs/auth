@@ -136,6 +136,7 @@ func (d *Device) DeviceCallback(ctx *fiber.Ctx) error {
 // @Success      200 {string} string
 // @Failure      400 {string} string
 // @Failure      401 {string} string
+// @Failure      403 {string} string
 // @Failure      500 {string} string
 // @Router       /device/poll [post]
 func (d *Device) DevicePoll(ctx *fiber.Ctx) error {
@@ -158,15 +159,19 @@ func (d *Device) DevicePoll(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusInternalServerError).SendString("failed to poll device code")
 	}
 
-	if lastPoll.Add(DefaultPollingRate * time.Second).Before(time.Now()) {
+	if lastPoll.Add(DefaultPollingRate * time.Second).After(time.Now()) {
 		return ctx.Status(fiber.StatusUnauthorized).SendString("polling rate exceeded")
 	}
 
-	if expires.Before(time.Now()) {
-		return ctx.Status(fiber.StatusUnauthorized).SendString("code expired")
+	if session != "" {
+		if expires.Before(time.Now()) {
+			return ctx.Status(fiber.StatusUnauthorized).SendString("code expired")
+		}
+
+		ctx.Cookie(d.options.Manager().GenerateCookie(session, expires))
+
+		return ctx.SendString("success")
 	}
 
-	ctx.Cookie(d.options.Manager().GenerateCookie(session, expires))
-
-	return ctx.SendString("success")
+	return ctx.Status(fiber.StatusForbidden).SendString("code not yet authorized")
 }
