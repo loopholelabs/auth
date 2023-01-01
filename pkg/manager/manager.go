@@ -26,6 +26,7 @@ import (
 	"github.com/loopholelabs/auth/pkg/provider"
 	"github.com/loopholelabs/auth/pkg/session"
 	"github.com/loopholelabs/auth/pkg/storage"
+	"github.com/loopholelabs/auth/pkg/utils"
 	"github.com/rs/zerolog"
 	"sync"
 	"time"
@@ -85,9 +86,19 @@ func (m *Manager) Start() error {
 	go m.subscribeToSecretKeyEvents(secretKeyEvents)
 	m.logger.Info().Msg("subscribed to secret key events")
 	m.secretKey, err = m.storage.GetSecretKey(m.ctx)
-	m.secretKeyMu.Unlock()
 	if err != nil {
-		return err
+		if errors.Is(err, storage.ErrNotFound) {
+			m.logger.Info().Msg("no secret key found, generating new one")
+			m.secretKey = utils.RandomBytes(32)
+			err = m.storage.SetSecretKey(m.ctx, m.secretKey)
+			if err != nil {
+				m.secretKeyMu.Unlock()
+				return err
+			}
+		} else {
+			m.secretKeyMu.Unlock()
+			return err
+		}
 	}
 	m.logger.Info().Msg("retrieved secret key")
 
@@ -101,9 +112,19 @@ func (m *Manager) Start() error {
 	go m.subscribeToRegistrationEvents(registrationEvents)
 	m.logger.Info().Msg("subscribed to registration events")
 	m.registration, err = m.storage.GetRegistration(m.ctx)
-	m.registrationMu.Unlock()
 	if err != nil {
-		return err
+		if errors.Is(err, storage.ErrNotFound) {
+			m.logger.Info().Msg("no secret key found, generating new one")
+			m.registration = false
+			err = m.storage.SetRegistration(m.ctx, m.registration)
+			if err != nil {
+				m.registrationMu.Unlock()
+				return err
+			}
+		} else {
+			m.registrationMu.Unlock()
+			return err
+		}
 	}
 	m.logger.Info().Msg("retrieved registration")
 

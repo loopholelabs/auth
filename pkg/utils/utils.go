@@ -17,40 +17,36 @@
 package utils
 
 import (
+	"crypto/rand"
 	"encoding/json"
 	"github.com/gofiber/fiber/v2"
-	"math/rand"
+	"math/big"
 	"time"
 	"unsafe"
 )
 
-const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 const (
-	letterIdxBits = 6                    // 6 bits to represent a letter index
-	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
-	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
+	letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 )
 
-func init() {
-	rand.Seed(time.Now().UnixNano())
+var (
+	maxLetterBytes = big.NewInt(int64(len(letterBytes)))
+)
+
+// RandomBytes generates a random byte slice of length n
+func RandomBytes(n int) []byte {
+	b := make([]byte, n)
+	for i := 0; i < n; i++ {
+		num, _ := rand.Int(rand.Reader, maxLetterBytes)
+		b[i] = letterBytes[num.Int64()]
+	}
+
+	return b
 }
 
 // RandomString generates a random string of length n
 func RandomString(n int) string {
-	b := make([]byte, n)
-	// A src.Int63() generates 63 random bits, enough for letterIdxMax characters!
-	for i, cache, remain := n-1, rand.Int63(), letterIdxMax; i >= 0; {
-		if remain == 0 {
-			cache, remain = rand.Int63(), letterIdxMax
-		}
-		if idx := int(cache & letterIdxMask); idx < len(letterBytes) {
-			b[i] = letterBytes[idx]
-			i--
-		}
-		cache >>= letterIdxBits
-		remain--
-	}
-
+	b := RandomBytes(n)
 	return *(*string)(unsafe.Pointer(&b))
 }
 

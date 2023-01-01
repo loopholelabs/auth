@@ -1,5 +1,5 @@
 /*
-	Copyright 2022 Loophole Labs
+	Copyright 2023 Loophole Labs
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -18,8 +18,13 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"github.com/loopholelabs/auth/pkg/claims"
 	"time"
+)
+
+var (
+	ErrNotFound = errors.New("key not found")
 )
 
 // SessionEvent is the event that is triggered when a session is created, updated, or deleted
@@ -50,9 +55,11 @@ type Storage interface {
 
 	SubscribeToRegistration(ctx context.Context) (<-chan *RegistrationEvent, error)
 	GetRegistration(ctx context.Context) (bool, error)
+	SetRegistration(ctx context.Context, enabled bool) error
 
 	SubscribeToSecretKey(ctx context.Context) (<-chan *SecretKeyEvent, error)
 	GetSecretKey(ctx context.Context) ([]byte, error)
+	SetSecretKey(ctx context.Context, secretKey []byte) error
 
 	SubscribeToSessions(ctx context.Context) (<-chan *SessionEvent, error)
 	ListSessions(ctx context.Context) ([]string, error)
