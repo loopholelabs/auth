@@ -22,6 +22,7 @@ import (
 	"github.com/loopholelabs/auth/pkg/provider"
 	"github.com/loopholelabs/auth/pkg/utils"
 	"github.com/rs/zerolog"
+	"strings"
 	"sync"
 	"time"
 )
@@ -71,7 +72,7 @@ func (g *Device) Stop() error {
 }
 
 func (g *Device) StartFlow(ctx context.Context) (string, string, error) {
-	deviceCode := utils.RandomString(8)
+	deviceCode := strings.ToUpper(utils.RandomString(8))
 	userCode := uuid.New().String()
 	identifier := uuid.New().String()
 
