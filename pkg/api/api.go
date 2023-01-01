@@ -1,5 +1,5 @@
 /*
-	Copyright 2022 Loophole Labs
+	Copyright 2023 Loophole Labs
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -82,6 +82,13 @@ func (s *API) Stop() error {
 
 	if s.v1Options.Github() != nil {
 		err = s.v1Options.Github().Stop()
+		if err != nil {
+			return err
+		}
+	}
+
+	if s.v1Options.Device() != nil {
+		err = s.v1Options.Device().Stop()
 		if err != nil {
 			return err
 		}
