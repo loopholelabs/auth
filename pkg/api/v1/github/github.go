@@ -18,6 +18,7 @@ package github
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"github.com/loopholelabs/auth/ent"
 	"github.com/loopholelabs/auth/pkg/api/v1/options"
 	"github.com/loopholelabs/auth/pkg/utils"
 	"github.com/rs/zerolog"
@@ -109,8 +110,12 @@ func (a *Github) GithubCallback(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusUnauthorized).SendString("state is required")
 	}
 
+	a.logger.Debug().Msgf("completing flow for state %s", state)
 	userID, organization, nextURL, deviceIdentifier, err := a.options.Github().CompleteFlow(ctx.Context(), code, state)
 	if err != nil {
+		if ent.IsNotFound(err) {
+			return ctx.Status(fiber.StatusUnauthorized).SendString("code is invalid")
+		}
 		a.logger.Error().Err(err).Msg("failed to get token")
 		return ctx.Status(fiber.StatusInternalServerError).SendString("failed to get token")
 	}

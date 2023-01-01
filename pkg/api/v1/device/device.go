@@ -51,7 +51,7 @@ func New(options *options.Options, logger *zerolog.Logger) *Device {
 
 func (d *Device) init() {
 	d.logger.Debug().Msg("initializing")
-	d.app.Get("/flow", d.DeviceFlow)
+	d.app.Post("/flow", d.DeviceFlow)
 	d.app.Post("/callback", d.DeviceCallback)
 	d.app.Post("/poll", d.DevicePoll)
 }
@@ -69,7 +69,7 @@ func (d *Device) App() *fiber.App {
 // @Success      200 {object} models.GetDeviceFlowResponse
 // @Failure      401 {string} string
 // @Failure      500 {string} string
-// @Router       /device/flow [get]
+// @Router       /device/flow [post]
 func (d *Device) DeviceFlow(ctx *fiber.Ctx) error {
 	d.logger.Debug().Msgf("received DeviceFlow from %s", ctx.IP())
 	if d.options.Device() == nil {

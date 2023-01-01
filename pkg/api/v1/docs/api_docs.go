@@ -130,7 +130,7 @@ const docTemplateapi = `{
             }
         },
         "/device/flow": {
-            "get": {
+            "post": {
                 "description": "DeviceFlow starts the device code flow",
                 "consumes": [
                     "application/json"

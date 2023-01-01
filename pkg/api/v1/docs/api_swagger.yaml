@@ -92,7 +92,7 @@ paths:
       - device
       - callback
   /device/flow:
-    get:
+    post:
       consumes:
       - application/json
       description: DeviceFlow starts the device code flow
