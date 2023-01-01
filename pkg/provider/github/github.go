@@ -109,6 +109,7 @@ func (g *Github) StartFlow(ctx context.Context, nextURL string, organization str
 	challenge := pkce.CodeChallengeS256(verifier)
 	state := uuid.New().String()
 
+	g.logger.Debug().Msgf("starting flow for state %s", state)
 	err := g.database.SetGithubFlow(ctx, state, verifier, challenge, nextURL, organization, deviceIdentifier)
 	if err != nil {
 		return "", err
@@ -118,16 +119,19 @@ func (g *Github) StartFlow(ctx context.Context, nextURL string, organization str
 }
 
 func (g *Github) CompleteFlow(ctx context.Context, code string, state string) (string, string, string, string, error) {
+	g.logger.Debug().Msgf("completing flow for state %s", code, state)
 	flow, err := g.database.GetGithubFlow(ctx, state)
 	if err != nil {
 		return "", "", "", "", err
 	}
 
+	g.logger.Debug().Msgf("found flow for state %s, deleting", state)
 	err = g.database.DeleteGithubFlow(ctx, state)
 	if err != nil {
 		return "", "", "", "", err
 	}
 
+	g.logger.Debug().Msgf("exchanging code for token for state %s", state)
 	token, err := g.conf.Exchange(ctx, code, oauth2.SetAuthURLParam(pkce.ParamCodeVerifier, flow.Verifier))
 	if err != nil {
 		return "", "", "", "", err
@@ -140,7 +144,9 @@ func (g *Github) CompleteFlow(ctx context.Context, code string, state string) (s
 			"Authorization": []string{"token " + token.AccessToken},
 		},
 	}
+	req = req.WithContext(ctx)
 
+	g.logger.Debug().Msgf("fetching emails for state %s", state)
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return "", "", "", "", err
@@ -150,7 +156,9 @@ func (g *Github) CompleteFlow(ctx context.Context, code string, state string) (s
 		return "", "", "", "", ErrInvalidResponse
 	}
 
+	g.logger.Debug().Msgf("parsing emails for state %s", state)
 	body, err := io.ReadAll(res.Body)
+	_ = res.Body.Close()
 	if err != nil {
 		return "", "", "", "", err
 	}
