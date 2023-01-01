@@ -1,5 +1,5 @@
 /*
-	Copyright 2022 Loophole Labs
+	Copyright 2023 Loophole Labs
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -39,6 +39,8 @@ const (
 	FieldNextURL = "next_url"
 	// FieldOrganization holds the string denoting the organization field in the database.
 	FieldOrganization = "organization"
+	// FieldDeviceIdentifier holds the string denoting the device_identifier field in the database.
+	FieldDeviceIdentifier = "device_identifier"
 	// Table holds the table name of the githubflow in the database.
 	Table = "github_flows"
 )
@@ -52,6 +54,7 @@ var Columns = []string{
 	FieldChallenge,
 	FieldNextURL,
 	FieldOrganization,
+	FieldDeviceIdentifier,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).

@@ -1,5 +1,5 @@
 /*
-	Copyright 2022 Loophole Labs
+	Copyright 2023 Loophole Labs
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -104,12 +104,12 @@ func (g *Github) Stop() error {
 	return nil
 }
 
-func (g *Github) StartFlow(ctx context.Context, nextURL string, organization string) (string, error) {
+func (g *Github) StartFlow(ctx context.Context, nextURL string, organization string, deviceIdentifier string) (string, error) {
 	verifier := pkce.NewCodeVerifier()
 	challenge := pkce.CodeChallengeS256(verifier)
 	state := uuid.New().String()
 
-	err := g.database.SetGithubFlow(ctx, state, verifier, challenge, nextURL, organization)
+	err := g.database.SetGithubFlow(ctx, state, verifier, challenge, nextURL, organization, deviceIdentifier)
 	if err != nil {
 		return "", err
 	}
@@ -117,20 +117,20 @@ func (g *Github) StartFlow(ctx context.Context, nextURL string, organization str
 	return g.conf.AuthCodeURL(state, oauth2.AccessTypeOnline, oauth2.SetAuthURLParam(pkce.ParamCodeChallenge, challenge), oauth2.SetAuthURLParam(pkce.ParamCodeChallengeMethod, pkce.MethodS256)), nil
 }
 
-func (g *Github) CompleteFlow(ctx context.Context, code string, state string) (string, string, string, error) {
+func (g *Github) CompleteFlow(ctx context.Context, code string, state string) (string, string, string, string, error) {
 	flow, err := g.database.GetGithubFlow(ctx, state)
 	if err != nil {
-		return "", "", "", err
+		return "", "", "", "", err
 	}
 
 	err = g.database.DeleteGithubFlow(ctx, state)
 	if err != nil {
-		return "", "", "", err
+		return "", "", "", "", err
 	}
 
 	token, err := g.conf.Exchange(ctx, code, oauth2.SetAuthURLParam(pkce.ParamCodeVerifier, flow.Verifier))
 	if err != nil {
-		return "", "", "", err
+		return "", "", "", "", err
 	}
 
 	req := &http.Request{
@@ -143,31 +143,31 @@ func (g *Github) CompleteFlow(ctx context.Context, code string, state string) (s
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return "", "", "", err
+		return "", "", "", "", err
 	}
 
 	if res.StatusCode != http.StatusOK {
-		return "", "", "", ErrInvalidResponse
+		return "", "", "", "", ErrInvalidResponse
 	}
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		return "", "", "", err
+		return "", "", "", "", err
 	}
 
 	var emails []email
 	err = json.Unmarshal(body, &emails)
 	if err != nil {
-		return "", "", "", err
+		return "", "", "", "", err
 	}
 
 	for _, e := range emails {
 		if e.Primary && e.Verified {
-			return e.Email, flow.Organization, flow.NextURL, nil
+			return e.Email, flow.Organization, flow.NextURL, flow.DeviceIdentifier, nil
 		}
 	}
 
-	return "", "", "", ErrInvalidResponse
+	return "", "", "", "", ErrInvalidResponse
 }
 
 func (g *Github) gc() {

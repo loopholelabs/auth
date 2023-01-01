@@ -1,5 +1,5 @@
 /*
-	Copyright 2022 Loophole Labs
+	Copyright 2023 Loophole Labs
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -18,4 +18,14 @@ package models
 
 type GetConfigResponse struct {
 	GithubEnabled bool `json:"github_enabled"`
+}
+
+type GetDeviceFlowResponse struct {
+	DeviceCode  string `json:"device_code"`
+	UserCode    string `json:"user_code"`
+	PollingRate int64  `json:"polling_rate"`
+}
+
+type GetDeviceCallbackResponse struct {
+	Identifier string `json:"identifier"`
 }

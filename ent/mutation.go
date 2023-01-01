@@ -1,5 +1,5 @@
 /*
-	Copyright 2022 Loophole Labs
+	Copyright 2023 Loophole Labs
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/loopholelabs/auth/ent/deviceflow"
 	"github.com/loopholelabs/auth/ent/githubflow"
 	"github.com/loopholelabs/auth/ent/predicate"
 
@@ -40,25 +41,703 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
+	TypeDeviceFlow = "DeviceFlow"
 	TypeGithubFlow = "GithubFlow"
 )
 
-// GithubFlowMutation represents an operation that mutates the GithubFlow nodes in the graph.
-type GithubFlowMutation struct {
+// DeviceFlowMutation represents an operation that mutates the DeviceFlow nodes in the graph.
+type DeviceFlowMutation struct {
 	config
 	op            Op
 	typ           string
 	id            *int
 	created_at    *time.Time
-	state         *string
-	verifier      *string
-	challenge     *string
-	next_url      *string
-	organization  *string
+	last_poll     *time.Time
+	identifier    *string
+	device_code   *string
+	user_code     *string
+	session       *string
+	expires_at    *time.Time
 	clearedFields map[string]struct{}
 	done          bool
-	oldValue      func(context.Context) (*GithubFlow, error)
-	predicates    []predicate.GithubFlow
+	oldValue      func(context.Context) (*DeviceFlow, error)
+	predicates    []predicate.DeviceFlow
+}
+
+var _ ent.Mutation = (*DeviceFlowMutation)(nil)
+
+// deviceflowOption allows management of the mutation configuration using functional options.
+type deviceflowOption func(*DeviceFlowMutation)
+
+// newDeviceFlowMutation creates new mutation for the DeviceFlow entity.
+func newDeviceFlowMutation(c config, op Op, opts ...deviceflowOption) *DeviceFlowMutation {
+	m := &DeviceFlowMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeDeviceFlow,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withDeviceFlowID sets the ID field of the mutation.
+func withDeviceFlowID(id int) deviceflowOption {
+	return func(m *DeviceFlowMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *DeviceFlow
+		)
+		m.oldValue = func(ctx context.Context) (*DeviceFlow, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().DeviceFlow.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withDeviceFlow sets the old DeviceFlow of the mutation.
+func withDeviceFlow(node *DeviceFlow) deviceflowOption {
+	return func(m *DeviceFlowMutation) {
+		m.oldValue = func(context.Context) (*DeviceFlow, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m DeviceFlowMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m DeviceFlowMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *DeviceFlowMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *DeviceFlowMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().DeviceFlow.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *DeviceFlowMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *DeviceFlowMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the DeviceFlow entity.
+// If the DeviceFlow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeviceFlowMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *DeviceFlowMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetLastPoll sets the "last_poll" field.
+func (m *DeviceFlowMutation) SetLastPoll(t time.Time) {
+	m.last_poll = &t
+}
+
+// LastPoll returns the value of the "last_poll" field in the mutation.
+func (m *DeviceFlowMutation) LastPoll() (r time.Time, exists bool) {
+	v := m.last_poll
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastPoll returns the old "last_poll" field's value of the DeviceFlow entity.
+// If the DeviceFlow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeviceFlowMutation) OldLastPoll(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastPoll is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastPoll requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastPoll: %w", err)
+	}
+	return oldValue.LastPoll, nil
+}
+
+// ResetLastPoll resets all changes to the "last_poll" field.
+func (m *DeviceFlowMutation) ResetLastPoll() {
+	m.last_poll = nil
+}
+
+// SetIdentifier sets the "identifier" field.
+func (m *DeviceFlowMutation) SetIdentifier(s string) {
+	m.identifier = &s
+}
+
+// Identifier returns the value of the "identifier" field in the mutation.
+func (m *DeviceFlowMutation) Identifier() (r string, exists bool) {
+	v := m.identifier
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIdentifier returns the old "identifier" field's value of the DeviceFlow entity.
+// If the DeviceFlow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeviceFlowMutation) OldIdentifier(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIdentifier is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIdentifier requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIdentifier: %w", err)
+	}
+	return oldValue.Identifier, nil
+}
+
+// ResetIdentifier resets all changes to the "identifier" field.
+func (m *DeviceFlowMutation) ResetIdentifier() {
+	m.identifier = nil
+}
+
+// SetDeviceCode sets the "device_code" field.
+func (m *DeviceFlowMutation) SetDeviceCode(s string) {
+	m.device_code = &s
+}
+
+// DeviceCode returns the value of the "device_code" field in the mutation.
+func (m *DeviceFlowMutation) DeviceCode() (r string, exists bool) {
+	v := m.device_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeviceCode returns the old "device_code" field's value of the DeviceFlow entity.
+// If the DeviceFlow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeviceFlowMutation) OldDeviceCode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeviceCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeviceCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeviceCode: %w", err)
+	}
+	return oldValue.DeviceCode, nil
+}
+
+// ResetDeviceCode resets all changes to the "device_code" field.
+func (m *DeviceFlowMutation) ResetDeviceCode() {
+	m.device_code = nil
+}
+
+// SetUserCode sets the "user_code" field.
+func (m *DeviceFlowMutation) SetUserCode(s string) {
+	m.user_code = &s
+}
+
+// UserCode returns the value of the "user_code" field in the mutation.
+func (m *DeviceFlowMutation) UserCode() (r string, exists bool) {
+	v := m.user_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserCode returns the old "user_code" field's value of the DeviceFlow entity.
+// If the DeviceFlow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeviceFlowMutation) OldUserCode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserCode: %w", err)
+	}
+	return oldValue.UserCode, nil
+}
+
+// ResetUserCode resets all changes to the "user_code" field.
+func (m *DeviceFlowMutation) ResetUserCode() {
+	m.user_code = nil
+}
+
+// SetSession sets the "session" field.
+func (m *DeviceFlowMutation) SetSession(s string) {
+	m.session = &s
+}
+
+// Session returns the value of the "session" field in the mutation.
+func (m *DeviceFlowMutation) Session() (r string, exists bool) {
+	v := m.session
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSession returns the old "session" field's value of the DeviceFlow entity.
+// If the DeviceFlow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeviceFlowMutation) OldSession(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSession is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSession requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSession: %w", err)
+	}
+	return oldValue.Session, nil
+}
+
+// ClearSession clears the value of the "session" field.
+func (m *DeviceFlowMutation) ClearSession() {
+	m.session = nil
+	m.clearedFields[deviceflow.FieldSession] = struct{}{}
+}
+
+// SessionCleared returns if the "session" field was cleared in this mutation.
+func (m *DeviceFlowMutation) SessionCleared() bool {
+	_, ok := m.clearedFields[deviceflow.FieldSession]
+	return ok
+}
+
+// ResetSession resets all changes to the "session" field.
+func (m *DeviceFlowMutation) ResetSession() {
+	m.session = nil
+	delete(m.clearedFields, deviceflow.FieldSession)
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (m *DeviceFlowMutation) SetExpiresAt(t time.Time) {
+	m.expires_at = &t
+}
+
+// ExpiresAt returns the value of the "expires_at" field in the mutation.
+func (m *DeviceFlowMutation) ExpiresAt() (r time.Time, exists bool) {
+	v := m.expires_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpiresAt returns the old "expires_at" field's value of the DeviceFlow entity.
+// If the DeviceFlow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeviceFlowMutation) OldExpiresAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpiresAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpiresAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpiresAt: %w", err)
+	}
+	return oldValue.ExpiresAt, nil
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (m *DeviceFlowMutation) ClearExpiresAt() {
+	m.expires_at = nil
+	m.clearedFields[deviceflow.FieldExpiresAt] = struct{}{}
+}
+
+// ExpiresAtCleared returns if the "expires_at" field was cleared in this mutation.
+func (m *DeviceFlowMutation) ExpiresAtCleared() bool {
+	_, ok := m.clearedFields[deviceflow.FieldExpiresAt]
+	return ok
+}
+
+// ResetExpiresAt resets all changes to the "expires_at" field.
+func (m *DeviceFlowMutation) ResetExpiresAt() {
+	m.expires_at = nil
+	delete(m.clearedFields, deviceflow.FieldExpiresAt)
+}
+
+// Where appends a list predicates to the DeviceFlowMutation builder.
+func (m *DeviceFlowMutation) Where(ps ...predicate.DeviceFlow) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// Op returns the operation name.
+func (m *DeviceFlowMutation) Op() Op {
+	return m.op
+}
+
+// Type returns the node type of this mutation (DeviceFlow).
+func (m *DeviceFlowMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *DeviceFlowMutation) Fields() []string {
+	fields := make([]string, 0, 7)
+	if m.created_at != nil {
+		fields = append(fields, deviceflow.FieldCreatedAt)
+	}
+	if m.last_poll != nil {
+		fields = append(fields, deviceflow.FieldLastPoll)
+	}
+	if m.identifier != nil {
+		fields = append(fields, deviceflow.FieldIdentifier)
+	}
+	if m.device_code != nil {
+		fields = append(fields, deviceflow.FieldDeviceCode)
+	}
+	if m.user_code != nil {
+		fields = append(fields, deviceflow.FieldUserCode)
+	}
+	if m.session != nil {
+		fields = append(fields, deviceflow.FieldSession)
+	}
+	if m.expires_at != nil {
+		fields = append(fields, deviceflow.FieldExpiresAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *DeviceFlowMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case deviceflow.FieldCreatedAt:
+		return m.CreatedAt()
+	case deviceflow.FieldLastPoll:
+		return m.LastPoll()
+	case deviceflow.FieldIdentifier:
+		return m.Identifier()
+	case deviceflow.FieldDeviceCode:
+		return m.DeviceCode()
+	case deviceflow.FieldUserCode:
+		return m.UserCode()
+	case deviceflow.FieldSession:
+		return m.Session()
+	case deviceflow.FieldExpiresAt:
+		return m.ExpiresAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *DeviceFlowMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case deviceflow.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case deviceflow.FieldLastPoll:
+		return m.OldLastPoll(ctx)
+	case deviceflow.FieldIdentifier:
+		return m.OldIdentifier(ctx)
+	case deviceflow.FieldDeviceCode:
+		return m.OldDeviceCode(ctx)
+	case deviceflow.FieldUserCode:
+		return m.OldUserCode(ctx)
+	case deviceflow.FieldSession:
+		return m.OldSession(ctx)
+	case deviceflow.FieldExpiresAt:
+		return m.OldExpiresAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown DeviceFlow field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *DeviceFlowMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case deviceflow.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case deviceflow.FieldLastPoll:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastPoll(v)
+		return nil
+	case deviceflow.FieldIdentifier:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIdentifier(v)
+		return nil
+	case deviceflow.FieldDeviceCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeviceCode(v)
+		return nil
+	case deviceflow.FieldUserCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserCode(v)
+		return nil
+	case deviceflow.FieldSession:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSession(v)
+		return nil
+	case deviceflow.FieldExpiresAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpiresAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown DeviceFlow field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *DeviceFlowMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *DeviceFlowMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *DeviceFlowMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown DeviceFlow numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *DeviceFlowMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(deviceflow.FieldSession) {
+		fields = append(fields, deviceflow.FieldSession)
+	}
+	if m.FieldCleared(deviceflow.FieldExpiresAt) {
+		fields = append(fields, deviceflow.FieldExpiresAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *DeviceFlowMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *DeviceFlowMutation) ClearField(name string) error {
+	switch name {
+	case deviceflow.FieldSession:
+		m.ClearSession()
+		return nil
+	case deviceflow.FieldExpiresAt:
+		m.ClearExpiresAt()
+		return nil
+	}
+	return fmt.Errorf("unknown DeviceFlow nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *DeviceFlowMutation) ResetField(name string) error {
+	switch name {
+	case deviceflow.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case deviceflow.FieldLastPoll:
+		m.ResetLastPoll()
+		return nil
+	case deviceflow.FieldIdentifier:
+		m.ResetIdentifier()
+		return nil
+	case deviceflow.FieldDeviceCode:
+		m.ResetDeviceCode()
+		return nil
+	case deviceflow.FieldUserCode:
+		m.ResetUserCode()
+		return nil
+	case deviceflow.FieldSession:
+		m.ResetSession()
+		return nil
+	case deviceflow.FieldExpiresAt:
+		m.ResetExpiresAt()
+		return nil
+	}
+	return fmt.Errorf("unknown DeviceFlow field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *DeviceFlowMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *DeviceFlowMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *DeviceFlowMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *DeviceFlowMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *DeviceFlowMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *DeviceFlowMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *DeviceFlowMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown DeviceFlow unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *DeviceFlowMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown DeviceFlow edge %s", name)
+}
+
+// GithubFlowMutation represents an operation that mutates the GithubFlow nodes in the graph.
+type GithubFlowMutation struct {
+	config
+	op                Op
+	typ               string
+	id                *int
+	created_at        *time.Time
+	state             *string
+	verifier          *string
+	challenge         *string
+	next_url          *string
+	organization      *string
+	device_identifier *string
+	clearedFields     map[string]struct{}
+	done              bool
+	oldValue          func(context.Context) (*GithubFlow, error)
+	predicates        []predicate.GithubFlow
 }
 
 var _ ent.Mutation = (*GithubFlowMutation)(nil)
@@ -388,6 +1067,55 @@ func (m *GithubFlowMutation) ResetOrganization() {
 	delete(m.clearedFields, githubflow.FieldOrganization)
 }
 
+// SetDeviceIdentifier sets the "device_identifier" field.
+func (m *GithubFlowMutation) SetDeviceIdentifier(s string) {
+	m.device_identifier = &s
+}
+
+// DeviceIdentifier returns the value of the "device_identifier" field in the mutation.
+func (m *GithubFlowMutation) DeviceIdentifier() (r string, exists bool) {
+	v := m.device_identifier
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeviceIdentifier returns the old "device_identifier" field's value of the GithubFlow entity.
+// If the GithubFlow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GithubFlowMutation) OldDeviceIdentifier(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeviceIdentifier is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeviceIdentifier requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeviceIdentifier: %w", err)
+	}
+	return oldValue.DeviceIdentifier, nil
+}
+
+// ClearDeviceIdentifier clears the value of the "device_identifier" field.
+func (m *GithubFlowMutation) ClearDeviceIdentifier() {
+	m.device_identifier = nil
+	m.clearedFields[githubflow.FieldDeviceIdentifier] = struct{}{}
+}
+
+// DeviceIdentifierCleared returns if the "device_identifier" field was cleared in this mutation.
+func (m *GithubFlowMutation) DeviceIdentifierCleared() bool {
+	_, ok := m.clearedFields[githubflow.FieldDeviceIdentifier]
+	return ok
+}
+
+// ResetDeviceIdentifier resets all changes to the "device_identifier" field.
+func (m *GithubFlowMutation) ResetDeviceIdentifier() {
+	m.device_identifier = nil
+	delete(m.clearedFields, githubflow.FieldDeviceIdentifier)
+}
+
 // Where appends a list predicates to the GithubFlowMutation builder.
 func (m *GithubFlowMutation) Where(ps ...predicate.GithubFlow) {
 	m.predicates = append(m.predicates, ps...)
@@ -407,7 +1135,7 @@ func (m *GithubFlowMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GithubFlowMutation) Fields() []string {
-	fields := make([]string, 0, 6)
+	fields := make([]string, 0, 7)
 	if m.created_at != nil {
 		fields = append(fields, githubflow.FieldCreatedAt)
 	}
@@ -425,6 +1153,9 @@ func (m *GithubFlowMutation) Fields() []string {
 	}
 	if m.organization != nil {
 		fields = append(fields, githubflow.FieldOrganization)
+	}
+	if m.device_identifier != nil {
+		fields = append(fields, githubflow.FieldDeviceIdentifier)
 	}
 	return fields
 }
@@ -446,6 +1177,8 @@ func (m *GithubFlowMutation) Field(name string) (ent.Value, bool) {
 		return m.NextURL()
 	case githubflow.FieldOrganization:
 		return m.Organization()
+	case githubflow.FieldDeviceIdentifier:
+		return m.DeviceIdentifier()
 	}
 	return nil, false
 }
@@ -467,6 +1200,8 @@ func (m *GithubFlowMutation) OldField(ctx context.Context, name string) (ent.Val
 		return m.OldNextURL(ctx)
 	case githubflow.FieldOrganization:
 		return m.OldOrganization(ctx)
+	case githubflow.FieldDeviceIdentifier:
+		return m.OldDeviceIdentifier(ctx)
 	}
 	return nil, fmt.Errorf("unknown GithubFlow field %s", name)
 }
@@ -518,6 +1253,13 @@ func (m *GithubFlowMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetOrganization(v)
 		return nil
+	case githubflow.FieldDeviceIdentifier:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeviceIdentifier(v)
+		return nil
 	}
 	return fmt.Errorf("unknown GithubFlow field %s", name)
 }
@@ -551,6 +1293,9 @@ func (m *GithubFlowMutation) ClearedFields() []string {
 	if m.FieldCleared(githubflow.FieldOrganization) {
 		fields = append(fields, githubflow.FieldOrganization)
 	}
+	if m.FieldCleared(githubflow.FieldDeviceIdentifier) {
+		fields = append(fields, githubflow.FieldDeviceIdentifier)
+	}
 	return fields
 }
 
@@ -567,6 +1312,9 @@ func (m *GithubFlowMutation) ClearField(name string) error {
 	switch name {
 	case githubflow.FieldOrganization:
 		m.ClearOrganization()
+		return nil
+	case githubflow.FieldDeviceIdentifier:
+		m.ClearDeviceIdentifier()
 		return nil
 	}
 	return fmt.Errorf("unknown GithubFlow nullable field %s", name)
@@ -593,6 +1341,9 @@ func (m *GithubFlowMutation) ResetField(name string) error {
 		return nil
 	case githubflow.FieldOrganization:
 		m.ResetOrganization()
+		return nil
+	case githubflow.FieldDeviceIdentifier:
+		m.ResetDeviceIdentifier()
 		return nil
 	}
 	return fmt.Errorf("unknown GithubFlow field %s", name)

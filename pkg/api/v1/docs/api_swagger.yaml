@@ -5,6 +5,20 @@ definitions:
       github_enabled:
         type: boolean
     type: object
+  models.GetDeviceCallbackResponse:
+    properties:
+      identifier:
+        type: string
+    type: object
+  models.GetDeviceFlowResponse:
+    properties:
+      device_code:
+        type: string
+      polling_rate:
+        type: integer
+      user_code:
+        type: string
+    type: object
 host: localhost:8080
 info:
   contact:
@@ -43,6 +57,98 @@ paths:
       summary: GetConfig gets the public configuration of the API
       tags:
       - config
+  /device/callback:
+    post:
+      consumes:
+      - application/json
+      description: DeviceCallback validates the device code and returns the flow identifier
+      parameters:
+      - description: device code
+        in: query
+        name: code
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.GetDeviceCallbackResponse'
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: DeviceCallback validates the device code and returns the flow identifier
+      tags:
+      - device
+      - callback
+  /device/flow:
+    get:
+      consumes:
+      - application/json
+      description: DeviceFlow starts the device code flow
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.GetDeviceFlowResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: DeviceFlow starts the device code flow
+      tags:
+      - device
+      - login
+  /device/poll:
+    post:
+      consumes:
+      - application/json
+      description: DevicePoll polls the device code flow using the user code
+      parameters:
+      - description: user code
+        in: query
+        name: code
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: DevicePoll polls the device code flow using the user code
+      tags:
+      - device
+      - poll
   /github/callback:
     get:
       consumes:
@@ -51,10 +157,12 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
-          description: OK
-          schema:
-            type: string
+        "307":
+          description: Temporary Redirect
+          headers:
+            Location:
+              description: Redirects to Next URL
+              type: string
         "401":
           description: Unauthorized
           schema:
@@ -85,6 +193,14 @@ paths:
         in: query
         name: next
         type: string
+      - description: Organization
+        in: query
+        name: organization
+        type: string
+      - description: Device Code Identifier
+        in: query
+        name: identifier
+        type: string
       produces:
       - application/json
       responses:
@@ -106,49 +222,6 @@ paths:
       tags:
       - github
       - login
-  /github/login/{organization}:
-    get:
-      consumes:
-      - application/json
-      description: GithubLoginOrganization logs in a user with Github using a specific
-        organization
-      parameters:
-      - description: Organization
-        in: path
-        name: organization
-        required: true
-        type: string
-      - description: Next Redirect URL
-        in: query
-        name: next
-        type: string
-      produces:
-      - application/json
-      responses:
-        "307":
-          description: Temporary Redirect
-          headers:
-            Location:
-              description: Redirects to Github
-              type: string
-        "400":
-          description: Bad Request
-          schema:
-            type: string
-        "401":
-          description: Unauthorized
-          schema:
-            type: string
-        "500":
-          description: Internal Server Error
-          schema:
-            type: string
-      summary: GithubLoginOrganization logs in a user with Github using a specific
-        organization
-      tags:
-      - github
-      - login
-      - organization
 schemes:
 - https
 swagger: "2.0"

@@ -1,5 +1,5 @@
 /*
-	Copyright 2022 Loophole Labs
+	Copyright 2023 Loophole Labs
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -40,6 +40,7 @@ type config struct {
 
 // hooks per client, for fast access.
 type hooks struct {
+	DeviceFlow []ent.Hook
 	GithubFlow []ent.Hook
 }
 

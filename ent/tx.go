@@ -1,5 +1,5 @@
 /*
-	Copyright 2022 Loophole Labs
+	Copyright 2023 Loophole Labs
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -28,6 +28,8 @@ import (
 // Tx is a transactional client that is created by calling Client.Tx().
 type Tx struct {
 	config
+	// DeviceFlow is the client for interacting with the DeviceFlow builders.
+	DeviceFlow *DeviceFlowClient
 	// GithubFlow is the client for interacting with the GithubFlow builders.
 	GithubFlow *GithubFlowClient
 
@@ -161,6 +163,7 @@ func (tx *Tx) Client() *Client {
 }
 
 func (tx *Tx) init() {
+	tx.DeviceFlow = NewDeviceFlowClient(tx.config)
 	tx.GithubFlow = NewGithubFlowClient(tx.config)
 }
 
@@ -171,7 +174,7 @@ func (tx *Tx) init() {
 // of them in order to commit or rollback the transaction.
 //
 // If a closed transaction is embedded in one of the generated entities, and the entity
-// applies a query, for example: GithubFlow.QueryXXX(), the query will be executed
+// applies a query, for example: DeviceFlow.QueryXXX(), the query will be executed
 // through the driver which created this transaction.
 //
 // Note that txDriver is not goroutine safe.

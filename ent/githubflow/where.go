@@ -1,5 +1,5 @@
 /*
-	Copyright 2022 Loophole Labs
+	Copyright 2023 Loophole Labs
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -135,6 +135,13 @@ func NextURL(v string) predicate.GithubFlow {
 func Organization(v string) predicate.GithubFlow {
 	return predicate.GithubFlow(func(s *sql.Selector) {
 		s.Where(sql.EQ(s.C(FieldOrganization), v))
+	})
+}
+
+// DeviceIdentifier applies equality check predicate on the "device_identifier" field. It's identical to DeviceIdentifierEQ.
+func DeviceIdentifier(v string) predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldDeviceIdentifier), v))
 	})
 }
 
@@ -708,6 +715,119 @@ func OrganizationEqualFold(v string) predicate.GithubFlow {
 func OrganizationContainsFold(v string) predicate.GithubFlow {
 	return predicate.GithubFlow(func(s *sql.Selector) {
 		s.Where(sql.ContainsFold(s.C(FieldOrganization), v))
+	})
+}
+
+// DeviceIdentifierEQ applies the EQ predicate on the "device_identifier" field.
+func DeviceIdentifierEQ(v string) predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldDeviceIdentifier), v))
+	})
+}
+
+// DeviceIdentifierNEQ applies the NEQ predicate on the "device_identifier" field.
+func DeviceIdentifierNEQ(v string) predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.NEQ(s.C(FieldDeviceIdentifier), v))
+	})
+}
+
+// DeviceIdentifierIn applies the In predicate on the "device_identifier" field.
+func DeviceIdentifierIn(vs ...string) predicate.GithubFlow {
+	v := make([]any, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.In(s.C(FieldDeviceIdentifier), v...))
+	})
+}
+
+// DeviceIdentifierNotIn applies the NotIn predicate on the "device_identifier" field.
+func DeviceIdentifierNotIn(vs ...string) predicate.GithubFlow {
+	v := make([]any, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.NotIn(s.C(FieldDeviceIdentifier), v...))
+	})
+}
+
+// DeviceIdentifierGT applies the GT predicate on the "device_identifier" field.
+func DeviceIdentifierGT(v string) predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.GT(s.C(FieldDeviceIdentifier), v))
+	})
+}
+
+// DeviceIdentifierGTE applies the GTE predicate on the "device_identifier" field.
+func DeviceIdentifierGTE(v string) predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.GTE(s.C(FieldDeviceIdentifier), v))
+	})
+}
+
+// DeviceIdentifierLT applies the LT predicate on the "device_identifier" field.
+func DeviceIdentifierLT(v string) predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.LT(s.C(FieldDeviceIdentifier), v))
+	})
+}
+
+// DeviceIdentifierLTE applies the LTE predicate on the "device_identifier" field.
+func DeviceIdentifierLTE(v string) predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.LTE(s.C(FieldDeviceIdentifier), v))
+	})
+}
+
+// DeviceIdentifierContains applies the Contains predicate on the "device_identifier" field.
+func DeviceIdentifierContains(v string) predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.Contains(s.C(FieldDeviceIdentifier), v))
+	})
+}
+
+// DeviceIdentifierHasPrefix applies the HasPrefix predicate on the "device_identifier" field.
+func DeviceIdentifierHasPrefix(v string) predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.HasPrefix(s.C(FieldDeviceIdentifier), v))
+	})
+}
+
+// DeviceIdentifierHasSuffix applies the HasSuffix predicate on the "device_identifier" field.
+func DeviceIdentifierHasSuffix(v string) predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.HasSuffix(s.C(FieldDeviceIdentifier), v))
+	})
+}
+
+// DeviceIdentifierIsNil applies the IsNil predicate on the "device_identifier" field.
+func DeviceIdentifierIsNil() predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.IsNull(s.C(FieldDeviceIdentifier)))
+	})
+}
+
+// DeviceIdentifierNotNil applies the NotNil predicate on the "device_identifier" field.
+func DeviceIdentifierNotNil() predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.NotNull(s.C(FieldDeviceIdentifier)))
+	})
+}
+
+// DeviceIdentifierEqualFold applies the EqualFold predicate on the "device_identifier" field.
+func DeviceIdentifierEqualFold(v string) predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.EqualFold(s.C(FieldDeviceIdentifier), v))
+	})
+}
+
+// DeviceIdentifierContainsFold applies the ContainsFold predicate on the "device_identifier" field.
+func DeviceIdentifierContainsFold(v string) predicate.GithubFlow {
+	return predicate.GithubFlow(func(s *sql.Selector) {
+		s.Where(sql.ContainsFold(s.C(FieldDeviceIdentifier), v))
 	})
 }
 

@@ -1,5 +1,5 @@
 /*
-	Copyright 2022 Loophole Labs
+	Copyright 2023 Loophole Labs
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import (
 
 	"github.com/loopholelabs/auth/ent/migrate"
 
+	"github.com/loopholelabs/auth/ent/deviceflow"
 	"github.com/loopholelabs/auth/ent/githubflow"
 
 	"entgo.io/ent/dialect"
@@ -37,6 +38,8 @@ type Client struct {
 	config
 	// Schema is the client for creating, migrating and dropping schema.
 	Schema *migrate.Schema
+	// DeviceFlow is the client for interacting with the DeviceFlow builders.
+	DeviceFlow *DeviceFlowClient
 	// GithubFlow is the client for interacting with the GithubFlow builders.
 	GithubFlow *GithubFlowClient
 }
@@ -52,6 +55,7 @@ func NewClient(opts ...Option) *Client {
 
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
+	c.DeviceFlow = NewDeviceFlowClient(c.config)
 	c.GithubFlow = NewGithubFlowClient(c.config)
 }
 
@@ -86,6 +90,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	return &Tx{
 		ctx:        ctx,
 		config:     cfg,
+		DeviceFlow: NewDeviceFlowClient(cfg),
 		GithubFlow: NewGithubFlowClient(cfg),
 	}, nil
 }
@@ -106,6 +111,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	return &Tx{
 		ctx:        ctx,
 		config:     cfg,
+		DeviceFlow: NewDeviceFlowClient(cfg),
 		GithubFlow: NewGithubFlowClient(cfg),
 	}, nil
 }
@@ -113,7 +119,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 // Debug returns a new debug-client. It's used to get verbose logging on specific operations.
 //
 //	client.Debug().
-//		GithubFlow.
+//		DeviceFlow.
 //		Query().
 //		Count(ctx)
 func (c *Client) Debug() *Client {
@@ -135,7 +141,98 @@ func (c *Client) Close() error {
 // Use adds the mutation hooks to all the entity clients.
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
+	c.DeviceFlow.Use(hooks...)
 	c.GithubFlow.Use(hooks...)
+}
+
+// DeviceFlowClient is a client for the DeviceFlow schema.
+type DeviceFlowClient struct {
+	config
+}
+
+// NewDeviceFlowClient returns a client for the DeviceFlow from the given config.
+func NewDeviceFlowClient(c config) *DeviceFlowClient {
+	return &DeviceFlowClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `deviceflow.Hooks(f(g(h())))`.
+func (c *DeviceFlowClient) Use(hooks ...Hook) {
+	c.hooks.DeviceFlow = append(c.hooks.DeviceFlow, hooks...)
+}
+
+// Create returns a builder for creating a DeviceFlow entity.
+func (c *DeviceFlowClient) Create() *DeviceFlowCreate {
+	mutation := newDeviceFlowMutation(c.config, OpCreate)
+	return &DeviceFlowCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of DeviceFlow entities.
+func (c *DeviceFlowClient) CreateBulk(builders ...*DeviceFlowCreate) *DeviceFlowCreateBulk {
+	return &DeviceFlowCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for DeviceFlow.
+func (c *DeviceFlowClient) Update() *DeviceFlowUpdate {
+	mutation := newDeviceFlowMutation(c.config, OpUpdate)
+	return &DeviceFlowUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *DeviceFlowClient) UpdateOne(df *DeviceFlow) *DeviceFlowUpdateOne {
+	mutation := newDeviceFlowMutation(c.config, OpUpdateOne, withDeviceFlow(df))
+	return &DeviceFlowUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *DeviceFlowClient) UpdateOneID(id int) *DeviceFlowUpdateOne {
+	mutation := newDeviceFlowMutation(c.config, OpUpdateOne, withDeviceFlowID(id))
+	return &DeviceFlowUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for DeviceFlow.
+func (c *DeviceFlowClient) Delete() *DeviceFlowDelete {
+	mutation := newDeviceFlowMutation(c.config, OpDelete)
+	return &DeviceFlowDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *DeviceFlowClient) DeleteOne(df *DeviceFlow) *DeviceFlowDeleteOne {
+	return c.DeleteOneID(df.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *DeviceFlowClient) DeleteOneID(id int) *DeviceFlowDeleteOne {
+	builder := c.Delete().Where(deviceflow.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &DeviceFlowDeleteOne{builder}
+}
+
+// Query returns a query builder for DeviceFlow.
+func (c *DeviceFlowClient) Query() *DeviceFlowQuery {
+	return &DeviceFlowQuery{
+		config: c.config,
+	}
+}
+
+// Get returns a DeviceFlow entity by its id.
+func (c *DeviceFlowClient) Get(ctx context.Context, id int) (*DeviceFlow, error) {
+	return c.Query().Where(deviceflow.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *DeviceFlowClient) GetX(ctx context.Context, id int) *DeviceFlow {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *DeviceFlowClient) Hooks() []Hook {
+	return c.hooks.DeviceFlow
 }
 
 // GithubFlowClient is a client for the GithubFlow schema.

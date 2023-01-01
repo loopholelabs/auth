@@ -1,5 +1,5 @@
 /*
-	Copyright 2022 Loophole Labs
+	Copyright 2023 Loophole Labs
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -122,6 +122,9 @@ func (gfu *GithubFlowUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if gfu.mutation.OrganizationCleared() {
 		_spec.ClearField(githubflow.FieldOrganization, field.TypeString)
+	}
+	if gfu.mutation.DeviceIdentifierCleared() {
+		_spec.ClearField(githubflow.FieldDeviceIdentifier, field.TypeString)
 	}
 	if n, err = sqlgraph.UpdateNodes(ctx, gfu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -251,6 +254,9 @@ func (gfuo *GithubFlowUpdateOne) sqlSave(ctx context.Context) (_node *GithubFlow
 	}
 	if gfuo.mutation.OrganizationCleared() {
 		_spec.ClearField(githubflow.FieldOrganization, field.TypeString)
+	}
+	if gfuo.mutation.DeviceIdentifierCleared() {
+		_spec.ClearField(githubflow.FieldDeviceIdentifier, field.TypeString)
 	}
 	_node = &GithubFlow{config: gfuo.config}
 	_spec.Assign = _node.assignValues

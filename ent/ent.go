@@ -1,5 +1,5 @@
 /*
-	Copyright 2022 Loophole Labs
+	Copyright 2023 Loophole Labs
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"github.com/loopholelabs/auth/ent/deviceflow"
 	"github.com/loopholelabs/auth/ent/githubflow"
 )
 
@@ -47,6 +48,7 @@ type OrderFunc func(*sql.Selector)
 // columnChecker returns a function indicates if the column exists in the given column.
 func columnChecker(table string) func(string) error {
 	checks := map[string]func(string) bool{
+		deviceflow.Table: deviceflow.ValidColumn,
 		githubflow.Table: githubflow.ValidColumn,
 	}
 	check, ok := checks[table]

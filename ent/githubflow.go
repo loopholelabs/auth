@@ -1,5 +1,5 @@
 /*
-	Copyright 2022 Loophole Labs
+	Copyright 2023 Loophole Labs
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -44,6 +44,8 @@ type GithubFlow struct {
 	NextURL string `json:"next_url,omitempty"`
 	// Organization holds the value of the "organization" field.
 	Organization string `json:"organization,omitempty"`
+	// DeviceIdentifier holds the value of the "device_identifier" field.
+	DeviceIdentifier string `json:"device_identifier,omitempty"`
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -53,7 +55,7 @@ func (*GithubFlow) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case githubflow.FieldID:
 			values[i] = new(sql.NullInt64)
-		case githubflow.FieldState, githubflow.FieldVerifier, githubflow.FieldChallenge, githubflow.FieldNextURL, githubflow.FieldOrganization:
+		case githubflow.FieldState, githubflow.FieldVerifier, githubflow.FieldChallenge, githubflow.FieldNextURL, githubflow.FieldOrganization, githubflow.FieldDeviceIdentifier:
 			values[i] = new(sql.NullString)
 		case githubflow.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
@@ -114,6 +116,12 @@ func (gf *GithubFlow) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				gf.Organization = value.String
 			}
+		case githubflow.FieldDeviceIdentifier:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field device_identifier", values[i])
+			} else if value.Valid {
+				gf.DeviceIdentifier = value.String
+			}
 		}
 	}
 	return nil
@@ -159,6 +167,9 @@ func (gf *GithubFlow) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("organization=")
 	builder.WriteString(gf.Organization)
+	builder.WriteString(", ")
+	builder.WriteString("device_identifier=")
+	builder.WriteString(gf.DeviceIdentifier)
 	builder.WriteByte(')')
 	return builder.String()
 }

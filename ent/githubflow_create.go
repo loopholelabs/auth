@@ -1,5 +1,5 @@
 /*
-	Copyright 2022 Loophole Labs
+	Copyright 2023 Loophole Labs
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -84,6 +84,20 @@ func (gfc *GithubFlowCreate) SetOrganization(s string) *GithubFlowCreate {
 func (gfc *GithubFlowCreate) SetNillableOrganization(s *string) *GithubFlowCreate {
 	if s != nil {
 		gfc.SetOrganization(*s)
+	}
+	return gfc
+}
+
+// SetDeviceIdentifier sets the "device_identifier" field.
+func (gfc *GithubFlowCreate) SetDeviceIdentifier(s string) *GithubFlowCreate {
+	gfc.mutation.SetDeviceIdentifier(s)
+	return gfc
+}
+
+// SetNillableDeviceIdentifier sets the "device_identifier" field if the given value is not nil.
+func (gfc *GithubFlowCreate) SetNillableDeviceIdentifier(s *string) *GithubFlowCreate {
+	if s != nil {
+		gfc.SetDeviceIdentifier(*s)
 	}
 	return gfc
 }
@@ -258,6 +272,10 @@ func (gfc *GithubFlowCreate) createSpec() (*GithubFlow, *sqlgraph.CreateSpec) {
 	if value, ok := gfc.mutation.Organization(); ok {
 		_spec.SetField(githubflow.FieldOrganization, field.TypeString, value)
 		_node.Organization = value
+	}
+	if value, ok := gfc.mutation.DeviceIdentifier(); ok {
+		_spec.SetField(githubflow.FieldDeviceIdentifier, field.TypeString, value)
+		_node.DeviceIdentifier = value
 	}
 	return _node, _spec
 }

@@ -1,5 +1,5 @@
 /*
-	Copyright 2022 Loophole Labs
+	Copyright 2023 Loophole Labs
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -18,10 +18,13 @@ package options
 
 import (
 	"github.com/loopholelabs/auth/pkg/manager"
+	"github.com/loopholelabs/auth/pkg/provider/device"
 	"github.com/loopholelabs/auth/pkg/provider/github"
 )
 
 type Github func() *github.Github
+
+type Device func() *device.Device
 
 type NextURL func() string
 
@@ -33,8 +36,15 @@ func WithGithub(github Github) Modifier {
 	}
 }
 
+func WithDevice(device Device) Modifier {
+	return func(options *Options) {
+		options.device = device
+	}
+}
+
 type Options struct {
 	github  Github
+	device  Device
 	nextURL NextURL
 	manager *manager.Manager
 }
@@ -55,11 +65,21 @@ func New(manager *manager.Manager, nextURL NextURL, modifiers ...Modifier) *Opti
 		}
 	}
 
+	if options.device == nil {
+		options.device = func() *device.Device {
+			return nil
+		}
+	}
+
 	return options
 }
 
 func (o *Options) Github() *github.Github {
 	return o.github()
+}
+
+func (o *Options) Device() *device.Device {
+	return o.device()
 }
 
 func (o *Options) Manager() *manager.Manager {

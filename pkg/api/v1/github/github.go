@@ -1,5 +1,5 @@
 /*
-	Copyright 2022 Loophole Labs
+	Copyright 2023 Loophole Labs
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -45,7 +45,6 @@ func New(options *options.Options, logger *zerolog.Logger) *Github {
 func (a *Github) init() {
 	a.logger.Debug().Msg("initializing")
 	a.app.Get("/login", a.GithubLogin)
-	a.app.Get("/login/:organization", a.GithubLoginOrganization)
 	a.app.Get("/callback", a.GithubCallback)
 }
 
@@ -59,7 +58,9 @@ func (a *Github) App() *fiber.App {
 // @Tags         github, login
 // @Accept       json
 // @Produce      json
-// @Param        next query string false "Next Redirect URL"
+// @Param        next         query string false "Next Redirect URL"
+// @Param        organization query string false "Organization"
+// @Param        identifier   query string false "Device Code Identifier"
 // @Success      307
 // @Header       307 {string} Location "Redirects to Github"
 // @Failure      401 {string} string
@@ -71,40 +72,7 @@ func (a *Github) GithubLogin(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusUnauthorized).SendString("github provider is not enabled")
 	}
 
-	redirect, err := a.options.Github().StartFlow(ctx.Context(), ctx.Query("next", a.options.NextURL()), "")
-	if err != nil {
-		a.logger.Error().Err(err).Msg("failed to get redirect")
-		return ctx.Status(fiber.StatusInternalServerError).SendString("failed to get redirect")
-	}
-	return ctx.Redirect(redirect, fiber.StatusTemporaryRedirect)
-}
-
-// GithubLoginOrganization godoc
-// @Summary      GithubLoginOrganization logs in a user with Github using a specific organization
-// @Description  GithubLoginOrganization logs in a user with Github using a specific organization
-// @Tags         github, login, organization
-// @Accept       json
-// @Produce      json
-// @Param        organization path string true "Organization"
-// @Param        next query string false "Next Redirect URL"
-// @Success      307
-// @Header       307 {string} Location "Redirects to Github"
-// @Failure      400 {string} string
-// @Failure      401 {string} string
-// @Failure      500 {string} string
-// @Router       /github/login/{organization} [get]
-func (a *Github) GithubLoginOrganization(ctx *fiber.Ctx) error {
-	a.logger.Debug().Msgf("received GithubLoginOrganization from %s", ctx.IP())
-	if a.options.Github() == nil {
-		return ctx.Status(fiber.StatusUnauthorized).SendString("github provider is not enabled")
-	}
-
-	organization := ctx.Params("organization")
-	if organization == "" {
-		return ctx.Status(fiber.StatusBadRequest).SendString("organization is required")
-	}
-
-	redirect, err := a.options.Github().StartFlow(ctx.Context(), ctx.Query("next", a.options.NextURL()), organization)
+	redirect, err := a.options.Github().StartFlow(ctx.Context(), ctx.Query("next", a.options.NextURL()), ctx.Query("organization"), ctx.Query("identifier"))
 	if err != nil {
 		a.logger.Error().Err(err).Msg("failed to get redirect")
 		return ctx.Status(fiber.StatusInternalServerError).SendString("failed to get redirect")
@@ -118,7 +86,8 @@ func (a *Github) GithubLoginOrganization(ctx *fiber.Ctx) error {
 // @Tags         github, callback
 // @Accept       json
 // @Produce      json
-// @Success      200 {string} string
+// @Success      307
+// @Header       307 {string} Location "Redirects to Next URL"
 // @Failure      401 {string} string
 // @Failure      403 {string} string
 // @Failure      404 {string} string
@@ -140,16 +109,33 @@ func (a *Github) GithubCallback(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusUnauthorized).SendString("state is required")
 	}
 
-	userID, organization, nextURL, err := a.options.Github().CompleteFlow(ctx.Context(), code, state)
+	userID, organization, nextURL, deviceIdentifier, err := a.options.Github().CompleteFlow(ctx.Context(), code, state)
 	if err != nil {
 		a.logger.Error().Err(err).Msg("failed to get token")
 		return ctx.Status(fiber.StatusInternalServerError).SendString("failed to get token")
 	}
 
-	complete, err := a.options.Manager().Session(ctx, a.options.Github().Key(), userID, organization)
-	if !complete {
+	if deviceIdentifier != "" {
+		if a.options.Device() == nil {
+			return ctx.Status(fiber.StatusUnauthorized).SendString("device provider is not enabled")
+		}
+	}
+
+	cookie, err := a.options.Manager().CreateSession(ctx, a.options.Github().Key(), userID, organization)
+	if cookie == nil {
 		return err
 	}
 
+	if deviceIdentifier != "" {
+		err = a.options.Device().CompleteFlow(ctx.Context(), deviceIdentifier, cookie.Value, cookie.Expires)
+		if err != nil {
+			a.logger.Error().Err(err).Msg("failed to complete device flow")
+			return ctx.Status(fiber.StatusInternalServerError).SendString("failed to complete device flow")
+		}
+	} else {
+		ctx.Cookie(cookie)
+	}
+
 	return ctx.Redirect(nextURL, fiber.StatusTemporaryRedirect)
+
 }

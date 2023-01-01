@@ -22,25 +22,25 @@ import (
 	"time"
 )
 
-// GithubFlow holds the schema definition for the Flow entity.
-type GithubFlow struct {
+// DeviceFlow holds the schema definition for the Device Flow entity.
+type DeviceFlow struct {
 	ent.Schema
 }
 
-// Fields of the GithubFlow.
-func (GithubFlow) Fields() []ent.Field {
+// Fields of the DeviceFlow.
+func (DeviceFlow) Fields() []ent.Field {
 	return []ent.Field{
 		field.Time("created_at").Immutable().Default(time.Now),
-		field.String("state").Unique().Immutable().NotEmpty(),
-		field.String("verifier").Unique().Immutable().NotEmpty(),
-		field.String("challenge").Unique().Immutable().NotEmpty(),
-		field.String("next_url").Immutable().NotEmpty(),
-		field.String("organization").Immutable().Optional(),
-		field.String("device_identifier").Unique().Immutable().Optional(),
+		field.Time("last_poll").Default(time.Now),
+		field.String("identifier").Unique().Immutable().NotEmpty(),
+		field.String("device_code").Unique().Immutable().NotEmpty(),
+		field.String("user_code").Unique().Immutable().NotEmpty(),
+		field.String("session").Unique().Optional(),
+		field.Time("expires_at").Optional(),
 	}
 }
 
-// Edges of the GithubFlow.
-func (GithubFlow) Edges() []ent.Edge {
+// Edges of the DeviceFlow.
+func (DeviceFlow) Edges() []ent.Edge {
 	return nil
 }

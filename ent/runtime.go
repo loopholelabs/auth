@@ -1,5 +1,5 @@
 /*
-	Copyright 2022 Loophole Labs
+	Copyright 2023 Loophole Labs
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ package ent
 import (
 	"time"
 
+	"github.com/loopholelabs/auth/ent/deviceflow"
 	"github.com/loopholelabs/auth/ent/githubflow"
 	"github.com/loopholelabs/auth/ent/schema"
 )
@@ -29,6 +30,28 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	deviceflowFields := schema.DeviceFlow{}.Fields()
+	_ = deviceflowFields
+	// deviceflowDescCreatedAt is the schema descriptor for created_at field.
+	deviceflowDescCreatedAt := deviceflowFields[0].Descriptor()
+	// deviceflow.DefaultCreatedAt holds the default value on creation for the created_at field.
+	deviceflow.DefaultCreatedAt = deviceflowDescCreatedAt.Default.(func() time.Time)
+	// deviceflowDescLastPoll is the schema descriptor for last_poll field.
+	deviceflowDescLastPoll := deviceflowFields[1].Descriptor()
+	// deviceflow.DefaultLastPoll holds the default value on creation for the last_poll field.
+	deviceflow.DefaultLastPoll = deviceflowDescLastPoll.Default.(func() time.Time)
+	// deviceflowDescIdentifier is the schema descriptor for identifier field.
+	deviceflowDescIdentifier := deviceflowFields[2].Descriptor()
+	// deviceflow.IdentifierValidator is a validator for the "identifier" field. It is called by the builders before save.
+	deviceflow.IdentifierValidator = deviceflowDescIdentifier.Validators[0].(func(string) error)
+	// deviceflowDescDeviceCode is the schema descriptor for device_code field.
+	deviceflowDescDeviceCode := deviceflowFields[3].Descriptor()
+	// deviceflow.DeviceCodeValidator is a validator for the "device_code" field. It is called by the builders before save.
+	deviceflow.DeviceCodeValidator = deviceflowDescDeviceCode.Validators[0].(func(string) error)
+	// deviceflowDescUserCode is the schema descriptor for user_code field.
+	deviceflowDescUserCode := deviceflowFields[4].Descriptor()
+	// deviceflow.UserCodeValidator is a validator for the "user_code" field. It is called by the builders before save.
+	deviceflow.UserCodeValidator = deviceflowDescUserCode.Validators[0].(func(string) error)
 	githubflowFields := schema.GithubFlow{}.Fields()
 	_ = githubflowFields
 	// githubflowDescCreatedAt is the schema descriptor for created_at field.

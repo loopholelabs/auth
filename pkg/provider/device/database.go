@@ -14,7 +14,7 @@
 	limitations under the License.
 */
 
-package github
+package device
 
 import (
 	"context"
@@ -23,8 +23,10 @@ import (
 )
 
 type Database interface {
-	SetGithubFlow(ctx context.Context, state string, verifier string, challenge string, nextURL string, organization string, deviceIdentifier string) error
-	GetGithubFlow(ctx context.Context, state string) (*ent.GithubFlow, error)
-	DeleteGithubFlow(ctx context.Context, state string) error
-	GCGithubFlow(ctx context.Context, expiry time.Duration) (int, error)
+	SetDeviceFlow(ctx context.Context, identifier string, deviceCode string, userCode string) error
+	GetDeviceFlow(ctx context.Context, deviceCode string) (*ent.DeviceFlow, error)
+	UpdateDeviceFlow(ctx context.Context, identifier string, session string, expiry time.Time) error
+	GetDeviceFlowUserCode(ctx context.Context, userCode string) (*ent.DeviceFlow, error)
+	DeleteDeviceFlow(ctx context.Context, deviceCode string) error
+	GCDeviceFlow(ctx context.Context, expiry time.Duration) (int, error)
 }

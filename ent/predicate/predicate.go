@@ -1,5 +1,5 @@
 /*
-	Copyright 2022 Loophole Labs
+	Copyright 2023 Loophole Labs
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -21,6 +21,9 @@ package predicate
 import (
 	"entgo.io/ent/dialect/sql"
 )
+
+// DeviceFlow is the predicate function for deviceflow builders.
+type DeviceFlow func(*sql.Selector)
 
 // GithubFlow is the predicate function for githubflow builders.
 type GithubFlow func(*sql.Selector)

@@ -1,5 +1,5 @@
 /*
-	Copyright 2022 Loophole Labs
+	Copyright 2023 Loophole Labs
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ import (
 	"github.com/loopholelabs/auth/pkg/storage"
 	"github.com/rs/zerolog"
 	"sync"
+	"time"
 )
 
 const (
@@ -43,6 +44,7 @@ type Manager struct {
 	logger  *zerolog.Logger
 	storage storage.Storage
 	domain  string
+	tls     bool
 	wg      sync.WaitGroup
 	ctx     context.Context
 	cancel  context.CancelFunc
@@ -58,7 +60,7 @@ type Manager struct {
 	registrationMu sync.RWMutex
 }
 
-func New(domain string, storage storage.Storage, logger *zerolog.Logger) *Manager {
+func New(domain string, tls bool, storage storage.Storage, logger *zerolog.Logger) *Manager {
 	l := logger.With().Str("AUTH", "SESSION-MANAGER").Logger()
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Manager{
@@ -134,16 +136,28 @@ func (m *Manager) Stop() error {
 	return nil
 }
 
-func (m *Manager) Session(ctx *fiber.Ctx, provider provider.Key, userID string, organization string) (bool, error) {
+func (m *Manager) GenerateCookie(session string, expiry time.Time) *fiber.Cookie {
+	return &fiber.Cookie{
+		Name:     KeyString,
+		Value:    session,
+		Domain:   m.domain,
+		Expires:  expiry,
+		Secure:   m.tls,
+		HTTPOnly: true,
+		SameSite: fiber.CookieSameSiteLaxMode,
+	}
+}
+
+func (m *Manager) CreateSession(ctx *fiber.Ctx, provider provider.Key, userID string, organization string) (*fiber.Cookie, error) {
 	exists, err := m.storage.UserExists(ctx.Context(), userID)
 	if err != nil {
 		m.logger.Error().Err(err).Msg("failed to check if user exists")
-		return false, ctx.Status(fiber.StatusInternalServerError).SendString("failed to check if user exists")
+		return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to check if user exists")
 	}
 
 	if !exists {
 		if organization != "" {
-			return false, ctx.Status(fiber.StatusNotFound).SendString("user does not exist")
+			return nil, ctx.Status(fiber.StatusNotFound).SendString("user does not exist")
 		}
 
 		m.registrationMu.RLock()
@@ -151,7 +165,7 @@ func (m *Manager) Session(ctx *fiber.Ctx, provider provider.Key, userID string, 
 		m.registrationMu.RUnlock()
 
 		if !registration {
-			return false, ctx.Status(fiber.StatusNotFound).SendString("user does not exist")
+			return nil, ctx.Status(fiber.StatusNotFound).SendString("user does not exist")
 		}
 
 		c := &claims.Claims{
@@ -161,7 +175,7 @@ func (m *Manager) Session(ctx *fiber.Ctx, provider provider.Key, userID string, 
 		err = m.storage.NewUser(ctx.Context(), c)
 		if err != nil {
 			m.logger.Error().Err(err).Msg("failed to create user")
-			return false, ctx.Status(fiber.StatusInternalServerError).SendString("failed to create user")
+			return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to create user")
 		}
 	}
 
@@ -169,11 +183,11 @@ func (m *Manager) Session(ctx *fiber.Ctx, provider provider.Key, userID string, 
 		exists, err = m.storage.UserOrganizationExists(ctx.Context(), userID, organization)
 		if err != nil {
 			m.logger.Error().Err(err).Msg("failed to check if organization exists")
-			return false, ctx.Status(fiber.StatusInternalServerError).SendString("failed to check if organization exists")
+			return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to check if organization exists")
 		}
 
 		if !exists {
-			return false, ctx.Status(fiber.StatusForbidden).SendString("invalid organization")
+			return nil, ctx.Status(fiber.StatusForbidden).SendString("invalid organization")
 		}
 	}
 
@@ -181,7 +195,7 @@ func (m *Manager) Session(ctx *fiber.Ctx, provider provider.Key, userID string, 
 	data, err := json.Marshal(sess)
 	if err != nil {
 		m.logger.Error().Err(err).Msg("failed to marshal session")
-		return false, ctx.Status(fiber.StatusInternalServerError).SendString("failed to marshal session")
+		return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to marshal session")
 	}
 
 	m.secretKeyMu.RLock()
@@ -191,26 +205,16 @@ func (m *Manager) Session(ctx *fiber.Ctx, provider provider.Key, userID string, 
 	encrypted, err := aes.Encrypt(secretKey, Key, data)
 	if err != nil {
 		m.logger.Error().Err(err).Msg("failed to encrypt session")
-		return false, ctx.Status(fiber.StatusInternalServerError).SendString("failed to encrypt session")
+		return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to encrypt session")
 	}
 
 	err = m.storage.SetSession(ctx.Context(), sess.ID, sess.UserID, sess.Organization, sess.Expiry)
 	if err != nil {
 		m.logger.Error().Err(err).Msg("failed to set session")
-		return false, ctx.Status(fiber.StatusInternalServerError).SendString("failed to set session")
+		return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to set session")
 	}
 
-	ctx.Cookie(&fiber.Cookie{
-		Name:     KeyString,
-		Value:    string(encrypted),
-		Domain:   m.domain,
-		Expires:  sess.Expiry,
-		Secure:   true,
-		HTTPOnly: true,
-		SameSite: fiber.CookieSameSiteLaxMode,
-	})
-
-	return true, nil
+	return m.GenerateCookie(string(encrypted), sess.Expiry), nil
 }
 
 func (m *Manager) GetSession(ctx *fiber.Ctx) (*session.Session, error) {
@@ -290,15 +294,7 @@ func (m *Manager) GetSession(ctx *fiber.Ctx) (*session.Session, error) {
 			return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to set session")
 		}
 
-		ctx.Cookie(&fiber.Cookie{
-			Name:     KeyString,
-			Value:    string(encrypted),
-			Domain:   m.domain,
-			Expires:  sess.Expiry,
-			Secure:   true,
-			HTTPOnly: true,
-			SameSite: fiber.CookieSameSiteLaxMode,
-		})
+		ctx.Cookie(m.GenerateCookie(string(encrypted), sess.Expiry))
 	}
 
 	return sess, nil

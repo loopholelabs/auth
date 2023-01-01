@@ -1,5 +1,5 @@
 /*
-	Copyright 2022 Loophole Labs
+	Copyright 2023 Loophole Labs
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -24,6 +24,23 @@ import (
 )
 
 var (
+	// DeviceFlowsColumns holds the columns for the "device_flows" table.
+	DeviceFlowsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "last_poll", Type: field.TypeTime},
+		{Name: "identifier", Type: field.TypeString, Unique: true},
+		{Name: "device_code", Type: field.TypeString, Unique: true},
+		{Name: "user_code", Type: field.TypeString, Unique: true},
+		{Name: "session", Type: field.TypeString, Unique: true, Nullable: true},
+		{Name: "expires_at", Type: field.TypeTime, Nullable: true},
+	}
+	// DeviceFlowsTable holds the schema information for the "device_flows" table.
+	DeviceFlowsTable = &schema.Table{
+		Name:       "device_flows",
+		Columns:    DeviceFlowsColumns,
+		PrimaryKey: []*schema.Column{DeviceFlowsColumns[0]},
+	}
 	// GithubFlowsColumns holds the columns for the "github_flows" table.
 	GithubFlowsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -33,6 +50,7 @@ var (
 		{Name: "challenge", Type: field.TypeString, Unique: true},
 		{Name: "next_url", Type: field.TypeString},
 		{Name: "organization", Type: field.TypeString, Nullable: true},
+		{Name: "device_identifier", Type: field.TypeString, Unique: true, Nullable: true},
 	}
 	// GithubFlowsTable holds the schema information for the "github_flows" table.
 	GithubFlowsTable = &schema.Table{
@@ -42,6 +60,7 @@ var (
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		DeviceFlowsTable,
 		GithubFlowsTable,
 	}
 )

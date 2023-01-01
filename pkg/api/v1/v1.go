@@ -1,5 +1,5 @@
 /*
-	Copyright 2022 Loophole Labs
+	Copyright 2023 Loophole Labs
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package v1
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/loopholelabs/auth/pkg/api/v1/config"
+	"github.com/loopholelabs/auth/pkg/api/v1/device"
 	"github.com/loopholelabs/auth/pkg/api/v1/docs"
 	"github.com/loopholelabs/auth/pkg/api/v1/github"
 	"github.com/loopholelabs/auth/pkg/api/v1/options"
@@ -62,6 +63,7 @@ func (v *V1) init() {
 
 	v.app.Mount("/config", config.New(v.options, v.logger).App())
 	v.app.Mount("/github", github.New(v.options, v.logger).App())
+	v.app.Mount("/device", device.New(v.options, v.logger).App())
 
 	v.app.Get("/swagger.json", func(ctx *fiber.Ctx) error {
 		ctx.Response().Header.SetContentType("application/json")

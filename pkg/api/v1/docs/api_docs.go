@@ -1,5 +1,5 @@
 /*
-	Copyright 2022 Loophole Labs
+	Copyright 2023 Loophole Labs
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -78,6 +78,144 @@ const docTemplateapi = `{
                 }
             }
         },
+        "/device/callback": {
+            "post": {
+                "description": "DeviceCallback validates the device code and returns the flow identifier",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "device",
+                    "callback"
+                ],
+                "summary": "DeviceCallback validates the device code and returns the flow identifier",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "device code",
+                        "name": "code",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.GetDeviceCallbackResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/device/flow": {
+            "get": {
+                "description": "DeviceFlow starts the device code flow",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "device",
+                    "login"
+                ],
+                "summary": "DeviceFlow starts the device code flow",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.GetDeviceFlowResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/device/poll": {
+            "post": {
+                "description": "DevicePoll polls the device code flow using the user code",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "device",
+                    "poll"
+                ],
+                "summary": "DevicePoll polls the device code flow using the user code",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "user code",
+                        "name": "code",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/github/callback": {
             "get": {
                 "description": "GithubCallback logs in a user with Github",
@@ -93,10 +231,13 @@ const docTemplateapi = `{
                 ],
                 "summary": "GithubCallback logs in a user with Github",
                 "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "string"
+                    "307": {
+                        "description": "Temporary Redirect",
+                        "headers": {
+                            "Location": {
+                                "type": "string",
+                                "description": "Redirects to Next URL"
+                            }
                         }
                     },
                     "401": {
@@ -146,60 +287,17 @@ const docTemplateapi = `{
                         "description": "Next Redirect URL",
                         "name": "next",
                         "in": "query"
-                    }
-                ],
-                "responses": {
-                    "307": {
-                        "description": "Temporary Redirect",
-                        "headers": {
-                            "Location": {
-                                "type": "string",
-                                "description": "Redirects to Github"
-                            }
-                        }
                     },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
-        "/github/login/{organization}": {
-            "get": {
-                "description": "GithubLoginOrganization logs in a user with Github using a specific organization",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "github",
-                    "login",
-                    "organization"
-                ],
-                "summary": "GithubLoginOrganization logs in a user with Github using a specific organization",
-                "parameters": [
                     {
                         "type": "string",
                         "description": "Organization",
                         "name": "organization",
-                        "in": "path",
-                        "required": true
+                        "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "Next Redirect URL",
-                        "name": "next",
+                        "description": "Device Code Identifier",
+                        "name": "identifier",
                         "in": "query"
                     }
                 ],
@@ -211,12 +309,6 @@ const docTemplateapi = `{
                                 "type": "string",
                                 "description": "Redirects to Github"
                             }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "string"
                         }
                     },
                     "401": {
@@ -241,6 +333,28 @@ const docTemplateapi = `{
             "properties": {
                 "github_enabled": {
                     "type": "boolean"
+                }
+            }
+        },
+        "models.GetDeviceCallbackResponse": {
+            "type": "object",
+            "properties": {
+                "identifier": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.GetDeviceFlowResponse": {
+            "type": "object",
+            "properties": {
+                "device_code": {
+                    "type": "string"
+                },
+                "polling_rate": {
+                    "type": "integer"
+                },
+                "user_code": {
+                    "type": "string"
                 }
             }
         }

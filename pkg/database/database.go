@@ -1,5 +1,5 @@
 /*
-	Copyright 2022 Loophole Labs
+	Copyright 2023 Loophole Labs
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package database
 import (
 	"context"
 	"github.com/loopholelabs/auth/ent"
+	"github.com/loopholelabs/auth/ent/deviceflow"
 	"github.com/loopholelabs/auth/ent/githubflow"
 	"github.com/loopholelabs/auth/pkg/provider/github"
 	"github.com/rs/zerolog"
@@ -75,8 +76,8 @@ func (d *Database) Shutdown() error {
 	return nil
 }
 
-func (d *Database) SetGithubFlow(ctx context.Context, state string, verifier string, challenge string, nextURL string, organization string) error {
-	_, err := d.client.GithubFlow.Create().SetState(state).SetVerifier(verifier).SetChallenge(challenge).SetNextURL(nextURL).SetOrganization(organization).Save(ctx)
+func (d *Database) SetGithubFlow(ctx context.Context, state string, verifier string, challenge string, nextURL string, organization string, deviceIdentifier string) error {
+	_, err := d.client.GithubFlow.Create().SetState(state).SetVerifier(verifier).SetChallenge(challenge).SetNextURL(nextURL).SetOrganization(organization).SetDeviceIdentifier(deviceIdentifier).Save(ctx)
 	return err
 }
 
@@ -91,4 +92,39 @@ func (d *Database) DeleteGithubFlow(ctx context.Context, state string) error {
 
 func (d *Database) GCGithubFlow(ctx context.Context, expiry time.Duration) (int, error) {
 	return d.client.GithubFlow.Delete().Where(githubflow.CreatedAtLT(time.Now().Add(expiry))).Exec(ctx)
+}
+
+func (d *Database) SetDeviceFlow(ctx context.Context, identifier string, deviceCode string, userCode string) error {
+	_, err := d.client.DeviceFlow.Create().SetIdentifier(identifier).SetDeviceCode(deviceCode).SetUserCode(userCode).Save(ctx)
+	return err
+}
+
+func (d *Database) GetDeviceFlow(ctx context.Context, deviceCode string) (*ent.DeviceFlow, error) {
+	return d.client.DeviceFlow.Query().Where(deviceflow.DeviceCode(deviceCode)).Only(ctx)
+}
+
+func (d *Database) UpdateDeviceFlow(ctx context.Context, identifier string, session string, expiry time.Time) error {
+	_, err := d.client.DeviceFlow.Update().Where(deviceflow.Identifier(identifier)).SetSession(session).SetExpiresAt(expiry).Save(ctx)
+	return err
+}
+
+func (d *Database) GetDeviceFlowUserCode(ctx context.Context, userCode string) (*ent.DeviceFlow, error) {
+	flow, err := d.client.DeviceFlow.Query().Where(deviceflow.UserCode(userCode)).Only(ctx)
+	if err != nil {
+		return nil, err
+	}
+	_, err = flow.Update().SetLastPoll(time.Now()).Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return flow, nil
+}
+
+func (d *Database) DeleteDeviceFlow(ctx context.Context, deviceCode string) error {
+	_, err := d.client.DeviceFlow.Delete().Where(deviceflow.DeviceCode(deviceCode)).Exec(ctx)
+	return err
+}
+
+func (d *Database) GCDeviceFlow(ctx context.Context, expiry time.Duration) (int, error) {
+	return d.client.DeviceFlow.Delete().Where(deviceflow.CreatedAtLT(time.Now().Add(expiry))).Exec(ctx)
 }

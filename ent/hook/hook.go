@@ -1,5 +1,5 @@
 /*
-	Copyright 2022 Loophole Labs
+	Copyright 2023 Loophole Labs
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -24,6 +24,19 @@ import (
 
 	"github.com/loopholelabs/auth/ent"
 )
+
+// The DeviceFlowFunc type is an adapter to allow the use of ordinary
+// function as DeviceFlow mutator.
+type DeviceFlowFunc func(context.Context, *ent.DeviceFlowMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f DeviceFlowFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	mv, ok := m.(*ent.DeviceFlowMutation)
+	if !ok {
+		return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DeviceFlowMutation", m)
+	}
+	return f(ctx, mv)
+}
 
 // The GithubFlowFunc type is an adapter to allow the use of ordinary
 // function as GithubFlow mutator.
