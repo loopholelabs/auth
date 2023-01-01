@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/gofiber/fiber/v2"
 	"github.com/loopholelabs/auth/internal/aes"
 	"github.com/loopholelabs/auth/pkg/claims"
@@ -80,7 +81,7 @@ func (m *Manager) Start() error {
 	secretKeyEvents, err := m.storage.SubscribeToSecretKey(m.ctx)
 	if err != nil {
 		m.secretKeyMu.Unlock()
-		return err
+		return fmt.Errorf("failed to subscribe to secret key events: %w", err)
 	}
 	m.wg.Add(1)
 	go m.subscribeToSecretKeyEvents(secretKeyEvents)
@@ -93,11 +94,11 @@ func (m *Manager) Start() error {
 			err = m.storage.SetSecretKey(m.ctx, m.secretKey)
 			if err != nil {
 				m.secretKeyMu.Unlock()
-				return err
+				return fmt.Errorf("failed to set secret key: %w", err)
 			}
 		} else {
 			m.secretKeyMu.Unlock()
-			return err
+			return fmt.Errorf("failed to get secret key: %w", err)
 		}
 	}
 	m.logger.Info().Msg("retrieved secret key")
@@ -106,7 +107,7 @@ func (m *Manager) Start() error {
 	registrationEvents, err := m.storage.SubscribeToRegistration(m.ctx)
 	if err != nil {
 		m.registrationMu.Unlock()
-		return err
+		return fmt.Errorf("failed to subscribe to registration events: %w", err)
 	}
 	m.wg.Add(1)
 	go m.subscribeToRegistrationEvents(registrationEvents)
@@ -114,7 +115,7 @@ func (m *Manager) Start() error {
 	m.registration, err = m.storage.GetRegistration(m.ctx)
 	m.registrationMu.Unlock()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get registration: %w", err)
 	}
 	m.logger.Info().Msg("retrieved registration")
 
@@ -122,7 +123,7 @@ func (m *Manager) Start() error {
 	sessionEvents, err := m.storage.SubscribeToSessions(m.ctx)
 	if err != nil {
 		m.sessionsMu.Unlock()
-		return err
+		return fmt.Errorf("failed to subscribe to session events: %w", err)
 	}
 	m.wg.Add(1)
 	go m.subscribeToSessionEvents(sessionEvents)
@@ -130,7 +131,7 @@ func (m *Manager) Start() error {
 	sessions, err := m.storage.ListSessions(m.ctx)
 	if err != nil {
 		m.sessionsMu.Unlock()
-		return err
+		return fmt.Errorf("failed to list sessions: %w", err)
 	}
 	for _, sess := range sessions {
 		m.sessions[sess] = struct{}{}
