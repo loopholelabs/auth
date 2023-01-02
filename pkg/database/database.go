@@ -56,6 +56,7 @@ func New(connector string, url string, logger *zerolog.Logger) (*Database, error
 		return nil, err
 	}
 	return &Database{
+		logger: &l,
 		client: client,
 		ctx:    ctx,
 		cancel: cancel,
