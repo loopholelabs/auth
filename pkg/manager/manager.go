@@ -100,6 +100,8 @@ func (m *Manager) Start() error {
 			m.secretKeyMu.Unlock()
 			return fmt.Errorf("failed to get secret key: %w", err)
 		}
+	} else {
+		m.secretKeyMu.Unlock()
 	}
 	m.logger.Info().Msg("retrieved secret key")
 
@@ -150,6 +152,7 @@ func (m *Manager) Stop() error {
 }
 
 func (m *Manager) GenerateCookie(session string, expiry time.Time) *fiber.Cookie {
+	m.logger.Debug().Msgf("generating cookie with expiry %s", expiry)
 	return &fiber.Cookie{
 		Name:     KeyString,
 		Value:    session,
@@ -162,6 +165,7 @@ func (m *Manager) GenerateCookie(session string, expiry time.Time) *fiber.Cookie
 }
 
 func (m *Manager) CreateSession(ctx *fiber.Ctx, provider provider.Key, userID string, organization string) (*fiber.Cookie, error) {
+	m.logger.Debug().Msgf("creating session for user %s (org '%s')", userID, organization)
 	exists, err := m.storage.UserExists(ctx.Context(), userID)
 	if err != nil {
 		m.logger.Error().Err(err).Msg("failed to check if user exists")
@@ -173,6 +177,7 @@ func (m *Manager) CreateSession(ctx *fiber.Ctx, provider provider.Key, userID st
 			return nil, ctx.Status(fiber.StatusNotFound).SendString("user does not exist")
 		}
 
+		m.logger.Debug().Msgf("user %s does not exist", userID)
 		m.registrationMu.RLock()
 		registration := m.registration
 		m.registrationMu.RUnlock()

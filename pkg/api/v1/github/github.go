@@ -124,6 +124,8 @@ func (a *Github) GithubCallback(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusInternalServerError).SendString("failed to get token")
 	}
 
+	a.logger.Debug().Msgf("creating session for user %s", userID)
+
 	if deviceIdentifier != "" {
 		if a.options.Device() == nil {
 			return ctx.Status(fiber.StatusUnauthorized).SendString("device provider is not enabled")

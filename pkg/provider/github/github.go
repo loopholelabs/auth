@@ -169,12 +169,16 @@ func (g *Github) CompleteFlow(ctx context.Context, code string, state string) (s
 		return "", "", "", "", err
 	}
 
+	g.logger.Debug().Msgf("found %d emails for state %s", len(emails), state)
+
 	for _, e := range emails {
 		if e.Primary && e.Verified {
+			g.logger.Debug().Msgf("found primary and verified email %s for state %s", e.Email, state)
 			return e.Email, flow.Organization, flow.NextURL, flow.DeviceIdentifier, nil
 		}
 	}
 
+	g.logger.Debug().Msgf("no primary and verified email found for state %s", state)
 	return "", "", "", "", ErrInvalidResponse
 }
 
