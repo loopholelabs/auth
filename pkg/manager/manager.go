@@ -186,6 +186,8 @@ func (m *Manager) CreateSession(ctx *fiber.Ctx, provider provider.Key, userID st
 			return nil, ctx.Status(fiber.StatusNotFound).SendString("user does not exist")
 		}
 
+		m.logger.Debug().Msgf("creating user %s", userID)
+
 		c := &claims.Claims{
 			UserID: userID,
 		}
@@ -198,6 +200,7 @@ func (m *Manager) CreateSession(ctx *fiber.Ctx, provider provider.Key, userID st
 	}
 
 	if organization != "" {
+		m.logger.Debug().Msgf("checking if user %s is member of organization %s", userID, organization)
 		exists, err = m.storage.UserOrganizationExists(ctx.Context(), userID, organization)
 		if err != nil {
 			m.logger.Error().Err(err).Msg("failed to check if organization exists")
@@ -231,6 +234,8 @@ func (m *Manager) CreateSession(ctx *fiber.Ctx, provider provider.Key, userID st
 		m.logger.Error().Err(err).Msg("failed to set session")
 		return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to set session")
 	}
+
+	m.logger.Debug().Msgf("created session %s for user %s (org '%s') with expiry %s", sess.ID, sess.UserID, sess.Organization, sess.Expiry)
 
 	return m.GenerateCookie(encrypted, sess.Expiry), nil
 }
