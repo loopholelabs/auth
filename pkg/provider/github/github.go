@@ -119,7 +119,7 @@ func (g *Github) StartFlow(ctx context.Context, nextURL string, organization str
 }
 
 func (g *Github) CompleteFlow(ctx context.Context, code string, state string) (string, string, string, string, error) {
-	g.logger.Debug().Msgf("completing flow for state %s", code, state)
+	g.logger.Debug().Msgf("completing flow for state %s", state)
 	flow, err := g.database.GetGithubFlow(ctx, state)
 	if err != nil {
 		return "", "", "", "", err

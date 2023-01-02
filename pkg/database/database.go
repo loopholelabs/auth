@@ -77,38 +77,46 @@ func (d *Database) Shutdown() error {
 }
 
 func (d *Database) SetGithubFlow(ctx context.Context, state string, verifier string, challenge string, nextURL string, organization string, deviceIdentifier string) error {
+	d.logger.Debug().Msgf("setting github flow for %s", state)
 	_, err := d.client.GithubFlow.Create().SetState(state).SetVerifier(verifier).SetChallenge(challenge).SetNextURL(nextURL).SetOrganization(organization).SetDeviceIdentifier(deviceIdentifier).Save(ctx)
 	return err
 }
 
 func (d *Database) GetGithubFlow(ctx context.Context, state string) (*ent.GithubFlow, error) {
+	d.logger.Debug().Msgf("getting github flow for %s", state)
 	return d.client.GithubFlow.Query().Where(githubflow.State(state)).Only(ctx)
 }
 
 func (d *Database) DeleteGithubFlow(ctx context.Context, state string) error {
+	d.logger.Debug().Msgf("deleting github flow for %s", state)
 	_, err := d.client.GithubFlow.Delete().Where(githubflow.State(state)).Exec(ctx)
 	return err
 }
 
 func (d *Database) GCGithubFlow(ctx context.Context, expiry time.Duration) (int, error) {
+	d.logger.Debug().Msgf("running github flow gc")
 	return d.client.GithubFlow.Delete().Where(githubflow.CreatedAtLT(time.Now().Add(expiry))).Exec(ctx)
 }
 
 func (d *Database) SetDeviceFlow(ctx context.Context, identifier string, deviceCode string, userCode string) error {
+	d.logger.Debug().Msgf("setting device flow for %s (device code %s, user code %s)", identifier, deviceCode, userCode)
 	_, err := d.client.DeviceFlow.Create().SetIdentifier(identifier).SetDeviceCode(deviceCode).SetUserCode(userCode).Save(ctx)
 	return err
 }
 
 func (d *Database) GetDeviceFlow(ctx context.Context, deviceCode string) (*ent.DeviceFlow, error) {
+	d.logger.Debug().Msgf("getting device flow for device code %s", deviceCode)
 	return d.client.DeviceFlow.Query().Where(deviceflow.DeviceCode(deviceCode)).Only(ctx)
 }
 
 func (d *Database) UpdateDeviceFlow(ctx context.Context, identifier string, session string, expiry time.Time) error {
+	d.logger.Debug().Msgf("updating device flow for %s (expiry %s)", identifier, expiry)
 	_, err := d.client.DeviceFlow.Update().Where(deviceflow.Identifier(identifier)).SetSession(session).SetExpiresAt(expiry).Save(ctx)
 	return err
 }
 
 func (d *Database) GetDeviceFlowUserCode(ctx context.Context, userCode string) (*ent.DeviceFlow, error) {
+	d.logger.Debug().Msgf("getting device flow for user code %s", userCode)
 	flow, err := d.client.DeviceFlow.Query().Where(deviceflow.UserCode(userCode)).Only(ctx)
 	if err != nil {
 		return nil, err
@@ -121,10 +129,12 @@ func (d *Database) GetDeviceFlowUserCode(ctx context.Context, userCode string) (
 }
 
 func (d *Database) DeleteDeviceFlow(ctx context.Context, deviceCode string) error {
+	d.logger.Debug().Msgf("deleting device flow for device code %s", deviceCode)
 	_, err := d.client.DeviceFlow.Delete().Where(deviceflow.DeviceCode(deviceCode)).Exec(ctx)
 	return err
 }
 
 func (d *Database) GCDeviceFlow(ctx context.Context, expiry time.Duration) (int, error) {
+	d.logger.Debug().Msgf("running device flow gc")
 	return d.client.DeviceFlow.Delete().Where(deviceflow.CreatedAtLT(time.Now().Add(expiry))).Exec(ctx)
 }
