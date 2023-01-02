@@ -1,5 +1,5 @@
 /*
-	Copyright 2022 Loophole Labs
+	Copyright 2023 Loophole Labs
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"io"
 )
@@ -30,27 +31,27 @@ var (
 	ErrInvalidContent   = errors.New("invalid content")
 )
 
-func Encrypt(secretKey []byte, identifier []byte, content []byte) ([]byte, error) {
+func Encrypt(secretKey []byte, identifier []byte, content []byte) (string, error) {
 	block, err := aes.NewCipher(secretKey)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	aesGCM, err := cipher.NewGCM(block)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	nonce := make([]byte, aesGCM.NonceSize())
 	_, err = io.ReadFull(rand.Reader, nonce)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	return aesGCM.Seal(nonce, nonce, append(identifier, content...), nil), nil
+	return base64.StdEncoding.EncodeToString(aesGCM.Seal(nonce, nonce, append(identifier, content...), nil)), nil
 }
 
-func Decrypt(secretKey []byte, identifier []byte, content []byte) ([]byte, error) {
+func Decrypt(secretKey []byte, identifier []byte, content string) ([]byte, error) {
 	block, err := aes.NewCipher(secretKey)
 	if err != nil {
 		return nil, err
@@ -67,18 +68,23 @@ func Decrypt(secretKey []byte, identifier []byte, content []byte) ([]byte, error
 		return nil, ErrInvalidNonceSize
 	}
 
-	content, err = aesGCM.Open(nil, content[:nonceSize], content[nonceSize:], nil)
+	contentBytes, err := base64.StdEncoding.DecodeString(content)
+	if err != nil {
+		return nil, err
+	}
+
+	contentBytes, err = aesGCM.Open(nil, contentBytes[:nonceSize], contentBytes[nonceSize:], nil)
 	if err != nil {
 		return nil, ErrInvalidContent
 	}
 
-	if len(content) < len(identifier) {
+	if len(contentBytes) < len(identifier) {
 		return nil, ErrInvalidContent
 	}
 
-	if !bytes.Equal(content[:len(identifier)], identifier) {
+	if !bytes.Equal(contentBytes[:len(identifier)], identifier) {
 		return nil, ErrInvalidContent
 	}
 
-	return content[len(identifier):], nil
+	return contentBytes[len(identifier):], nil
 }

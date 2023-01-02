@@ -232,7 +232,7 @@ func (m *Manager) CreateSession(ctx *fiber.Ctx, provider provider.Key, userID st
 		return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to set session")
 	}
 
-	return m.GenerateCookie(string(encrypted), sess.Expiry), nil
+	return m.GenerateCookie(encrypted, sess.Expiry), nil
 }
 
 func (m *Manager) GetSession(ctx *fiber.Ctx) (*session.Session, error) {
@@ -246,11 +246,11 @@ func (m *Manager) GetSession(ctx *fiber.Ctx) (*session.Session, error) {
 	oldSecretKey := m.oldSecretKey
 	m.secretKeyMu.RUnlock()
 
-	decrypted, err := aes.Decrypt(secretKey, Key, []byte(cookie))
+	decrypted, err := aes.Decrypt(secretKey, Key, cookie)
 	if err != nil {
 		if errors.Is(err, aes.ErrInvalidContent) {
 			if oldSecretKey != nil {
-				decrypted, err = aes.Decrypt(oldSecretKey, Key, []byte(cookie))
+				decrypted, err = aes.Decrypt(oldSecretKey, Key, cookie)
 				if err != nil {
 					if errors.Is(err, aes.ErrInvalidContent) {
 						return nil, ctx.Status(fiber.StatusUnauthorized).SendString("invalid session cookie")
