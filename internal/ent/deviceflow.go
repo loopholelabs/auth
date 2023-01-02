@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
-	"github.com/loopholelabs/auth/ent/deviceflow"
+	"github.com/loopholelabs/auth/internal/ent/deviceflow"
 )
 
 // DeviceFlow is the model entity for the DeviceFlow schema.

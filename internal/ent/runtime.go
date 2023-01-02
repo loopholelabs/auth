@@ -21,9 +21,9 @@ package ent
 import (
 	"time"
 
-	"github.com/loopholelabs/auth/ent/deviceflow"
-	"github.com/loopholelabs/auth/ent/githubflow"
-	"github.com/loopholelabs/auth/ent/schema"
+	"github.com/loopholelabs/auth/internal/ent/deviceflow"
+	"github.com/loopholelabs/auth/internal/ent/githubflow"
+	"github.com/loopholelabs/auth/internal/ent/schema"
 )
 
 // The init function reads all schema descriptors with runtime code

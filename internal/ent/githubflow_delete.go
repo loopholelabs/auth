@@ -25,49 +25,49 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/loopholelabs/auth/ent/deviceflow"
-	"github.com/loopholelabs/auth/ent/predicate"
+	"github.com/loopholelabs/auth/internal/ent/githubflow"
+	"github.com/loopholelabs/auth/internal/ent/predicate"
 )
 
-// DeviceFlowDelete is the builder for deleting a DeviceFlow entity.
-type DeviceFlowDelete struct {
+// GithubFlowDelete is the builder for deleting a GithubFlow entity.
+type GithubFlowDelete struct {
 	config
 	hooks    []Hook
-	mutation *DeviceFlowMutation
+	mutation *GithubFlowMutation
 }
 
-// Where appends a list predicates to the DeviceFlowDelete builder.
-func (dfd *DeviceFlowDelete) Where(ps ...predicate.DeviceFlow) *DeviceFlowDelete {
-	dfd.mutation.Where(ps...)
-	return dfd
+// Where appends a list predicates to the GithubFlowDelete builder.
+func (gfd *GithubFlowDelete) Where(ps ...predicate.GithubFlow) *GithubFlowDelete {
+	gfd.mutation.Where(ps...)
+	return gfd
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
-func (dfd *DeviceFlowDelete) Exec(ctx context.Context) (int, error) {
+func (gfd *GithubFlowDelete) Exec(ctx context.Context) (int, error) {
 	var (
 		err      error
 		affected int
 	)
-	if len(dfd.hooks) == 0 {
-		affected, err = dfd.sqlExec(ctx)
+	if len(gfd.hooks) == 0 {
+		affected, err = gfd.sqlExec(ctx)
 	} else {
 		var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-			mutation, ok := m.(*DeviceFlowMutation)
+			mutation, ok := m.(*GithubFlowMutation)
 			if !ok {
 				return nil, fmt.Errorf("unexpected mutation type %T", m)
 			}
-			dfd.mutation = mutation
-			affected, err = dfd.sqlExec(ctx)
+			gfd.mutation = mutation
+			affected, err = gfd.sqlExec(ctx)
 			mutation.done = true
 			return affected, err
 		})
-		for i := len(dfd.hooks) - 1; i >= 0; i-- {
-			if dfd.hooks[i] == nil {
+		for i := len(gfd.hooks) - 1; i >= 0; i-- {
+			if gfd.hooks[i] == nil {
 				return 0, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
 			}
-			mut = dfd.hooks[i](mut)
+			mut = gfd.hooks[i](mut)
 		}
-		if _, err := mut.Mutate(ctx, dfd.mutation); err != nil {
+		if _, err := mut.Mutate(ctx, gfd.mutation); err != nil {
 			return 0, err
 		}
 	}
@@ -75,57 +75,57 @@ func (dfd *DeviceFlowDelete) Exec(ctx context.Context) (int, error) {
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (dfd *DeviceFlowDelete) ExecX(ctx context.Context) int {
-	n, err := dfd.Exec(ctx)
+func (gfd *GithubFlowDelete) ExecX(ctx context.Context) int {
+	n, err := gfd.Exec(ctx)
 	if err != nil {
 		panic(err)
 	}
 	return n
 }
 
-func (dfd *DeviceFlowDelete) sqlExec(ctx context.Context) (int, error) {
+func (gfd *GithubFlowDelete) sqlExec(ctx context.Context) (int, error) {
 	_spec := &sqlgraph.DeleteSpec{
 		Node: &sqlgraph.NodeSpec{
-			Table: deviceflow.Table,
+			Table: githubflow.Table,
 			ID: &sqlgraph.FieldSpec{
 				Type:   field.TypeInt,
-				Column: deviceflow.FieldID,
+				Column: githubflow.FieldID,
 			},
 		},
 	}
-	if ps := dfd.mutation.predicates; len(ps) > 0 {
+	if ps := gfd.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
 				ps[i](selector)
 			}
 		}
 	}
-	affected, err := sqlgraph.DeleteNodes(ctx, dfd.driver, _spec)
+	affected, err := sqlgraph.DeleteNodes(ctx, gfd.driver, _spec)
 	if err != nil && sqlgraph.IsConstraintError(err) {
 		err = &ConstraintError{msg: err.Error(), wrap: err}
 	}
 	return affected, err
 }
 
-// DeviceFlowDeleteOne is the builder for deleting a single DeviceFlow entity.
-type DeviceFlowDeleteOne struct {
-	dfd *DeviceFlowDelete
+// GithubFlowDeleteOne is the builder for deleting a single GithubFlow entity.
+type GithubFlowDeleteOne struct {
+	gfd *GithubFlowDelete
 }
 
 // Exec executes the deletion query.
-func (dfdo *DeviceFlowDeleteOne) Exec(ctx context.Context) error {
-	n, err := dfdo.dfd.Exec(ctx)
+func (gfdo *GithubFlowDeleteOne) Exec(ctx context.Context) error {
+	n, err := gfdo.gfd.Exec(ctx)
 	switch {
 	case err != nil:
 		return err
 	case n == 0:
-		return &NotFoundError{deviceflow.Label}
+		return &NotFoundError{githubflow.Label}
 	default:
 		return nil
 	}
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (dfdo *DeviceFlowDeleteOne) ExecX(ctx context.Context) {
-	dfdo.dfd.ExecX(ctx)
+func (gfdo *GithubFlowDeleteOne) ExecX(ctx context.Context) {
+	gfdo.gfd.ExecX(ctx)
 }

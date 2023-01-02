@@ -26,8 +26,8 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
-	"github.com/loopholelabs/auth/ent/deviceflow"
-	"github.com/loopholelabs/auth/ent/githubflow"
+	"github.com/loopholelabs/auth/internal/ent/deviceflow"
+	"github.com/loopholelabs/auth/internal/ent/githubflow"
 )
 
 // ent aliases to avoid import conflicts in user's code.

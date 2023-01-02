@@ -19,7 +19,7 @@ package github
 import (
 	"context"
 	"github.com/gofiber/fiber/v2"
-	"github.com/loopholelabs/auth/ent"
+	"github.com/loopholelabs/auth/internal/ent"
 	"github.com/loopholelabs/auth/pkg/api/v1/options"
 	"github.com/loopholelabs/auth/pkg/utils"
 	"github.com/rs/zerolog"

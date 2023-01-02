@@ -18,9 +18,9 @@ package database
 
 import (
 	"context"
-	"github.com/loopholelabs/auth/ent"
-	"github.com/loopholelabs/auth/ent/deviceflow"
-	"github.com/loopholelabs/auth/ent/githubflow"
+	"github.com/loopholelabs/auth/internal/ent"
+	"github.com/loopholelabs/auth/internal/ent/deviceflow"
+	"github.com/loopholelabs/auth/internal/ent/githubflow"
 	"github.com/loopholelabs/auth/pkg/provider/github"
 	"github.com/rs/zerolog"
 	"time"

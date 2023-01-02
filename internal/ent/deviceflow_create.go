@@ -26,7 +26,7 @@ import (
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/loopholelabs/auth/ent/deviceflow"
+	"github.com/loopholelabs/auth/internal/ent/deviceflow"
 )
 
 // DeviceFlowCreate is the builder for creating a DeviceFlow entity.

@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
-	"github.com/loopholelabs/auth/ent/predicate"
+	"github.com/loopholelabs/auth/internal/ent/predicate"
 )
 
 // ID filters vertices based on their ID field.

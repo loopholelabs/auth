@@ -24,10 +24,10 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/loopholelabs/auth/ent/migrate"
+	"github.com/loopholelabs/auth/internal/ent/migrate"
 
-	"github.com/loopholelabs/auth/ent/deviceflow"
-	"github.com/loopholelabs/auth/ent/githubflow"
+	"github.com/loopholelabs/auth/internal/ent/deviceflow"
+	"github.com/loopholelabs/auth/internal/ent/githubflow"
 
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"

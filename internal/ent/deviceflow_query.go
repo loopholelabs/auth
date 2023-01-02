@@ -26,8 +26,8 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/loopholelabs/auth/ent/deviceflow"
-	"github.com/loopholelabs/auth/ent/predicate"
+	"github.com/loopholelabs/auth/internal/ent/deviceflow"
+	"github.com/loopholelabs/auth/internal/ent/predicate"
 )
 
 // DeviceFlowQuery is the builder for querying DeviceFlow entities.

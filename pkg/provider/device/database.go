@@ -18,7 +18,7 @@ package device
 
 import (
 	"context"
-	"github.com/loopholelabs/auth/ent"
+	"github.com/loopholelabs/auth/internal/ent"
 	"time"
 )
 

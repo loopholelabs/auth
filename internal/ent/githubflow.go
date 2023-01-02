@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
-	"github.com/loopholelabs/auth/ent/githubflow"
+	"github.com/loopholelabs/auth/internal/ent/githubflow"
 )
 
 // GithubFlow is the model entity for the GithubFlow schema.

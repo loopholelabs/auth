@@ -21,12 +21,12 @@ package enttest
 import (
 	"context"
 
-	"github.com/loopholelabs/auth/ent"
+	"github.com/loopholelabs/auth/internal/ent"
 	// required by schema hooks.
-	_ "github.com/loopholelabs/auth/ent/runtime"
+	_ "github.com/loopholelabs/auth/internal/ent/runtime"
 
 	"entgo.io/ent/dialect/sql/schema"
-	"github.com/loopholelabs/auth/ent/migrate"
+	"github.com/loopholelabs/auth/internal/ent/migrate"
 )
 
 type (

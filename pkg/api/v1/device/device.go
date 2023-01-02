@@ -18,7 +18,7 @@ package device
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/loopholelabs/auth/ent"
+	"github.com/loopholelabs/auth/internal/ent"
 	"github.com/loopholelabs/auth/pkg/api/v1/models"
 	"github.com/loopholelabs/auth/pkg/api/v1/options"
 	"github.com/loopholelabs/auth/pkg/utils"

@@ -25,9 +25,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/loopholelabs/auth/ent/deviceflow"
-	"github.com/loopholelabs/auth/ent/githubflow"
-	"github.com/loopholelabs/auth/ent/predicate"
+	"github.com/loopholelabs/auth/internal/ent/deviceflow"
+	"github.com/loopholelabs/auth/internal/ent/githubflow"
+	"github.com/loopholelabs/auth/internal/ent/predicate"
 
 	"entgo.io/ent"
 )

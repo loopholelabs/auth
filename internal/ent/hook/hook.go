@@ -22,7 +22,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/loopholelabs/auth/ent"
+	"github.com/loopholelabs/auth/internal/ent"
 )
 
 // The DeviceFlowFunc type is an adapter to allow the use of ordinary

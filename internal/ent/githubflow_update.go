@@ -26,8 +26,8 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/loopholelabs/auth/ent/githubflow"
-	"github.com/loopholelabs/auth/ent/predicate"
+	"github.com/loopholelabs/auth/internal/ent/githubflow"
+	"github.com/loopholelabs/auth/internal/ent/predicate"
 )
 
 // GithubFlowUpdate is the builder for updating GithubFlow entities.
