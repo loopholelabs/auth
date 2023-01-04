@@ -18,6 +18,7 @@ package options
 
 import (
 	"github.com/loopholelabs/auth/pkg/manager"
+	"github.com/loopholelabs/auth/pkg/provider/apikey"
 	"github.com/loopholelabs/auth/pkg/provider/device"
 	"github.com/loopholelabs/auth/pkg/provider/github"
 )
@@ -25,6 +26,8 @@ import (
 type Github func() *github.Github
 
 type Device func() *device.Device
+
+type APIKey func() *apikey.APIKey
 
 type NextURL func() string
 
@@ -42,9 +45,16 @@ func WithDevice(device Device) Modifier {
 	}
 }
 
+func WithAPIKey(apikey APIKey) Modifier {
+	return func(options *Options) {
+		options.apikey = apikey
+	}
+}
+
 type Options struct {
 	github  Github
 	device  Device
+	apikey  APIKey
 	nextURL NextURL
 	manager *manager.Manager
 }
@@ -71,6 +81,12 @@ func New(manager *manager.Manager, nextURL NextURL, modifiers ...Modifier) *Opti
 		}
 	}
 
+	if options.apikey == nil {
+		options.apikey = func() *apikey.APIKey {
+			return nil
+		}
+	}
+
 	return options
 }
 
@@ -80,6 +96,10 @@ func (o *Options) Github() *github.Github {
 
 func (o *Options) Device() *device.Device {
 	return o.device()
+}
+
+func (o *Options) APIKey() *apikey.APIKey {
+	return o.apikey()
 }
 
 func (o *Options) Manager() *manager.Manager {
