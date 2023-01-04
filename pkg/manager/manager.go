@@ -69,6 +69,7 @@ func New(domain string, tls bool, storage storage.Storage, logger *zerolog.Logge
 		logger:   &l,
 		storage:  storage,
 		domain:   domain,
+		tls:      tls,
 		ctx:      ctx,
 		cancel:   cancel,
 		sessions: make(map[string]struct{}),
