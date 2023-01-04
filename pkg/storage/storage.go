@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"github.com/loopholelabs/auth/pkg/claims"
+	"github.com/loopholelabs/auth/pkg/kind"
 	"time"
 )
 
@@ -64,5 +65,7 @@ type Storage interface {
 	SubscribeToSessions(ctx context.Context) (<-chan *SessionEvent, error)
 	ListSessions(ctx context.Context) ([]string, error)
 	SessionExists(ctx context.Context, sessionID string) (bool, error)
-	SetSession(ctx context.Context, sessionID string, userID string, organization string, expiry time.Time) error
+	SetSession(ctx context.Context, sessionKind kind.Kind, sessionID string, userID string, organization string, expiry time.Time) error
+
+	GetAPIKey(ctx context.Context)
 }

@@ -66,7 +66,7 @@ func (d *Device) App() *fiber.App {
 // @Tags         device, login
 // @Accept       json
 // @Produce      json
-// @Success      200 {object} models.GetDeviceFlowResponse
+// @Success      200 {object} models.DeviceFlowResponse
 // @Failure      401 {string} string
 // @Failure      500 {string} string
 // @Router       /device/flow [post]
@@ -82,7 +82,7 @@ func (d *Device) DeviceFlow(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusInternalServerError).SendString("failed to get device code and user code")
 	}
 
-	return ctx.JSON(&models.GetDeviceFlowResponse{
+	return ctx.JSON(&models.DeviceFlowResponse{
 		DeviceCode:  deviceCode,
 		UserCode:    userCode,
 		PollingRate: DefaultPollingRate,
@@ -96,7 +96,7 @@ func (d *Device) DeviceFlow(ctx *fiber.Ctx) error {
 // @Accept       json
 // @Produce      json
 // @Param        code query string true "device code"
-// @Success      200 {object} models.GetDeviceCallbackResponse
+// @Success      200 {object} models.DeviceCallbackResponse
 // @Failure      400 {string} string
 // @Failure      401 {string} string
 // @Failure      500 {string} string
@@ -121,7 +121,7 @@ func (d *Device) DeviceCallback(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusInternalServerError).SendString("failed to validate device code")
 	}
 
-	return ctx.JSON(&models.GetDeviceCallbackResponse{
+	return ctx.JSON(&models.DeviceCallbackResponse{
 		Identifier: identifier,
 	})
 }

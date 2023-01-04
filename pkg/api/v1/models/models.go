@@ -16,16 +16,16 @@
 
 package models
 
-type GetConfigResponse struct {
+type ConfigResponse struct {
 	GithubEnabled bool `json:"github_enabled"`
 }
 
-type GetDeviceFlowResponse struct {
+type DeviceFlowResponse struct {
 	DeviceCode  string `json:"device_code"`
 	UserCode    string `json:"user_code"`
 	PollingRate int64  `json:"polling_rate"`
 }
 
-type GetDeviceCallbackResponse struct {
+type DeviceCallbackResponse struct {
 	Identifier string `json:"identifier"`
 }

@@ -14,25 +14,24 @@
 	limitations under the License.
 */
 
-package config
+package apikey
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/loopholelabs/auth/pkg/api/v1/models"
 	"github.com/loopholelabs/auth/pkg/api/v1/options"
 	"github.com/loopholelabs/auth/pkg/utils"
 	"github.com/rs/zerolog"
 )
 
-type Config struct {
+type APIKey struct {
 	logger  *zerolog.Logger
 	app     *fiber.App
 	options *options.Options
 }
 
-func New(options *options.Options, logger *zerolog.Logger) *Config {
-	l := logger.With().Str("ROUTER", "CONFIG").Logger()
-	i := &Config{
+func New(options *options.Options, logger *zerolog.Logger) *APIKey {
+	l := logger.With().Str("ROUTER", "APIKEY").Logger()
+	i := &APIKey{
 		logger:  &l,
 		app:     utils.DefaultFiberApp(),
 		options: options,
@@ -43,30 +42,27 @@ func New(options *options.Options, logger *zerolog.Logger) *Config {
 	return i
 }
 
-func (a *Config) init() {
+func (a *APIKey) init() {
 	a.logger.Debug().Msg("initializing")
-	a.app.Get("/", a.Config)
+	a.app.Get("/login", a.APIKeyLogin)
 }
 
-func (a *Config) App() *fiber.App {
+func (a *APIKey) App() *fiber.App {
 	return a.app
 }
 
-// Config godoc
-// @Summary      Config gets the public configuration of the API
-// @Description  Config gets the public configuration of the API
-// @Tags         config
+// APIKeyLogin godoc
+// @Summary      APIKeyLogin logs in a user with their API Key
+// @Description  APIKeyLogin logs in a user with their API Key
+// @Tags         apikey, login
 // @Accept       json
 // @Produce      json
-// @Success      200  {array} models.ConfigResponse
-// @Failure      401  {string} string
-// @Failure      500  {string} string
-// @Router       /config [get]
-func (a *Config) Config(ctx *fiber.Ctx) error {
-	a.logger.Debug().Msgf("received Config from %s", ctx.IP())
-	res := new(models.ConfigResponse)
-	if a.options.Github() != nil {
-		res.GithubEnabled = true
-	}
-	return ctx.JSON(res)
+// @Param        organization query string false "Organization"
+// @Success      200 {string} string
+// @Failure      401 {string} string
+// @Failure      500 {string} string
+// @Router       /apikey/login [post]
+func (a *APIKey) APIKeyLogin(ctx *fiber.Ctx) error {
+	a.logger.Debug().Msgf("received ServiceKeyLogin from %s", ctx.IP())
+	return nil
 }

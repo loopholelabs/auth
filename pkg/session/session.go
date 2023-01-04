@@ -1,5 +1,5 @@
 /*
-	Copyright 2022 Loophole Labs
+	Copyright 2023 Loophole Labs
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package session
 
 import (
 	"github.com/google/uuid"
+	"github.com/loopholelabs/auth/pkg/kind"
 	"github.com/loopholelabs/auth/pkg/provider"
 	"time"
 )
@@ -34,6 +35,7 @@ const (
 type Session struct {
 	Creation     time.Time    `json:"creation"`
 	Expiry       time.Time    `json:"expiry"`
+	Kind         kind.Kind    `json:"kind"`
 	ID           string       `json:"id"`
 	Provider     provider.Key `json:"provider"`
 	UserID       string       `json:"user_id"`
@@ -41,10 +43,11 @@ type Session struct {
 }
 
 // New returns a new session for a user with the given provider key, user ID, and organization
-func New(provider provider.Key, userID string, organization string) *Session {
+func New(kind kind.Kind, provider provider.Key, userID string, organization string) *Session {
 	return &Session{
 		Creation:     time.Now(),
 		Expiry:       time.Now().Add(Expiry),
+		Kind:         kind,
 		ID:           uuid.New().String(),
 		Provider:     provider,
 		UserID:       userID,

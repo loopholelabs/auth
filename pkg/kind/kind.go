@@ -14,23 +14,13 @@
 	limitations under the License.
 */
 
-package session
+package kind
 
-import (
-	"github.com/loopholelabs/auth/pkg/kind"
-	"github.com/loopholelabs/auth/pkg/provider"
-	"github.com/stretchr/testify/require"
-	"testing"
+type Kind string
+
+const (
+	Default Kind = "default"
+	Device  Kind = "device"
+	API     Kind = "api"
+	Service Kind = "service"
 )
-
-func TestSession(t *testing.T) {
-	pkey := provider.Key("test-provider")
-	sess := New(kind.Default, pkey, "test-userid", "test-organization")
-	require.Equal(t, kind.Default, sess.Kind)
-	require.Equal(t, pkey, sess.Provider)
-	require.Equal(t, "test-userid", sess.UserID)
-	require.Equal(t, "test-organization", sess.Organization)
-
-	require.False(t, sess.Expired())
-	require.False(t, sess.CloseToExpiry())
-}

@@ -18,11 +18,13 @@ package v1
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"github.com/loopholelabs/auth/pkg/api/v1/apikey"
 	"github.com/loopholelabs/auth/pkg/api/v1/config"
 	"github.com/loopholelabs/auth/pkg/api/v1/device"
 	"github.com/loopholelabs/auth/pkg/api/v1/docs"
 	"github.com/loopholelabs/auth/pkg/api/v1/github"
 	"github.com/loopholelabs/auth/pkg/api/v1/options"
+	"github.com/loopholelabs/auth/pkg/api/v1/servicekey"
 	"github.com/loopholelabs/auth/pkg/utils"
 	"github.com/rs/zerolog"
 )
@@ -64,6 +66,8 @@ func (v *V1) init() {
 	v.app.Mount("/config", config.New(v.options, v.logger).App())
 	v.app.Mount("/github", github.New(v.options, v.logger).App())
 	v.app.Mount("/device", device.New(v.options, v.logger).App())
+	v.app.Mount("/apikey", apikey.New(v.options, v.logger).App())
+	v.app.Mount("/servicekey", servicekey.New(v.options, v.logger).App())
 
 	v.app.Get("/swagger.json", func(ctx *fiber.Ctx) error {
 		ctx.Response().Header.SetContentType("application/json")

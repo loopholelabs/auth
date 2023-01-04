@@ -21,6 +21,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/loopholelabs/auth/internal/ent"
 	"github.com/loopholelabs/auth/pkg/api/v1/options"
+	"github.com/loopholelabs/auth/pkg/kind"
 	"github.com/loopholelabs/auth/pkg/utils"
 	"github.com/rs/zerolog"
 	"time"
@@ -126,13 +127,15 @@ func (a *Github) GithubCallback(ctx *fiber.Ctx) error {
 
 	a.logger.Debug().Msgf("creating session for user %s", userID)
 
+	sessionKind := kind.Default
 	if deviceIdentifier != "" {
 		if a.options.Device() == nil {
 			return ctx.Status(fiber.StatusUnauthorized).SendString("device provider is not enabled")
 		}
+		sessionKind = kind.Device
 	}
 
-	cookie, err := a.options.Manager().CreateSession(ctx, a.options.Github().Key(), userID, organization)
+	cookie, err := a.options.Manager().CreateSession(ctx, sessionKind, a.options.Github().Key(), userID, organization)
 	if cookie == nil {
 		return err
 	}

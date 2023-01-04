@@ -42,7 +42,7 @@ const docTemplateapi = `{
     "paths": {
         "/config": {
             "get": {
-                "description": "GetConfig gets the public configuration of the API",
+                "description": "Config gets the public configuration of the API",
                 "consumes": [
                     "application/json"
                 ],
@@ -52,7 +52,7 @@ const docTemplateapi = `{
                 "tags": [
                     "config"
                 ],
-                "summary": "GetConfig gets the public configuration of the API",
+                "summary": "Config gets the public configuration of the API",
                 "responses": {
                     "200": {
                         "description": "OK",

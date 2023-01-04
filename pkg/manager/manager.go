@@ -24,6 +24,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/loopholelabs/auth/internal/aes"
 	"github.com/loopholelabs/auth/pkg/claims"
+	"github.com/loopholelabs/auth/pkg/kind"
 	"github.com/loopholelabs/auth/pkg/provider"
 	"github.com/loopholelabs/auth/pkg/session"
 	"github.com/loopholelabs/auth/pkg/storage"
@@ -165,7 +166,7 @@ func (m *Manager) GenerateCookie(session string, expiry time.Time) *fiber.Cookie
 	}
 }
 
-func (m *Manager) CreateSession(ctx *fiber.Ctx, provider provider.Key, userID string, organization string) (*fiber.Cookie, error) {
+func (m *Manager) CreateSession(ctx *fiber.Ctx, kind kind.Kind, provider provider.Key, userID string, organization string) (*fiber.Cookie, error) {
 	m.logger.Debug().Msgf("creating session for user %s (org '%s')", userID, organization)
 	exists, err := m.storage.UserExists(ctx.Context(), userID)
 	if err != nil {
@@ -213,7 +214,7 @@ func (m *Manager) CreateSession(ctx *fiber.Ctx, provider provider.Key, userID st
 		}
 	}
 
-	sess := session.New(provider, userID, organization)
+	sess := session.New(kind, provider, userID, organization)
 	data, err := json.Marshal(sess)
 	if err != nil {
 		m.logger.Error().Err(err).Msg("failed to marshal session")
@@ -230,7 +231,7 @@ func (m *Manager) CreateSession(ctx *fiber.Ctx, provider provider.Key, userID st
 		return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to encrypt session")
 	}
 
-	err = m.storage.SetSession(ctx.Context(), sess.ID, sess.UserID, sess.Organization, sess.Expiry)
+	err = m.storage.SetSession(ctx.Context(), sess.Kind, sess.ID, sess.UserID, sess.Organization, sess.Expiry)
 	if err != nil {
 		m.logger.Error().Err(err).Msg("failed to set session")
 		return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to set session")
@@ -312,13 +313,13 @@ func (m *Manager) GetSession(ctx *fiber.Ctx) (*session.Session, error) {
 			return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to encrypt session")
 		}
 
-		err = m.storage.SetSession(ctx.Context(), sess.ID, sess.UserID, sess.Organization, sess.Expiry)
+		err = m.storage.SetSession(ctx.Context(), sess.Kind, sess.ID, sess.UserID, sess.Organization, sess.Expiry)
 		if err != nil {
 			m.logger.Error().Err(err).Msg("failed to set refreshed session")
 			return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to set session")
 		}
 
-		ctx.Cookie(m.GenerateCookie(string(encrypted), sess.Expiry))
+		ctx.Cookie(m.GenerateCookie(encrypted, sess.Expiry))
 	}
 
 	return sess, nil
