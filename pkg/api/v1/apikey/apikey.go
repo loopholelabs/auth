@@ -58,11 +58,13 @@ func (a *APIKey) App() *fiber.App {
 // @Accept       json
 // @Produce      json
 // @Param        organization query string false "Organization"
+// @Param        apikey query string true "API Key"
+// @body         body string true "API Key"
 // @Success      200 {string} string
 // @Failure      401 {string} string
 // @Failure      500 {string} string
 // @Router       /apikey/login [post]
 func (a *APIKey) APIKeyLogin(ctx *fiber.Ctx) error {
-	a.logger.Debug().Msgf("received ServiceKeyLogin from %s", ctx.IP())
+	a.logger.Debug().Msgf("received APIKeyLogin from %s", ctx.IP())
 	return nil
 }

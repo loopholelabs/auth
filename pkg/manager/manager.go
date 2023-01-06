@@ -34,6 +34,11 @@ import (
 	"time"
 )
 
+var (
+	ErrInvalidAPIKeyFormat     = errors.New("invalid api key format")
+	ErrInvalidServiceKeyFormat = errors.New("invalid service key format")
+)
+
 const (
 	LocalKey = "session"
 )

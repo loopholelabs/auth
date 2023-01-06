@@ -66,6 +66,4 @@ type Storage interface {
 	ListSessions(ctx context.Context) ([]string, error)
 	SessionExists(ctx context.Context, sessionID string) (bool, error)
 	SetSession(ctx context.Context, sessionKind kind.Kind, sessionID string, userID string, organization string, expiry time.Time) error
-
-	GetAPIKey(ctx context.Context)
 }
