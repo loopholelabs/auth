@@ -18,7 +18,6 @@ package v1
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/loopholelabs/auth/pkg/api/v1/apikey"
 	"github.com/loopholelabs/auth/pkg/api/v1/config"
 	"github.com/loopholelabs/auth/pkg/api/v1/device"
 	"github.com/loopholelabs/auth/pkg/api/v1/docs"
@@ -66,7 +65,6 @@ func (v *V1) init() {
 	v.app.Mount("/config", config.New(v.options, v.logger).App())
 	v.app.Mount("/github", github.New(v.options, v.logger).App())
 	v.app.Mount("/device", device.New(v.options, v.logger).App())
-	v.app.Mount("/apikey", apikey.New(v.options, v.logger).App())
 	v.app.Mount("/servicekey", servicekey.New(v.options, v.logger).App())
 
 	v.app.Get("/swagger.json", func(ctx *fiber.Ctx) error {
