@@ -94,12 +94,5 @@ func (s *API) Stop() error {
 		}
 	}
 
-	if s.v1Options.APIKey() != nil {
-		err = s.v1Options.APIKey().Stop()
-		if err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
