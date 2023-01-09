@@ -102,3 +102,7 @@ func (a *ServiceKey) ServiceKeyLogin(ctx *fiber.Ctx) error {
 		ResourceID:              sess.ResourceID,
 	})
 }
+
+func (a *ServiceKey) ServiceKeyLogout(ctx *fiber.Ctx) error {
+	return nil
+}
