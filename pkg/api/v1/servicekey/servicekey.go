@@ -18,9 +18,13 @@ package servicekey
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"github.com/loopholelabs/auth/pkg/api/v1/models"
 	"github.com/loopholelabs/auth/pkg/api/v1/options"
+	"github.com/loopholelabs/auth/pkg/manager"
+	"github.com/loopholelabs/auth/pkg/storage"
 	"github.com/loopholelabs/auth/pkg/utils"
 	"github.com/rs/zerolog"
+	"strings"
 )
 
 type ServiceKey struct {
@@ -44,7 +48,7 @@ func New(options *options.Options, logger *zerolog.Logger) *ServiceKey {
 
 func (a *ServiceKey) init() {
 	a.logger.Debug().Msg("initializing")
-	a.app.Get("/login", a.ServiceKeyLogin)
+	a.app.Post("/login", a.ServiceKeyLogin)
 }
 
 func (a *ServiceKey) App() *fiber.App {
@@ -54,15 +58,47 @@ func (a *ServiceKey) App() *fiber.App {
 // ServiceKeyLogin godoc
 // @Summary      ServiceKeyLogin logs in a user with their Service Key
 // @Description  ServiceKeyLogin logs in a user with their Service Key
-// @Tags         apikey, login
+// @Tags         servicekey, login
 // @Accept       json
 // @Produce      json
-// @Param        organization query string false "Organization"
+// @Param        servicekey query string true "Service Key"
 // @Success      200 {string} string
 // @Failure      401 {string} string
 // @Failure      500 {string} string
 // @Router       /servicekey/login [post]
 func (a *ServiceKey) ServiceKeyLogin(ctx *fiber.Ctx) error {
 	a.logger.Debug().Msgf("received ServiceKeyLogin from %s", ctx.IP())
-	return nil
+
+	servicekey := ctx.Query("servicekey")
+	if servicekey == "" {
+		return ctx.Status(fiber.StatusBadRequest).SendString("service key is required")
+	}
+
+	if !strings.HasPrefix(servicekey, storage.ServiceKeyPrefixString) {
+		return ctx.Status(fiber.StatusBadRequest).SendString("invalid service key")
+	}
+
+	keySplit := strings.Split(servicekey, manager.KeyDelimiterString)
+	if len(keySplit) != 2 {
+		return ctx.Status(fiber.StatusUnauthorized).SendString("invalid service key")
+	}
+
+	keyID := keySplit[0]
+	keySecret := []byte(keySplit[1])
+
+	a.logger.Debug().Msgf("logging in user with service key ID %s", keyID)
+	sess, secret, err := a.options.Manager().CreateServiceKeySession(ctx, keyID, keySecret)
+	if sess == nil || secret == nil {
+		return err
+	}
+
+	return ctx.JSON(&models.ServiceKeyLoginResponse{
+		ServiceKeySessionID:     sess.ID,
+		ServiceKeySessionSecret: string(secret),
+		ServiceKeyID:            sess.ServiceKeyID,
+		UserID:                  sess.UserID,
+		Organization:            sess.Organization,
+		ResourceType:            sess.ResourceType,
+		ResourceID:              sess.ResourceID,
+	})
 }

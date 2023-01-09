@@ -21,6 +21,4 @@ type Kind string
 const (
 	Default Kind = "default"
 	Device  Kind = "device"
-	API     Kind = "api"
-	Service Kind = "service"
 )

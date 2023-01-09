@@ -14,19 +14,22 @@
 	limitations under the License.
 */
 
-package apikey
+package auth
 
-// APIKey is a user's API Key
-type APIKey struct {
-	// ID is the API Key's unique identifier
-	ID string `json:"id"`
+const (
+	SessionContextKey           = "session"
+	APIKeyContextKey            = "apikey"
+	ServiceKeySessionContextKey = "service"
+	UserContextKey              = "user"
+	OrganizationContextKey      = "organization"
+)
 
-	// Hash is the hashed secret of the API Key
-	Hash []byte `json:"hash"`
+type Kind string
 
-	// UserID is the user's unique identifier
-	UserID string `json:"user_id"`
+const (
+	KindContextKey Kind = "kind"
 
-	// Organization is the organization that the API Key belongs to (optional)
-	Organization string `json:"organization"`
-}
+	KindSession    Kind = "session"
+	KindAPIKey     Kind = "api"
+	KindServiceKey Kind = "service"
+)

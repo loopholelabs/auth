@@ -23,11 +23,13 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gofiber/fiber/v2"
+	"github.com/loopholelabs/auth"
 	"github.com/loopholelabs/auth/internal/aes"
 	"github.com/loopholelabs/auth/pkg/apikey"
 	"github.com/loopholelabs/auth/pkg/claims"
 	"github.com/loopholelabs/auth/pkg/kind"
 	"github.com/loopholelabs/auth/pkg/provider"
+	"github.com/loopholelabs/auth/pkg/servicekey"
 	"github.com/loopholelabs/auth/pkg/session"
 	"github.com/loopholelabs/auth/pkg/storage"
 	"github.com/loopholelabs/auth/pkg/utils"
@@ -38,18 +40,18 @@ import (
 )
 
 const (
-	UserKey                   = "user"
-	OrganizationKey           = "organization"
 	CookieKeyString           = "auth-session"
+	ServiceKeyCookieString    = "service-key-session"
 	AuthorizationHeaderString = "Authorization"
 	BearerHeaderString        = "Bearer "
+	KeyDelimiterString        = "."
 )
 
 var (
 	CookieKey           = []byte(CookieKeyString)
 	AuthorizationHeader = []byte(AuthorizationHeaderString)
 	BearerHeader        = []byte(BearerHeaderString)
-	KeyDelimiter        = []byte(".")
+	KeyDelimiter        = []byte(KeyDelimiterString)
 )
 
 type Manager struct {
@@ -65,11 +67,14 @@ type Manager struct {
 	oldSecretKey []byte
 	secretKeyMu  sync.RWMutex
 
+	registration   bool
+	registrationMu sync.RWMutex
+
 	sessions   map[string]struct{}
 	sessionsMu sync.RWMutex
 
-	registration   bool
-	registrationMu sync.RWMutex
+	servicekeySessions   map[string]*servicekey.Session
+	servicekeySessionsMu sync.RWMutex
 
 	apikeys   map[string]*apikey.APIKey
 	apikeysMu sync.RWMutex
@@ -79,14 +84,15 @@ func New(domain string, tls bool, storage storage.Storage, logger *zerolog.Logge
 	l := logger.With().Str("AUTH", "SESSION-MANAGER").Logger()
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Manager{
-		logger:   &l,
-		storage:  storage,
-		domain:   domain,
-		tls:      tls,
-		ctx:      ctx,
-		cancel:   cancel,
-		sessions: make(map[string]struct{}),
-		apikeys:  make(map[string]*apikey.APIKey),
+		logger:             &l,
+		storage:            storage,
+		domain:             domain,
+		tls:                tls,
+		ctx:                ctx,
+		cancel:             cancel,
+		sessions:           make(map[string]struct{}),
+		servicekeySessions: make(map[string]*servicekey.Session),
+		apikeys:            make(map[string]*apikey.APIKey),
 	}
 }
 
@@ -156,6 +162,26 @@ func (m *Manager) Start() error {
 	}
 	m.sessionsMu.Unlock()
 	m.logger.Info().Msg("retrieved session IDs")
+
+	m.servicekeySessionsMu.Lock()
+	servicekeySessionEvents, err := m.storage.SubscribeToServiceKeySessions(m.ctx)
+	if err != nil {
+		m.servicekeySessionsMu.Unlock()
+		return fmt.Errorf("failed to subscribe to service key session events: %w", err)
+	}
+	m.wg.Add(1)
+	go m.subscribeToServiceKeySessionEvents(servicekeySessionEvents)
+	m.logger.Info().Msg("subscribed to service key session events")
+	servicekeySessionIDs, err := m.storage.ListServiceKeySessions(m.ctx)
+	if err != nil {
+		m.servicekeySessionsMu.Unlock()
+		return fmt.Errorf("failed to list service key session IDs: %w", err)
+	}
+	for _, sess := range servicekeySessionIDs {
+		m.servicekeySessions[sess.ID] = sess
+	}
+	m.servicekeySessionsMu.Unlock()
+	m.logger.Info().Msg("retrieved service key sessions")
 
 	m.apikeysMu.Lock()
 	apikeyEvents, err := m.storage.SubscribeToAPIKeys(m.ctx)
@@ -276,17 +302,13 @@ func (m *Manager) CreateSession(ctx *fiber.Ctx, kind kind.Kind, provider provide
 	return m.GenerateCookie(encrypted, sess.Expiry), nil
 }
 
-func (m *Manager) GetSession(ctx *fiber.Ctx) (*session.Session, error) {
-	cookie := ctx.Cookies(CookieKeyString)
-	if cookie == "" {
-		return nil, ctx.Status(fiber.StatusUnauthorized).SendString("no session cookie")
-	}
-
+func (m *Manager) GetSession(ctx *fiber.Ctx, cookie string) (*session.Session, error) {
 	m.secretKeyMu.RLock()
 	secretKey := m.secretKey
 	oldSecretKey := m.oldSecretKey
 	m.secretKeyMu.RUnlock()
 
+	oldkeyUsed := false
 	decrypted, err := aes.Decrypt(secretKey, CookieKey, cookie)
 	if err != nil {
 		if errors.Is(err, aes.ErrInvalidContent) {
@@ -299,6 +321,7 @@ func (m *Manager) GetSession(ctx *fiber.Ctx) (*session.Session, error) {
 					m.logger.Error().Err(err).Msg("failed to decrypt session with old secret key")
 					return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to decrypt session")
 				}
+				oldkeyUsed = true
 			} else {
 				return nil, ctx.Status(fiber.StatusUnauthorized).SendString("invalid session cookie")
 			}
@@ -333,7 +356,7 @@ func (m *Manager) GetSession(ctx *fiber.Ctx) (*session.Session, error) {
 		}
 	}
 
-	if sess.CloseToExpiry() {
+	if oldkeyUsed || sess.CloseToExpiry() {
 		sess.Refresh()
 		data, err := json.Marshal(sess)
 		if err != nil {
@@ -359,34 +382,7 @@ func (m *Manager) GetSession(ctx *fiber.Ctx) (*session.Session, error) {
 	return sess, nil
 }
 
-func (m *Manager) Validate(ctx *fiber.Ctx) error {
-	sess, err := m.GetSession(ctx)
-	if sess == nil {
-		return err
-	}
-	ctx.Locals(UserKey, sess.UserID)
-	ctx.Locals(OrganizationKey, sess.Organization)
-	return ctx.Next()
-}
-
-func (m *Manager) GetAPIKey(ctx *fiber.Ctx) (*apikey.APIKey, error) {
-	authHeader := ctx.Request().Header.PeekBytes(AuthorizationHeader)
-	if len(authHeader) < len(BearerHeader) {
-		return nil, ctx.Status(fiber.StatusUnauthorized).SendString("missing authorization header")
-	}
-
-	if !bytes.Equal(authHeader[:len(BearerHeader)], BearerHeader) {
-		return nil, ctx.Status(fiber.StatusUnauthorized).SendString("invalid authorization header")
-	}
-
-	keySplit := bytes.Split(authHeader, KeyDelimiter)
-	if len(keySplit) != 2 {
-		return nil, ctx.Status(fiber.StatusUnauthorized).SendString("invalid authorization header")
-	}
-
-	keyID := string(keySplit[0])
-	keySecret := keySplit[1]
-
+func (m *Manager) GetAPIKey(ctx *fiber.Ctx, keyID string, keySecret []byte) (*apikey.APIKey, error) {
 	m.apikeysMu.RLock()
 	key, ok := m.apikeys[keyID]
 	m.apikeysMu.RUnlock()
@@ -394,12 +390,11 @@ func (m *Manager) GetAPIKey(ctx *fiber.Ctx) (*apikey.APIKey, error) {
 		var err error
 		key, err = m.storage.GetAPIKey(ctx.Context(), keyID)
 		if err != nil {
+			if errors.Is(err, storage.ErrNotFound) {
+				return nil, ctx.Status(fiber.StatusUnauthorized).SendString("api key does not exist")
+			}
 			m.logger.Error().Err(err).Msg("failed to check if api key exists")
 			return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to check if api key exists")
-		}
-
-		if key == nil {
-			return nil, ctx.Status(fiber.StatusUnauthorized).SendString("api key does not exist")
 		}
 	}
 
@@ -410,14 +405,140 @@ func (m *Manager) GetAPIKey(ctx *fiber.Ctx) (*apikey.APIKey, error) {
 	return key, nil
 }
 
-func (m *Manager) ValidateAPIKey(ctx *fiber.Ctx) error {
-	apiKey, err := m.GetAPIKey(ctx)
-	if apiKey == nil {
-		return err
+func (m *Manager) GetServiceKey(ctx *fiber.Ctx, keyID string, keySecret []byte) (*servicekey.ServiceKey, error) {
+	key, err := m.storage.GetServiceKey(ctx.Context(), keyID)
+	if err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			return nil, ctx.Status(fiber.StatusUnauthorized).SendString("service key does not exist")
+		}
+		m.logger.Error().Err(err).Msg("failed to check if service key exists")
+		return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to check if service key exists")
 	}
-	ctx.Locals(UserKey, apiKey.UserID)
-	ctx.Locals(OrganizationKey, apiKey.Organization)
-	return ctx.Next()
+
+	if bcrypt.CompareHashAndPassword(keySecret, key.Hash) != nil {
+		return nil, ctx.Status(fiber.StatusUnauthorized).SendString("invalid service key")
+	}
+
+	return key, nil
+}
+
+func (m *Manager) CreateServiceKeySession(ctx *fiber.Ctx, keyID string, keySecret []byte) (*servicekey.Session, []byte, error) {
+	serviceKey, err := m.GetServiceKey(ctx, keyID, keySecret)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if !serviceKey.Expires.IsZero() && time.Now().After(serviceKey.Expires) {
+		return nil, nil, ctx.Status(fiber.StatusUnauthorized).SendString("service key expired")
+	}
+
+	if serviceKey.MaxUses != 0 && serviceKey.NumUsed >= serviceKey.MaxUses {
+		return nil, nil, ctx.Status(fiber.StatusUnauthorized).SendString("service key has reached its maximum uses")
+	}
+
+	err = m.storage.IncrementServiceKeyNumUsed(ctx.Context(), serviceKey.ID)
+	if err != nil {
+		m.logger.Error().Err(err).Msg("failed to increment service key num used")
+		return nil, nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to increment service key num used")
+	}
+
+	sess, secret, err := servicekey.NewSession(serviceKey)
+	if err != nil {
+		m.logger.Error().Err(err).Msg("failed to create service key session")
+		return nil, nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to create service key session")
+	}
+
+	err = m.storage.SetServiceKeySession(ctx.Context(), sess)
+	if err != nil {
+		m.logger.Error().Err(err).Msg("failed to set service key session")
+		return nil, nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to set service key session")
+	}
+
+	m.logger.Debug().Msgf("created service key session %s for user %s (org '%s')", sess.ID, sess.UserID, sess.Organization)
+
+	return sess, secret, nil
+}
+
+func (m *Manager) GetServiceKeySession(ctx *fiber.Ctx, sessionID string, sessionSecret []byte) (*servicekey.Session, error) {
+	m.servicekeySessionsMu.RLock()
+	sess, ok := m.servicekeySessions[sessionID]
+	m.servicekeySessionsMu.RUnlock()
+	if !ok {
+		var err error
+		sess, err = m.storage.GetServiceKeySession(ctx.Context(), sessionID)
+		if err != nil {
+			if errors.Is(err, storage.ErrNotFound) {
+				return nil, ctx.Status(fiber.StatusUnauthorized).SendString("service key session does not exist")
+			}
+			m.logger.Error().Err(err).Msg("failed to check if service key session exists")
+			return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to check if service key session exists")
+		}
+	}
+
+	if bcrypt.CompareHashAndPassword(sessionSecret, sess.Hash) != nil {
+		return nil, ctx.Status(fiber.StatusUnauthorized).SendString("invalid service key session")
+	}
+
+	return sess, nil
+}
+
+func (m *Manager) Validate(ctx *fiber.Ctx) error {
+	cookie := ctx.Cookies(CookieKeyString)
+	if cookie != "" {
+		sess, err := m.GetSession(ctx, cookie)
+		if sess == nil {
+			return err
+		}
+
+		ctx.Locals(auth.KindContextKey, auth.KindSession)
+		ctx.Locals(auth.SessionContextKey, sess)
+		ctx.Locals(auth.UserContextKey, sess.UserID)
+		ctx.Locals(auth.OrganizationContextKey, sess.Organization)
+		return ctx.Next()
+	}
+
+	authHeader := ctx.Request().Header.PeekBytes(AuthorizationHeader)
+	if len(authHeader) > len(BearerHeader) {
+		if !bytes.Equal(authHeader[:len(BearerHeader)], BearerHeader) {
+			return ctx.Status(fiber.StatusUnauthorized).SendString("invalid authorization header")
+		}
+		authHeader = authHeader[len(BearerHeader):]
+		keySplit := bytes.Split(authHeader, KeyDelimiter)
+		if len(keySplit) != 2 {
+			return ctx.Status(fiber.StatusUnauthorized).SendString("invalid authorization header")
+		}
+
+		keyID := string(keySplit[0])
+		keySecret := keySplit[1]
+
+		if bytes.HasPrefix(authHeader, storage.APIKeyPrefix) {
+			key, err := m.GetAPIKey(ctx, keyID, keySecret)
+			if key == nil {
+				return err
+			}
+
+			ctx.Locals(auth.KindContextKey, auth.KindAPIKey)
+			ctx.Locals(auth.APIKeyContextKey, key)
+			ctx.Locals(auth.UserContextKey, key.UserID)
+			ctx.Locals(auth.OrganizationContextKey, key.Organization)
+			return ctx.Next()
+		}
+
+		if bytes.HasPrefix(authHeader, storage.ServiceKeySessionPrefix) {
+			key, err := m.GetServiceKeySession(ctx, keyID, keySecret)
+			if key == nil {
+				return err
+			}
+
+			ctx.Locals(auth.KindContextKey, auth.KindServiceKey)
+			ctx.Locals(auth.ServiceKeySessionContextKey, key)
+			ctx.Locals(auth.UserContextKey, key.UserID)
+			ctx.Locals(auth.OrganizationContextKey, key.Organization)
+			return ctx.Next()
+		}
+	}
+
+	return ctx.Status(fiber.StatusUnauthorized).SendString("no valid session cookie or authorization header")
 }
 
 func (m *Manager) subscribeToSecretKeyEvents(events <-chan *storage.SecretKeyEvent) {
@@ -497,6 +618,33 @@ func (m *Manager) subscribeToAPIKeyEvents(events <-chan *storage.APIKeyEvent) {
 					m.apikeysMu.Lock()
 					m.apikeys[event.APIKeyID] = event.APIKey
 					m.apikeysMu.Unlock()
+				}
+			}
+		}
+	}
+}
+
+func (m *Manager) subscribeToServiceKeySessionEvents(events <-chan *storage.ServiceKeySessionEvent) {
+	defer m.wg.Done()
+	for {
+		select {
+		case <-m.ctx.Done():
+			m.logger.Info().Msg("service key session event subscription stopped")
+			return
+		case event := <-events:
+			if event.Deleted {
+				m.logger.Debug().Msgf("service key session %s deleted", event.ServiceKeySessionID)
+				m.servicekeySessionsMu.Lock()
+				delete(m.servicekeySessions, event.ServiceKeySessionID)
+				m.servicekeySessionsMu.Unlock()
+			} else {
+				m.logger.Debug().Msgf("service key session %s created or updated", event.ServiceKeySessionID)
+				if event.ServiceKeySession == nil {
+					m.logger.Error().Msgf("service key session in create or update event for service key session ID %s is nil", event.ServiceKeySessionID)
+				} else {
+					m.servicekeySessionsMu.Lock()
+					m.servicekeySessions[event.ServiceKeySessionID] = event.ServiceKeySession
+					m.servicekeySessionsMu.Unlock()
 				}
 			}
 		}
