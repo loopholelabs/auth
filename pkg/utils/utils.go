@@ -1,5 +1,5 @@
 /*
-	Copyright 2022 Loophole Labs
+	Copyright 2023 Loophole Labs
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -16,18 +16,48 @@
 
 package utils
 
-import "time"
+import (
+	"crypto/rand"
+	"encoding/json"
+	"github.com/gofiber/fiber/v2"
+	"math/big"
+	"time"
+	"unsafe"
+)
 
-// Int64ToTime converts an int64 to a time.Time in a standardized way
-func Int64ToTime(i int64) time.Time {
-	return time.UnixMilli(i).UTC()
+const (
+	letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+)
+
+var (
+	maxLetterBytes = big.NewInt(int64(len(letterBytes)))
+)
+
+// RandomBytes generates a random byte slice of length n
+func RandomBytes(n int) []byte {
+	b := make([]byte, n)
+	for i := 0; i < n; i++ {
+		num, _ := rand.Int(rand.Reader, maxLetterBytes)
+		b[i] = letterBytes[num.Int64()]
+	}
+
+	return b
 }
 
-// TimeToInt64 converts a time.Time to an int64 in a standardized way
-func TimeToInt64(t time.Time) int64 {
-	return t.UTC().UnixMilli()
+// RandomString generates a random string of length n
+func RandomString(n int) string {
+	b := RandomBytes(n)
+	return *(*string)(unsafe.Pointer(&b))
 }
 
-func TimeInt64Now() int64 {
-	return TimeToInt64(time.Now())
+// DefaultFiberApp returns a new fiber app with sensible defaults
+func DefaultFiberApp() *fiber.App {
+	return fiber.New(fiber.Config{
+		DisableStartupMessage: true,
+		ReadTimeout:           time.Second * 10,
+		WriteTimeout:          time.Second * 10,
+		IdleTimeout:           time.Second * 10,
+		JSONEncoder:           json.Marshal,
+		JSONDecoder:           json.Unmarshal,
+	})
 }
