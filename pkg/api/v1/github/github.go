@@ -17,14 +17,12 @@
 package github
 
 import (
-	"context"
 	"github.com/gofiber/fiber/v2"
 	"github.com/loopholelabs/auth/internal/ent"
 	"github.com/loopholelabs/auth/pkg/api/v1/options"
 	"github.com/loopholelabs/auth/pkg/kind"
 	"github.com/loopholelabs/auth/pkg/utils"
 	"github.com/rs/zerolog"
-	"time"
 )
 
 type Github struct {
@@ -114,9 +112,7 @@ func (a *Github) GithubCallback(ctx *fiber.Ctx) error {
 	}
 
 	a.logger.Debug().Msgf("completing flow for state %s", state)
-	c, cancel := context.WithTimeout(ctx.Context(), time.Second*10)
-	userID, organization, nextURL, deviceIdentifier, err := a.options.Github().CompleteFlow(c, code, state)
-	cancel()
+	userID, organization, nextURL, deviceIdentifier, err := a.options.Github().CompleteFlow(ctx.Context(), code, state)
 	if err != nil {
 		if ent.IsNotFound(err) {
 			return ctx.Status(fiber.StatusUnauthorized).SendString("code is invalid")

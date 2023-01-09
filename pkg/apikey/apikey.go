@@ -19,14 +19,14 @@ package apikey
 // APIKey is a user's API Key
 type APIKey struct {
 	// ID is the API Key's unique identifier
-	ID string
+	ID string `json:"id"`
 
 	// Hash is the hashed secret of the API Key
-	Hash []byte
+	Hash []byte `json:"hash"`
 
 	// UserID is the user's unique identifier
-	UserID string
+	UserID string `json:"user_id"`
 
 	// Organization is the organization that the API Key belongs to (optional)
-	Organization string
+	Organization string `json:"organization"`
 }

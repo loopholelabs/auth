@@ -42,7 +42,7 @@ type Session struct {
 	Organization string       `json:"organization"`
 }
 
-// New returns a new session for a user with the given provider key, user ID, and organization
+// New returns a new session for a user with the given kind key, provider key, user ID, and organization
 func New(kind kind.Kind, provider provider.Key, userID string, organization string) *Session {
 	return &Session{
 		Creation:     time.Now(),
