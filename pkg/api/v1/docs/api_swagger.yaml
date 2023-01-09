@@ -1,16 +1,16 @@
 basePath: /v1
 definitions:
-  models.GetConfigResponse:
+  models.ConfigResponse:
     properties:
       github_enabled:
         type: boolean
     type: object
-  models.GetDeviceCallbackResponse:
+  models.DeviceCallbackResponse:
     properties:
       identifier:
         type: string
     type: object
-  models.GetDeviceFlowResponse:
+  models.DeviceFlowResponse:
     properties:
       device_code:
         type: string
@@ -36,7 +36,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: GetConfig gets the public configuration of the API
+      description: Config gets the public configuration of the API
       produces:
       - application/json
       responses:
@@ -44,7 +44,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/models.GetConfigResponse'
+              $ref: '#/definitions/models.ConfigResponse'
             type: array
         "401":
           description: Unauthorized
@@ -54,7 +54,7 @@ paths:
           description: Internal Server Error
           schema:
             type: string
-      summary: GetConfig gets the public configuration of the API
+      summary: Config gets the public configuration of the API
       tags:
       - config
   /device/callback:
@@ -74,7 +74,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.GetDeviceCallbackResponse'
+            $ref: '#/definitions/models.DeviceCallbackResponse'
         "400":
           description: Bad Request
           schema:
@@ -102,7 +102,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.GetDeviceFlowResponse'
+            $ref: '#/definitions/models.DeviceFlowResponse'
         "401":
           description: Unauthorized
           schema:
@@ -225,6 +225,90 @@ paths:
       summary: GithubLogin logs in a user with Github
       tags:
       - github
+      - login
+  /loggedin:
+    post:
+      consumes:
+      - application/json
+      description: IsLoggedIn checks if a user is logged in
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: IsLoggedIn checks if a user is logged in
+      tags:
+      - login
+  /logout:
+    post:
+      consumes:
+      - application/json
+      description: Logout logs out a user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Logout logs out a user
+      tags:
+      - logout
+  /servicekey/login:
+    post:
+      consumes:
+      - application/json
+      description: ServiceKeyLogin logs in a user with their Service Key
+      parameters:
+      - description: Service Key
+        in: query
+        name: servicekey
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: ServiceKeyLogin logs in a user with their Service Key
+      tags:
+      - servicekey
       - login
 schemes:
 - https

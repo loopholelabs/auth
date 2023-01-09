@@ -59,7 +59,7 @@ const docTemplateapi = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.GetConfigResponse"
+                                "$ref": "#/definitions/models.ConfigResponse"
                             }
                         }
                     },
@@ -105,7 +105,7 @@ const docTemplateapi = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.GetDeviceCallbackResponse"
+                            "$ref": "#/definitions/models.DeviceCallbackResponse"
                         }
                     },
                     "400": {
@@ -147,7 +147,7 @@ const docTemplateapi = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.GetDeviceFlowResponse"
+                            "$ref": "#/definitions/models.DeviceFlowResponse"
                         }
                     },
                     "401": {
@@ -331,10 +331,137 @@ const docTemplateapi = `{
                     }
                 }
             }
+        },
+        "/loggedin": {
+            "post": {
+                "description": "IsLoggedIn checks if a user is logged in",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "login"
+                ],
+                "summary": "IsLoggedIn checks if a user is logged in",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/logout": {
+            "post": {
+                "description": "Logout logs out a user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "logout"
+                ],
+                "summary": "Logout logs out a user",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/servicekey/login": {
+            "post": {
+                "description": "ServiceKeyLogin logs in a user with their Service Key",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "servicekey",
+                    "login"
+                ],
+                "summary": "ServiceKeyLogin logs in a user with their Service Key",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Service Key",
+                        "name": "servicekey",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
-        "models.GetConfigResponse": {
+        "models.ConfigResponse": {
             "type": "object",
             "properties": {
                 "github_enabled": {
@@ -342,7 +469,7 @@ const docTemplateapi = `{
                 }
             }
         },
-        "models.GetDeviceCallbackResponse": {
+        "models.DeviceCallbackResponse": {
             "type": "object",
             "properties": {
                 "identifier": {
@@ -350,7 +477,7 @@ const docTemplateapi = `{
                 }
             }
         },
-        "models.GetDeviceFlowResponse": {
+        "models.DeviceFlowResponse": {
             "type": "object",
             "properties": {
                 "device_code": {
