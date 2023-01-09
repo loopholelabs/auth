@@ -17,6 +17,17 @@
 package auth
 
 const (
+	APIKeyPrefixString            = "AK-"
+	ServiceKeyPrefixString        = "SK-"
+	ServiceKeySessionPrefixString = "SS-"
+)
+
+var (
+	APIKeyPrefix            = []byte(APIKeyPrefixString)
+	ServiceKeySessionPrefix = []byte(ServiceKeySessionPrefixString)
+)
+
+const (
 	SessionContextKey           = "session"
 	APIKeyContextKey            = "apikey"
 	ServiceKeySessionContextKey = "service"

@@ -29,17 +29,6 @@ var (
 	ErrNotFound = errors.New("key not found")
 )
 
-const (
-	APIKeyPrefixString            = "AK-"
-	ServiceKeyPrefixString        = "SK-"
-	ServiceKeySessionPrefixString = "SS-"
-)
-
-var (
-	APIKeyPrefix            = []byte(APIKeyPrefixString)
-	ServiceKeySessionPrefix = []byte(ServiceKeySessionPrefixString)
-)
-
 // SessionEvent is the event that is triggered when a session is created, updated, or deleted
 type SessionEvent struct {
 	// Session ID is the Session's unique identifier

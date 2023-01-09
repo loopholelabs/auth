@@ -18,10 +18,10 @@ package servicekey
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"github.com/loopholelabs/auth"
 	"github.com/loopholelabs/auth/pkg/api/v1/models"
 	"github.com/loopholelabs/auth/pkg/api/v1/options"
 	"github.com/loopholelabs/auth/pkg/manager"
-	"github.com/loopholelabs/auth/pkg/storage"
 	"github.com/loopholelabs/auth/pkg/utils"
 	"github.com/rs/zerolog"
 	"strings"
@@ -74,7 +74,7 @@ func (a *ServiceKey) ServiceKeyLogin(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusBadRequest).SendString("service key is required")
 	}
 
-	if !strings.HasPrefix(servicekey, storage.ServiceKeyPrefixString) {
+	if !strings.HasPrefix(servicekey, auth.ServiceKeyPrefixString) {
 		return ctx.Status(fiber.StatusBadRequest).SendString("invalid service key")
 	}
 

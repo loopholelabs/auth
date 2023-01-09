@@ -510,7 +510,7 @@ func (m *Manager) Validate(ctx *fiber.Ctx) error {
 		keyID := string(keySplit[0])
 		keySecret := keySplit[1]
 
-		if bytes.HasPrefix(authHeader, storage.APIKeyPrefix) {
+		if bytes.HasPrefix(authHeader, auth.APIKeyPrefix) {
 			key, err := m.GetAPIKey(ctx, keyID, keySecret)
 			if key == nil {
 				return err
@@ -523,7 +523,7 @@ func (m *Manager) Validate(ctx *fiber.Ctx) error {
 			return ctx.Next()
 		}
 
-		if bytes.HasPrefix(authHeader, storage.ServiceKeySessionPrefix) {
+		if bytes.HasPrefix(authHeader, auth.ServiceKeySessionPrefix) {
 			key, err := m.GetServiceKeySession(ctx, keyID, keySecret)
 			if key == nil {
 				return err
@@ -562,7 +562,7 @@ func (m *Manager) LogoutServiceKeySession(ctx *fiber.Ctx) error {
 		}
 
 		authHeader = authHeader[len(BearerHeader):]
-		if !bytes.HasPrefix(authHeader, storage.ServiceKeySessionPrefix) {
+		if !bytes.HasPrefix(authHeader, auth.ServiceKeySessionPrefix) {
 			return nil
 		}
 
