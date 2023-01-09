@@ -139,12 +139,12 @@ type Storage interface {
 	SessionIDExists(ctx context.Context, sessionID string) (bool, error)
 
 	// SetSession sets the session for the given session.ID. If there is an error
-	// while setting the session, an error is returned.
+	// while setting the session, an error is returned. If the organization
+	// associated with the session is not empty, the session is associated with
+	// the organization. If the organization is empty, the session is associated
+	// with the user. If the session is associated with an organization and that
+	// organization is deleted, the session should also be deleted.
 	SetSession(ctx context.Context, session *session.Session) error
-	// GetSession returns the session for the given sessionID. If
-	// there is an error while getting the session, an error is returned.
-	// If there is no error, the session is returned.
-	GetSession(ctx context.Context, sessionID string) (*session.Session, error)
 	// DeleteSession deletes the session for the given sessionID. If
 	// there is an error while deleting the session, an error is returned.
 	// An error is returned if the session does not exist.
@@ -174,6 +174,11 @@ type Storage interface {
 	ListServiceKeySessions(ctx context.Context) ([]*servicekey.Session, error)
 	// SetServiceKeySession sets the service key session for the given servicekeySession.ID. If
 	// there is an error while setting the service key session, an error is returned.
+	// If the organization associated with the service key session is not empty, the service key session is associated with
+	// the organization. If the organization is empty, the service key session is associated
+	// with the user. If the service key session is associated with an organization and that
+	// organization is deleted, the service key session and the service key itself should be deleted.
+	// If the service key associated with the service key session is deleted, the service key session should be deleted.
 	SetServiceKeySession(ctx context.Context, servicekeySession *servicekey.Session) error
 	// GetServiceKeySession returns the service key session for the given servicekeySessionID. If
 	// there is an error while getting the service key session, an error is returned.
