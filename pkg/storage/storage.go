@@ -31,11 +31,15 @@ var (
 
 // SessionEvent is the event that is triggered when a session is created, updated, or deleted
 type SessionEvent struct {
-	// Session ID is the Session's unique identifier
-	SessionID string
+	// ID ID is the Session's unique identifier
+	ID string
 
 	// Deleted indicates whether the session was deleted
 	Deleted bool
+
+	// Session is the session that was created or updated.
+	// If the session was deleted, this will be nil
+	Session *session.Session
 }
 
 // SecretKeyEvent is the event that is emitted when a secret key is rotated
@@ -59,20 +63,20 @@ type APIKeyEvent struct {
 	Deleted bool
 
 	// APIKey is the API Key that was created or updated.
-	// This will be nil if the API Key was deleted.
+	// If the API Key was deleted, this will be nil
 	APIKey *apikey.APIKey
 }
 
 // ServiceKeySessionEvent is the event that is triggered when a service key session is created, updated, or deleted
 type ServiceKeySessionEvent struct {
-	// ServiceKeySessionID is the Service Key Session's unique identifier
-	ServiceKeySessionID string
+	// ID is the Service Key Session's unique identifier
+	ID string
 
 	// Deleted indicates whether the session was deleted
 	Deleted bool
 
 	// ServiceKeySession is the Service Key Session that was created or updated.
-	// This will be nil if the Service Key Session was deleted.
+	// If the session was deleted, this will be nil
 	ServiceKeySession *servicekey.Session
 }
 
