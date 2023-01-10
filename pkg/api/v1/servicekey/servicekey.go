@@ -62,7 +62,8 @@ func (a *ServiceKey) App() *fiber.App {
 // @Accept       json
 // @Produce      json
 // @Param        servicekey query string true "Service Key"
-// @Success      200 {string} string
+// @Success      200 {object} models.ServiceKeyLoginResponse
+// @Failure      400 {string} string
 // @Failure      401 {string} string
 // @Failure      500 {string} string
 // @Router       /servicekey/login [post]
@@ -87,19 +88,19 @@ func (a *ServiceKey) ServiceKeyLogin(ctx *fiber.Ctx) error {
 	keySecret := []byte(keySplit[1])
 
 	a.logger.Debug().Msgf("logging in user with service key ID %s", keyID)
-	sess, secret, err := a.options.Manager().CreateServiceKeySession(ctx, keyID, keySecret)
+	sess, secret, err := a.options.Manager().CreateServiceSession(ctx, keyID, keySecret)
 	if sess == nil || secret == nil {
 		return err
 	}
 
 	return ctx.JSON(&models.ServiceKeyLoginResponse{
-		ServiceKeySessionID:     sess.ID,
-		ServiceKeySessionSecret: string(secret),
-		ServiceKeyID:            sess.ServiceKeyID,
-		UserID:                  sess.UserID,
-		Organization:            sess.Organization,
-		ResourceType:            sess.ResourceType,
-		ResourceID:              sess.ResourceID,
+		ServiceSessionID:     sess.ID,
+		ServiceSessionSecret: string(secret),
+		ServiceKeyID:         sess.ServiceKeyID,
+		UserID:               sess.UserID,
+		Organization:         sess.Organization,
+		ResourceType:         sess.ResourceType,
+		ResourceID:           sess.ResourceID,
 	})
 }
 

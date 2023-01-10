@@ -441,6 +441,12 @@ const docTemplateapi = `{
                     "200": {
                         "description": "OK",
                         "schema": {
+                            "$ref": "#/definitions/models.ServiceKeyLoginResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
                             "type": "string"
                         }
                     },
@@ -487,6 +493,32 @@ const docTemplateapi = `{
                     "type": "integer"
                 },
                 "user_code": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.ServiceKeyLoginResponse": {
+            "type": "object",
+            "properties": {
+                "organization": {
+                    "type": "string"
+                },
+                "resource_id": {
+                    "type": "string"
+                },
+                "resource_type": {
+                    "type": "string"
+                },
+                "service_key_id": {
+                    "type": "string"
+                },
+                "service_session_id": {
+                    "type": "string"
+                },
+                "service_session_secret": {
+                    "type": "string"
+                },
+                "user_id": {
                     "type": "string"
                 }
             }

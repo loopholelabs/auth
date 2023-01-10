@@ -17,30 +17,30 @@
 package auth
 
 const (
-	APIKeyPrefixString            = "AK-"
-	ServiceKeyPrefixString        = "SK-"
-	ServiceKeySessionPrefixString = "SS-"
+	APIKeyPrefixString         = "AK-"
+	ServiceKeyPrefixString     = "SK-"
+	ServiceSessionPrefixString = "SS-"
 )
 
 var (
-	APIKeyPrefix            = []byte(APIKeyPrefixString)
-	ServiceKeySessionPrefix = []byte(ServiceKeySessionPrefixString)
+	APIKeyPrefix         = []byte(APIKeyPrefixString)
+	ServiceKeyPrefix     = []byte(ServiceKeyPrefixString)
+	ServiceSessionPrefix = []byte(ServiceSessionPrefixString)
 )
 
 const (
-	SessionContextKey           = "session"
-	APIKeyContextKey            = "apikey"
-	ServiceKeySessionContextKey = "service"
-	UserContextKey              = "user"
-	OrganizationContextKey      = "organization"
+	SessionContextKey        = "session"
+	APIKeyContextKey         = "apikey"
+	ServiceSessionContextKey = "service"
+	UserContextKey           = "user"
+	OrganizationContextKey   = "organization"
+	KindContextKey           = "kind"
 )
 
 type Kind string
 
 const (
-	KindContextKey Kind = "kind"
-
-	KindSession    Kind = "session"
-	KindAPIKey     Kind = "api"
-	KindServiceKey Kind = "service"
+	KindSession        Kind = "session"
+	KindAPIKey         Kind = "api"
+	KindServiceSession Kind = "service"
 )
