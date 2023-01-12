@@ -302,7 +302,7 @@ const docTemplateapi = `{
                     },
                     {
                         "type": "string",
-                        "description": "Device Code Identifier",
+                        "description": "Device Flow Identifier",
                         "name": "identifier",
                         "in": "query"
                     }

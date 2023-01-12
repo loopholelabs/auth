@@ -218,7 +218,7 @@ paths:
         in: query
         name: organization
         type: string
-      - description: Device Code Identifier
+      - description: Device Flow Identifier
         in: query
         name: identifier
         type: string
