@@ -19,6 +19,7 @@ package device
 import (
 	"context"
 	"github.com/google/uuid"
+	"github.com/loopholelabs/auth/internal/ent"
 	"github.com/loopholelabs/auth/pkg/provider"
 	"github.com/loopholelabs/auth/pkg/utils"
 	"github.com/rs/zerolog"
@@ -91,6 +92,18 @@ func (g *Device) ValidateFlow(ctx context.Context, deviceCode string) (string, e
 	}
 
 	return flow.Identifier, nil
+}
+
+func (g *Device) FlowExists(ctx context.Context, identifier string) (bool, error) {
+	_, err := g.database.GetDeviceFlowIdentifier(ctx, identifier)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	return true, nil
 }
 
 func (g *Device) PollFlow(ctx context.Context, userCode string) (string, time.Time, time.Time, error) {

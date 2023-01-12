@@ -19,6 +19,23 @@ definitions:
       user_code:
         type: string
     type: object
+  models.ServiceKeyLoginResponse:
+    properties:
+      organization:
+        type: string
+      resource_id:
+        type: string
+      resource_type:
+        type: string
+      service_key_id:
+        type: string
+      service_session_id:
+        type: string
+      service_session_secret:
+        type: string
+      user_id:
+        type: string
+    type: object
 host: localhost:8080
 info:
   contact:
@@ -201,7 +218,7 @@ paths:
         in: query
         name: organization
         type: string
-      - description: Device Code Identifier
+      - description: Device Flow Identifier
         in: query
         name: identifier
         type: string
@@ -296,6 +313,10 @@ paths:
       responses:
         "200":
           description: OK
+          schema:
+            $ref: '#/definitions/models.ServiceKeyLoginResponse'
+        "400":
+          description: Bad Request
           schema:
             type: string
         "401":

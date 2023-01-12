@@ -109,7 +109,7 @@ func (g *Github) StartFlow(ctx context.Context, nextURL string, organization str
 	challenge := pkce.CodeChallengeS256(verifier)
 	state := uuid.New().String()
 
-	g.logger.Debug().Msgf("starting flow for state %s", state)
+	g.logger.Debug().Msgf("starting flow for state %s with org '%s' and device identifier '%s'", state, organization, deviceIdentifier)
 	err := g.database.SetGithubFlow(ctx, state, verifier, challenge, nextURL, organization, deviceIdentifier)
 	if err != nil {
 		return "", err

@@ -27,6 +27,7 @@ type Database interface {
 	GetDeviceFlow(ctx context.Context, deviceCode string) (*ent.DeviceFlow, error)
 	UpdateDeviceFlow(ctx context.Context, identifier string, session string, expiry time.Time) error
 	GetDeviceFlowUserCode(ctx context.Context, userCode string) (*ent.DeviceFlow, error)
+	GetDeviceFlowIdentifier(ctx context.Context, identifier string) (*ent.DeviceFlow, error)
 	DeleteDeviceFlow(ctx context.Context, deviceCode string) error
 	GCDeviceFlow(ctx context.Context, expiry time.Duration) (int, error)
 }

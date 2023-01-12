@@ -14,23 +14,24 @@
 	limitations under the License.
 */
 
-package servicekey
+package servicesession
 
 import (
 	"github.com/google/uuid"
 	"github.com/loopholelabs/auth"
+	"github.com/loopholelabs/auth/pkg/servicekey"
 	"golang.org/x/crypto/bcrypt"
 )
 
-// Session represents a user's authenticated service key session
-type Session struct {
-	// ID is the Service Key's unique identifier
+// ServiceSession represents a user's authenticated service key session
+type ServiceSession struct {
+	// ID is the service session's unique identifier
 	ID string `json:"id"`
 
-	// Hash is the hashed secret of the Service Key session
+	// Hash is the hashed secret of the service session
 	Hash []byte `json:"hash"`
 
-	// ServiceKeyID is the ID of the Service Key that the session is associated with
+	// ServiceKeyID is the ID of the Service Key that the service session is associated with
 	ServiceKeyID string `json:"service_key_id"`
 
 	// UserID is the user's unique identifier
@@ -46,15 +47,15 @@ type Session struct {
 	ResourceID string `json:"resource_id"`
 }
 
-// NewSession returns a new session for a user with the given service key
-func NewSession(servicekey *ServiceKey) (*Session, []byte, error) {
-	id := uuid.New().String()
-	secret := []byte(auth.ServiceKeySessionPrefixString + uuid.New().String())
+// New returns a new service session for a user with the given service key
+func New(servicekey *servicekey.ServiceKey) (*ServiceSession, []byte, error) {
+	id := auth.ServiceSessionPrefixString + uuid.New().String()
+	secret := []byte(uuid.New().String())
 	hash, err := bcrypt.GenerateFromPassword(secret, bcrypt.DefaultCost)
 	if err != nil {
 		return nil, nil, err
 	}
-	return &Session{
+	return &ServiceSession{
 		ID:           id,
 		Hash:         hash,
 		ServiceKeyID: servicekey.ID,

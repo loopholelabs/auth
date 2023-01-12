@@ -101,7 +101,7 @@ func (v *V1) Logout(ctx *fiber.Ctx) error {
 		return err
 	}
 
-	err = v.options.Manager().LogoutServiceKeySession(ctx)
+	err = v.options.Manager().LogoutServiceSession(ctx)
 	if err != nil {
 		return err
 	}

@@ -31,11 +31,11 @@ type DeviceCallbackResponse struct {
 }
 
 type ServiceKeyLoginResponse struct {
-	ServiceKeySessionID     string `json:"service_key_session_id"`
-	ServiceKeySessionSecret string `json:"service_key_session_secret"`
-	ServiceKeyID            string `json:"service_key_id"`
-	UserID                  string `json:"user_id"`
-	Organization            string `json:"organization"`
-	ResourceType            string `json:"resource_type"`
-	ResourceID              string `json:"resource_id"`
+	ServiceSessionID     string `json:"service_session_id"`
+	ServiceSessionSecret string `json:"service_session_secret"`
+	ServiceKeyID         string `json:"service_key_id"`
+	UserID               string `json:"user_id"`
+	Organization         string `json:"organization"`
+	ResourceType         string `json:"resource_type"`
+	ResourceID           string `json:"resource_id"`
 }
