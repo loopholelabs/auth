@@ -42,7 +42,7 @@ type ServiceSession interface {
 	// service the session is associated with the organization. If the service session is
 	// associated with an organization and that organization is deleted, the service session
 	// should also be deleted. If the service session already exists, it ErrAlreadyExists is returned.
-	SetServiceSession(ctx context.Context, serviceSession *servicesession.ServiceSession) error
+	SetServiceSession(ctx context.Context, id string, hash []byte, serviceKeyID string) error
 
 	// GetServiceSession gets the service session for the given id. If there is an error
 	// while getting the service session, an error is returned. If the service session does not

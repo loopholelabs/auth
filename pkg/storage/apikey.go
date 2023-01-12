@@ -23,8 +23,8 @@ import (
 
 // APIKeyEvent is the event that is emitted when an API key is created, updated, or deleted
 type APIKeyEvent struct {
-	// APIKeyID is the API Key Identifier
-	APIKeyID string
+	// ID is the API Key Identifier
+	ID string
 
 	// Deleted indicates whether the API Key was deleted
 	Deleted bool

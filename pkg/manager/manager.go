@@ -445,7 +445,7 @@ func (m *Manager) CreateServiceSession(ctx *fiber.Ctx, keyID string, keySecret [
 		return nil, nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to create service session")
 	}
 
-	err = m.storage.SetServiceSession(ctx.Context(), sess)
+	err = m.storage.SetServiceSession(ctx.Context(), sess.ID, sess.Hash, sess.ServiceKeyID)
 	if err != nil {
 		m.logger.Error().Err(err).Msg("failed to set service session")
 		return nil, nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to set service session")
@@ -651,17 +651,17 @@ func (m *Manager) subscribeToAPIKeyEvents(events <-chan *storage.APIKeyEvent) {
 			return
 		case event := <-events:
 			if event.Deleted {
-				m.logger.Debug().Msgf("api key %s deleted", event.APIKeyID)
+				m.logger.Debug().Msgf("api key %s deleted", event.ID)
 				m.apikeysMu.Lock()
-				delete(m.apikeys, event.APIKeyID)
+				delete(m.apikeys, event.ID)
 				m.apikeysMu.Unlock()
 			} else {
-				m.logger.Debug().Msgf("api key %s created or updated", event.APIKeyID)
+				m.logger.Debug().Msgf("api key %s created or updated", event.ID)
 				if event.APIKey == nil {
-					m.logger.Error().Msgf("api key in create or update event for api key ID %s is nil", event.APIKeyID)
+					m.logger.Error().Msgf("api key in create or update event for api key ID %s is nil", event.ID)
 				} else {
 					m.apikeysMu.Lock()
-					m.apikeys[event.APIKeyID] = event.APIKey
+					m.apikeys[event.ID] = event.APIKey
 					m.apikeysMu.Unlock()
 				}
 			}

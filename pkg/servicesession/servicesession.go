@@ -49,8 +49,8 @@ type ServiceSession struct {
 
 // New returns a new service session for a user with the given service key
 func New(servicekey *servicekey.ServiceKey) (*ServiceSession, []byte, error) {
-	id := uuid.New().String()
-	secret := []byte(auth.ServiceSessionPrefixString + uuid.New().String())
+	id := auth.ServiceSessionPrefixString + uuid.New().String()
+	secret := []byte(uuid.New().String())
 	hash, err := bcrypt.GenerateFromPassword(secret, bcrypt.DefaultCost)
 	if err != nil {
 		return nil, nil, err
