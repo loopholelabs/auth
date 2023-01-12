@@ -29,7 +29,6 @@ import (
 	"github.com/loopholelabs/auth/pkg/claims"
 	"github.com/loopholelabs/auth/pkg/kind"
 	"github.com/loopholelabs/auth/pkg/provider"
-	"github.com/loopholelabs/auth/pkg/servicekey"
 	"github.com/loopholelabs/auth/pkg/servicesession"
 	"github.com/loopholelabs/auth/pkg/session"
 	"github.com/loopholelabs/auth/pkg/storage"
@@ -299,7 +298,159 @@ func (m *Manager) CreateSession(ctx *fiber.Ctx, kind kind.Kind, provider provide
 	return m.GenerateCookie(encrypted, sess.Expiry), nil
 }
 
-func (m *Manager) GetSession(ctx *fiber.Ctx, cookie string) (*session.Session, error) {
+func (m *Manager) CreateServiceSession(ctx *fiber.Ctx, keyID string, keySecret []byte) (*servicesession.ServiceSession, []byte, error) {
+	serviceKey, err := m.storage.GetServiceKey(ctx.Context(), keyID)
+	if err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			return nil, nil, ctx.Status(fiber.StatusUnauthorized).SendString("service key does not exist")
+		}
+		m.logger.Error().Err(err).Msg("failed to check if service key exists")
+		return nil, nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to check if service key exists")
+	}
+
+	if bcrypt.CompareHashAndPassword(keySecret, serviceKey.Hash) != nil {
+		return nil, nil, ctx.Status(fiber.StatusUnauthorized).SendString("invalid service key")
+	}
+
+	if !serviceKey.Expires.IsZero() && time.Now().After(serviceKey.Expires) {
+		return nil, nil, ctx.Status(fiber.StatusUnauthorized).SendString("service key expired")
+	}
+
+	if serviceKey.MaxUses != 0 && serviceKey.NumUsed >= serviceKey.MaxUses {
+		return nil, nil, ctx.Status(fiber.StatusUnauthorized).SendString("service key has reached its maximum uses")
+	}
+
+	err = m.storage.IncrementServiceKeyNumUsed(ctx.Context(), serviceKey.ID, 1)
+	if err != nil {
+		m.logger.Error().Err(err).Msg("failed to increment service key num used")
+		return nil, nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to increment service key num used")
+	}
+
+	sess, secret, err := servicesession.New(serviceKey)
+	if err != nil {
+		m.logger.Error().Err(err).Msg("failed to create service session")
+		return nil, nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to create service session")
+	}
+
+	err = m.storage.SetServiceSession(ctx.Context(), sess.ID, sess.Hash, sess.ServiceKeyID)
+	if err != nil {
+		m.logger.Error().Err(err).Msg("failed to set service session")
+		return nil, nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to set service session")
+	}
+
+	m.logger.Debug().Msgf("created service session %s for user %s (org '%s')", sess.ID, sess.UserID, sess.Organization)
+
+	return sess, secret, nil
+}
+
+func (m *Manager) Validate(ctx *fiber.Ctx) error {
+	cookie := ctx.Cookies(CookieKeyString)
+	if cookie != "" {
+		sess, err := m.getSession(ctx, cookie)
+		if sess == nil {
+			return err
+		}
+
+		ctx.Locals(auth.KindContextKey, auth.KindSession)
+		ctx.Locals(auth.SessionContextKey, sess)
+		ctx.Locals(auth.UserContextKey, sess.UserID)
+		ctx.Locals(auth.OrganizationContextKey, sess.Organization)
+		return ctx.Next()
+	}
+
+	authHeader := ctx.Request().Header.PeekBytes(AuthorizationHeader)
+	if len(authHeader) > len(BearerHeader) {
+		if !bytes.Equal(authHeader[:len(BearerHeader)], BearerHeader) {
+			return ctx.Status(fiber.StatusUnauthorized).SendString("invalid authorization header")
+		}
+		authHeader = authHeader[len(BearerHeader):]
+		keySplit := bytes.Split(authHeader, KeyDelimiter)
+		if len(keySplit) != 2 {
+			return ctx.Status(fiber.StatusUnauthorized).SendString("invalid authorization header")
+		}
+
+		keyID := string(keySplit[0])
+		keySecret := keySplit[1]
+
+		if bytes.HasPrefix(authHeader, auth.APIKeyPrefix) {
+			key, err := m.getAPIKey(ctx, keyID, keySecret)
+			if key == nil {
+				return err
+			}
+
+			ctx.Locals(auth.KindContextKey, auth.KindAPIKey)
+			ctx.Locals(auth.APIKeyContextKey, key)
+			ctx.Locals(auth.UserContextKey, key.UserID)
+			ctx.Locals(auth.OrganizationContextKey, key.Organization)
+			return ctx.Next()
+		}
+
+		if bytes.HasPrefix(authHeader, auth.ServiceSessionPrefix) {
+			key, err := m.getServiceSession(ctx, keyID, keySecret)
+			if key == nil {
+				return err
+			}
+
+			ctx.Locals(auth.KindContextKey, auth.KindServiceSession)
+			ctx.Locals(auth.ServiceSessionContextKey, key)
+			ctx.Locals(auth.UserContextKey, key.UserID)
+			ctx.Locals(auth.OrganizationContextKey, key.Organization)
+			return ctx.Next()
+		}
+	}
+
+	return ctx.Status(fiber.StatusUnauthorized).SendString("no valid session cookie or authorization header")
+}
+
+func (m *Manager) LogoutSession(ctx *fiber.Ctx) error {
+	cookie := ctx.Cookies(CookieKeyString)
+	if cookie != "" {
+		err := m.storage.DeleteSession(ctx.Context(), cookie)
+		if err != nil {
+			m.logger.Error().Err(err).Msg("failed to delete session")
+			return ctx.Status(fiber.StatusInternalServerError).SendString("failed to delete session")
+		}
+	}
+
+	ctx.ClearCookie(CookieKeyString)
+	return nil
+}
+
+func (m *Manager) LogoutServiceSession(ctx *fiber.Ctx) error {
+	authHeader := ctx.Request().Header.PeekBytes(AuthorizationHeader)
+	if len(authHeader) > len(BearerHeader) {
+		if !bytes.Equal(authHeader[:len(BearerHeader)], BearerHeader) {
+			return nil
+		}
+
+		authHeader = authHeader[len(BearerHeader):]
+		if !bytes.HasPrefix(authHeader, auth.ServiceSessionPrefix) {
+			return nil
+		}
+
+		keySplit := bytes.Split(authHeader, KeyDelimiter)
+		if len(keySplit) != 2 {
+			return nil
+		}
+
+		keyID := string(keySplit[0])
+		keySecret := keySplit[1]
+
+		sess, err := m.getServiceSession(ctx, keyID, keySecret)
+		if sess == nil {
+			return err
+		}
+
+		err = m.storage.DeleteServiceSession(ctx.Context(), sess.ID)
+		if err != nil {
+			m.logger.Error().Err(err).Msg("failed to delete service session")
+			return ctx.Status(fiber.StatusInternalServerError).SendString("failed to delete service session")
+		}
+	}
+	return nil
+}
+
+func (m *Manager) getSession(ctx *fiber.Ctx, cookie string) (*session.Session, error) {
 	m.secretKeyMu.RLock()
 	secretKey := m.secretKey
 	oldSecretKey := m.oldSecretKey
@@ -379,7 +530,7 @@ func (m *Manager) GetSession(ctx *fiber.Ctx, cookie string) (*session.Session, e
 	return sess, nil
 }
 
-func (m *Manager) GetAPIKey(ctx *fiber.Ctx, keyID string, keySecret []byte) (*apikey.APIKey, error) {
+func (m *Manager) getAPIKey(ctx *fiber.Ctx, keyID string, keySecret []byte) (*apikey.APIKey, error) {
 	m.apikeysMu.RLock()
 	key, ok := m.apikeys[keyID]
 	m.apikeysMu.RUnlock()
@@ -402,61 +553,7 @@ func (m *Manager) GetAPIKey(ctx *fiber.Ctx, keyID string, keySecret []byte) (*ap
 	return key, nil
 }
 
-func (m *Manager) GetServiceKey(ctx *fiber.Ctx, keyID string, keySecret []byte) (*servicekey.ServiceKey, error) {
-	key, err := m.storage.GetServiceKey(ctx.Context(), keyID)
-	if err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
-			return nil, ctx.Status(fiber.StatusUnauthorized).SendString("service key does not exist")
-		}
-		m.logger.Error().Err(err).Msg("failed to check if service key exists")
-		return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to check if service key exists")
-	}
-
-	if bcrypt.CompareHashAndPassword(keySecret, key.Hash) != nil {
-		return nil, ctx.Status(fiber.StatusUnauthorized).SendString("invalid service key")
-	}
-
-	return key, nil
-}
-
-func (m *Manager) CreateServiceSession(ctx *fiber.Ctx, keyID string, keySecret []byte) (*servicesession.ServiceSession, []byte, error) {
-	serviceKey, err := m.GetServiceKey(ctx, keyID, keySecret)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if !serviceKey.Expires.IsZero() && time.Now().After(serviceKey.Expires) {
-		return nil, nil, ctx.Status(fiber.StatusUnauthorized).SendString("service key expired")
-	}
-
-	if serviceKey.MaxUses != 0 && serviceKey.NumUsed >= serviceKey.MaxUses {
-		return nil, nil, ctx.Status(fiber.StatusUnauthorized).SendString("service key has reached its maximum uses")
-	}
-
-	err = m.storage.IncrementServiceKeyNumUsed(ctx.Context(), serviceKey.ID, 1)
-	if err != nil {
-		m.logger.Error().Err(err).Msg("failed to increment service key num used")
-		return nil, nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to increment service key num used")
-	}
-
-	sess, secret, err := servicesession.New(serviceKey)
-	if err != nil {
-		m.logger.Error().Err(err).Msg("failed to create service session")
-		return nil, nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to create service session")
-	}
-
-	err = m.storage.SetServiceSession(ctx.Context(), sess.ID, sess.Hash, sess.ServiceKeyID)
-	if err != nil {
-		m.logger.Error().Err(err).Msg("failed to set service session")
-		return nil, nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to set service session")
-	}
-
-	m.logger.Debug().Msgf("created service session %s for user %s (org '%s')", sess.ID, sess.UserID, sess.Organization)
-
-	return sess, secret, nil
-}
-
-func (m *Manager) GetServiceSession(ctx *fiber.Ctx, sessionID string, sessionSecret []byte) (*servicesession.ServiceSession, error) {
+func (m *Manager) getServiceSession(ctx *fiber.Ctx, sessionID string, sessionSecret []byte) (*servicesession.ServiceSession, error) {
 	m.serviceSessionsMu.RLock()
 	sess, ok := m.serviceSessions[sessionID]
 	m.serviceSessionsMu.RUnlock()
@@ -477,113 +574,6 @@ func (m *Manager) GetServiceSession(ctx *fiber.Ctx, sessionID string, sessionSec
 	}
 
 	return sess, nil
-}
-
-func (m *Manager) Validate(ctx *fiber.Ctx) error {
-	cookie := ctx.Cookies(CookieKeyString)
-	if cookie != "" {
-		sess, err := m.GetSession(ctx, cookie)
-		if sess == nil {
-			return err
-		}
-
-		ctx.Locals(auth.KindContextKey, auth.KindSession)
-		ctx.Locals(auth.SessionContextKey, sess)
-		ctx.Locals(auth.UserContextKey, sess.UserID)
-		ctx.Locals(auth.OrganizationContextKey, sess.Organization)
-		return ctx.Next()
-	}
-
-	authHeader := ctx.Request().Header.PeekBytes(AuthorizationHeader)
-	if len(authHeader) > len(BearerHeader) {
-		if !bytes.Equal(authHeader[:len(BearerHeader)], BearerHeader) {
-			return ctx.Status(fiber.StatusUnauthorized).SendString("invalid authorization header")
-		}
-		authHeader = authHeader[len(BearerHeader):]
-		keySplit := bytes.Split(authHeader, KeyDelimiter)
-		if len(keySplit) != 2 {
-			return ctx.Status(fiber.StatusUnauthorized).SendString("invalid authorization header")
-		}
-
-		keyID := string(keySplit[0])
-		keySecret := keySplit[1]
-
-		if bytes.HasPrefix(authHeader, auth.APIKeyPrefix) {
-			key, err := m.GetAPIKey(ctx, keyID, keySecret)
-			if key == nil {
-				return err
-			}
-
-			ctx.Locals(auth.KindContextKey, auth.KindAPIKey)
-			ctx.Locals(auth.APIKeyContextKey, key)
-			ctx.Locals(auth.UserContextKey, key.UserID)
-			ctx.Locals(auth.OrganizationContextKey, key.Organization)
-			return ctx.Next()
-		}
-
-		if bytes.HasPrefix(authHeader, auth.ServiceSessionPrefix) {
-			key, err := m.GetServiceSession(ctx, keyID, keySecret)
-			if key == nil {
-				return err
-			}
-
-			ctx.Locals(auth.KindContextKey, auth.KindServiceSession)
-			ctx.Locals(auth.ServiceSessionContextKey, key)
-			ctx.Locals(auth.UserContextKey, key.UserID)
-			ctx.Locals(auth.OrganizationContextKey, key.Organization)
-			return ctx.Next()
-		}
-	}
-
-	return ctx.Status(fiber.StatusUnauthorized).SendString("no valid session cookie or authorization header")
-}
-
-func (m *Manager) LogoutSession(ctx *fiber.Ctx) error {
-	cookie := ctx.Cookies(CookieKeyString)
-	if cookie != "" {
-		err := m.storage.DeleteSession(ctx.Context(), cookie)
-		if err != nil {
-			m.logger.Error().Err(err).Msg("failed to delete session")
-			return ctx.Status(fiber.StatusInternalServerError).SendString("failed to delete session")
-		}
-	}
-
-	ctx.ClearCookie(CookieKeyString)
-	return nil
-}
-
-func (m *Manager) LogoutServiceSession(ctx *fiber.Ctx) error {
-	authHeader := ctx.Request().Header.PeekBytes(AuthorizationHeader)
-	if len(authHeader) > len(BearerHeader) {
-		if !bytes.Equal(authHeader[:len(BearerHeader)], BearerHeader) {
-			return nil
-		}
-
-		authHeader = authHeader[len(BearerHeader):]
-		if !bytes.HasPrefix(authHeader, auth.ServiceSessionPrefix) {
-			return nil
-		}
-
-		keySplit := bytes.Split(authHeader, KeyDelimiter)
-		if len(keySplit) != 2 {
-			return nil
-		}
-
-		keyID := string(keySplit[0])
-		keySecret := keySplit[1]
-
-		sess, err := m.GetServiceSession(ctx, keyID, keySecret)
-		if sess == nil {
-			return err
-		}
-
-		err = m.storage.DeleteServiceSession(ctx.Context(), sess.ID)
-		if err != nil {
-			m.logger.Error().Err(err).Msg("failed to delete service session")
-			return ctx.Status(fiber.StatusInternalServerError).SendString("failed to delete service session")
-		}
-	}
-	return nil
 }
 
 func (m *Manager) subscribeToSecretKeyEvents(events <-chan *storage.SecretKeyEvent) {
