@@ -74,7 +74,24 @@ func (a *Github) GithubLogin(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusUnauthorized).SendString("github provider is not enabled")
 	}
 
-	redirect, err := a.options.Github().StartFlow(ctx.Context(), ctx.Query("next", a.options.NextURL()), ctx.Query("organization"), ctx.Query("identifier"))
+	identifier := ctx.Query("identifier")
+	if identifier != "" {
+		if a.options.Device() == nil {
+			return ctx.Status(fiber.StatusUnauthorized).SendString("device provider is not enabled")
+		}
+
+		exists, err := a.options.Device().FlowExists(ctx.Context(), identifier)
+		if err != nil {
+			a.logger.Error().Err(err).Msg("failed to check if flow exists")
+			return ctx.Status(fiber.StatusInternalServerError).SendString("failed to check if flow exists")
+		}
+
+		if !exists {
+			return ctx.Status(fiber.StatusUnauthorized).SendString("invalid device flow identifier")
+		}
+	}
+
+	redirect, err := a.options.Github().StartFlow(ctx.Context(), ctx.Query("next", a.options.NextURL()), ctx.Query("organization"), identifier)
 	if err != nil {
 		a.logger.Error().Err(err).Msg("failed to get redirect")
 		return ctx.Status(fiber.StatusInternalServerError).SendString("failed to get redirect")
