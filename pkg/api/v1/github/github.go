@@ -62,7 +62,7 @@ func (a *Github) App() *fiber.App {
 // @Produce      json
 // @Param        next         query string false "Next Redirect URL"
 // @Param        organization query string false "Organization"
-// @Param        identifier   query string false "Device Code Identifier"
+// @Param        identifier   query string false "Device Flow Identifier"
 // @Success      307
 // @Header       307 {string} Location "Redirects to Github"
 // @Failure      401 {string} string
