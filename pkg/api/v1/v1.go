@@ -19,7 +19,6 @@ package v1
 import (
 	"fmt"
 	"github.com/gofiber/fiber/v2"
-	"github.com/loopholelabs/auth"
 	"github.com/loopholelabs/auth/pkg/api/v1/config"
 	"github.com/loopholelabs/auth/pkg/api/v1/device"
 	"github.com/loopholelabs/auth/pkg/api/v1/docs"
@@ -122,9 +121,9 @@ func (v *V1) Logout(ctx *fiber.Ctx) error {
 // @Router       /loggedin [post]
 func (v *V1) IsLoggedIn(ctx *fiber.Ctx) error {
 	v.logger.Debug().Msgf("received IsLoggedIn from %s", ctx.IP())
-	userID, ok := ctx.Locals(auth.UserContextKey).(string)
-	if !ok {
-		v.logger.Error().Msg("failed to get userID from context")
+	_, userID, _, err := v.options.Manager().GetAuthFromContext(ctx)
+	if err != nil {
+		v.logger.Error().Err(err).Msg("failed to get userID from context")
 		return ctx.Status(fiber.StatusInternalServerError).SendString("error getting userID from context")
 	}
 	return ctx.SendString(fmt.Sprintf("logged in user %s", userID))

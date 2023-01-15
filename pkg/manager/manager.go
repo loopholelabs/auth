@@ -39,6 +39,10 @@ import (
 	"time"
 )
 
+var (
+	ErrInvalidContext = errors.New("invalid context")
+)
+
 const (
 	CookieKeyString           = "auth-session"
 	AuthorizationHeaderString = "Authorization"
@@ -386,20 +390,66 @@ func (m *Manager) Validate(ctx *fiber.Ctx) error {
 		}
 
 		if bytes.HasPrefix(authHeader, auth.ServiceSessionPrefix) {
-			key, err := m.getServiceSession(ctx, keyID, keySecret)
-			if key == nil {
+			serviceSession, err := m.getServiceSession(ctx, keyID, keySecret)
+			if serviceSession == nil {
 				return err
 			}
 
 			ctx.Locals(auth.KindContextKey, auth.KindServiceSession)
-			ctx.Locals(auth.ServiceSessionContextKey, key)
-			ctx.Locals(auth.UserContextKey, key.UserID)
-			ctx.Locals(auth.OrganizationContextKey, key.Organization)
+			ctx.Locals(auth.ServiceSessionContextKey, serviceSession)
+			ctx.Locals(auth.UserContextKey, serviceSession.UserID)
+			ctx.Locals(auth.OrganizationContextKey, serviceSession.Organization)
 			return ctx.Next()
 		}
 	}
 
 	return ctx.Status(fiber.StatusUnauthorized).SendString("no valid session cookie or authorization header")
+}
+
+func (m *Manager) GetAuthFromContext(ctx *fiber.Ctx) (kind.Kind, string, string, error) {
+	authKind, ok := ctx.Locals(auth.KindContextKey).(kind.Kind)
+	if !ok || authKind == "" {
+		return "", "", "", ErrInvalidContext
+	}
+
+	userID, ok := ctx.Locals(auth.UserContextKey).(string)
+	if !ok || userID == "" {
+		return "", "", "", ErrInvalidContext
+	}
+
+	orgID, ok := ctx.Locals(auth.OrganizationContextKey).(string)
+	if !ok {
+		return "", "", "", ErrInvalidContext
+	}
+
+	return authKind, userID, orgID, nil
+}
+
+func (m *Manager) GetSessionFromContext(ctx *fiber.Ctx) (*session.Session, error) {
+	sess, ok := ctx.Locals(auth.SessionContextKey).(*session.Session)
+	if !ok || sess == nil {
+		return nil, ErrInvalidContext
+	}
+
+	return sess, nil
+}
+
+func (m *Manager) GetAPIKeyFromContext(ctx *fiber.Ctx) (*apikey.APIKey, error) {
+	key, ok := ctx.Locals(auth.APIKeyContextKey).(*apikey.APIKey)
+	if !ok || key == nil {
+		return nil, ErrInvalidContext
+	}
+
+	return key, nil
+}
+
+func (m *Manager) GetServiceSessionFromContext(ctx *fiber.Ctx) (*servicesession.ServiceSession, error) {
+	sess, ok := ctx.Locals(auth.ServiceSessionContextKey).(*servicesession.ServiceSession)
+	if !ok || sess == nil {
+		return nil, ErrInvalidContext
+	}
+
+	return sess, nil
 }
 
 func (m *Manager) LogoutSession(ctx *fiber.Ctx) error {
