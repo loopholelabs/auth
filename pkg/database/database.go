@@ -18,10 +18,13 @@ package database
 
 import (
 	"context"
-	_ "github.com/lib/pq"
+	"database/sql"
+	"entgo.io/ent/dialect"
+	entsql "entgo.io/ent/dialect/sql"
 	"github.com/loopholelabs/auth/internal/ent"
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/rs/zerolog"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 type Database struct {
@@ -31,15 +34,16 @@ type Database struct {
 	cancel context.CancelFunc
 }
 
-func New(connector string, url string, logger *zerolog.Logger) (*Database, error) {
+func New(url string, logger *zerolog.Logger) (*Database, error) {
 	l := logger.With().Str("AUTH", "DATABASE").Logger()
 
-	l.Debug().Msgf("connecting to %s (%s)", url, connector)
-	client, err := ent.Open(connector, url)
+	l.Debug().Msgf("connecting to %s", url)
+	db, err := sql.Open("pgx", url)
 	if err != nil {
 		return nil, err
 	}
 
+	client := ent.NewClient(ent.Driver(entsql.OpenDB(dialect.Postgres, db)))
 	ctx, cancel := context.WithCancel(context.Background())
 
 	l.Info().Msg("running database migrations")
