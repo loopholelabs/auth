@@ -312,7 +312,7 @@ func (m *Manager) CreateServiceSession(ctx *fiber.Ctx, keyID string, keySecret [
 		return nil, nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to check if service key exists")
 	}
 
-	if bcrypt.CompareHashAndPassword(keySecret, serviceKey.Hash) != nil {
+	if bcrypt.CompareHashAndPassword(append(serviceKey.Salt, keySecret...), serviceKey.Hash) != nil {
 		return nil, nil, ctx.Status(fiber.StatusUnauthorized).SendString("invalid service key")
 	}
 
@@ -596,7 +596,7 @@ func (m *Manager) getAPIKey(ctx *fiber.Ctx, keyID string, keySecret []byte) (*ap
 		}
 	}
 
-	if bcrypt.CompareHashAndPassword(keySecret, key.Hash) != nil {
+	if bcrypt.CompareHashAndPassword(append(key.Salt, keySecret...), key.Hash) != nil {
 		return nil, ctx.Status(fiber.StatusUnauthorized).SendString("invalid api key")
 	}
 
@@ -619,7 +619,7 @@ func (m *Manager) getServiceSession(ctx *fiber.Ctx, sessionID string, sessionSec
 		}
 	}
 
-	if bcrypt.CompareHashAndPassword(sessionSecret, sess.Hash) != nil {
+	if bcrypt.CompareHashAndPassword(append(sess.Salt, sessionSecret...), sess.Hash) != nil {
 		return nil, ctx.Status(fiber.StatusUnauthorized).SendString("invalid service session")
 	}
 

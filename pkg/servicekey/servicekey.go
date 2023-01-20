@@ -23,6 +23,9 @@ type ServiceKey struct {
 	// ID is the Service Key's unique identifier
 	ID string `json:"id"`
 
+	// Salt is the Service Key's salt
+	Salt []byte `json:"salt"`
+
 	// Hash is the hashed secret of the Service Key session
 	Hash []byte `json:"hash"`
 
