@@ -28,6 +28,9 @@ type ServiceSession struct {
 	// ID is the service session's unique identifier
 	ID string `json:"id"`
 
+	// Salt is the service session's salt
+	Salt []byte `json:"salt"`
+
 	// Hash is the hashed secret of the service session
 	Hash []byte `json:"hash"`
 
@@ -51,12 +54,14 @@ type ServiceSession struct {
 func New(servicekey *servicekey.ServiceKey) (*ServiceSession, []byte, error) {
 	id := auth.ServiceSessionPrefixString + uuid.New().String()
 	secret := []byte(uuid.New().String())
-	hash, err := bcrypt.GenerateFromPassword(secret, bcrypt.DefaultCost)
+	salt := []byte(uuid.New().String())
+	hash, err := bcrypt.GenerateFromPassword(append(salt, secret...), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, nil, err
 	}
 	return &ServiceSession{
 		ID:           id,
+		Salt:         salt,
 		Hash:         hash,
 		ServiceKeyID: servicekey.ID,
 		UserID:       servicekey.UserID,

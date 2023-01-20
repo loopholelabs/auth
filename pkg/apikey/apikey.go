@@ -21,6 +21,9 @@ type APIKey struct {
 	// ID is the API Key's unique identifier
 	ID string `json:"id"`
 
+	// Salt is the API Key's salt
+	Salt []byte `json:"salt"`
+
 	// Hash is the hashed secret of the API Key
 	Hash []byte `json:"hash"`
 
