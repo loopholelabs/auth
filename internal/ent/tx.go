@@ -32,6 +32,8 @@ type Tx struct {
 	DeviceFlow *DeviceFlowClient
 	// GithubFlow is the client for interacting with the GithubFlow builders.
 	GithubFlow *GithubFlowClient
+	// MagicFlow is the client for interacting with the MagicFlow builders.
+	MagicFlow *MagicFlowClient
 
 	// lazily loaded.
 	client     *Client
@@ -165,6 +167,7 @@ func (tx *Tx) Client() *Client {
 func (tx *Tx) init() {
 	tx.DeviceFlow = NewDeviceFlowClient(tx.config)
 	tx.GithubFlow = NewGithubFlowClient(tx.config)
+	tx.MagicFlow = NewMagicFlowClient(tx.config)
 }
 
 // txDriver wraps the given dialect.Tx with a nop dialect.Driver implementation.

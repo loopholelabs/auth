@@ -28,6 +28,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/loopholelabs/auth/internal/ent/deviceflow"
 	"github.com/loopholelabs/auth/internal/ent/githubflow"
+	"github.com/loopholelabs/auth/internal/ent/magicflow"
 )
 
 // ent aliases to avoid import conflicts in user's code.
@@ -50,6 +51,7 @@ func columnChecker(table string) func(string) error {
 	checks := map[string]func(string) bool{
 		deviceflow.Table: deviceflow.ValidColumn,
 		githubflow.Table: githubflow.ValidColumn,
+		magicflow.Table:  magicflow.ValidColumn,
 	}
 	check, ok := checks[table]
 	if !ok {

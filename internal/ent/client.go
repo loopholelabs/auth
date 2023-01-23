@@ -28,6 +28,7 @@ import (
 
 	"github.com/loopholelabs/auth/internal/ent/deviceflow"
 	"github.com/loopholelabs/auth/internal/ent/githubflow"
+	"github.com/loopholelabs/auth/internal/ent/magicflow"
 
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
@@ -42,6 +43,8 @@ type Client struct {
 	DeviceFlow *DeviceFlowClient
 	// GithubFlow is the client for interacting with the GithubFlow builders.
 	GithubFlow *GithubFlowClient
+	// MagicFlow is the client for interacting with the MagicFlow builders.
+	MagicFlow *MagicFlowClient
 }
 
 // NewClient creates a new client configured with the given options.
@@ -57,6 +60,7 @@ func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.DeviceFlow = NewDeviceFlowClient(c.config)
 	c.GithubFlow = NewGithubFlowClient(c.config)
+	c.MagicFlow = NewMagicFlowClient(c.config)
 }
 
 // Open opens a database/sql.DB specified by the driver name and
@@ -92,6 +96,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		config:     cfg,
 		DeviceFlow: NewDeviceFlowClient(cfg),
 		GithubFlow: NewGithubFlowClient(cfg),
+		MagicFlow:  NewMagicFlowClient(cfg),
 	}, nil
 }
 
@@ -113,6 +118,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		config:     cfg,
 		DeviceFlow: NewDeviceFlowClient(cfg),
 		GithubFlow: NewGithubFlowClient(cfg),
+		MagicFlow:  NewMagicFlowClient(cfg),
 	}, nil
 }
 
@@ -143,6 +149,7 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	c.DeviceFlow.Use(hooks...)
 	c.GithubFlow.Use(hooks...)
+	c.MagicFlow.Use(hooks...)
 }
 
 // DeviceFlowClient is a client for the DeviceFlow schema.
@@ -323,4 +330,94 @@ func (c *GithubFlowClient) GetX(ctx context.Context, id int) *GithubFlow {
 // Hooks returns the client hooks.
 func (c *GithubFlowClient) Hooks() []Hook {
 	return c.hooks.GithubFlow
+}
+
+// MagicFlowClient is a client for the MagicFlow schema.
+type MagicFlowClient struct {
+	config
+}
+
+// NewMagicFlowClient returns a client for the MagicFlow from the given config.
+func NewMagicFlowClient(c config) *MagicFlowClient {
+	return &MagicFlowClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `magicflow.Hooks(f(g(h())))`.
+func (c *MagicFlowClient) Use(hooks ...Hook) {
+	c.hooks.MagicFlow = append(c.hooks.MagicFlow, hooks...)
+}
+
+// Create returns a builder for creating a MagicFlow entity.
+func (c *MagicFlowClient) Create() *MagicFlowCreate {
+	mutation := newMagicFlowMutation(c.config, OpCreate)
+	return &MagicFlowCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of MagicFlow entities.
+func (c *MagicFlowClient) CreateBulk(builders ...*MagicFlowCreate) *MagicFlowCreateBulk {
+	return &MagicFlowCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for MagicFlow.
+func (c *MagicFlowClient) Update() *MagicFlowUpdate {
+	mutation := newMagicFlowMutation(c.config, OpUpdate)
+	return &MagicFlowUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *MagicFlowClient) UpdateOne(mf *MagicFlow) *MagicFlowUpdateOne {
+	mutation := newMagicFlowMutation(c.config, OpUpdateOne, withMagicFlow(mf))
+	return &MagicFlowUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *MagicFlowClient) UpdateOneID(id int) *MagicFlowUpdateOne {
+	mutation := newMagicFlowMutation(c.config, OpUpdateOne, withMagicFlowID(id))
+	return &MagicFlowUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for MagicFlow.
+func (c *MagicFlowClient) Delete() *MagicFlowDelete {
+	mutation := newMagicFlowMutation(c.config, OpDelete)
+	return &MagicFlowDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *MagicFlowClient) DeleteOne(mf *MagicFlow) *MagicFlowDeleteOne {
+	return c.DeleteOneID(mf.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *MagicFlowClient) DeleteOneID(id int) *MagicFlowDeleteOne {
+	builder := c.Delete().Where(magicflow.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &MagicFlowDeleteOne{builder}
+}
+
+// Query returns a query builder for MagicFlow.
+func (c *MagicFlowClient) Query() *MagicFlowQuery {
+	return &MagicFlowQuery{
+		config: c.config,
+	}
+}
+
+// Get returns a MagicFlow entity by its id.
+func (c *MagicFlowClient) Get(ctx context.Context, id int) (*MagicFlow, error) {
+	return c.Query().Where(magicflow.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *MagicFlowClient) GetX(ctx context.Context, id int) *MagicFlow {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *MagicFlowClient) Hooks() []Hook {
+	return c.hooks.MagicFlow
 }

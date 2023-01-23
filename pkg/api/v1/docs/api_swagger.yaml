@@ -297,6 +297,92 @@ paths:
       summary: Logout logs out a user
       tags:
       - logout
+  /magic/callback:
+    get:
+      consumes:
+      - application/json
+      description: MagicCallback validates the magic link and logs in the user
+      parameters:
+      - description: magic link token
+        in: query
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "307":
+          description: Temporary Redirect
+          headers:
+            Location:
+              description: Redirects to Next URL
+              type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "403":
+          description: Forbidden
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: MagicCallback validates the magic link and logs in the user
+      tags:
+      - magic
+      - callback
+  /magic/flow:
+    post:
+      consumes:
+      - application/json
+      description: MagicFlow starts the magic link flow
+      parameters:
+      - description: email address
+        in: query
+        name: email
+        required: true
+        type: string
+      - description: Next Redirect URL
+        in: query
+        name: next
+        type: string
+      - description: Organization
+        in: query
+        name: organization
+        type: string
+      - description: Device Flow Identifier
+        in: query
+        name: identifier
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: MagicFlow starts the magic link flow
+      tags:
+      - device
+      - login
   /servicekey/login:
     post:
       consumes:

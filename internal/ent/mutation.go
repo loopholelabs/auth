@@ -27,6 +27,7 @@ import (
 
 	"github.com/loopholelabs/auth/internal/ent/deviceflow"
 	"github.com/loopholelabs/auth/internal/ent/githubflow"
+	"github.com/loopholelabs/auth/internal/ent/magicflow"
 	"github.com/loopholelabs/auth/internal/ent/predicate"
 
 	"entgo.io/ent"
@@ -43,6 +44,7 @@ const (
 	// Node types.
 	TypeDeviceFlow = "DeviceFlow"
 	TypeGithubFlow = "GithubFlow"
+	TypeMagicFlow  = "MagicFlow"
 )
 
 // DeviceFlowMutation represents an operation that mutates the DeviceFlow nodes in the graph.
@@ -1395,4 +1397,680 @@ func (m *GithubFlowMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *GithubFlowMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown GithubFlow edge %s", name)
+}
+
+// MagicFlowMutation represents an operation that mutates the MagicFlow nodes in the graph.
+type MagicFlowMutation struct {
+	config
+	op                Op
+	typ               string
+	id                *int
+	created_at        *time.Time
+	email             *string
+	ip_address        *string
+	secret            *string
+	next_url          *string
+	organization      *string
+	device_identifier *string
+	clearedFields     map[string]struct{}
+	done              bool
+	oldValue          func(context.Context) (*MagicFlow, error)
+	predicates        []predicate.MagicFlow
+}
+
+var _ ent.Mutation = (*MagicFlowMutation)(nil)
+
+// magicflowOption allows management of the mutation configuration using functional options.
+type magicflowOption func(*MagicFlowMutation)
+
+// newMagicFlowMutation creates new mutation for the MagicFlow entity.
+func newMagicFlowMutation(c config, op Op, opts ...magicflowOption) *MagicFlowMutation {
+	m := &MagicFlowMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeMagicFlow,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withMagicFlowID sets the ID field of the mutation.
+func withMagicFlowID(id int) magicflowOption {
+	return func(m *MagicFlowMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *MagicFlow
+		)
+		m.oldValue = func(ctx context.Context) (*MagicFlow, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().MagicFlow.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withMagicFlow sets the old MagicFlow of the mutation.
+func withMagicFlow(node *MagicFlow) magicflowOption {
+	return func(m *MagicFlowMutation) {
+		m.oldValue = func(context.Context) (*MagicFlow, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m MagicFlowMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m MagicFlowMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *MagicFlowMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *MagicFlowMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().MagicFlow.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *MagicFlowMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *MagicFlowMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the MagicFlow entity.
+// If the MagicFlow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MagicFlowMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *MagicFlowMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetEmail sets the "email" field.
+func (m *MagicFlowMutation) SetEmail(s string) {
+	m.email = &s
+}
+
+// Email returns the value of the "email" field in the mutation.
+func (m *MagicFlowMutation) Email() (r string, exists bool) {
+	v := m.email
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEmail returns the old "email" field's value of the MagicFlow entity.
+// If the MagicFlow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MagicFlowMutation) OldEmail(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEmail is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEmail requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEmail: %w", err)
+	}
+	return oldValue.Email, nil
+}
+
+// ResetEmail resets all changes to the "email" field.
+func (m *MagicFlowMutation) ResetEmail() {
+	m.email = nil
+}
+
+// SetIPAddress sets the "ip_address" field.
+func (m *MagicFlowMutation) SetIPAddress(s string) {
+	m.ip_address = &s
+}
+
+// IPAddress returns the value of the "ip_address" field in the mutation.
+func (m *MagicFlowMutation) IPAddress() (r string, exists bool) {
+	v := m.ip_address
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIPAddress returns the old "ip_address" field's value of the MagicFlow entity.
+// If the MagicFlow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MagicFlowMutation) OldIPAddress(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIPAddress is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIPAddress requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIPAddress: %w", err)
+	}
+	return oldValue.IPAddress, nil
+}
+
+// ResetIPAddress resets all changes to the "ip_address" field.
+func (m *MagicFlowMutation) ResetIPAddress() {
+	m.ip_address = nil
+}
+
+// SetSecret sets the "secret" field.
+func (m *MagicFlowMutation) SetSecret(s string) {
+	m.secret = &s
+}
+
+// Secret returns the value of the "secret" field in the mutation.
+func (m *MagicFlowMutation) Secret() (r string, exists bool) {
+	v := m.secret
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSecret returns the old "secret" field's value of the MagicFlow entity.
+// If the MagicFlow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MagicFlowMutation) OldSecret(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSecret is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSecret requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSecret: %w", err)
+	}
+	return oldValue.Secret, nil
+}
+
+// ResetSecret resets all changes to the "secret" field.
+func (m *MagicFlowMutation) ResetSecret() {
+	m.secret = nil
+}
+
+// SetNextURL sets the "next_url" field.
+func (m *MagicFlowMutation) SetNextURL(s string) {
+	m.next_url = &s
+}
+
+// NextURL returns the value of the "next_url" field in the mutation.
+func (m *MagicFlowMutation) NextURL() (r string, exists bool) {
+	v := m.next_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNextURL returns the old "next_url" field's value of the MagicFlow entity.
+// If the MagicFlow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MagicFlowMutation) OldNextURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNextURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNextURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNextURL: %w", err)
+	}
+	return oldValue.NextURL, nil
+}
+
+// ResetNextURL resets all changes to the "next_url" field.
+func (m *MagicFlowMutation) ResetNextURL() {
+	m.next_url = nil
+}
+
+// SetOrganization sets the "organization" field.
+func (m *MagicFlowMutation) SetOrganization(s string) {
+	m.organization = &s
+}
+
+// Organization returns the value of the "organization" field in the mutation.
+func (m *MagicFlowMutation) Organization() (r string, exists bool) {
+	v := m.organization
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrganization returns the old "organization" field's value of the MagicFlow entity.
+// If the MagicFlow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MagicFlowMutation) OldOrganization(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrganization is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrganization requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrganization: %w", err)
+	}
+	return oldValue.Organization, nil
+}
+
+// ClearOrganization clears the value of the "organization" field.
+func (m *MagicFlowMutation) ClearOrganization() {
+	m.organization = nil
+	m.clearedFields[magicflow.FieldOrganization] = struct{}{}
+}
+
+// OrganizationCleared returns if the "organization" field was cleared in this mutation.
+func (m *MagicFlowMutation) OrganizationCleared() bool {
+	_, ok := m.clearedFields[magicflow.FieldOrganization]
+	return ok
+}
+
+// ResetOrganization resets all changes to the "organization" field.
+func (m *MagicFlowMutation) ResetOrganization() {
+	m.organization = nil
+	delete(m.clearedFields, magicflow.FieldOrganization)
+}
+
+// SetDeviceIdentifier sets the "device_identifier" field.
+func (m *MagicFlowMutation) SetDeviceIdentifier(s string) {
+	m.device_identifier = &s
+}
+
+// DeviceIdentifier returns the value of the "device_identifier" field in the mutation.
+func (m *MagicFlowMutation) DeviceIdentifier() (r string, exists bool) {
+	v := m.device_identifier
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeviceIdentifier returns the old "device_identifier" field's value of the MagicFlow entity.
+// If the MagicFlow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MagicFlowMutation) OldDeviceIdentifier(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeviceIdentifier is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeviceIdentifier requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeviceIdentifier: %w", err)
+	}
+	return oldValue.DeviceIdentifier, nil
+}
+
+// ClearDeviceIdentifier clears the value of the "device_identifier" field.
+func (m *MagicFlowMutation) ClearDeviceIdentifier() {
+	m.device_identifier = nil
+	m.clearedFields[magicflow.FieldDeviceIdentifier] = struct{}{}
+}
+
+// DeviceIdentifierCleared returns if the "device_identifier" field was cleared in this mutation.
+func (m *MagicFlowMutation) DeviceIdentifierCleared() bool {
+	_, ok := m.clearedFields[magicflow.FieldDeviceIdentifier]
+	return ok
+}
+
+// ResetDeviceIdentifier resets all changes to the "device_identifier" field.
+func (m *MagicFlowMutation) ResetDeviceIdentifier() {
+	m.device_identifier = nil
+	delete(m.clearedFields, magicflow.FieldDeviceIdentifier)
+}
+
+// Where appends a list predicates to the MagicFlowMutation builder.
+func (m *MagicFlowMutation) Where(ps ...predicate.MagicFlow) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// Op returns the operation name.
+func (m *MagicFlowMutation) Op() Op {
+	return m.op
+}
+
+// Type returns the node type of this mutation (MagicFlow).
+func (m *MagicFlowMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *MagicFlowMutation) Fields() []string {
+	fields := make([]string, 0, 7)
+	if m.created_at != nil {
+		fields = append(fields, magicflow.FieldCreatedAt)
+	}
+	if m.email != nil {
+		fields = append(fields, magicflow.FieldEmail)
+	}
+	if m.ip_address != nil {
+		fields = append(fields, magicflow.FieldIPAddress)
+	}
+	if m.secret != nil {
+		fields = append(fields, magicflow.FieldSecret)
+	}
+	if m.next_url != nil {
+		fields = append(fields, magicflow.FieldNextURL)
+	}
+	if m.organization != nil {
+		fields = append(fields, magicflow.FieldOrganization)
+	}
+	if m.device_identifier != nil {
+		fields = append(fields, magicflow.FieldDeviceIdentifier)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *MagicFlowMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case magicflow.FieldCreatedAt:
+		return m.CreatedAt()
+	case magicflow.FieldEmail:
+		return m.Email()
+	case magicflow.FieldIPAddress:
+		return m.IPAddress()
+	case magicflow.FieldSecret:
+		return m.Secret()
+	case magicflow.FieldNextURL:
+		return m.NextURL()
+	case magicflow.FieldOrganization:
+		return m.Organization()
+	case magicflow.FieldDeviceIdentifier:
+		return m.DeviceIdentifier()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *MagicFlowMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case magicflow.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case magicflow.FieldEmail:
+		return m.OldEmail(ctx)
+	case magicflow.FieldIPAddress:
+		return m.OldIPAddress(ctx)
+	case magicflow.FieldSecret:
+		return m.OldSecret(ctx)
+	case magicflow.FieldNextURL:
+		return m.OldNextURL(ctx)
+	case magicflow.FieldOrganization:
+		return m.OldOrganization(ctx)
+	case magicflow.FieldDeviceIdentifier:
+		return m.OldDeviceIdentifier(ctx)
+	}
+	return nil, fmt.Errorf("unknown MagicFlow field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MagicFlowMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case magicflow.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case magicflow.FieldEmail:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEmail(v)
+		return nil
+	case magicflow.FieldIPAddress:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIPAddress(v)
+		return nil
+	case magicflow.FieldSecret:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSecret(v)
+		return nil
+	case magicflow.FieldNextURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNextURL(v)
+		return nil
+	case magicflow.FieldOrganization:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrganization(v)
+		return nil
+	case magicflow.FieldDeviceIdentifier:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeviceIdentifier(v)
+		return nil
+	}
+	return fmt.Errorf("unknown MagicFlow field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *MagicFlowMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *MagicFlowMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MagicFlowMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown MagicFlow numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *MagicFlowMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(magicflow.FieldOrganization) {
+		fields = append(fields, magicflow.FieldOrganization)
+	}
+	if m.FieldCleared(magicflow.FieldDeviceIdentifier) {
+		fields = append(fields, magicflow.FieldDeviceIdentifier)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *MagicFlowMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *MagicFlowMutation) ClearField(name string) error {
+	switch name {
+	case magicflow.FieldOrganization:
+		m.ClearOrganization()
+		return nil
+	case magicflow.FieldDeviceIdentifier:
+		m.ClearDeviceIdentifier()
+		return nil
+	}
+	return fmt.Errorf("unknown MagicFlow nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *MagicFlowMutation) ResetField(name string) error {
+	switch name {
+	case magicflow.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case magicflow.FieldEmail:
+		m.ResetEmail()
+		return nil
+	case magicflow.FieldIPAddress:
+		m.ResetIPAddress()
+		return nil
+	case magicflow.FieldSecret:
+		m.ResetSecret()
+		return nil
+	case magicflow.FieldNextURL:
+		m.ResetNextURL()
+		return nil
+	case magicflow.FieldOrganization:
+		m.ResetOrganization()
+		return nil
+	case magicflow.FieldDeviceIdentifier:
+		m.ResetDeviceIdentifier()
+		return nil
+	}
+	return fmt.Errorf("unknown MagicFlow field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *MagicFlowMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *MagicFlowMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *MagicFlowMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *MagicFlowMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *MagicFlowMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *MagicFlowMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *MagicFlowMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown MagicFlow unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *MagicFlowMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown MagicFlow edge %s", name)
 }

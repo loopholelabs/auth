@@ -25,6 +25,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/loopholelabs/auth"
 	"github.com/loopholelabs/auth/internal/aes"
+	"github.com/loopholelabs/auth/internal/magic"
 	"github.com/loopholelabs/auth/pkg/apikey"
 	"github.com/loopholelabs/auth/pkg/claims"
 	"github.com/loopholelabs/auth/pkg/kind"
@@ -45,6 +46,7 @@ var (
 
 const (
 	CookieKeyString           = "auth-session"
+	MagicKeyString            = "auth-magic"
 	AuthorizationHeaderString = "Authorization"
 	BearerHeaderString        = "Bearer "
 	KeyDelimiterString        = "."
@@ -52,6 +54,7 @@ const (
 
 var (
 	CookieKey           = []byte(CookieKeyString)
+	MagicKey            = []byte(MagicKeyString)
 	AuthorizationHeader = []byte(AuthorizationHeaderString)
 	BearerHeader        = []byte(BearerHeaderString)
 	KeyDelimiter        = []byte(KeyDelimiterString)
@@ -224,6 +227,57 @@ func (m *Manager) GenerateCookie(session string, expiry time.Time) *fiber.Cookie
 		HTTPOnly: true,
 		SameSite: fiber.CookieSameSiteLaxMode,
 	}
+}
+
+func (m *Manager) EncryptMagic(email string, secret string) (string, error) {
+	m.secretKeyMu.RLock()
+	secretKey := m.secretKey
+	m.secretKeyMu.RUnlock()
+
+	data, err := json.Marshal(&magic.Magic{
+		Email:  email,
+		Secret: secret,
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal magic: %w", err)
+	}
+
+	encrypted, err := aes.Encrypt(secretKey, MagicKey, data)
+	if err != nil {
+		return "", fmt.Errorf("failed to encrypt magic: %w", err)
+	}
+
+	return encrypted, nil
+}
+
+func (m *Manager) DecryptMagic(encrypted string) (string, string, error) {
+	m.secretKeyMu.RLock()
+	secretKey := m.secretKey
+	oldSecretKey := m.oldSecretKey
+	m.secretKeyMu.RUnlock()
+
+	decrypted, err := aes.Decrypt(secretKey, MagicKey, encrypted)
+	if err != nil {
+		if errors.Is(err, aes.ErrInvalidContent) {
+			if oldSecretKey != nil {
+				decrypted, err = aes.Decrypt(oldSecretKey, MagicKey, encrypted)
+				if err != nil {
+					return "", "", fmt.Errorf("failed to decrypt magic link token: %w", err)
+				}
+			} else {
+				return "", "", fmt.Errorf("failed to decrypt magic link token: %w", err)
+			}
+		} else {
+			return "", "", fmt.Errorf("failed to decrypt magic link token: %w", err)
+		}
+	}
+	ma := new(magic.Magic)
+	err = json.Unmarshal(decrypted, ma)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to unmarshal magic: %w", err)
+	}
+
+	return ma.Email, ma.Secret, nil
 }
 
 func (m *Manager) CreateSession(ctx *fiber.Ctx, kind kind.Kind, provider provider.Key, userID string, organization string) (*fiber.Cookie, error) {

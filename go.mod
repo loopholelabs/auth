@@ -4,12 +4,14 @@ go 1.18
 
 require (
 	entgo.io/ent v0.11.4
+	github.com/AfterShip/email-verifier v1.3.2
 	github.com/gofiber/fiber/v2 v2.40.1
 	github.com/google/uuid v1.3.0
 	github.com/grokify/go-pkce v0.2.0
 	github.com/jackc/pgx/v5 v5.2.0
+	github.com/mattevans/postmark-go v0.1.6
 	github.com/rs/zerolog v1.28.0
-	github.com/stretchr/testify v1.8.0
+	github.com/stretchr/testify v1.8.1
 	github.com/swaggo/swag v1.8.9
 	golang.org/x/crypto v0.0.0-20220829220503-c86fa9a7ed90
 	golang.org/x/oauth2 v0.3.0
@@ -32,6 +34,7 @@ require (
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/go-cmp v0.5.8 // indirect
 	github.com/hashicorp/hcl/v2 v2.13.0 // indirect
+	github.com/hbollon/go-edlib v1.6.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20200714003250-2b9c44734f2b // indirect
 	github.com/josharian/intern v1.0.0 // indirect
