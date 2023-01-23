@@ -18,6 +18,7 @@ package models
 
 type ConfigResponse struct {
 	GithubEnabled bool `json:"github_enabled"`
+	MagicEnabled  bool `json:"magic_enabled"`
 }
 
 type DeviceFlowResponse struct {
