@@ -332,47 +332,6 @@ const docTemplateapi = `{
                 }
             }
         },
-        "/loggedin": {
-            "post": {
-                "description": "IsLoggedIn checks if a user is logged in",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "login"
-                ],
-                "summary": "IsLoggedIn checks if a user is logged in",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
         "/logout": {
             "post": {
                 "description": "Logout logs out a user",
@@ -593,6 +552,47 @@ const docTemplateapi = `{
                     }
                 }
             }
+        },
+        "/userinfo": {
+            "post": {
+                "description": "UserInfo checks if a user is logged in and returns their info",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "login"
+                ],
+                "summary": "UserInfo checks if a user is logged in and returns their info",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.UserInfoResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -600,6 +600,9 @@ const docTemplateapi = `{
             "type": "object",
             "properties": {
                 "github_enabled": {
+                    "type": "boolean"
+                },
+                "magic_enabled": {
                     "type": "boolean"
                 }
             }
@@ -649,6 +652,25 @@ const docTemplateapi = `{
                 },
                 "user_id": {
                     "type": "string"
+                }
+            }
+        },
+        "models.UserInfoResponse": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "organization": {
+                    "type": "string"
+                },
+                "session": {
+                    "type": "string",
+                    "enum": [
+                        "session",
+                        "api",
+                        "service"
+                    ]
                 }
             }
         }

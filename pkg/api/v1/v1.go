@@ -17,12 +17,12 @@
 package v1
 
 import (
-	"fmt"
 	"github.com/gofiber/fiber/v2"
 	"github.com/loopholelabs/auth/pkg/api/v1/config"
 	"github.com/loopholelabs/auth/pkg/api/v1/device"
 	"github.com/loopholelabs/auth/pkg/api/v1/docs"
 	"github.com/loopholelabs/auth/pkg/api/v1/github"
+	"github.com/loopholelabs/auth/pkg/api/v1/models"
 	"github.com/loopholelabs/auth/pkg/api/v1/options"
 	"github.com/loopholelabs/auth/pkg/api/v1/servicekey"
 	"github.com/loopholelabs/auth/pkg/utils"
@@ -70,7 +70,7 @@ func (v *V1) init() {
 	v.app.Mount("/servicekey", servicekey.New(v.options, v.logger).App())
 
 	v.app.Post("/logout", v.Logout)
-	v.app.Post("/loggedin", v.options.Manager().Validate, v.IsLoggedIn)
+	v.app.Post("/userinfo", v.options.Manager().Validate, v.UserInfo)
 
 	v.app.Get("/swagger.json", func(ctx *fiber.Ctx) error {
 		ctx.Response().Header.SetContentType("application/json")
@@ -109,23 +109,27 @@ func (v *V1) Logout(ctx *fiber.Ctx) error {
 	return ctx.SendString("logged out")
 }
 
-// IsLoggedIn godoc
-// @Summary      IsLoggedIn checks if a user is logged in
-// @Description  IsLoggedIn checks if a user is logged in
+// UserInfo godoc
+// @Summary      UserInfo checks if a user is logged in and returns their info
+// @Description  UserInfo checks if a user is logged in and returns their info
 // @Tags         login
 // @Accept       json
 // @Produce      json
-// @Success      200 {string} string
+// @Success      200 {object} models.UserInfoResponse
 // @Failure      400 {string} string
 // @Failure      401 {string} string
 // @Failure      500 {string} string
-// @Router       /loggedin [post]
-func (v *V1) IsLoggedIn(ctx *fiber.Ctx) error {
-	v.logger.Debug().Msgf("received IsLoggedIn from %s", ctx.IP())
-	_, userID, _, err := v.options.Manager().GetAuthFromContext(ctx)
+// @Router       /userinfo [post]
+func (v *V1) UserInfo(ctx *fiber.Ctx) error {
+	v.logger.Debug().Msgf("received UserInfo from %s", ctx.IP())
+	kind, userID, orgID, err := v.options.Manager().GetAuthFromContext(ctx)
 	if err != nil {
-		v.logger.Error().Err(err).Msg("failed to get userID from context")
-		return ctx.Status(fiber.StatusInternalServerError).SendString("error getting userID from context")
+		v.logger.Error().Err(err).Msg("failed to get user info from context")
+		return ctx.Status(fiber.StatusInternalServerError).SendString("error getting user info from context")
 	}
-	return ctx.SendString(fmt.Sprintf("logged in user %s", userID))
+	return ctx.JSON(&models.UserInfoResponse{
+		Email:        userID,
+		Session:      kind,
+		Organization: orgID,
+	})
 }
