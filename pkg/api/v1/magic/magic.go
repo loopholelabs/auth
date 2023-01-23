@@ -19,6 +19,7 @@ package device
 import (
 	"errors"
 	"fmt"
+	"github.com/AfterShip/email-verifier"
 	"github.com/gofiber/fiber/v2"
 	"github.com/loopholelabs/auth/internal/ent"
 	"github.com/loopholelabs/auth/pkg/api/v1/options"
@@ -29,17 +30,19 @@ import (
 )
 
 type Magic struct {
-	logger  *zerolog.Logger
-	app     *fiber.App
-	options *options.Options
+	logger   *zerolog.Logger
+	app      *fiber.App
+	options  *options.Options
+	verifier *emailverifier.Verifier
 }
 
 func New(options *options.Options, logger *zerolog.Logger) *Magic {
 	l := logger.With().Str("ROUTER", "MAGIC").Logger()
 	i := &Magic{
-		logger:  &l,
-		app:     utils.DefaultFiberApp(),
-		options: options,
+		logger:   &l,
+		app:      utils.DefaultFiberApp(),
+		options:  options,
+		verifier: emailverifier.NewVerifier(),
 	}
 
 	i.init()
@@ -81,6 +84,15 @@ func (d *Magic) MagicFlow(ctx *fiber.Ctx) error {
 	email := ctx.Query("email")
 	if email == "" {
 		return ctx.Status(fiber.StatusBadRequest).SendString("email is required")
+	}
+
+	ret, err := d.verifier.Verify(email)
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).SendString("invalid email address")
+	}
+
+	if !ret.Syntax.Valid || !ret.HasMxRecords {
+		return ctx.Status(fiber.StatusBadRequest).SendString("invalid email address")
 	}
 
 	identifier := ctx.Query("identifier")
