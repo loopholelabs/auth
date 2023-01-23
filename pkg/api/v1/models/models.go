@@ -16,8 +16,11 @@
 
 package models
 
+import "github.com/loopholelabs/auth/pkg/kind"
+
 type ConfigResponse struct {
 	GithubEnabled bool `json:"github_enabled"`
+	MagicEnabled  bool `json:"magic_enabled"`
 }
 
 type DeviceFlowResponse struct {
@@ -38,4 +41,10 @@ type ServiceKeyLoginResponse struct {
 	Organization         string `json:"organization"`
 	ResourceType         string `json:"resource_type"`
 	ResourceID           string `json:"resource_id"`
+}
+
+type UserInfoResponse struct {
+	Email        string    `json:"email"`
+	Session      kind.Kind `enums:"session,api,service"`
+	Organization string    `json:"organization"`
 }

@@ -68,5 +68,10 @@ func (a *Config) Config(ctx *fiber.Ctx) error {
 	if a.options.Github() != nil {
 		res.GithubEnabled = true
 	}
+
+	if a.options.Magic() != nil {
+		res.MagicEnabled = true
+	}
+
 	return ctx.JSON(res)
 }
