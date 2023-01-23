@@ -17,6 +17,7 @@
 package api
 
 import (
+	"fmt"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	v1 "github.com/loopholelabs/auth/pkg/api/v1"
@@ -56,14 +57,17 @@ func (s *API) init() {
 	s.app.Mount(V1Path, v1.New(s.v1Options, s.logger).App())
 }
 
-func (s *API) Start(addr string, host string, tls bool) error {
+func (s *API) Start(addr string) error {
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
 	}
-	v1Docs.SwaggerInfoapi.Host = host
+	v1Docs.SwaggerInfoapi.Host = s.v1Options.Domain()
+	if s.v1Options.Port() != 443 && s.v1Options.Port() != 80 {
+		v1Docs.SwaggerInfoapi.Host = fmt.Sprintf("%s:%d", s.v1Options.Domain(), s.v1Options.Port())
+	}
 	v1Docs.SwaggerInfoapi.Schemes = []string{"http"}
-	if tls {
+	if s.v1Options.TLS() {
 		v1Docs.SwaggerInfoapi.Schemes = []string{"https"}
 	}
 	return s.app.Listener(listener)

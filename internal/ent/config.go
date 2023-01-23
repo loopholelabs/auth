@@ -42,6 +42,7 @@ type config struct {
 type hooks struct {
 	DeviceFlow []ent.Hook
 	GithubFlow []ent.Hook
+	MagicFlow  []ent.Hook
 }
 
 // Options applies the options on the config object.

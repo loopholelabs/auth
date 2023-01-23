@@ -65,6 +65,7 @@ func (v *V1) init() {
 
 	v.app.Mount("/config", config.New(v.options, v.logger).App())
 	v.app.Mount("/github", github.New(v.options, v.logger).App())
+	v.app.Mount("/magic", device.New(v.options, v.logger).App())
 	v.app.Mount("/device", device.New(v.options, v.logger).App())
 	v.app.Mount("/servicekey", servicekey.New(v.options, v.logger).App())
 

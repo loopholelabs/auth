@@ -23,6 +23,7 @@ import (
 
 	"github.com/loopholelabs/auth/internal/ent/deviceflow"
 	"github.com/loopholelabs/auth/internal/ent/githubflow"
+	"github.com/loopholelabs/auth/internal/ent/magicflow"
 	"github.com/loopholelabs/auth/internal/ent/schema"
 )
 
@@ -74,4 +75,26 @@ func init() {
 	githubflowDescNextURL := githubflowFields[4].Descriptor()
 	// githubflow.NextURLValidator is a validator for the "next_url" field. It is called by the builders before save.
 	githubflow.NextURLValidator = githubflowDescNextURL.Validators[0].(func(string) error)
+	magicflowFields := schema.MagicFlow{}.Fields()
+	_ = magicflowFields
+	// magicflowDescCreatedAt is the schema descriptor for created_at field.
+	magicflowDescCreatedAt := magicflowFields[0].Descriptor()
+	// magicflow.DefaultCreatedAt holds the default value on creation for the created_at field.
+	magicflow.DefaultCreatedAt = magicflowDescCreatedAt.Default.(func() time.Time)
+	// magicflowDescEmail is the schema descriptor for email field.
+	magicflowDescEmail := magicflowFields[1].Descriptor()
+	// magicflow.EmailValidator is a validator for the "email" field. It is called by the builders before save.
+	magicflow.EmailValidator = magicflowDescEmail.Validators[0].(func(string) error)
+	// magicflowDescIPAddress is the schema descriptor for ip_address field.
+	magicflowDescIPAddress := magicflowFields[2].Descriptor()
+	// magicflow.IPAddressValidator is a validator for the "ip_address" field. It is called by the builders before save.
+	magicflow.IPAddressValidator = magicflowDescIPAddress.Validators[0].(func(string) error)
+	// magicflowDescSecret is the schema descriptor for secret field.
+	magicflowDescSecret := magicflowFields[3].Descriptor()
+	// magicflow.SecretValidator is a validator for the "secret" field. It is called by the builders before save.
+	magicflow.SecretValidator = magicflowDescSecret.Validators[0].(func(string) error)
+	// magicflowDescNextURL is the schema descriptor for next_url field.
+	magicflowDescNextURL := magicflowFields[4].Descriptor()
+	// magicflow.NextURLValidator is a validator for the "next_url" field. It is called by the builders before save.
+	magicflow.NextURLValidator = magicflowDescNextURL.Validators[0].(func(string) error)
 }

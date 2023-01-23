@@ -394,6 +394,135 @@
                 }
             }
         },
+        "/magic/callback": {
+            "get": {
+                "description": "MagicCallback validates the magic link and logs in the user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "magic",
+                    "callback"
+                ],
+                "summary": "MagicCallback validates the magic link and logs in the user",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "magic link token",
+                        "name": "token",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "307": {
+                        "description": "Temporary Redirect",
+                        "headers": {
+                            "Location": {
+                                "type": "string",
+                                "description": "Redirects to Next URL"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/magic/flow": {
+            "post": {
+                "description": "MagicFlow starts the magic link flow",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "device",
+                    "login"
+                ],
+                "summary": "MagicFlow starts the magic link flow",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "email address",
+                        "name": "email",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Next Redirect URL",
+                        "name": "next",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Organization",
+                        "name": "organization",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Device Flow Identifier",
+                        "name": "identifier",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/servicekey/login": {
             "post": {
                 "description": "ServiceKeyLogin logs in a user with their Service Key",

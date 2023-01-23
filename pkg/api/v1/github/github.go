@@ -82,8 +82,8 @@ func (a *Github) GithubLogin(ctx *fiber.Ctx) error {
 
 		exists, err := a.options.Device().FlowExists(ctx.Context(), identifier)
 		if err != nil {
-			a.logger.Error().Err(err).Msg("failed to check if flow exists")
-			return ctx.Status(fiber.StatusInternalServerError).SendString("failed to check if flow exists")
+			a.logger.Error().Err(err).Msg("failed to check if device flow exists")
+			return ctx.Status(fiber.StatusInternalServerError).SendString("failed to check if device flow exists")
 		}
 
 		if !exists {

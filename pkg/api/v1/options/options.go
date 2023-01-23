@@ -20,11 +20,14 @@ import (
 	"github.com/loopholelabs/auth/pkg/manager"
 	"github.com/loopholelabs/auth/pkg/provider/device"
 	"github.com/loopholelabs/auth/pkg/provider/github"
+	"github.com/loopholelabs/auth/pkg/provider/magic"
 )
 
 type Github func() *github.Github
 
 type Device func() *device.Device
+
+type Magic func() *magic.Magic
 
 type NextURL func() string
 
@@ -42,17 +45,31 @@ func WithDevice(device Device) Modifier {
 	}
 }
 
+func WithMagic(magic Magic) Modifier {
+	return func(options *Options) {
+		options.magic = magic
+	}
+}
+
 type Options struct {
 	github  Github
 	device  Device
+	magic   Magic
 	nextURL NextURL
 	manager *manager.Manager
+
+	domain string
+	port   int
+	tls    bool
 }
 
-func New(manager *manager.Manager, nextURL NextURL, modifiers ...Modifier) *Options {
+func New(manager *manager.Manager, nextURL NextURL, domain string, port int, tls bool, modifiers ...Modifier) *Options {
 	options := &Options{
 		manager: manager,
 		nextURL: nextURL,
+		domain:  domain,
+		port:    port,
+		tls:     tls,
 	}
 
 	for _, modifier := range modifiers {
@@ -71,6 +88,12 @@ func New(manager *manager.Manager, nextURL NextURL, modifiers ...Modifier) *Opti
 		}
 	}
 
+	if options.magic == nil {
+		options.magic = func() *magic.Magic {
+			return nil
+		}
+	}
+
 	return options
 }
 
@@ -82,10 +105,26 @@ func (o *Options) Device() *device.Device {
 	return o.device()
 }
 
+func (o *Options) Magic() *magic.Magic {
+	return o.magic()
+}
+
 func (o *Options) Manager() *manager.Manager {
 	return o.manager
 }
 
 func (o *Options) NextURL() string {
 	return o.nextURL()
+}
+
+func (o *Options) Domain() string {
+	return o.domain
+}
+
+func (o *Options) Port() int {
+	return o.port
+}
+
+func (o *Options) TLS() bool {
+	return o.tls
 }

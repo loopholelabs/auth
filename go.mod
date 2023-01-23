@@ -8,6 +8,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/grokify/go-pkce v0.2.0
 	github.com/jackc/pgx/v5 v5.2.0
+	github.com/mattevans/postmark-go v0.1.6
 	github.com/rs/zerolog v1.28.0
 	github.com/stretchr/testify v1.8.0
 	github.com/swaggo/swag v1.8.9

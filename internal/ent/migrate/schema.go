@@ -58,10 +58,28 @@ var (
 		Columns:    GithubFlowsColumns,
 		PrimaryKey: []*schema.Column{GithubFlowsColumns[0]},
 	}
+	// MagicFlowsColumns holds the columns for the "magic_flows" table.
+	MagicFlowsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "email", Type: field.TypeString, Unique: true},
+		{Name: "ip_address", Type: field.TypeString},
+		{Name: "secret", Type: field.TypeString},
+		{Name: "next_url", Type: field.TypeString},
+		{Name: "organization", Type: field.TypeString, Nullable: true},
+		{Name: "device_identifier", Type: field.TypeString, Unique: true, Nullable: true},
+	}
+	// MagicFlowsTable holds the schema information for the "magic_flows" table.
+	MagicFlowsTable = &schema.Table{
+		Name:       "magic_flows",
+		Columns:    MagicFlowsColumns,
+		PrimaryKey: []*schema.Column{MagicFlowsColumns[0]},
+	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		DeviceFlowsTable,
 		GithubFlowsTable,
+		MagicFlowsTable,
 	}
 )
 
