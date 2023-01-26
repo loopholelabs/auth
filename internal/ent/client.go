@@ -28,6 +28,7 @@ import (
 
 	"github.com/loopholelabs/auth/internal/ent/deviceflow"
 	"github.com/loopholelabs/auth/internal/ent/githubflow"
+	"github.com/loopholelabs/auth/internal/ent/googleflow"
 	"github.com/loopholelabs/auth/internal/ent/magicflow"
 
 	"entgo.io/ent/dialect"
@@ -43,6 +44,8 @@ type Client struct {
 	DeviceFlow *DeviceFlowClient
 	// GithubFlow is the client for interacting with the GithubFlow builders.
 	GithubFlow *GithubFlowClient
+	// GoogleFlow is the client for interacting with the GoogleFlow builders.
+	GoogleFlow *GoogleFlowClient
 	// MagicFlow is the client for interacting with the MagicFlow builders.
 	MagicFlow *MagicFlowClient
 }
@@ -60,6 +63,7 @@ func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.DeviceFlow = NewDeviceFlowClient(c.config)
 	c.GithubFlow = NewGithubFlowClient(c.config)
+	c.GoogleFlow = NewGoogleFlowClient(c.config)
 	c.MagicFlow = NewMagicFlowClient(c.config)
 }
 
@@ -96,6 +100,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		config:     cfg,
 		DeviceFlow: NewDeviceFlowClient(cfg),
 		GithubFlow: NewGithubFlowClient(cfg),
+		GoogleFlow: NewGoogleFlowClient(cfg),
 		MagicFlow:  NewMagicFlowClient(cfg),
 	}, nil
 }
@@ -118,6 +123,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		config:     cfg,
 		DeviceFlow: NewDeviceFlowClient(cfg),
 		GithubFlow: NewGithubFlowClient(cfg),
+		GoogleFlow: NewGoogleFlowClient(cfg),
 		MagicFlow:  NewMagicFlowClient(cfg),
 	}, nil
 }
@@ -149,6 +155,7 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	c.DeviceFlow.Use(hooks...)
 	c.GithubFlow.Use(hooks...)
+	c.GoogleFlow.Use(hooks...)
 	c.MagicFlow.Use(hooks...)
 }
 
@@ -330,6 +337,96 @@ func (c *GithubFlowClient) GetX(ctx context.Context, id int) *GithubFlow {
 // Hooks returns the client hooks.
 func (c *GithubFlowClient) Hooks() []Hook {
 	return c.hooks.GithubFlow
+}
+
+// GoogleFlowClient is a client for the GoogleFlow schema.
+type GoogleFlowClient struct {
+	config
+}
+
+// NewGoogleFlowClient returns a client for the GoogleFlow from the given config.
+func NewGoogleFlowClient(c config) *GoogleFlowClient {
+	return &GoogleFlowClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `googleflow.Hooks(f(g(h())))`.
+func (c *GoogleFlowClient) Use(hooks ...Hook) {
+	c.hooks.GoogleFlow = append(c.hooks.GoogleFlow, hooks...)
+}
+
+// Create returns a builder for creating a GoogleFlow entity.
+func (c *GoogleFlowClient) Create() *GoogleFlowCreate {
+	mutation := newGoogleFlowMutation(c.config, OpCreate)
+	return &GoogleFlowCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of GoogleFlow entities.
+func (c *GoogleFlowClient) CreateBulk(builders ...*GoogleFlowCreate) *GoogleFlowCreateBulk {
+	return &GoogleFlowCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for GoogleFlow.
+func (c *GoogleFlowClient) Update() *GoogleFlowUpdate {
+	mutation := newGoogleFlowMutation(c.config, OpUpdate)
+	return &GoogleFlowUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *GoogleFlowClient) UpdateOne(gf *GoogleFlow) *GoogleFlowUpdateOne {
+	mutation := newGoogleFlowMutation(c.config, OpUpdateOne, withGoogleFlow(gf))
+	return &GoogleFlowUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *GoogleFlowClient) UpdateOneID(id int) *GoogleFlowUpdateOne {
+	mutation := newGoogleFlowMutation(c.config, OpUpdateOne, withGoogleFlowID(id))
+	return &GoogleFlowUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for GoogleFlow.
+func (c *GoogleFlowClient) Delete() *GoogleFlowDelete {
+	mutation := newGoogleFlowMutation(c.config, OpDelete)
+	return &GoogleFlowDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *GoogleFlowClient) DeleteOne(gf *GoogleFlow) *GoogleFlowDeleteOne {
+	return c.DeleteOneID(gf.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *GoogleFlowClient) DeleteOneID(id int) *GoogleFlowDeleteOne {
+	builder := c.Delete().Where(googleflow.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &GoogleFlowDeleteOne{builder}
+}
+
+// Query returns a query builder for GoogleFlow.
+func (c *GoogleFlowClient) Query() *GoogleFlowQuery {
+	return &GoogleFlowQuery{
+		config: c.config,
+	}
+}
+
+// Get returns a GoogleFlow entity by its id.
+func (c *GoogleFlowClient) Get(ctx context.Context, id int) (*GoogleFlow, error) {
+	return c.Query().Where(googleflow.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *GoogleFlowClient) GetX(ctx context.Context, id int) *GoogleFlow {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *GoogleFlowClient) Hooks() []Hook {
+	return c.hooks.GoogleFlow
 }
 
 // MagicFlowClient is a client for the MagicFlow schema.

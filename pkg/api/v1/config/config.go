@@ -69,6 +69,10 @@ func (a *Config) Config(ctx *fiber.Ctx) error {
 		res.GithubEnabled = true
 	}
 
+	if a.options.Google() != nil {
+		res.GoogleEnabled = true
+	}
+
 	if a.options.Magic() != nil {
 		res.MagicEnabled = true
 	}

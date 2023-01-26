@@ -23,6 +23,7 @@ import (
 
 	"github.com/loopholelabs/auth/internal/ent/deviceflow"
 	"github.com/loopholelabs/auth/internal/ent/githubflow"
+	"github.com/loopholelabs/auth/internal/ent/googleflow"
 	"github.com/loopholelabs/auth/internal/ent/magicflow"
 	"github.com/loopholelabs/auth/internal/ent/schema"
 )
@@ -75,6 +76,28 @@ func init() {
 	githubflowDescNextURL := githubflowFields[4].Descriptor()
 	// githubflow.NextURLValidator is a validator for the "next_url" field. It is called by the builders before save.
 	githubflow.NextURLValidator = githubflowDescNextURL.Validators[0].(func(string) error)
+	googleflowFields := schema.GoogleFlow{}.Fields()
+	_ = googleflowFields
+	// googleflowDescCreatedAt is the schema descriptor for created_at field.
+	googleflowDescCreatedAt := googleflowFields[0].Descriptor()
+	// googleflow.DefaultCreatedAt holds the default value on creation for the created_at field.
+	googleflow.DefaultCreatedAt = googleflowDescCreatedAt.Default.(func() time.Time)
+	// googleflowDescState is the schema descriptor for state field.
+	googleflowDescState := googleflowFields[1].Descriptor()
+	// googleflow.StateValidator is a validator for the "state" field. It is called by the builders before save.
+	googleflow.StateValidator = googleflowDescState.Validators[0].(func(string) error)
+	// googleflowDescVerifier is the schema descriptor for verifier field.
+	googleflowDescVerifier := googleflowFields[2].Descriptor()
+	// googleflow.VerifierValidator is a validator for the "verifier" field. It is called by the builders before save.
+	googleflow.VerifierValidator = googleflowDescVerifier.Validators[0].(func(string) error)
+	// googleflowDescChallenge is the schema descriptor for challenge field.
+	googleflowDescChallenge := googleflowFields[3].Descriptor()
+	// googleflow.ChallengeValidator is a validator for the "challenge" field. It is called by the builders before save.
+	googleflow.ChallengeValidator = googleflowDescChallenge.Validators[0].(func(string) error)
+	// googleflowDescNextURL is the schema descriptor for next_url field.
+	googleflowDescNextURL := googleflowFields[4].Descriptor()
+	// googleflow.NextURLValidator is a validator for the "next_url" field. It is called by the builders before save.
+	googleflow.NextURLValidator = googleflowDescNextURL.Validators[0].(func(string) error)
 	magicflowFields := schema.MagicFlow{}.Fields()
 	_ = magicflowFields
 	// magicflowDescCreatedAt is the schema descriptor for created_at field.

@@ -58,6 +58,23 @@ var (
 		Columns:    GithubFlowsColumns,
 		PrimaryKey: []*schema.Column{GithubFlowsColumns[0]},
 	}
+	// GoogleFlowsColumns holds the columns for the "google_flows" table.
+	GoogleFlowsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "state", Type: field.TypeString, Unique: true},
+		{Name: "verifier", Type: field.TypeString, Unique: true},
+		{Name: "challenge", Type: field.TypeString, Unique: true},
+		{Name: "next_url", Type: field.TypeString},
+		{Name: "organization", Type: field.TypeString, Nullable: true},
+		{Name: "device_identifier", Type: field.TypeString, Unique: true, Nullable: true},
+	}
+	// GoogleFlowsTable holds the schema information for the "google_flows" table.
+	GoogleFlowsTable = &schema.Table{
+		Name:       "google_flows",
+		Columns:    GoogleFlowsColumns,
+		PrimaryKey: []*schema.Column{GoogleFlowsColumns[0]},
+	}
 	// MagicFlowsColumns holds the columns for the "magic_flows" table.
 	MagicFlowsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -79,6 +96,7 @@ var (
 	Tables = []*schema.Table{
 		DeviceFlowsTable,
 		GithubFlowsTable,
+		GoogleFlowsTable,
 		MagicFlowsTable,
 	}
 )

@@ -332,6 +332,116 @@ const docTemplateapi = `{
                 }
             }
         },
+        "/google/callback": {
+            "get": {
+                "description": "GoogleCallback logs in a user with Google",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "google",
+                    "callback"
+                ],
+                "summary": "GoogleCallback logs in a user with Google",
+                "responses": {
+                    "307": {
+                        "description": "Temporary Redirect",
+                        "headers": {
+                            "Location": {
+                                "type": "string",
+                                "description": "Redirects to Next URL"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/google/login": {
+            "get": {
+                "description": "GoogleLogin logs in a user with Google",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "google",
+                    "login"
+                ],
+                "summary": "GoogleLogin logs in a user with Google",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Next Redirect URL",
+                        "name": "next",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Organization",
+                        "name": "organization",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Device Flow Identifier",
+                        "name": "identifier",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "307": {
+                        "description": "Temporary Redirect",
+                        "headers": {
+                            "Location": {
+                                "type": "string",
+                                "description": "Redirects to Google"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/logout": {
             "post": {
                 "description": "Logout logs out a user",
@@ -600,6 +710,9 @@ const docTemplateapi = `{
             "type": "object",
             "properties": {
                 "github_enabled": {
+                    "type": "boolean"
+                },
+                "google_enabled": {
                     "type": "boolean"
                 },
                 "magic_enabled": {

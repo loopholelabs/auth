@@ -19,6 +19,7 @@ require (
 
 require (
 	ariga.io/atlas v0.7.3-0.20221011160332-3ca609863edd // indirect
+	cloud.google.com/go/compute/metadata v0.2.0 // indirect
 	github.com/KyleBanks/depth v1.2.1 // indirect
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect

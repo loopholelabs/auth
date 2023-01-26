@@ -20,10 +20,13 @@ import (
 	"github.com/loopholelabs/auth/pkg/manager"
 	"github.com/loopholelabs/auth/pkg/provider/device"
 	"github.com/loopholelabs/auth/pkg/provider/github"
+	"github.com/loopholelabs/auth/pkg/provider/google"
 	"github.com/loopholelabs/auth/pkg/provider/magic"
 )
 
 type Github func() *github.Github
+
+type Google func() *google.Google
 
 type Device func() *device.Device
 
@@ -36,6 +39,12 @@ type Modifier func(*Options)
 func WithGithub(github Github) Modifier {
 	return func(options *Options) {
 		options.github = github
+	}
+}
+
+func WithGoogle(google Google) Modifier {
+	return func(options *Options) {
+		options.google = google
 	}
 }
 
@@ -53,6 +62,7 @@ func WithMagic(magic Magic) Modifier {
 
 type Options struct {
 	github  Github
+	google  Google
 	device  Device
 	magic   Magic
 	nextURL NextURL
@@ -82,6 +92,12 @@ func New(manager *manager.Manager, nextURL NextURL, domain string, port int, tls
 		}
 	}
 
+	if options.google == nil {
+		options.google = func() *google.Google {
+			return nil
+		}
+	}
+
 	if options.device == nil {
 		options.device = func() *device.Device {
 			return nil
@@ -99,6 +115,10 @@ func New(manager *manager.Manager, nextURL NextURL, domain string, port int, tls
 
 func (o *Options) Github() *github.Github {
 	return o.github()
+}
+
+func (o *Options) Google() *google.Google {
+	return o.google()
 }
 
 func (o *Options) Device() *device.Device {

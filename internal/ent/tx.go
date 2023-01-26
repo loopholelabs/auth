@@ -32,6 +32,8 @@ type Tx struct {
 	DeviceFlow *DeviceFlowClient
 	// GithubFlow is the client for interacting with the GithubFlow builders.
 	GithubFlow *GithubFlowClient
+	// GoogleFlow is the client for interacting with the GoogleFlow builders.
+	GoogleFlow *GoogleFlowClient
 	// MagicFlow is the client for interacting with the MagicFlow builders.
 	MagicFlow *MagicFlowClient
 
@@ -167,6 +169,7 @@ func (tx *Tx) Client() *Client {
 func (tx *Tx) init() {
 	tx.DeviceFlow = NewDeviceFlowClient(tx.config)
 	tx.GithubFlow = NewGithubFlowClient(tx.config)
+	tx.GoogleFlow = NewGoogleFlowClient(tx.config)
 	tx.MagicFlow = NewMagicFlowClient(tx.config)
 }
 

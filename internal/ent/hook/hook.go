@@ -51,6 +51,19 @@ func (f GithubFlowFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, 
 	return f(ctx, mv)
 }
 
+// The GoogleFlowFunc type is an adapter to allow the use of ordinary
+// function as GoogleFlow mutator.
+type GoogleFlowFunc func(context.Context, *ent.GoogleFlowMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f GoogleFlowFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	mv, ok := m.(*ent.GoogleFlowMutation)
+	if !ok {
+		return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.GoogleFlowMutation", m)
+	}
+	return f(ctx, mv)
+}
+
 // The MagicFlowFunc type is an adapter to allow the use of ordinary
 // function as MagicFlow mutator.
 type MagicFlowFunc func(context.Context, *ent.MagicFlowMutation) (ent.Value, error)

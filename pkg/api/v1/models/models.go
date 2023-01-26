@@ -20,6 +20,7 @@ import "github.com/loopholelabs/auth/pkg/kind"
 
 type ConfigResponse struct {
 	GithubEnabled bool `json:"github_enabled"`
+	GoogleEnabled bool `json:"google_enabled"`
 	MagicEnabled  bool `json:"magic_enabled"`
 }
 

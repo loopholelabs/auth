@@ -28,6 +28,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/loopholelabs/auth/internal/ent/deviceflow"
 	"github.com/loopholelabs/auth/internal/ent/githubflow"
+	"github.com/loopholelabs/auth/internal/ent/googleflow"
 	"github.com/loopholelabs/auth/internal/ent/magicflow"
 )
 
@@ -51,6 +52,7 @@ func columnChecker(table string) func(string) error {
 	checks := map[string]func(string) bool{
 		deviceflow.Table: deviceflow.ValidColumn,
 		githubflow.Table: githubflow.ValidColumn,
+		googleflow.Table: googleflow.ValidColumn,
 		magicflow.Table:  magicflow.ValidColumn,
 	}
 	check, ok := checks[table]
