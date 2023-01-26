@@ -52,6 +52,8 @@ const (
 type Options struct {
 	APIToken   string
 	From       string
+	Project    string
+	ProjectURL string
 	TemplateID int
 	Tag        string
 }
@@ -146,8 +148,11 @@ func (g *Magic) SendMagic(ctx context.Context, url string, email string, ip stri
 		Tag:        g.options.Tag,
 		TemplateID: g.options.TemplateID,
 		TemplateModel: map[string]interface{}{
-			"ip":  ip,
-			"url": fmt.Sprintf("%s/v1/magic/callback?token=%s", url, token),
+			"project_url": g.options.ProjectURL,
+			"project":     g.options.Project,
+			"time":        time.Now().Format(time.RFC3339),
+			"ip":          ip,
+			"url":         fmt.Sprintf("%s/v1/magic/callback?token=%s", url, token),
 		},
 		TrackOpens: true,
 		Metadata: map[string]string{
