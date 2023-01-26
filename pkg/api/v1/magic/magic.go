@@ -14,7 +14,7 @@
 	limitations under the License.
 */
 
-package device
+package magic
 
 import (
 	"errors"

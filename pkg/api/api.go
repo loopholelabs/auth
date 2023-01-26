@@ -87,8 +87,22 @@ func (s *API) Stop() error {
 		}
 	}
 
+	if s.v1Options.Google() != nil {
+		err = s.v1Options.Google().Stop()
+		if err != nil {
+			return err
+		}
+	}
+
 	if s.v1Options.Device() != nil {
 		err = s.v1Options.Device().Stop()
+		if err != nil {
+			return err
+		}
+	}
+
+	if s.v1Options.Magic() != nil {
+		err = s.v1Options.Magic().Stop()
 		if err != nil {
 			return err
 		}
