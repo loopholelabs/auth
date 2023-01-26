@@ -31,7 +31,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
-//go:generate swag init -g v1.go -o docs --parseDependency --instanceName api -d ./
+//go:generate swag init -g v1.go -o docs --parseDependency --instanceName authAPI -d ./
 type V1 struct {
 	logger  *zerolog.Logger
 	app     *fiber.App
@@ -77,7 +77,7 @@ func (v *V1) init() {
 
 	v.app.Get("/swagger.json", func(ctx *fiber.Ctx) error {
 		ctx.Response().Header.SetContentType("application/json")
-		return ctx.SendString(docs.SwaggerInfoapi.ReadDoc())
+		return ctx.SendString(docs.SwaggerInfoauthAPI.ReadDoc())
 	})
 }
 

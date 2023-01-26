@@ -61,10 +61,10 @@ func (s *API) Start(addr string) error {
 	if err != nil {
 		return err
 	}
-	v1Docs.SwaggerInfoapi.Host = s.v1Options.Endpoint()
-	v1Docs.SwaggerInfoapi.Schemes = []string{"http"}
+	v1Docs.SwaggerInfoauthAPI.Host = s.v1Options.Endpoint()
+	v1Docs.SwaggerInfoauthAPI.Schemes = []string{"http"}
 	if s.v1Options.TLS() {
-		v1Docs.SwaggerInfoapi.Schemes = []string{"https"}
+		v1Docs.SwaggerInfoauthAPI.Schemes = []string{"https"}
 	}
 	return s.app.Listener(listener)
 }

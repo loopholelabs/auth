@@ -20,7 +20,7 @@ package docs
 
 import "github.com/swaggo/swag"
 
-const docTemplateapi = `{
+const docTemplateauthAPI = `{
     "schemes": {{ marshal .Schemes }},
     "swagger": "2.0",
     "info": {
@@ -790,18 +790,18 @@ const docTemplateapi = `{
     }
 }`
 
-// SwaggerInfoapi holds exported Swagger Info so clients can modify it
-var SwaggerInfoapi = &swag.Spec{
+// SwaggerInfoauthAPI holds exported Swagger Info so clients can modify it
+var SwaggerInfoauthAPI = &swag.Spec{
 	Version:          "1.0",
 	Host:             "localhost:8080",
 	BasePath:         "/v1",
 	Schemes:          []string{"https"},
 	Title:            "Auth API V1",
 	Description:      "Auth API, V1",
-	InfoInstanceName: "api",
-	SwaggerTemplate:  docTemplateapi,
+	InfoInstanceName: "authAPI",
+	SwaggerTemplate:  docTemplateauthAPI,
 }
 
 func init() {
-	swag.Register(SwaggerInfoapi.InstanceName(), SwaggerInfoapi)
+	swag.Register(SwaggerInfoauthAPI.InstanceName(), SwaggerInfoauthAPI)
 }
