@@ -696,6 +696,9 @@ const docTemplateapi = `{
                 "github_enabled": {
                     "type": "boolean"
                 },
+                "google_enabled": {
+                    "type": "boolean"
+                },
                 "magic_enabled": {
                     "type": "boolean"
                 }
