@@ -68,18 +68,16 @@ type Options struct {
 	nextURL NextURL
 	manager *manager.Manager
 
-	domain string
-	port   int
-	tls    bool
+	endpoint string
+	tls      bool
 }
 
-func New(manager *manager.Manager, nextURL NextURL, domain string, port int, tls bool, modifiers ...Modifier) *Options {
+func New(manager *manager.Manager, nextURL NextURL, endpoint string, tls bool, modifiers ...Modifier) *Options {
 	options := &Options{
-		manager: manager,
-		nextURL: nextURL,
-		domain:  domain,
-		port:    port,
-		tls:     tls,
+		manager:  manager,
+		nextURL:  nextURL,
+		endpoint: endpoint,
+		tls:      tls,
 	}
 
 	for _, modifier := range modifiers {
@@ -137,12 +135,8 @@ func (o *Options) NextURL() string {
 	return o.nextURL()
 }
 
-func (o *Options) Domain() string {
-	return o.domain
-}
-
-func (o *Options) Port() int {
-	return o.port
+func (o *Options) Endpoint() string {
+	return o.endpoint
 }
 
 func (o *Options) TLS() bool {

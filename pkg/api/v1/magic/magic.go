@@ -127,11 +127,7 @@ func (d *Magic) MagicFlow(ctx *fiber.Ctx) error {
 	if d.options.TLS() {
 		scheme = "https"
 	}
-	url := fmt.Sprintf("%s://%s", scheme, d.options.Domain())
-	if d.options.Port() != 80 && d.options.Port() != 443 {
-		url = fmt.Sprintf("%s:%d", url, d.options.Port())
-	}
-
+	url := fmt.Sprintf("%s://%s", scheme, d.options.Endpoint())
 	err = d.options.Magic().SendMagic(ctx.Context(), url, email, ctx.IP(), encrypted)
 	if err != nil {
 		d.logger.Error().Err(err).Msg("failed to send magic link")
