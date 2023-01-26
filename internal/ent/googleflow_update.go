@@ -10,30 +10,30 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/loopholelabs/auth/internal/ent/githubflow"
+	"github.com/loopholelabs/auth/internal/ent/googleflow"
 	"github.com/loopholelabs/auth/internal/ent/predicate"
 )
 
-// GithubFlowUpdate is the builder for updating GithubFlow entities.
-type GithubFlowUpdate struct {
+// GoogleFlowUpdate is the builder for updating GoogleFlow entities.
+type GoogleFlowUpdate struct {
 	config
 	hooks    []Hook
-	mutation *GithubFlowMutation
+	mutation *GoogleFlowMutation
 }
 
-// Where appends a list predicates to the GithubFlowUpdate builder.
-func (gfu *GithubFlowUpdate) Where(ps ...predicate.GithubFlow) *GithubFlowUpdate {
+// Where appends a list predicates to the GoogleFlowUpdate builder.
+func (gfu *GoogleFlowUpdate) Where(ps ...predicate.GoogleFlow) *GoogleFlowUpdate {
 	gfu.mutation.Where(ps...)
 	return gfu
 }
 
-// Mutation returns the GithubFlowMutation object of the builder.
-func (gfu *GithubFlowUpdate) Mutation() *GithubFlowMutation {
+// Mutation returns the GoogleFlowMutation object of the builder.
+func (gfu *GoogleFlowUpdate) Mutation() *GoogleFlowMutation {
 	return gfu.mutation
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
-func (gfu *GithubFlowUpdate) Save(ctx context.Context) (int, error) {
+func (gfu *GoogleFlowUpdate) Save(ctx context.Context) (int, error) {
 	var (
 		err      error
 		affected int
@@ -42,7 +42,7 @@ func (gfu *GithubFlowUpdate) Save(ctx context.Context) (int, error) {
 		affected, err = gfu.sqlSave(ctx)
 	} else {
 		var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-			mutation, ok := m.(*GithubFlowMutation)
+			mutation, ok := m.(*GoogleFlowMutation)
 			if !ok {
 				return nil, fmt.Errorf("unexpected mutation type %T", m)
 			}
@@ -65,7 +65,7 @@ func (gfu *GithubFlowUpdate) Save(ctx context.Context) (int, error) {
 }
 
 // SaveX is like Save, but panics if an error occurs.
-func (gfu *GithubFlowUpdate) SaveX(ctx context.Context) int {
+func (gfu *GoogleFlowUpdate) SaveX(ctx context.Context) int {
 	affected, err := gfu.Save(ctx)
 	if err != nil {
 		panic(err)
@@ -74,26 +74,26 @@ func (gfu *GithubFlowUpdate) SaveX(ctx context.Context) int {
 }
 
 // Exec executes the query.
-func (gfu *GithubFlowUpdate) Exec(ctx context.Context) error {
+func (gfu *GoogleFlowUpdate) Exec(ctx context.Context) error {
 	_, err := gfu.Save(ctx)
 	return err
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (gfu *GithubFlowUpdate) ExecX(ctx context.Context) {
+func (gfu *GoogleFlowUpdate) ExecX(ctx context.Context) {
 	if err := gfu.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-func (gfu *GithubFlowUpdate) sqlSave(ctx context.Context) (n int, err error) {
+func (gfu *GoogleFlowUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	_spec := &sqlgraph.UpdateSpec{
 		Node: &sqlgraph.NodeSpec{
-			Table:   githubflow.Table,
-			Columns: githubflow.Columns,
+			Table:   googleflow.Table,
+			Columns: googleflow.Columns,
 			ID: &sqlgraph.FieldSpec{
 				Type:   field.TypeInt,
-				Column: githubflow.FieldID,
+				Column: googleflow.FieldID,
 			},
 		},
 	}
@@ -105,14 +105,14 @@ func (gfu *GithubFlowUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		}
 	}
 	if gfu.mutation.OrganizationCleared() {
-		_spec.ClearField(githubflow.FieldOrganization, field.TypeString)
+		_spec.ClearField(googleflow.FieldOrganization, field.TypeString)
 	}
 	if gfu.mutation.DeviceIdentifierCleared() {
-		_spec.ClearField(githubflow.FieldDeviceIdentifier, field.TypeString)
+		_spec.ClearField(googleflow.FieldDeviceIdentifier, field.TypeString)
 	}
 	if n, err = sqlgraph.UpdateNodes(ctx, gfu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
-			err = &NotFoundError{githubflow.Label}
+			err = &NotFoundError{googleflow.Label}
 		} else if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
@@ -121,37 +121,37 @@ func (gfu *GithubFlowUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	return n, nil
 }
 
-// GithubFlowUpdateOne is the builder for updating a single GithubFlow entity.
-type GithubFlowUpdateOne struct {
+// GoogleFlowUpdateOne is the builder for updating a single GoogleFlow entity.
+type GoogleFlowUpdateOne struct {
 	config
 	fields   []string
 	hooks    []Hook
-	mutation *GithubFlowMutation
+	mutation *GoogleFlowMutation
 }
 
-// Mutation returns the GithubFlowMutation object of the builder.
-func (gfuo *GithubFlowUpdateOne) Mutation() *GithubFlowMutation {
+// Mutation returns the GoogleFlowMutation object of the builder.
+func (gfuo *GoogleFlowUpdateOne) Mutation() *GoogleFlowMutation {
 	return gfuo.mutation
 }
 
 // Select allows selecting one or more fields (columns) of the returned entity.
 // The default is selecting all fields defined in the entity schema.
-func (gfuo *GithubFlowUpdateOne) Select(field string, fields ...string) *GithubFlowUpdateOne {
+func (gfuo *GoogleFlowUpdateOne) Select(field string, fields ...string) *GoogleFlowUpdateOne {
 	gfuo.fields = append([]string{field}, fields...)
 	return gfuo
 }
 
-// Save executes the query and returns the updated GithubFlow entity.
-func (gfuo *GithubFlowUpdateOne) Save(ctx context.Context) (*GithubFlow, error) {
+// Save executes the query and returns the updated GoogleFlow entity.
+func (gfuo *GoogleFlowUpdateOne) Save(ctx context.Context) (*GoogleFlow, error) {
 	var (
 		err  error
-		node *GithubFlow
+		node *GoogleFlow
 	)
 	if len(gfuo.hooks) == 0 {
 		node, err = gfuo.sqlSave(ctx)
 	} else {
 		var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-			mutation, ok := m.(*GithubFlowMutation)
+			mutation, ok := m.(*GoogleFlowMutation)
 			if !ok {
 				return nil, fmt.Errorf("unexpected mutation type %T", m)
 			}
@@ -170,9 +170,9 @@ func (gfuo *GithubFlowUpdateOne) Save(ctx context.Context) (*GithubFlow, error) 
 		if err != nil {
 			return nil, err
 		}
-		nv, ok := v.(*GithubFlow)
+		nv, ok := v.(*GoogleFlow)
 		if !ok {
-			return nil, fmt.Errorf("unexpected node type %T returned from GithubFlowMutation", v)
+			return nil, fmt.Errorf("unexpected node type %T returned from GoogleFlowMutation", v)
 		}
 		node = nv
 	}
@@ -180,7 +180,7 @@ func (gfuo *GithubFlowUpdateOne) Save(ctx context.Context) (*GithubFlow, error) 
 }
 
 // SaveX is like Save, but panics if an error occurs.
-func (gfuo *GithubFlowUpdateOne) SaveX(ctx context.Context) *GithubFlow {
+func (gfuo *GoogleFlowUpdateOne) SaveX(ctx context.Context) *GoogleFlow {
 	node, err := gfuo.Save(ctx)
 	if err != nil {
 		panic(err)
@@ -189,42 +189,42 @@ func (gfuo *GithubFlowUpdateOne) SaveX(ctx context.Context) *GithubFlow {
 }
 
 // Exec executes the query on the entity.
-func (gfuo *GithubFlowUpdateOne) Exec(ctx context.Context) error {
+func (gfuo *GoogleFlowUpdateOne) Exec(ctx context.Context) error {
 	_, err := gfuo.Save(ctx)
 	return err
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (gfuo *GithubFlowUpdateOne) ExecX(ctx context.Context) {
+func (gfuo *GoogleFlowUpdateOne) ExecX(ctx context.Context) {
 	if err := gfuo.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
-func (gfuo *GithubFlowUpdateOne) sqlSave(ctx context.Context) (_node *GithubFlow, err error) {
+func (gfuo *GoogleFlowUpdateOne) sqlSave(ctx context.Context) (_node *GoogleFlow, err error) {
 	_spec := &sqlgraph.UpdateSpec{
 		Node: &sqlgraph.NodeSpec{
-			Table:   githubflow.Table,
-			Columns: githubflow.Columns,
+			Table:   googleflow.Table,
+			Columns: googleflow.Columns,
 			ID: &sqlgraph.FieldSpec{
 				Type:   field.TypeInt,
-				Column: githubflow.FieldID,
+				Column: googleflow.FieldID,
 			},
 		},
 	}
 	id, ok := gfuo.mutation.ID()
 	if !ok {
-		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "GithubFlow.id" for update`)}
+		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "GoogleFlow.id" for update`)}
 	}
 	_spec.Node.ID.Value = id
 	if fields := gfuo.fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
-		_spec.Node.Columns = append(_spec.Node.Columns, githubflow.FieldID)
+		_spec.Node.Columns = append(_spec.Node.Columns, googleflow.FieldID)
 		for _, f := range fields {
-			if !githubflow.ValidColumn(f) {
+			if !googleflow.ValidColumn(f) {
 				return nil, &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
 			}
-			if f != githubflow.FieldID {
+			if f != googleflow.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, f)
 			}
 		}
@@ -237,17 +237,17 @@ func (gfuo *GithubFlowUpdateOne) sqlSave(ctx context.Context) (_node *GithubFlow
 		}
 	}
 	if gfuo.mutation.OrganizationCleared() {
-		_spec.ClearField(githubflow.FieldOrganization, field.TypeString)
+		_spec.ClearField(googleflow.FieldOrganization, field.TypeString)
 	}
 	if gfuo.mutation.DeviceIdentifierCleared() {
-		_spec.ClearField(githubflow.FieldDeviceIdentifier, field.TypeString)
+		_spec.ClearField(googleflow.FieldDeviceIdentifier, field.TypeString)
 	}
-	_node = &GithubFlow{config: gfuo.config}
+	_node = &GoogleFlow{config: gfuo.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
 	if err = sqlgraph.UpdateNode(ctx, gfuo.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
-			err = &NotFoundError{githubflow.Label}
+			err = &NotFoundError{googleflow.Label}
 		} else if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}

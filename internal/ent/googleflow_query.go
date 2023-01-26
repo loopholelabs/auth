@@ -10,70 +10,70 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/loopholelabs/auth/internal/ent/githubflow"
+	"github.com/loopholelabs/auth/internal/ent/googleflow"
 	"github.com/loopholelabs/auth/internal/ent/predicate"
 )
 
-// GithubFlowQuery is the builder for querying GithubFlow entities.
-type GithubFlowQuery struct {
+// GoogleFlowQuery is the builder for querying GoogleFlow entities.
+type GoogleFlowQuery struct {
 	config
 	limit      *int
 	offset     *int
 	unique     *bool
 	order      []OrderFunc
 	fields     []string
-	predicates []predicate.GithubFlow
+	predicates []predicate.GoogleFlow
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
 }
 
-// Where adds a new predicate for the GithubFlowQuery builder.
-func (gfq *GithubFlowQuery) Where(ps ...predicate.GithubFlow) *GithubFlowQuery {
+// Where adds a new predicate for the GoogleFlowQuery builder.
+func (gfq *GoogleFlowQuery) Where(ps ...predicate.GoogleFlow) *GoogleFlowQuery {
 	gfq.predicates = append(gfq.predicates, ps...)
 	return gfq
 }
 
 // Limit adds a limit step to the query.
-func (gfq *GithubFlowQuery) Limit(limit int) *GithubFlowQuery {
+func (gfq *GoogleFlowQuery) Limit(limit int) *GoogleFlowQuery {
 	gfq.limit = &limit
 	return gfq
 }
 
 // Offset adds an offset step to the query.
-func (gfq *GithubFlowQuery) Offset(offset int) *GithubFlowQuery {
+func (gfq *GoogleFlowQuery) Offset(offset int) *GoogleFlowQuery {
 	gfq.offset = &offset
 	return gfq
 }
 
 // Unique configures the query builder to filter duplicate records on query.
 // By default, unique is set to true, and can be disabled using this method.
-func (gfq *GithubFlowQuery) Unique(unique bool) *GithubFlowQuery {
+func (gfq *GoogleFlowQuery) Unique(unique bool) *GoogleFlowQuery {
 	gfq.unique = &unique
 	return gfq
 }
 
 // Order adds an order step to the query.
-func (gfq *GithubFlowQuery) Order(o ...OrderFunc) *GithubFlowQuery {
+func (gfq *GoogleFlowQuery) Order(o ...OrderFunc) *GoogleFlowQuery {
 	gfq.order = append(gfq.order, o...)
 	return gfq
 }
 
-// First returns the first GithubFlow entity from the query.
-// Returns a *NotFoundError when no GithubFlow was found.
-func (gfq *GithubFlowQuery) First(ctx context.Context) (*GithubFlow, error) {
+// First returns the first GoogleFlow entity from the query.
+// Returns a *NotFoundError when no GoogleFlow was found.
+func (gfq *GoogleFlowQuery) First(ctx context.Context) (*GoogleFlow, error) {
 	nodes, err := gfq.Limit(1).All(ctx)
 	if err != nil {
 		return nil, err
 	}
 	if len(nodes) == 0 {
-		return nil, &NotFoundError{githubflow.Label}
+		return nil, &NotFoundError{googleflow.Label}
 	}
 	return nodes[0], nil
 }
 
 // FirstX is like First, but panics if an error occurs.
-func (gfq *GithubFlowQuery) FirstX(ctx context.Context) *GithubFlow {
+func (gfq *GoogleFlowQuery) FirstX(ctx context.Context) *GoogleFlow {
 	node, err := gfq.First(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -81,22 +81,22 @@ func (gfq *GithubFlowQuery) FirstX(ctx context.Context) *GithubFlow {
 	return node
 }
 
-// FirstID returns the first GithubFlow ID from the query.
-// Returns a *NotFoundError when no GithubFlow ID was found.
-func (gfq *GithubFlowQuery) FirstID(ctx context.Context) (id int, err error) {
+// FirstID returns the first GoogleFlow ID from the query.
+// Returns a *NotFoundError when no GoogleFlow ID was found.
+func (gfq *GoogleFlowQuery) FirstID(ctx context.Context) (id int, err error) {
 	var ids []int
 	if ids, err = gfq.Limit(1).IDs(ctx); err != nil {
 		return
 	}
 	if len(ids) == 0 {
-		err = &NotFoundError{githubflow.Label}
+		err = &NotFoundError{googleflow.Label}
 		return
 	}
 	return ids[0], nil
 }
 
 // FirstIDX is like FirstID, but panics if an error occurs.
-func (gfq *GithubFlowQuery) FirstIDX(ctx context.Context) int {
+func (gfq *GoogleFlowQuery) FirstIDX(ctx context.Context) int {
 	id, err := gfq.FirstID(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -104,10 +104,10 @@ func (gfq *GithubFlowQuery) FirstIDX(ctx context.Context) int {
 	return id
 }
 
-// Only returns a single GithubFlow entity found by the query, ensuring it only returns one.
-// Returns a *NotSingularError when more than one GithubFlow entity is found.
-// Returns a *NotFoundError when no GithubFlow entities are found.
-func (gfq *GithubFlowQuery) Only(ctx context.Context) (*GithubFlow, error) {
+// Only returns a single GoogleFlow entity found by the query, ensuring it only returns one.
+// Returns a *NotSingularError when more than one GoogleFlow entity is found.
+// Returns a *NotFoundError when no GoogleFlow entities are found.
+func (gfq *GoogleFlowQuery) Only(ctx context.Context) (*GoogleFlow, error) {
 	nodes, err := gfq.Limit(2).All(ctx)
 	if err != nil {
 		return nil, err
@@ -116,14 +116,14 @@ func (gfq *GithubFlowQuery) Only(ctx context.Context) (*GithubFlow, error) {
 	case 1:
 		return nodes[0], nil
 	case 0:
-		return nil, &NotFoundError{githubflow.Label}
+		return nil, &NotFoundError{googleflow.Label}
 	default:
-		return nil, &NotSingularError{githubflow.Label}
+		return nil, &NotSingularError{googleflow.Label}
 	}
 }
 
 // OnlyX is like Only, but panics if an error occurs.
-func (gfq *GithubFlowQuery) OnlyX(ctx context.Context) *GithubFlow {
+func (gfq *GoogleFlowQuery) OnlyX(ctx context.Context) *GoogleFlow {
 	node, err := gfq.Only(ctx)
 	if err != nil {
 		panic(err)
@@ -131,10 +131,10 @@ func (gfq *GithubFlowQuery) OnlyX(ctx context.Context) *GithubFlow {
 	return node
 }
 
-// OnlyID is like Only, but returns the only GithubFlow ID in the query.
-// Returns a *NotSingularError when more than one GithubFlow ID is found.
+// OnlyID is like Only, but returns the only GoogleFlow ID in the query.
+// Returns a *NotSingularError when more than one GoogleFlow ID is found.
 // Returns a *NotFoundError when no entities are found.
-func (gfq *GithubFlowQuery) OnlyID(ctx context.Context) (id int, err error) {
+func (gfq *GoogleFlowQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
 	if ids, err = gfq.Limit(2).IDs(ctx); err != nil {
 		return
@@ -143,15 +143,15 @@ func (gfq *GithubFlowQuery) OnlyID(ctx context.Context) (id int, err error) {
 	case 1:
 		id = ids[0]
 	case 0:
-		err = &NotFoundError{githubflow.Label}
+		err = &NotFoundError{googleflow.Label}
 	default:
-		err = &NotSingularError{githubflow.Label}
+		err = &NotSingularError{googleflow.Label}
 	}
 	return
 }
 
 // OnlyIDX is like OnlyID, but panics if an error occurs.
-func (gfq *GithubFlowQuery) OnlyIDX(ctx context.Context) int {
+func (gfq *GoogleFlowQuery) OnlyIDX(ctx context.Context) int {
 	id, err := gfq.OnlyID(ctx)
 	if err != nil {
 		panic(err)
@@ -159,8 +159,8 @@ func (gfq *GithubFlowQuery) OnlyIDX(ctx context.Context) int {
 	return id
 }
 
-// All executes the query and returns a list of GithubFlows.
-func (gfq *GithubFlowQuery) All(ctx context.Context) ([]*GithubFlow, error) {
+// All executes the query and returns a list of GoogleFlows.
+func (gfq *GoogleFlowQuery) All(ctx context.Context) ([]*GoogleFlow, error) {
 	if err := gfq.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
@@ -168,7 +168,7 @@ func (gfq *GithubFlowQuery) All(ctx context.Context) ([]*GithubFlow, error) {
 }
 
 // AllX is like All, but panics if an error occurs.
-func (gfq *GithubFlowQuery) AllX(ctx context.Context) []*GithubFlow {
+func (gfq *GoogleFlowQuery) AllX(ctx context.Context) []*GoogleFlow {
 	nodes, err := gfq.All(ctx)
 	if err != nil {
 		panic(err)
@@ -176,17 +176,17 @@ func (gfq *GithubFlowQuery) AllX(ctx context.Context) []*GithubFlow {
 	return nodes
 }
 
-// IDs executes the query and returns a list of GithubFlow IDs.
-func (gfq *GithubFlowQuery) IDs(ctx context.Context) ([]int, error) {
+// IDs executes the query and returns a list of GoogleFlow IDs.
+func (gfq *GoogleFlowQuery) IDs(ctx context.Context) ([]int, error) {
 	var ids []int
-	if err := gfq.Select(githubflow.FieldID).Scan(ctx, &ids); err != nil {
+	if err := gfq.Select(googleflow.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
 }
 
 // IDsX is like IDs, but panics if an error occurs.
-func (gfq *GithubFlowQuery) IDsX(ctx context.Context) []int {
+func (gfq *GoogleFlowQuery) IDsX(ctx context.Context) []int {
 	ids, err := gfq.IDs(ctx)
 	if err != nil {
 		panic(err)
@@ -195,7 +195,7 @@ func (gfq *GithubFlowQuery) IDsX(ctx context.Context) []int {
 }
 
 // Count returns the count of the given query.
-func (gfq *GithubFlowQuery) Count(ctx context.Context) (int, error) {
+func (gfq *GoogleFlowQuery) Count(ctx context.Context) (int, error) {
 	if err := gfq.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
@@ -203,7 +203,7 @@ func (gfq *GithubFlowQuery) Count(ctx context.Context) (int, error) {
 }
 
 // CountX is like Count, but panics if an error occurs.
-func (gfq *GithubFlowQuery) CountX(ctx context.Context) int {
+func (gfq *GoogleFlowQuery) CountX(ctx context.Context) int {
 	count, err := gfq.Count(ctx)
 	if err != nil {
 		panic(err)
@@ -212,7 +212,7 @@ func (gfq *GithubFlowQuery) CountX(ctx context.Context) int {
 }
 
 // Exist returns true if the query has elements in the graph.
-func (gfq *GithubFlowQuery) Exist(ctx context.Context) (bool, error) {
+func (gfq *GoogleFlowQuery) Exist(ctx context.Context) (bool, error) {
 	if err := gfq.prepareQuery(ctx); err != nil {
 		return false, err
 	}
@@ -220,7 +220,7 @@ func (gfq *GithubFlowQuery) Exist(ctx context.Context) (bool, error) {
 }
 
 // ExistX is like Exist, but panics if an error occurs.
-func (gfq *GithubFlowQuery) ExistX(ctx context.Context) bool {
+func (gfq *GoogleFlowQuery) ExistX(ctx context.Context) bool {
 	exist, err := gfq.Exist(ctx)
 	if err != nil {
 		panic(err)
@@ -228,18 +228,18 @@ func (gfq *GithubFlowQuery) ExistX(ctx context.Context) bool {
 	return exist
 }
 
-// Clone returns a duplicate of the GithubFlowQuery builder, including all associated steps. It can be
+// Clone returns a duplicate of the GoogleFlowQuery builder, including all associated steps. It can be
 // used to prepare common query builders and use them differently after the clone is made.
-func (gfq *GithubFlowQuery) Clone() *GithubFlowQuery {
+func (gfq *GoogleFlowQuery) Clone() *GoogleFlowQuery {
 	if gfq == nil {
 		return nil
 	}
-	return &GithubFlowQuery{
+	return &GoogleFlowQuery{
 		config:     gfq.config,
 		limit:      gfq.limit,
 		offset:     gfq.offset,
 		order:      append([]OrderFunc{}, gfq.order...),
-		predicates: append([]predicate.GithubFlow{}, gfq.predicates...),
+		predicates: append([]predicate.GoogleFlow{}, gfq.predicates...),
 		// clone intermediate query.
 		sql:    gfq.sql.Clone(),
 		path:   gfq.path,
@@ -257,12 +257,12 @@ func (gfq *GithubFlowQuery) Clone() *GithubFlowQuery {
 //		Count int `json:"count,omitempty"`
 //	}
 //
-//	client.GithubFlow.Query().
-//		GroupBy(githubflow.FieldCreatedAt).
+//	client.GoogleFlow.Query().
+//		GroupBy(googleflow.FieldCreatedAt).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
-func (gfq *GithubFlowQuery) GroupBy(field string, fields ...string) *GithubFlowGroupBy {
-	grbuild := &GithubFlowGroupBy{config: gfq.config}
+func (gfq *GoogleFlowQuery) GroupBy(field string, fields ...string) *GoogleFlowGroupBy {
+	grbuild := &GoogleFlowGroupBy{config: gfq.config}
 	grbuild.fields = append([]string{field}, fields...)
 	grbuild.path = func(ctx context.Context) (prev *sql.Selector, err error) {
 		if err := gfq.prepareQuery(ctx); err != nil {
@@ -270,7 +270,7 @@ func (gfq *GithubFlowQuery) GroupBy(field string, fields ...string) *GithubFlowG
 		}
 		return gfq.sqlQuery(ctx), nil
 	}
-	grbuild.label = githubflow.Label
+	grbuild.label = googleflow.Label
 	grbuild.flds, grbuild.scan = &grbuild.fields, grbuild.Scan
 	return grbuild
 }
@@ -284,25 +284,25 @@ func (gfq *GithubFlowQuery) GroupBy(field string, fields ...string) *GithubFlowG
 //		CreatedAt time.Time `json:"created_at,omitempty"`
 //	}
 //
-//	client.GithubFlow.Query().
-//		Select(githubflow.FieldCreatedAt).
+//	client.GoogleFlow.Query().
+//		Select(googleflow.FieldCreatedAt).
 //		Scan(ctx, &v)
-func (gfq *GithubFlowQuery) Select(fields ...string) *GithubFlowSelect {
+func (gfq *GoogleFlowQuery) Select(fields ...string) *GoogleFlowSelect {
 	gfq.fields = append(gfq.fields, fields...)
-	selbuild := &GithubFlowSelect{GithubFlowQuery: gfq}
-	selbuild.label = githubflow.Label
+	selbuild := &GoogleFlowSelect{GoogleFlowQuery: gfq}
+	selbuild.label = googleflow.Label
 	selbuild.flds, selbuild.scan = &gfq.fields, selbuild.Scan
 	return selbuild
 }
 
-// Aggregate returns a GithubFlowSelect configured with the given aggregations.
-func (gfq *GithubFlowQuery) Aggregate(fns ...AggregateFunc) *GithubFlowSelect {
+// Aggregate returns a GoogleFlowSelect configured with the given aggregations.
+func (gfq *GoogleFlowQuery) Aggregate(fns ...AggregateFunc) *GoogleFlowSelect {
 	return gfq.Select().Aggregate(fns...)
 }
 
-func (gfq *GithubFlowQuery) prepareQuery(ctx context.Context) error {
+func (gfq *GoogleFlowQuery) prepareQuery(ctx context.Context) error {
 	for _, f := range gfq.fields {
-		if !githubflow.ValidColumn(f) {
+		if !googleflow.ValidColumn(f) {
 			return &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
 		}
 	}
@@ -316,16 +316,16 @@ func (gfq *GithubFlowQuery) prepareQuery(ctx context.Context) error {
 	return nil
 }
 
-func (gfq *GithubFlowQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*GithubFlow, error) {
+func (gfq *GoogleFlowQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*GoogleFlow, error) {
 	var (
-		nodes = []*GithubFlow{}
+		nodes = []*GoogleFlow{}
 		_spec = gfq.querySpec()
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
-		return (*GithubFlow).scanValues(nil, columns)
+		return (*GoogleFlow).scanValues(nil, columns)
 	}
 	_spec.Assign = func(columns []string, values []any) error {
-		node := &GithubFlow{config: gfq.config}
+		node := &GoogleFlow{config: gfq.config}
 		nodes = append(nodes, node)
 		return node.assignValues(columns, values)
 	}
@@ -341,7 +341,7 @@ func (gfq *GithubFlowQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*
 	return nodes, nil
 }
 
-func (gfq *GithubFlowQuery) sqlCount(ctx context.Context) (int, error) {
+func (gfq *GoogleFlowQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := gfq.querySpec()
 	_spec.Node.Columns = gfq.fields
 	if len(gfq.fields) > 0 {
@@ -350,7 +350,7 @@ func (gfq *GithubFlowQuery) sqlCount(ctx context.Context) (int, error) {
 	return sqlgraph.CountNodes(ctx, gfq.driver, _spec)
 }
 
-func (gfq *GithubFlowQuery) sqlExist(ctx context.Context) (bool, error) {
+func (gfq *GoogleFlowQuery) sqlExist(ctx context.Context) (bool, error) {
 	switch _, err := gfq.FirstID(ctx); {
 	case IsNotFound(err):
 		return false, nil
@@ -361,14 +361,14 @@ func (gfq *GithubFlowQuery) sqlExist(ctx context.Context) (bool, error) {
 	}
 }
 
-func (gfq *GithubFlowQuery) querySpec() *sqlgraph.QuerySpec {
+func (gfq *GoogleFlowQuery) querySpec() *sqlgraph.QuerySpec {
 	_spec := &sqlgraph.QuerySpec{
 		Node: &sqlgraph.NodeSpec{
-			Table:   githubflow.Table,
-			Columns: githubflow.Columns,
+			Table:   googleflow.Table,
+			Columns: googleflow.Columns,
 			ID: &sqlgraph.FieldSpec{
 				Type:   field.TypeInt,
-				Column: githubflow.FieldID,
+				Column: googleflow.FieldID,
 			},
 		},
 		From:   gfq.sql,
@@ -379,9 +379,9 @@ func (gfq *GithubFlowQuery) querySpec() *sqlgraph.QuerySpec {
 	}
 	if fields := gfq.fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
-		_spec.Node.Columns = append(_spec.Node.Columns, githubflow.FieldID)
+		_spec.Node.Columns = append(_spec.Node.Columns, googleflow.FieldID)
 		for i := range fields {
-			if fields[i] != githubflow.FieldID {
+			if fields[i] != googleflow.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, fields[i])
 			}
 		}
@@ -409,12 +409,12 @@ func (gfq *GithubFlowQuery) querySpec() *sqlgraph.QuerySpec {
 	return _spec
 }
 
-func (gfq *GithubFlowQuery) sqlQuery(ctx context.Context) *sql.Selector {
+func (gfq *GoogleFlowQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	builder := sql.Dialect(gfq.driver.Dialect())
-	t1 := builder.Table(githubflow.Table)
+	t1 := builder.Table(googleflow.Table)
 	columns := gfq.fields
 	if len(columns) == 0 {
-		columns = githubflow.Columns
+		columns = googleflow.Columns
 	}
 	selector := builder.Select(t1.Columns(columns...)...).From(t1)
 	if gfq.sql != nil {
@@ -441,8 +441,8 @@ func (gfq *GithubFlowQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	return selector
 }
 
-// GithubFlowGroupBy is the group-by builder for GithubFlow entities.
-type GithubFlowGroupBy struct {
+// GoogleFlowGroupBy is the group-by builder for GoogleFlow entities.
+type GoogleFlowGroupBy struct {
 	config
 	selector
 	fields []string
@@ -453,13 +453,13 @@ type GithubFlowGroupBy struct {
 }
 
 // Aggregate adds the given aggregation functions to the group-by query.
-func (gfgb *GithubFlowGroupBy) Aggregate(fns ...AggregateFunc) *GithubFlowGroupBy {
+func (gfgb *GoogleFlowGroupBy) Aggregate(fns ...AggregateFunc) *GoogleFlowGroupBy {
 	gfgb.fns = append(gfgb.fns, fns...)
 	return gfgb
 }
 
 // Scan applies the group-by query and scans the result into the given value.
-func (gfgb *GithubFlowGroupBy) Scan(ctx context.Context, v any) error {
+func (gfgb *GoogleFlowGroupBy) Scan(ctx context.Context, v any) error {
 	query, err := gfgb.path(ctx)
 	if err != nil {
 		return err
@@ -468,9 +468,9 @@ func (gfgb *GithubFlowGroupBy) Scan(ctx context.Context, v any) error {
 	return gfgb.sqlScan(ctx, v)
 }
 
-func (gfgb *GithubFlowGroupBy) sqlScan(ctx context.Context, v any) error {
+func (gfgb *GoogleFlowGroupBy) sqlScan(ctx context.Context, v any) error {
 	for _, f := range gfgb.fields {
-		if !githubflow.ValidColumn(f) {
+		if !googleflow.ValidColumn(f) {
 			return &ValidationError{Name: f, err: fmt.Errorf("invalid field %q for group-by", f)}
 		}
 	}
@@ -487,7 +487,7 @@ func (gfgb *GithubFlowGroupBy) sqlScan(ctx context.Context, v any) error {
 	return sql.ScanSlice(rows, v)
 }
 
-func (gfgb *GithubFlowGroupBy) sqlQuery() *sql.Selector {
+func (gfgb *GoogleFlowGroupBy) sqlQuery() *sql.Selector {
 	selector := gfgb.sql.Select()
 	aggregation := make([]string, 0, len(gfgb.fns))
 	for _, fn := range gfgb.fns {
@@ -504,30 +504,30 @@ func (gfgb *GithubFlowGroupBy) sqlQuery() *sql.Selector {
 	return selector.GroupBy(selector.Columns(gfgb.fields...)...)
 }
 
-// GithubFlowSelect is the builder for selecting fields of GithubFlow entities.
-type GithubFlowSelect struct {
-	*GithubFlowQuery
+// GoogleFlowSelect is the builder for selecting fields of GoogleFlow entities.
+type GoogleFlowSelect struct {
+	*GoogleFlowQuery
 	selector
 	// intermediate query (i.e. traversal path).
 	sql *sql.Selector
 }
 
 // Aggregate adds the given aggregation functions to the selector query.
-func (gfs *GithubFlowSelect) Aggregate(fns ...AggregateFunc) *GithubFlowSelect {
+func (gfs *GoogleFlowSelect) Aggregate(fns ...AggregateFunc) *GoogleFlowSelect {
 	gfs.fns = append(gfs.fns, fns...)
 	return gfs
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (gfs *GithubFlowSelect) Scan(ctx context.Context, v any) error {
+func (gfs *GoogleFlowSelect) Scan(ctx context.Context, v any) error {
 	if err := gfs.prepareQuery(ctx); err != nil {
 		return err
 	}
-	gfs.sql = gfs.GithubFlowQuery.sqlQuery(ctx)
+	gfs.sql = gfs.GoogleFlowQuery.sqlQuery(ctx)
 	return gfs.sqlScan(ctx, v)
 }
 
-func (gfs *GithubFlowSelect) sqlScan(ctx context.Context, v any) error {
+func (gfs *GoogleFlowSelect) sqlScan(ctx context.Context, v any) error {
 	aggregation := make([]string, 0, len(gfs.fns))
 	for _, fn := range gfs.fns {
 		aggregation = append(aggregation, fn(gfs.sql))

@@ -10,24 +10,24 @@ import (
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/loopholelabs/auth/internal/ent/githubflow"
+	"github.com/loopholelabs/auth/internal/ent/googleflow"
 )
 
-// GithubFlowCreate is the builder for creating a GithubFlow entity.
-type GithubFlowCreate struct {
+// GoogleFlowCreate is the builder for creating a GoogleFlow entity.
+type GoogleFlowCreate struct {
 	config
-	mutation *GithubFlowMutation
+	mutation *GoogleFlowMutation
 	hooks    []Hook
 }
 
 // SetCreatedAt sets the "created_at" field.
-func (gfc *GithubFlowCreate) SetCreatedAt(t time.Time) *GithubFlowCreate {
+func (gfc *GoogleFlowCreate) SetCreatedAt(t time.Time) *GoogleFlowCreate {
 	gfc.mutation.SetCreatedAt(t)
 	return gfc
 }
 
 // SetNillableCreatedAt sets the "created_at" field if the given value is not nil.
-func (gfc *GithubFlowCreate) SetNillableCreatedAt(t *time.Time) *GithubFlowCreate {
+func (gfc *GoogleFlowCreate) SetNillableCreatedAt(t *time.Time) *GoogleFlowCreate {
 	if t != nil {
 		gfc.SetCreatedAt(*t)
 	}
@@ -35,37 +35,37 @@ func (gfc *GithubFlowCreate) SetNillableCreatedAt(t *time.Time) *GithubFlowCreat
 }
 
 // SetState sets the "state" field.
-func (gfc *GithubFlowCreate) SetState(s string) *GithubFlowCreate {
+func (gfc *GoogleFlowCreate) SetState(s string) *GoogleFlowCreate {
 	gfc.mutation.SetState(s)
 	return gfc
 }
 
 // SetVerifier sets the "verifier" field.
-func (gfc *GithubFlowCreate) SetVerifier(s string) *GithubFlowCreate {
+func (gfc *GoogleFlowCreate) SetVerifier(s string) *GoogleFlowCreate {
 	gfc.mutation.SetVerifier(s)
 	return gfc
 }
 
 // SetChallenge sets the "challenge" field.
-func (gfc *GithubFlowCreate) SetChallenge(s string) *GithubFlowCreate {
+func (gfc *GoogleFlowCreate) SetChallenge(s string) *GoogleFlowCreate {
 	gfc.mutation.SetChallenge(s)
 	return gfc
 }
 
 // SetNextURL sets the "next_url" field.
-func (gfc *GithubFlowCreate) SetNextURL(s string) *GithubFlowCreate {
+func (gfc *GoogleFlowCreate) SetNextURL(s string) *GoogleFlowCreate {
 	gfc.mutation.SetNextURL(s)
 	return gfc
 }
 
 // SetOrganization sets the "organization" field.
-func (gfc *GithubFlowCreate) SetOrganization(s string) *GithubFlowCreate {
+func (gfc *GoogleFlowCreate) SetOrganization(s string) *GoogleFlowCreate {
 	gfc.mutation.SetOrganization(s)
 	return gfc
 }
 
 // SetNillableOrganization sets the "organization" field if the given value is not nil.
-func (gfc *GithubFlowCreate) SetNillableOrganization(s *string) *GithubFlowCreate {
+func (gfc *GoogleFlowCreate) SetNillableOrganization(s *string) *GoogleFlowCreate {
 	if s != nil {
 		gfc.SetOrganization(*s)
 	}
@@ -73,29 +73,29 @@ func (gfc *GithubFlowCreate) SetNillableOrganization(s *string) *GithubFlowCreat
 }
 
 // SetDeviceIdentifier sets the "device_identifier" field.
-func (gfc *GithubFlowCreate) SetDeviceIdentifier(s string) *GithubFlowCreate {
+func (gfc *GoogleFlowCreate) SetDeviceIdentifier(s string) *GoogleFlowCreate {
 	gfc.mutation.SetDeviceIdentifier(s)
 	return gfc
 }
 
 // SetNillableDeviceIdentifier sets the "device_identifier" field if the given value is not nil.
-func (gfc *GithubFlowCreate) SetNillableDeviceIdentifier(s *string) *GithubFlowCreate {
+func (gfc *GoogleFlowCreate) SetNillableDeviceIdentifier(s *string) *GoogleFlowCreate {
 	if s != nil {
 		gfc.SetDeviceIdentifier(*s)
 	}
 	return gfc
 }
 
-// Mutation returns the GithubFlowMutation object of the builder.
-func (gfc *GithubFlowCreate) Mutation() *GithubFlowMutation {
+// Mutation returns the GoogleFlowMutation object of the builder.
+func (gfc *GoogleFlowCreate) Mutation() *GoogleFlowMutation {
 	return gfc.mutation
 }
 
-// Save creates the GithubFlow in the database.
-func (gfc *GithubFlowCreate) Save(ctx context.Context) (*GithubFlow, error) {
+// Save creates the GoogleFlow in the database.
+func (gfc *GoogleFlowCreate) Save(ctx context.Context) (*GoogleFlow, error) {
 	var (
 		err  error
-		node *GithubFlow
+		node *GoogleFlow
 	)
 	gfc.defaults()
 	if len(gfc.hooks) == 0 {
@@ -105,7 +105,7 @@ func (gfc *GithubFlowCreate) Save(ctx context.Context) (*GithubFlow, error) {
 		node, err = gfc.sqlSave(ctx)
 	} else {
 		var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-			mutation, ok := m.(*GithubFlowMutation)
+			mutation, ok := m.(*GoogleFlowMutation)
 			if !ok {
 				return nil, fmt.Errorf("unexpected mutation type %T", m)
 			}
@@ -130,9 +130,9 @@ func (gfc *GithubFlowCreate) Save(ctx context.Context) (*GithubFlow, error) {
 		if err != nil {
 			return nil, err
 		}
-		nv, ok := v.(*GithubFlow)
+		nv, ok := v.(*GoogleFlow)
 		if !ok {
-			return nil, fmt.Errorf("unexpected node type %T returned from GithubFlowMutation", v)
+			return nil, fmt.Errorf("unexpected node type %T returned from GoogleFlowMutation", v)
 		}
 		node = nv
 	}
@@ -140,7 +140,7 @@ func (gfc *GithubFlowCreate) Save(ctx context.Context) (*GithubFlow, error) {
 }
 
 // SaveX calls Save and panics if Save returns an error.
-func (gfc *GithubFlowCreate) SaveX(ctx context.Context) *GithubFlow {
+func (gfc *GoogleFlowCreate) SaveX(ctx context.Context) *GoogleFlow {
 	v, err := gfc.Save(ctx)
 	if err != nil {
 		panic(err)
@@ -149,67 +149,67 @@ func (gfc *GithubFlowCreate) SaveX(ctx context.Context) *GithubFlow {
 }
 
 // Exec executes the query.
-func (gfc *GithubFlowCreate) Exec(ctx context.Context) error {
+func (gfc *GoogleFlowCreate) Exec(ctx context.Context) error {
 	_, err := gfc.Save(ctx)
 	return err
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (gfc *GithubFlowCreate) ExecX(ctx context.Context) {
+func (gfc *GoogleFlowCreate) ExecX(ctx context.Context) {
 	if err := gfc.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
 // defaults sets the default values of the builder before save.
-func (gfc *GithubFlowCreate) defaults() {
+func (gfc *GoogleFlowCreate) defaults() {
 	if _, ok := gfc.mutation.CreatedAt(); !ok {
-		v := githubflow.DefaultCreatedAt()
+		v := googleflow.DefaultCreatedAt()
 		gfc.mutation.SetCreatedAt(v)
 	}
 }
 
 // check runs all checks and user-defined validators on the builder.
-func (gfc *GithubFlowCreate) check() error {
+func (gfc *GoogleFlowCreate) check() error {
 	if _, ok := gfc.mutation.CreatedAt(); !ok {
-		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "GithubFlow.created_at"`)}
+		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "GoogleFlow.created_at"`)}
 	}
 	if _, ok := gfc.mutation.State(); !ok {
-		return &ValidationError{Name: "state", err: errors.New(`ent: missing required field "GithubFlow.state"`)}
+		return &ValidationError{Name: "state", err: errors.New(`ent: missing required field "GoogleFlow.state"`)}
 	}
 	if v, ok := gfc.mutation.State(); ok {
-		if err := githubflow.StateValidator(v); err != nil {
-			return &ValidationError{Name: "state", err: fmt.Errorf(`ent: validator failed for field "GithubFlow.state": %w`, err)}
+		if err := googleflow.StateValidator(v); err != nil {
+			return &ValidationError{Name: "state", err: fmt.Errorf(`ent: validator failed for field "GoogleFlow.state": %w`, err)}
 		}
 	}
 	if _, ok := gfc.mutation.Verifier(); !ok {
-		return &ValidationError{Name: "verifier", err: errors.New(`ent: missing required field "GithubFlow.verifier"`)}
+		return &ValidationError{Name: "verifier", err: errors.New(`ent: missing required field "GoogleFlow.verifier"`)}
 	}
 	if v, ok := gfc.mutation.Verifier(); ok {
-		if err := githubflow.VerifierValidator(v); err != nil {
-			return &ValidationError{Name: "verifier", err: fmt.Errorf(`ent: validator failed for field "GithubFlow.verifier": %w`, err)}
+		if err := googleflow.VerifierValidator(v); err != nil {
+			return &ValidationError{Name: "verifier", err: fmt.Errorf(`ent: validator failed for field "GoogleFlow.verifier": %w`, err)}
 		}
 	}
 	if _, ok := gfc.mutation.Challenge(); !ok {
-		return &ValidationError{Name: "challenge", err: errors.New(`ent: missing required field "GithubFlow.challenge"`)}
+		return &ValidationError{Name: "challenge", err: errors.New(`ent: missing required field "GoogleFlow.challenge"`)}
 	}
 	if v, ok := gfc.mutation.Challenge(); ok {
-		if err := githubflow.ChallengeValidator(v); err != nil {
-			return &ValidationError{Name: "challenge", err: fmt.Errorf(`ent: validator failed for field "GithubFlow.challenge": %w`, err)}
+		if err := googleflow.ChallengeValidator(v); err != nil {
+			return &ValidationError{Name: "challenge", err: fmt.Errorf(`ent: validator failed for field "GoogleFlow.challenge": %w`, err)}
 		}
 	}
 	if _, ok := gfc.mutation.NextURL(); !ok {
-		return &ValidationError{Name: "next_url", err: errors.New(`ent: missing required field "GithubFlow.next_url"`)}
+		return &ValidationError{Name: "next_url", err: errors.New(`ent: missing required field "GoogleFlow.next_url"`)}
 	}
 	if v, ok := gfc.mutation.NextURL(); ok {
-		if err := githubflow.NextURLValidator(v); err != nil {
-			return &ValidationError{Name: "next_url", err: fmt.Errorf(`ent: validator failed for field "GithubFlow.next_url": %w`, err)}
+		if err := googleflow.NextURLValidator(v); err != nil {
+			return &ValidationError{Name: "next_url", err: fmt.Errorf(`ent: validator failed for field "GoogleFlow.next_url": %w`, err)}
 		}
 	}
 	return nil
 }
 
-func (gfc *GithubFlowCreate) sqlSave(ctx context.Context) (*GithubFlow, error) {
+func (gfc *GoogleFlowCreate) sqlSave(ctx context.Context) (*GoogleFlow, error) {
 	_node, _spec := gfc.createSpec()
 	if err := sqlgraph.CreateNode(ctx, gfc.driver, _spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
@@ -222,65 +222,65 @@ func (gfc *GithubFlowCreate) sqlSave(ctx context.Context) (*GithubFlow, error) {
 	return _node, nil
 }
 
-func (gfc *GithubFlowCreate) createSpec() (*GithubFlow, *sqlgraph.CreateSpec) {
+func (gfc *GoogleFlowCreate) createSpec() (*GoogleFlow, *sqlgraph.CreateSpec) {
 	var (
-		_node = &GithubFlow{config: gfc.config}
+		_node = &GoogleFlow{config: gfc.config}
 		_spec = &sqlgraph.CreateSpec{
-			Table: githubflow.Table,
+			Table: googleflow.Table,
 			ID: &sqlgraph.FieldSpec{
 				Type:   field.TypeInt,
-				Column: githubflow.FieldID,
+				Column: googleflow.FieldID,
 			},
 		}
 	)
 	if value, ok := gfc.mutation.CreatedAt(); ok {
-		_spec.SetField(githubflow.FieldCreatedAt, field.TypeTime, value)
+		_spec.SetField(googleflow.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
 	}
 	if value, ok := gfc.mutation.State(); ok {
-		_spec.SetField(githubflow.FieldState, field.TypeString, value)
+		_spec.SetField(googleflow.FieldState, field.TypeString, value)
 		_node.State = value
 	}
 	if value, ok := gfc.mutation.Verifier(); ok {
-		_spec.SetField(githubflow.FieldVerifier, field.TypeString, value)
+		_spec.SetField(googleflow.FieldVerifier, field.TypeString, value)
 		_node.Verifier = value
 	}
 	if value, ok := gfc.mutation.Challenge(); ok {
-		_spec.SetField(githubflow.FieldChallenge, field.TypeString, value)
+		_spec.SetField(googleflow.FieldChallenge, field.TypeString, value)
 		_node.Challenge = value
 	}
 	if value, ok := gfc.mutation.NextURL(); ok {
-		_spec.SetField(githubflow.FieldNextURL, field.TypeString, value)
+		_spec.SetField(googleflow.FieldNextURL, field.TypeString, value)
 		_node.NextURL = value
 	}
 	if value, ok := gfc.mutation.Organization(); ok {
-		_spec.SetField(githubflow.FieldOrganization, field.TypeString, value)
+		_spec.SetField(googleflow.FieldOrganization, field.TypeString, value)
 		_node.Organization = value
 	}
 	if value, ok := gfc.mutation.DeviceIdentifier(); ok {
-		_spec.SetField(githubflow.FieldDeviceIdentifier, field.TypeString, value)
+		_spec.SetField(googleflow.FieldDeviceIdentifier, field.TypeString, value)
 		_node.DeviceIdentifier = value
 	}
 	return _node, _spec
 }
 
-// GithubFlowCreateBulk is the builder for creating many GithubFlow entities in bulk.
-type GithubFlowCreateBulk struct {
+// GoogleFlowCreateBulk is the builder for creating many GoogleFlow entities in bulk.
+type GoogleFlowCreateBulk struct {
 	config
-	builders []*GithubFlowCreate
+	builders []*GoogleFlowCreate
 }
 
-// Save creates the GithubFlow entities in the database.
-func (gfcb *GithubFlowCreateBulk) Save(ctx context.Context) ([]*GithubFlow, error) {
+// Save creates the GoogleFlow entities in the database.
+func (gfcb *GoogleFlowCreateBulk) Save(ctx context.Context) ([]*GoogleFlow, error) {
 	specs := make([]*sqlgraph.CreateSpec, len(gfcb.builders))
-	nodes := make([]*GithubFlow, len(gfcb.builders))
+	nodes := make([]*GoogleFlow, len(gfcb.builders))
 	mutators := make([]Mutator, len(gfcb.builders))
 	for i := range gfcb.builders {
 		func(i int, root context.Context) {
 			builder := gfcb.builders[i]
 			builder.defaults()
 			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*GithubFlowMutation)
+				mutation, ok := m.(*GoogleFlowMutation)
 				if !ok {
 					return nil, fmt.Errorf("unexpected mutation type %T", m)
 				}
@@ -327,7 +327,7 @@ func (gfcb *GithubFlowCreateBulk) Save(ctx context.Context) ([]*GithubFlow, erro
 }
 
 // SaveX is like Save, but panics if an error occurs.
-func (gfcb *GithubFlowCreateBulk) SaveX(ctx context.Context) []*GithubFlow {
+func (gfcb *GoogleFlowCreateBulk) SaveX(ctx context.Context) []*GoogleFlow {
 	v, err := gfcb.Save(ctx)
 	if err != nil {
 		panic(err)
@@ -336,13 +336,13 @@ func (gfcb *GithubFlowCreateBulk) SaveX(ctx context.Context) []*GithubFlow {
 }
 
 // Exec executes the query.
-func (gfcb *GithubFlowCreateBulk) Exec(ctx context.Context) error {
+func (gfcb *GoogleFlowCreateBulk) Exec(ctx context.Context) error {
 	_, err := gfcb.Save(ctx)
 	return err
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (gfcb *GithubFlowCreateBulk) ExecX(ctx context.Context) {
+func (gfcb *GoogleFlowCreateBulk) ExecX(ctx context.Context) {
 	if err := gfcb.Exec(ctx); err != nil {
 		panic(err)
 	}

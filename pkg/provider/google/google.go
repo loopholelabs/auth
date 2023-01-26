@@ -14,7 +14,7 @@
 	limitations under the License.
 */
 
-package github
+package google
 
 import (
 	"context"
@@ -25,37 +25,35 @@ import (
 	"github.com/loopholelabs/auth/pkg/provider"
 	"github.com/rs/zerolog"
 	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/github"
+	"golang.org/x/oauth2/google"
 	"io"
 	"net/http"
 	"sync"
 	"time"
 )
 
-var _ provider.Provider = (*Github)(nil)
+var _ provider.Provider = (*Google)(nil)
 
 var (
 	ErrInvalidResponse = errors.New("invalid response")
 )
 
 const (
-	Key        = "github"
+	Key        = "google"
 	GCInterval = time.Minute
 	Expiry     = time.Minute * 5
 )
 
 var (
-	defaultScopes = []string{"user:email"}
+	defaultScopes = []string{"https://www.googleapis.com/auth/userinfo.email"}
 )
 
 type email struct {
-	Email      string `json:"email"`
-	Primary    bool   `json:"primary"`
-	Verified   bool   `json:"verified"`
-	Visibility string `json:"visibility"`
+	Email    string `json:"email"`
+	Verified bool   `json:"verified"`
 }
 
-type Github struct {
+type Google struct {
 	logger   *zerolog.Logger
 	conf     *oauth2.Config
 	database Database
@@ -64,18 +62,18 @@ type Github struct {
 	cancel   context.CancelFunc
 }
 
-func New(clientID string, clientSecret string, redirect string, database Database, logger *zerolog.Logger) *Github {
-	l := logger.With().Str("AUTH", "GITHUB-OAUTH-PROVIDER").Logger()
+func New(clientID string, clientSecret string, redirect string, database Database, logger *zerolog.Logger) *Google {
+	l := logger.With().Str("AUTH", "GOOGLE-OAUTH-PROVIDER").Logger()
 	ctx, cancel := context.WithCancel(context.Background())
 
-	return &Github{
+	return &Google{
 		logger: &l,
 		conf: &oauth2.Config{
 			RedirectURL:  redirect,
 			ClientID:     clientID,
 			ClientSecret: clientSecret,
 			Scopes:       defaultScopes,
-			Endpoint:     github.Endpoint,
+			Endpoint:     google.Endpoint,
 		},
 		database: database,
 		ctx:      ctx,
@@ -83,29 +81,29 @@ func New(clientID string, clientSecret string, redirect string, database Databas
 	}
 }
 
-func (g *Github) Key() provider.Key {
+func (g *Google) Key() provider.Key {
 	return Key
 }
 
-func (g *Github) Start() error {
+func (g *Google) Start() error {
 	g.wg.Add(1)
 	go g.gc()
 	return nil
 }
 
-func (g *Github) Stop() error {
+func (g *Google) Stop() error {
 	g.cancel()
 	g.wg.Wait()
 	return nil
 }
 
-func (g *Github) StartFlow(ctx context.Context, nextURL string, organization string, deviceIdentifier string) (string, error) {
+func (g *Google) StartFlow(ctx context.Context, nextURL string, organization string, deviceIdentifier string) (string, error) {
 	verifier := pkce.NewCodeVerifier()
 	challenge := pkce.CodeChallengeS256(verifier)
 	state := uuid.New().String()
 
 	g.logger.Debug().Msgf("starting flow for state %s with org '%s' and device identifier '%s'", state, organization, deviceIdentifier)
-	err := g.database.SetGithubFlow(ctx, state, verifier, challenge, nextURL, organization, deviceIdentifier)
+	err := g.database.SetGoogleFlow(ctx, state, verifier, challenge, nextURL, organization, deviceIdentifier)
 	if err != nil {
 		return "", err
 	}
@@ -113,15 +111,15 @@ func (g *Github) StartFlow(ctx context.Context, nextURL string, organization str
 	return g.conf.AuthCodeURL(state, oauth2.AccessTypeOnline, oauth2.SetAuthURLParam(pkce.ParamCodeChallenge, challenge), oauth2.SetAuthURLParam(pkce.ParamCodeChallengeMethod, pkce.MethodS256)), nil
 }
 
-func (g *Github) CompleteFlow(ctx context.Context, code string, state string) (string, string, string, string, error) {
+func (g *Google) CompleteFlow(ctx context.Context, code string, state string) (string, string, string, string, error) {
 	g.logger.Debug().Msgf("completing flow for state %s", state)
-	flow, err := g.database.GetGithubFlow(ctx, state)
+	flow, err := g.database.GetGoogleFlow(ctx, state)
 	if err != nil {
 		return "", "", "", "", err
 	}
 
 	g.logger.Debug().Msgf("found flow for state %s, deleting", state)
-	err = g.database.DeleteGithubFlow(ctx, state)
+	err = g.database.DeleteGoogleFlow(ctx, state)
 	if err != nil {
 		return "", "", "", "", err
 	}
@@ -132,12 +130,12 @@ func (g *Github) CompleteFlow(ctx context.Context, code string, state string) (s
 		return "", "", "", "", err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/user", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://www.googleapis.com/oauth2/v3/userinfo", nil)
 	if err != nil {
 		return "", "", "", "", err
 	}
 
-	req.Header.Set("Authorization", "token "+token.AccessToken)
+	req.Header.Set("Authorization", "Bearer "+token.AccessToken)
 
 	g.logger.Debug().Msgf("fetching emails for state %s", state)
 	res, err := http.DefaultClient.Do(req)
@@ -149,33 +147,23 @@ func (g *Github) CompleteFlow(ctx context.Context, code string, state string) (s
 		return "", "", "", "", ErrInvalidResponse
 	}
 
-	g.logger.Debug().Msgf("parsing emails for state %s", state)
+	g.logger.Debug().Msgf("parsing email for state %s", state)
 	body, err := io.ReadAll(res.Body)
 	_ = res.Body.Close()
 	if err != nil {
 		return "", "", "", "", err
 	}
 
-	var emails []email
-	err = json.Unmarshal(body, &emails)
+	var e email
+	err = json.Unmarshal(body, &e)
 	if err != nil {
 		return "", "", "", "", err
 	}
 
-	g.logger.Debug().Msgf("found %d emails for state %s", len(emails), state)
-
-	for _, e := range emails {
-		if e.Primary && e.Verified {
-			g.logger.Debug().Msgf("found primary and verified email %s for state %s", e.Email, state)
-			return e.Email, flow.Organization, flow.NextURL, flow.DeviceIdentifier, nil
-		}
-	}
-
-	g.logger.Debug().Msgf("no primary and verified email found for state %s", state)
-	return "", "", "", "", ErrInvalidResponse
+	return e.Email, flow.Organization, flow.NextURL, flow.DeviceIdentifier, nil
 }
 
-func (g *Github) gc() {
+func (g *Google) gc() {
 	defer g.wg.Done()
 	for {
 		select {
@@ -183,11 +171,11 @@ func (g *Github) gc() {
 			g.logger.Info().Msg("GC Stopped")
 			return
 		case <-time.After(GCInterval):
-			deleted, err := g.database.GCGithubFlow(g.ctx, Expiry)
+			deleted, err := g.database.GCGoogleFlow(g.ctx, Expiry)
 			if err != nil {
-				g.logger.Error().Err(err).Msg("failed to garbage collect expired github flows")
+				g.logger.Error().Err(err).Msg("failed to garbage collect expired google flows")
 			} else {
-				g.logger.Debug().Msgf("garbage collected %d expired github flows", deleted)
+				g.logger.Debug().Msgf("garbage collected %d expired google flows", deleted)
 			}
 		}
 	}

@@ -8,11 +8,11 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
-	"github.com/loopholelabs/auth/internal/ent/githubflow"
+	"github.com/loopholelabs/auth/internal/ent/googleflow"
 )
 
-// GithubFlow is the model entity for the GithubFlow schema.
-type GithubFlow struct {
+// GoogleFlow is the model entity for the GoogleFlow schema.
+type GoogleFlow struct {
 	config `json:"-"`
 	// ID of the ent.
 	ID int `json:"id,omitempty"`
@@ -33,74 +33,74 @@ type GithubFlow struct {
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
-func (*GithubFlow) scanValues(columns []string) ([]any, error) {
+func (*GoogleFlow) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case githubflow.FieldID:
+		case googleflow.FieldID:
 			values[i] = new(sql.NullInt64)
-		case githubflow.FieldState, githubflow.FieldVerifier, githubflow.FieldChallenge, githubflow.FieldNextURL, githubflow.FieldOrganization, githubflow.FieldDeviceIdentifier:
+		case googleflow.FieldState, googleflow.FieldVerifier, googleflow.FieldChallenge, googleflow.FieldNextURL, googleflow.FieldOrganization, googleflow.FieldDeviceIdentifier:
 			values[i] = new(sql.NullString)
-		case githubflow.FieldCreatedAt:
+		case googleflow.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
 		default:
-			return nil, fmt.Errorf("unexpected column %q for type GithubFlow", columns[i])
+			return nil, fmt.Errorf("unexpected column %q for type GoogleFlow", columns[i])
 		}
 	}
 	return values, nil
 }
 
 // assignValues assigns the values that were returned from sql.Rows (after scanning)
-// to the GithubFlow fields.
-func (gf *GithubFlow) assignValues(columns []string, values []any) error {
+// to the GoogleFlow fields.
+func (gf *GoogleFlow) assignValues(columns []string, values []any) error {
 	if m, n := len(values), len(columns); m < n {
 		return fmt.Errorf("mismatch number of scan values: %d != %d", m, n)
 	}
 	for i := range columns {
 		switch columns[i] {
-		case githubflow.FieldID:
+		case googleflow.FieldID:
 			value, ok := values[i].(*sql.NullInt64)
 			if !ok {
 				return fmt.Errorf("unexpected type %T for field id", value)
 			}
 			gf.ID = int(value.Int64)
-		case githubflow.FieldCreatedAt:
+		case googleflow.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
 			} else if value.Valid {
 				gf.CreatedAt = value.Time
 			}
-		case githubflow.FieldState:
+		case googleflow.FieldState:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field state", values[i])
 			} else if value.Valid {
 				gf.State = value.String
 			}
-		case githubflow.FieldVerifier:
+		case googleflow.FieldVerifier:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field verifier", values[i])
 			} else if value.Valid {
 				gf.Verifier = value.String
 			}
-		case githubflow.FieldChallenge:
+		case googleflow.FieldChallenge:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field challenge", values[i])
 			} else if value.Valid {
 				gf.Challenge = value.String
 			}
-		case githubflow.FieldNextURL:
+		case googleflow.FieldNextURL:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field next_url", values[i])
 			} else if value.Valid {
 				gf.NextURL = value.String
 			}
-		case githubflow.FieldOrganization:
+		case googleflow.FieldOrganization:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field organization", values[i])
 			} else if value.Valid {
 				gf.Organization = value.String
 			}
-		case githubflow.FieldDeviceIdentifier:
+		case googleflow.FieldDeviceIdentifier:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field device_identifier", values[i])
 			} else if value.Valid {
@@ -111,28 +111,28 @@ func (gf *GithubFlow) assignValues(columns []string, values []any) error {
 	return nil
 }
 
-// Update returns a builder for updating this GithubFlow.
-// Note that you need to call GithubFlow.Unwrap() before calling this method if this GithubFlow
+// Update returns a builder for updating this GoogleFlow.
+// Note that you need to call GoogleFlow.Unwrap() before calling this method if this GoogleFlow
 // was returned from a transaction, and the transaction was committed or rolled back.
-func (gf *GithubFlow) Update() *GithubFlowUpdateOne {
-	return (&GithubFlowClient{config: gf.config}).UpdateOne(gf)
+func (gf *GoogleFlow) Update() *GoogleFlowUpdateOne {
+	return (&GoogleFlowClient{config: gf.config}).UpdateOne(gf)
 }
 
-// Unwrap unwraps the GithubFlow entity that was returned from a transaction after it was closed,
+// Unwrap unwraps the GoogleFlow entity that was returned from a transaction after it was closed,
 // so that all future queries will be executed through the driver which created the transaction.
-func (gf *GithubFlow) Unwrap() *GithubFlow {
+func (gf *GoogleFlow) Unwrap() *GoogleFlow {
 	_tx, ok := gf.config.driver.(*txDriver)
 	if !ok {
-		panic("ent: GithubFlow is not a transactional entity")
+		panic("ent: GoogleFlow is not a transactional entity")
 	}
 	gf.config.driver = _tx.drv
 	return gf
 }
 
 // String implements the fmt.Stringer.
-func (gf *GithubFlow) String() string {
+func (gf *GoogleFlow) String() string {
 	var builder strings.Builder
-	builder.WriteString("GithubFlow(")
+	builder.WriteString("GoogleFlow(")
 	builder.WriteString(fmt.Sprintf("id=%v, ", gf.ID))
 	builder.WriteString("created_at=")
 	builder.WriteString(gf.CreatedAt.Format(time.ANSIC))
@@ -158,10 +158,10 @@ func (gf *GithubFlow) String() string {
 	return builder.String()
 }
 
-// GithubFlows is a parsable slice of GithubFlow.
-type GithubFlows []*GithubFlow
+// GoogleFlows is a parsable slice of GoogleFlow.
+type GoogleFlows []*GoogleFlow
 
-func (gf GithubFlows) config(cfg config) {
+func (gf GoogleFlows) config(cfg config) {
 	for _i := range gf {
 		gf[_i].config = cfg
 	}

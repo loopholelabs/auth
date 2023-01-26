@@ -22,6 +22,7 @@ import (
 	"github.com/loopholelabs/auth/pkg/api/v1/device"
 	"github.com/loopholelabs/auth/pkg/api/v1/docs"
 	"github.com/loopholelabs/auth/pkg/api/v1/github"
+	"github.com/loopholelabs/auth/pkg/api/v1/google"
 	"github.com/loopholelabs/auth/pkg/api/v1/models"
 	"github.com/loopholelabs/auth/pkg/api/v1/options"
 	"github.com/loopholelabs/auth/pkg/api/v1/servicekey"
@@ -65,6 +66,7 @@ func (v *V1) init() {
 
 	v.app.Mount("/config", config.New(v.options, v.logger).App())
 	v.app.Mount("/github", github.New(v.options, v.logger).App())
+	v.app.Mount("/google", google.New(v.options, v.logger).App())
 	v.app.Mount("/magic", device.New(v.options, v.logger).App())
 	v.app.Mount("/device", device.New(v.options, v.logger).App())
 	v.app.Mount("/servicekey", servicekey.New(v.options, v.logger).App())

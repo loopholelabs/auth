@@ -9,25 +9,25 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/loopholelabs/auth/internal/ent/githubflow"
+	"github.com/loopholelabs/auth/internal/ent/googleflow"
 	"github.com/loopholelabs/auth/internal/ent/predicate"
 )
 
-// GithubFlowDelete is the builder for deleting a GithubFlow entity.
-type GithubFlowDelete struct {
+// GoogleFlowDelete is the builder for deleting a GoogleFlow entity.
+type GoogleFlowDelete struct {
 	config
 	hooks    []Hook
-	mutation *GithubFlowMutation
+	mutation *GoogleFlowMutation
 }
 
-// Where appends a list predicates to the GithubFlowDelete builder.
-func (gfd *GithubFlowDelete) Where(ps ...predicate.GithubFlow) *GithubFlowDelete {
+// Where appends a list predicates to the GoogleFlowDelete builder.
+func (gfd *GoogleFlowDelete) Where(ps ...predicate.GoogleFlow) *GoogleFlowDelete {
 	gfd.mutation.Where(ps...)
 	return gfd
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
-func (gfd *GithubFlowDelete) Exec(ctx context.Context) (int, error) {
+func (gfd *GoogleFlowDelete) Exec(ctx context.Context) (int, error) {
 	var (
 		err      error
 		affected int
@@ -36,7 +36,7 @@ func (gfd *GithubFlowDelete) Exec(ctx context.Context) (int, error) {
 		affected, err = gfd.sqlExec(ctx)
 	} else {
 		var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-			mutation, ok := m.(*GithubFlowMutation)
+			mutation, ok := m.(*GoogleFlowMutation)
 			if !ok {
 				return nil, fmt.Errorf("unexpected mutation type %T", m)
 			}
@@ -59,7 +59,7 @@ func (gfd *GithubFlowDelete) Exec(ctx context.Context) (int, error) {
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (gfd *GithubFlowDelete) ExecX(ctx context.Context) int {
+func (gfd *GoogleFlowDelete) ExecX(ctx context.Context) int {
 	n, err := gfd.Exec(ctx)
 	if err != nil {
 		panic(err)
@@ -67,13 +67,13 @@ func (gfd *GithubFlowDelete) ExecX(ctx context.Context) int {
 	return n
 }
 
-func (gfd *GithubFlowDelete) sqlExec(ctx context.Context) (int, error) {
+func (gfd *GoogleFlowDelete) sqlExec(ctx context.Context) (int, error) {
 	_spec := &sqlgraph.DeleteSpec{
 		Node: &sqlgraph.NodeSpec{
-			Table: githubflow.Table,
+			Table: googleflow.Table,
 			ID: &sqlgraph.FieldSpec{
 				Type:   field.TypeInt,
-				Column: githubflow.FieldID,
+				Column: googleflow.FieldID,
 			},
 		},
 	}
@@ -91,25 +91,25 @@ func (gfd *GithubFlowDelete) sqlExec(ctx context.Context) (int, error) {
 	return affected, err
 }
 
-// GithubFlowDeleteOne is the builder for deleting a single GithubFlow entity.
-type GithubFlowDeleteOne struct {
-	gfd *GithubFlowDelete
+// GoogleFlowDeleteOne is the builder for deleting a single GoogleFlow entity.
+type GoogleFlowDeleteOne struct {
+	gfd *GoogleFlowDelete
 }
 
 // Exec executes the deletion query.
-func (gfdo *GithubFlowDeleteOne) Exec(ctx context.Context) error {
+func (gfdo *GoogleFlowDeleteOne) Exec(ctx context.Context) error {
 	n, err := gfdo.gfd.Exec(ctx)
 	switch {
 	case err != nil:
 		return err
 	case n == 0:
-		return &NotFoundError{githubflow.Label}
+		return &NotFoundError{googleflow.Label}
 	default:
 		return nil
 	}
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (gfdo *GithubFlowDeleteOne) ExecX(ctx context.Context) {
+func (gfdo *GoogleFlowDeleteOne) ExecX(ctx context.Context) {
 	gfdo.gfd.ExecX(ctx)
 }
