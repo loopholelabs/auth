@@ -16,7 +16,7 @@
 
 package models
 
-import "github.com/loopholelabs/auth/pkg/kind"
+import "github.com/loopholelabs/auth/pkg/sessionKind"
 
 type ConfigResponse struct {
 	GithubEnabled bool `json:"github_enabled"`
@@ -45,7 +45,7 @@ type ServiceKeyLoginResponse struct {
 }
 
 type UserInfoResponse struct {
-	Email        string    `json:"email"`
-	Session      kind.Kind `enums:"session,api,service"`
-	Organization string    `json:"organization"`
+	Email        string                  `json:"email"`
+	Session      sessionKind.SessionKind `enums:"session,api,service"`
+	Organization string                  `json:"organization"`
 }

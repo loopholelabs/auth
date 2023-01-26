@@ -23,8 +23,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/loopholelabs/auth/internal/ent"
 	"github.com/loopholelabs/auth/pkg/api/v1/options"
-	"github.com/loopholelabs/auth/pkg/kind"
 	"github.com/loopholelabs/auth/pkg/provider/magic"
+	"github.com/loopholelabs/auth/pkg/sessionKind"
 	"github.com/loopholelabs/auth/pkg/utils"
 	"github.com/rs/zerolog"
 )
@@ -180,15 +180,15 @@ func (d *Magic) MagicCallback(ctx *fiber.Ctx) error {
 
 	d.logger.Debug().Msgf("creating session for user %s", email)
 
-	sessionKind := kind.Default
+	kind := sessionKind.Default
 	if deviceIdentifier != "" {
 		if d.options.Device() == nil {
 			return ctx.Status(fiber.StatusUnauthorized).SendString("device provider is not enabled")
 		}
-		sessionKind = kind.Device
+		kind = sessionKind.Device
 	}
 
-	cookie, err := d.options.Manager().CreateSession(ctx, sessionKind, d.options.Magic().Key(), email, organization)
+	cookie, err := d.options.Manager().CreateSession(ctx, kind, d.options.Magic().Key(), email, organization)
 	if cookie == nil {
 		return err
 	}

@@ -28,10 +28,10 @@ import (
 	"github.com/loopholelabs/auth/internal/magic"
 	"github.com/loopholelabs/auth/pkg/apikey"
 	"github.com/loopholelabs/auth/pkg/claims"
-	"github.com/loopholelabs/auth/pkg/kind"
 	"github.com/loopholelabs/auth/pkg/provider"
 	"github.com/loopholelabs/auth/pkg/servicesession"
 	"github.com/loopholelabs/auth/pkg/session"
+	"github.com/loopholelabs/auth/pkg/sessionKind"
 	"github.com/loopholelabs/auth/pkg/storage"
 	"github.com/loopholelabs/auth/pkg/utils"
 	"github.com/rs/zerolog"
@@ -280,7 +280,7 @@ func (m *Manager) DecryptMagic(encrypted string) (string, string, error) {
 	return ma.Email, ma.Secret, nil
 }
 
-func (m *Manager) CreateSession(ctx *fiber.Ctx, kind kind.Kind, provider provider.Key, userID string, organization string) (*fiber.Cookie, error) {
+func (m *Manager) CreateSession(ctx *fiber.Ctx, kind sessionKind.SessionKind, provider provider.Key, userID string, organization string) (*fiber.Cookie, error) {
 	m.logger.Debug().Msgf("creating session for user %s (org '%s')", userID, organization)
 	exists, err := m.storage.UserExists(ctx.Context(), userID)
 	if err != nil {
@@ -460,8 +460,8 @@ func (m *Manager) Validate(ctx *fiber.Ctx) error {
 	return ctx.Status(fiber.StatusUnauthorized).SendString("no valid session cookie or authorization header")
 }
 
-func (m *Manager) GetAuthFromContext(ctx *fiber.Ctx) (kind.Kind, string, string, error) {
-	authKind, ok := ctx.Locals(auth.KindContextKey).(kind.Kind)
+func (m *Manager) GetAuthFromContext(ctx *fiber.Ctx) (auth.Kind, string, string, error) {
+	authKind, ok := ctx.Locals(auth.KindContextKey).(auth.Kind)
 	if !ok || authKind == "" {
 		return "", "", "", ErrInvalidContext
 	}

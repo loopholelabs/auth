@@ -14,11 +14,11 @@
 	limitations under the License.
 */
 
-package kind
+package sessionKind
 
-type Kind string
+type SessionKind string
 
 const (
-	Default Kind = "default"
-	Device  Kind = "device"
+	Default SessionKind = "default"
+	Device  SessionKind = "device"
 )

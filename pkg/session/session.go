@@ -18,8 +18,8 @@ package session
 
 import (
 	"github.com/google/uuid"
-	"github.com/loopholelabs/auth/pkg/kind"
 	"github.com/loopholelabs/auth/pkg/provider"
+	"github.com/loopholelabs/auth/pkg/sessionKind"
 	"time"
 )
 
@@ -33,17 +33,17 @@ const (
 
 // Session represents a user's authenticated session
 type Session struct {
-	Creation     time.Time    `json:"creation"`
-	Expiry       time.Time    `json:"expiry"`
-	Kind         kind.Kind    `json:"kind"`
-	ID           string       `json:"id"`
-	Provider     provider.Key `json:"provider"`
-	UserID       string       `json:"user_id"`
-	Organization string       `json:"organization"`
+	Creation     time.Time               `json:"creation"`
+	Expiry       time.Time               `json:"expiry"`
+	Kind         sessionKind.SessionKind `json:"kind"`
+	ID           string                  `json:"id"`
+	Provider     provider.Key            `json:"provider"`
+	UserID       string                  `json:"user_id"`
+	Organization string                  `json:"organization"`
 }
 
 // New returns a new session for a user with the given kind key, provider key, user ID, and organization
-func New(kind kind.Kind, provider provider.Key, userID string, organization string) *Session {
+func New(kind sessionKind.SessionKind, provider provider.Key, userID string, organization string) *Session {
 	return &Session{
 		Creation:     time.Now(),
 		Expiry:       time.Now().Add(Expiry),
