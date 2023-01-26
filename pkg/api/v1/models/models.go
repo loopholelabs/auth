@@ -21,9 +21,12 @@ import (
 )
 
 type ConfigResponse struct {
-	GithubEnabled bool `json:"github_enabled"`
-	GoogleEnabled bool `json:"google_enabled"`
-	MagicEnabled  bool `json:"magic_enabled"`
+	GithubEnabled  bool   `json:"github_enabled"`
+	GoogleEnabled  bool   `json:"google_enabled"`
+	MagicEnabled   bool   `json:"magic_enabled"`
+	DeviceEnabled  bool   `json:"device_enabled"`
+	Endpoint       string `json:"endpoint"`
+	DefaultNextURL string `json:"default_next_url"`
 }
 
 type DeviceFlowResponse struct {

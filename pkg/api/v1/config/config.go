@@ -64,7 +64,10 @@ func (a *Config) App() *fiber.App {
 // @Router       /config [get]
 func (a *Config) Config(ctx *fiber.Ctx) error {
 	a.logger.Debug().Msgf("received Config from %s", ctx.IP())
-	res := new(models.ConfigResponse)
+	res := &models.ConfigResponse{
+		Endpoint:       a.options.Endpoint(),
+		DefaultNextURL: a.options.NextURL(),
+	}
 	if a.options.Github() != nil {
 		res.GithubEnabled = true
 	}
@@ -75,6 +78,10 @@ func (a *Config) Config(ctx *fiber.Ctx) error {
 
 	if a.options.Magic() != nil {
 		res.MagicEnabled = true
+	}
+
+	if a.options.Device() != nil {
+		res.DeviceEnabled = true
 	}
 
 	return ctx.JSON(res)

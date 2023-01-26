@@ -709,6 +709,15 @@ const docTemplateauthAPI = `{
         "models.ConfigResponse": {
             "type": "object",
             "properties": {
+                "default_next_url": {
+                    "type": "string"
+                },
+                "device_enabled": {
+                    "type": "boolean"
+                },
+                "endpoint": {
+                    "type": "string"
+                },
                 "github_enabled": {
                     "type": "boolean"
                 },
