@@ -19,6 +19,7 @@ package config
 import (
 	"errors"
 	"github.com/loopholelabs/auth/pkg/manager"
+	"github.com/loopholelabs/auth/pkg/storage"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -110,13 +111,14 @@ func (c *Config) GlobalRequiredFlags(cmd *cobra.Command) error {
 	return nil
 }
 
-func (c *Config) GenerateOptions(tls bool, projectName string, projectURL string) *manager.Options {
+func (c *Config) GenerateOptions(storage storage.Storage, tls bool, projectName string, projectURL string) *manager.Options {
 	return &manager.Options{
 		Endpoint:             c.Endpoint,
 		TLS:                  tls,
-		DefaultNextURL:       c.DefaultNextURL,
 		SessionDomain:        c.SessionDomain,
+		DefaultNextURL:       c.DefaultNextURL,
 		DatabaseURL:          c.DatabaseURL,
+		Storage:              storage,
 		GithubClientID:       c.GithubClientID,
 		GithubClientSecret:   c.GithubClientSecret,
 		GoogleClientID:       c.GoogleClientID,
