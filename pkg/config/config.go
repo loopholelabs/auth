@@ -24,26 +24,26 @@ import (
 )
 
 var (
-	ErrAPIListenAddressRequired = errors.New("api listen address is required")
-	ErrDatabaseURLRequired      = errors.New("database url is required")
-	ErrEndpointRequired         = errors.New("endpoint is required")
-	ErrSessionDomainRequired    = errors.New("session domain is required")
-	ErrDefaultNextURLRequired   = errors.New("default next url is required")
+	ErrListenAddressRequired  = errors.New("listen address is required")
+	ErrEndpointRequired       = errors.New("endpoint is required")
+	ErrDatabaseURLRequired    = errors.New("database url is required")
+	ErrSessionDomainRequired  = errors.New("session domain is required")
+	ErrDefaultNextURLRequired = errors.New("default next url is required")
 )
 
 const (
-	DefaultAPIListenAddress = "127.0.0.1:8081"
-	DefaultEndpoint         = "localhost:8081"
-	DefaultSessionDomain    = "localhost"
-	DefaultNextURL          = "https://loopholelabs.io"
+	DefaultListenAddress = "127.0.0.1:8081"
+	DefaultEndpoint      = "localhost:8081"
+	DefaultSessionDomain = "localhost"
+	DefaultNextURL       = "https://loopholelabs.io"
 )
 
 type Config struct {
-	APIListenAddress string `yaml:"api_listen_address"`
-	Endpoint         string `yaml:"endpoint"`
-	SessionDomain    string `yaml:"session_domain"`
-	DefaultNextURL   string `yaml:"default_next_url"`
-	DatabaseURL      string `yaml:"database_url"`
+	ListenAddress  string `yaml:"listen_address"`
+	Endpoint       string `yaml:"endpoint"`
+	SessionDomain  string `yaml:"session_domain"`
+	DefaultNextURL string `yaml:"default_next_url"`
+	DatabaseURL    string `yaml:"database_url"`
 
 	GithubClientID     string `yaml:"github_client_id"`
 	GithubClientSecret string `yaml:"github_client_secret"`
@@ -58,22 +58,22 @@ type Config struct {
 
 func New() *Config {
 	return &Config{
-		APIListenAddress: DefaultAPIListenAddress,
-		Endpoint:         DefaultEndpoint,
-		SessionDomain:    DefaultSessionDomain,
-		DefaultNextURL:   DefaultNextURL,
+		ListenAddress:  DefaultListenAddress,
+		Endpoint:       DefaultEndpoint,
+		SessionDomain:  DefaultSessionDomain,
+		DefaultNextURL: DefaultNextURL,
 	}
 }
 
 func (c *Config) Validate() error {
-	if c.APIListenAddress == "" {
-		return ErrAPIListenAddressRequired
-	}
-	if c.DatabaseURL == "" {
-		return ErrDatabaseURLRequired
+	if c.ListenAddress == "" {
+		return ErrListenAddressRequired
 	}
 	if c.Endpoint == "" {
 		return ErrEndpointRequired
+	}
+	if c.DatabaseURL == "" {
+		return ErrDatabaseURLRequired
 	}
 	if c.SessionDomain == "" {
 		return ErrSessionDomainRequired
@@ -85,7 +85,7 @@ func (c *Config) Validate() error {
 }
 
 func (c *Config) RootPersistentFlags(flags *pflag.FlagSet) {
-	flags.StringVar(&c.APIListenAddress, "auth-api-listen-address", DefaultAPIListenAddress, "The auth api's listen address")
+	flags.StringVar(&c.ListenAddress, "auth-listen-address", DefaultListenAddress, "The auth api's listen address")
 	flags.StringVar(&c.Endpoint, "auth-endpoint", DefaultEndpoint, "The auth api's endpoint")
 	flags.StringVar(&c.SessionDomain, "auth-session-domain", DefaultSessionDomain, "The auth api's session domain")
 	flags.StringVar(&c.DefaultNextURL, "auth-default-next-url", DefaultNextURL, "The auth api's default next url")
