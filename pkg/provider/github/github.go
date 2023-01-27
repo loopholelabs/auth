@@ -132,7 +132,7 @@ func (g *Github) CompleteFlow(ctx context.Context, code string, state string) (s
 		return "", "", "", "", err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/user", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/user/emails", nil)
 	if err != nil {
 		return "", "", "", "", err
 	}
