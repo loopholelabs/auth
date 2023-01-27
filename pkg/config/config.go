@@ -17,6 +17,7 @@
 package config
 
 import (
+	"github.com/loopholelabs/auth/pkg/manager"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -79,4 +80,25 @@ func (c *Config) GlobalRequiredFlags(cmd *cobra.Command) error {
 		return err
 	}
 	return nil
+}
+
+func (c *Config) GenerateManagerOptions(tls bool, projectName string, projectURL string) *manager.Options {
+	return &manager.Options{
+		Endpoint:             c.Endpoint,
+		TLS:                  tls,
+		DefaultNextURL:       c.DefaultNextURL,
+		SessionDomain:        c.SessionDomain,
+		DatabaseURL:          c.DatabaseURL,
+		GithubClientID:       c.GithubClientID,
+		GithubClientSecret:   c.GithubClientSecret,
+		GoogleClientID:       c.GoogleClientID,
+		GoogleClientSecret:   c.GoogleClientSecret,
+		DeviceCode:           c.DeviceCode,
+		PostmarkAPIToken:     c.PostmarkAPIToken,
+		PostmarkTemplateID:   c.PostmarkTemplateID,
+		PostmarkTag:          c.PostmarkTag,
+		MagicLinkFrom:        c.MagicLinkFrom,
+		MagicLinkProjectName: projectName,
+		MagicLinkProjectURL:  projectURL,
+	}
 }

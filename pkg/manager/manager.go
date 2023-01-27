@@ -45,9 +45,9 @@ var (
 type Options struct {
 	Endpoint             string
 	TLS                  bool
+	SessionDomain        string
 	DefaultNextURL       string
 	DatabaseURL          string
-	SessionDomain        string
 	Storage              storage.Storage
 	GithubClientID       string
 	GithubClientSecret   string
