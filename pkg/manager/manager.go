@@ -227,6 +227,10 @@ func (m *Manager) Cleanup() error {
 	return nil
 }
 
+func (m *Manager) Delimiter() string {
+	return controller.KeyDelimiterString
+}
+
 func (m *Manager) Validate(ctx *fiber.Ctx) error {
 	return m.controller.Validate(ctx)
 }
