@@ -16,7 +16,10 @@
 
 package config
 
-import "github.com/spf13/pflag"
+import (
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+)
 
 const (
 	DefaultAPIListenAddress = "127.0.0.1:8081"
@@ -68,4 +71,12 @@ func (c *Config) RootPersistentFlags(flags *pflag.FlagSet) {
 	flags.IntVar(&c.PostmarkTemplateID, "auth-postmark-template-id", 0, "The auth api's postmark template id")
 	flags.StringVar(&c.PostmarkTag, "auth-postmark-tag", "", "The auth api's postmark tag")
 	flags.StringVar(&c.MagicLinkFrom, "auth-magic-link-from", "", "The auth api's magic link from field")
+}
+
+func (c *Config) GlobalRequiredFlags(cmd *cobra.Command) error {
+	err := cmd.MarkFlagRequired("auth-database-url")
+	if err != nil {
+		return err
+	}
+	return nil
 }
