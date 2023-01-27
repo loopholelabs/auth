@@ -110,7 +110,7 @@ func (c *Config) GlobalRequiredFlags(cmd *cobra.Command) error {
 	return nil
 }
 
-func (c *Config) GenerateManagerOptions(tls bool, projectName string, projectURL string) *manager.Options {
+func (c *Config) GenerateOptions(tls bool, projectName string, projectURL string) *manager.Options {
 	return &manager.Options{
 		Endpoint:             c.Endpoint,
 		TLS:                  tls,
