@@ -48,7 +48,7 @@ func Encrypt(secretKey []byte, identifier []byte, content []byte) (string, error
 		return "", err
 	}
 
-	return base64.StdEncoding.EncodeToString(aesGCM.Seal(nonce, nonce, append(identifier, content...), nil)), nil
+	return base64.URLEncoding.EncodeToString(aesGCM.Seal(nonce, nonce, append(identifier, content...), nil)), nil
 }
 
 func Decrypt(secretKey []byte, identifier []byte, content string) ([]byte, error) {
@@ -68,7 +68,7 @@ func Decrypt(secretKey []byte, identifier []byte, content string) ([]byte, error
 		return nil, ErrInvalidNonceSize
 	}
 
-	contentBytes, err := base64.StdEncoding.DecodeString(content)
+	contentBytes, err := base64.URLEncoding.DecodeString(content)
 	if err != nil {
 		return nil, err
 	}
