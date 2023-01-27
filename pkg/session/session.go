@@ -18,7 +18,7 @@ package session
 
 import (
 	"github.com/google/uuid"
-	"github.com/loopholelabs/auth/internal/provider"
+	"github.com/loopholelabs/auth/pkg/provider"
 	"github.com/loopholelabs/auth/pkg/sessionKind"
 	"time"
 )

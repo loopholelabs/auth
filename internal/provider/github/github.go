@@ -22,7 +22,7 @@ import (
 	"errors"
 	"github.com/google/uuid"
 	"github.com/grokify/go-pkce"
-	"github.com/loopholelabs/auth/internal/provider"
+	"github.com/loopholelabs/auth/pkg/provider"
 	"github.com/rs/zerolog"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/github"

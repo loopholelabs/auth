@@ -23,7 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
-	"github.com/loopholelabs/auth/internal/provider"
+	"github.com/loopholelabs/auth/pkg/provider"
 	"github.com/mattevans/postmark-go"
 	"github.com/rs/zerolog"
 	"net/http"
