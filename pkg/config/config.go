@@ -17,9 +17,18 @@
 package config
 
 import (
+	"errors"
 	"github.com/loopholelabs/auth/pkg/manager"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+)
+
+var (
+	ErrAPIListenAddressRequired = errors.New("api listen address is required")
+	ErrDatabaseURLRequired      = errors.New("database url is required")
+	ErrEndpointRequired         = errors.New("endpoint is required")
+	ErrSessionDomainRequired    = errors.New("session domain is required")
+	ErrDefaultNextURLRequired   = errors.New("default next url is required")
 )
 
 const (
@@ -34,8 +43,8 @@ type Config struct {
 	Endpoint         string `yaml:"endpoint"`
 	SessionDomain    string `yaml:"session_domain"`
 	DefaultNextURL   string `yaml:"default_next_url"`
+	DatabaseURL      string `yaml:"database_url"`
 
-	DatabaseURL        string `yaml:"database_url"`
 	GithubClientID     string `yaml:"github_client_id"`
 	GithubClientSecret string `yaml:"github_client_secret"`
 	GoogleClientID     string `yaml:"github_client_id"`
@@ -54,6 +63,25 @@ func New() *Config {
 		SessionDomain:    DefaultSessionDomain,
 		DefaultNextURL:   DefaultNextURL,
 	}
+}
+
+func (c *Config) Validate() error {
+	if c.APIListenAddress == "" {
+		return ErrAPIListenAddressRequired
+	}
+	if c.DatabaseURL == "" {
+		return ErrDatabaseURLRequired
+	}
+	if c.Endpoint == "" {
+		return ErrEndpointRequired
+	}
+	if c.SessionDomain == "" {
+		return ErrSessionDomainRequired
+	}
+	if c.DefaultNextURL == "" {
+		return ErrDefaultNextURLRequired
+	}
+	return nil
 }
 
 func (c *Config) RootPersistentFlags(flags *pflag.FlagSet) {
