@@ -36,7 +36,7 @@ func (MagicFlow) Fields() []ent.Field {
 		field.String("secret").Immutable().NotEmpty(),
 		field.String("next_url").Immutable().NotEmpty(),
 		field.String("organization").Immutable().Optional(),
-		field.String("device_identifier").Unique().Immutable().Optional(),
+		field.String("device_identifier").Immutable().Optional(),
 	}
 }
 

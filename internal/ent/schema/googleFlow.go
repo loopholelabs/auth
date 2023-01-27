@@ -36,7 +36,7 @@ func (GoogleFlow) Fields() []ent.Field {
 		field.String("challenge").Unique().Immutable().NotEmpty(),
 		field.String("next_url").Immutable().NotEmpty(),
 		field.String("organization").Immutable().Optional(),
-		field.String("device_identifier").Unique().Immutable().Optional(),
+		field.String("device_identifier").Immutable().Optional(),
 	}
 }
 

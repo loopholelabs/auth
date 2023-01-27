@@ -50,7 +50,7 @@ var (
 		{Name: "challenge", Type: field.TypeString, Unique: true},
 		{Name: "next_url", Type: field.TypeString},
 		{Name: "organization", Type: field.TypeString, Nullable: true},
-		{Name: "device_identifier", Type: field.TypeString, Unique: true, Nullable: true},
+		{Name: "device_identifier", Type: field.TypeString, Nullable: true},
 	}
 	// GithubFlowsTable holds the schema information for the "github_flows" table.
 	GithubFlowsTable = &schema.Table{
@@ -67,7 +67,7 @@ var (
 		{Name: "challenge", Type: field.TypeString, Unique: true},
 		{Name: "next_url", Type: field.TypeString},
 		{Name: "organization", Type: field.TypeString, Nullable: true},
-		{Name: "device_identifier", Type: field.TypeString, Unique: true, Nullable: true},
+		{Name: "device_identifier", Type: field.TypeString, Nullable: true},
 	}
 	// GoogleFlowsTable holds the schema information for the "google_flows" table.
 	GoogleFlowsTable = &schema.Table{
@@ -84,7 +84,7 @@ var (
 		{Name: "secret", Type: field.TypeString},
 		{Name: "next_url", Type: field.TypeString},
 		{Name: "organization", Type: field.TypeString, Nullable: true},
-		{Name: "device_identifier", Type: field.TypeString, Unique: true, Nullable: true},
+		{Name: "device_identifier", Type: field.TypeString, Nullable: true},
 	}
 	// MagicFlowsTable holds the schema information for the "magic_flows" table.
 	MagicFlowsTable = &schema.Table{
