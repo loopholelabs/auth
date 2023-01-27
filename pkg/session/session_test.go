@@ -17,7 +17,7 @@
 package session
 
 import (
-	"github.com/loopholelabs/auth/pkg/provider"
+	"github.com/loopholelabs/auth/internal/provider"
 	"github.com/loopholelabs/auth/pkg/sessionKind"
 	"github.com/stretchr/testify/require"
 	"testing"
