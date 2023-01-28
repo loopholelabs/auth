@@ -45,5 +45,5 @@ func (d *Database) DeleteMagicFlow(ctx context.Context, email string) error {
 
 func (d *Database) GCMagicFlow(ctx context.Context, expiry time.Duration) (int, error) {
 	d.logger.Debug().Msgf("running magic flow gc")
-	return d.client.MagicFlow.Delete().Where(magicflow.CreatedAtLT(time.Now().Add(expiry))).Exec(ctx)
+	return d.client.MagicFlow.Delete().Where(magicflow.CreatedAtLT(time.Now().Add(expiry * -1))).Exec(ctx)
 }

@@ -73,5 +73,5 @@ func (d *Database) DeleteDeviceFlow(ctx context.Context, deviceCode string) erro
 
 func (d *Database) GCDeviceFlow(ctx context.Context, expiry time.Duration) (int, error) {
 	d.logger.Debug().Msgf("running device flow gc")
-	return d.client.DeviceFlow.Delete().Where(deviceflow.CreatedAtLT(time.Now().Add(expiry))).Exec(ctx)
+	return d.client.DeviceFlow.Delete().Where(deviceflow.CreatedAtLT(time.Now().Add(expiry * -1))).Exec(ctx)
 }

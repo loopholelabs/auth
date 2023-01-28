@@ -45,5 +45,5 @@ func (d *Database) DeleteGoogleFlow(ctx context.Context, state string) error {
 
 func (d *Database) GCGoogleFlow(ctx context.Context, expiry time.Duration) (int, error) {
 	d.logger.Debug().Msgf("running google flow gc")
-	return d.client.GoogleFlow.Delete().Where(googleflow.CreatedAtLT(time.Now().Add(expiry))).Exec(ctx)
+	return d.client.GoogleFlow.Delete().Where(googleflow.CreatedAtLT(time.Now().Add(expiry * -1))).Exec(ctx)
 }

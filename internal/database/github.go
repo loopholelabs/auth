@@ -45,5 +45,5 @@ func (d *Database) DeleteGithubFlow(ctx context.Context, state string) error {
 
 func (d *Database) GCGithubFlow(ctx context.Context, expiry time.Duration) (int, error) {
 	d.logger.Debug().Msgf("running github flow gc")
-	return d.client.GithubFlow.Delete().Where(githubflow.CreatedAtLT(time.Now().Add(expiry))).Exec(ctx)
+	return d.client.GithubFlow.Delete().Where(githubflow.CreatedAtLT(time.Now().Add(expiry * -1))).Exec(ctx)
 }
