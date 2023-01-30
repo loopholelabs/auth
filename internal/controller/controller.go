@@ -509,7 +509,11 @@ func (m *Controller) GetServiceSessionFromContext(ctx *fiber.Ctx) (*servicesessi
 func (m *Controller) LogoutSession(ctx *fiber.Ctx) error {
 	cookie := ctx.Cookies(CookieKeyString)
 	if cookie != "" {
-		err := m.storage.DeleteSession(ctx.Context(), cookie)
+		sess, err := m.getSession(ctx, cookie)
+		if sess == nil {
+			return err
+		}
+		err = m.storage.DeleteSession(ctx.Context(), sess.ID)
 		if err != nil {
 			m.logger.Error().Err(err).Msg("failed to delete session")
 			return ctx.Status(fiber.StatusInternalServerError).SendString("failed to delete session")
