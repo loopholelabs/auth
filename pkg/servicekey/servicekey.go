@@ -18,6 +18,15 @@ package servicekey
 
 import "time"
 
+// Resource represents a resource that a Service Key is authorized to access
+type Resource struct {
+	// ID is the resource's unique identifier
+	ID string `json:"id"`
+
+	// Type is the resource's type
+	Type string `json:"type"`
+}
+
 // ServiceKey represents a Service Key
 type ServiceKey struct {
 	// ID is the Service Key's unique identifier
@@ -35,11 +44,8 @@ type ServiceKey struct {
 	// Organization is the organization that the Service Key belongs to (optional)
 	Organization string `json:"organization"`
 
-	// ResourceType is the resource type that the Service Key is authorized to access (optional)
-	ResourceType string `json:"resource_type"`
-
-	// Resource is the resource that the Service Key is authorized to access (optional unless ResourceType is set)
-	ResourceID string `json:"resource_id"`
+	// Resources are the resources that the Service Key is authorized to access (optional)
+	Resources []Resource `json:"resources"`
 
 	// MaxUses is the maximum number of times the Service Key can be used (optional)
 	MaxUses int64 `json:"max_uses"`

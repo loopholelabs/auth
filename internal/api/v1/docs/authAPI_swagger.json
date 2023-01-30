@@ -686,16 +686,29 @@
         }
     },
     "definitions": {
-        "models.ConfigResponse": {
-            "type": "object",
-            "properties": {
-                "default_next_url": {
-                    "type": "string"
-                },
-                "device_enabled": {
-                    "type": "boolean"
-                },
-                "endpoint": {
+      "auth.Kind": {
+        "type": "string",
+        "enum": [
+          "session",
+          "api",
+          "service"
+        ],
+        "x-enum-varnames": [
+          "KindSession",
+          "KindAPIKey",
+          "KindServiceSession"
+        ]
+      },
+      "models.ConfigResponse": {
+        "type": "object",
+        "properties": {
+          "default_next_url": {
+            "type": "string"
+          },
+          "device_enabled": {
+            "type": "boolean"
+          },
+          "endpoint": {
                     "type": "string"
                 },
                 "github_enabled": {
@@ -734,24 +747,24 @@
         "models.ServiceKeyLoginResponse": {
             "type": "object",
             "properties": {
-                "organization": {
-                    "type": "string"
-                },
-                "resource_id": {
-                    "type": "string"
-                },
-                "resource_type": {
-                    "type": "string"
-                },
-                "service_key_id": {
-                    "type": "string"
-                },
-                "service_session_id": {
-                    "type": "string"
-                },
-                "service_session_secret": {
-                    "type": "string"
-                },
+              "organization": {
+                "type": "string"
+              },
+              "resources": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/servicekey.Resource"
+                }
+              },
+              "service_key_id": {
+                "type": "string"
+              },
+              "service_session_id": {
+                "type": "string"
+              },
+              "service_session_secret": {
+                "type": "string"
+              },
                 "user_id": {
                     "type": "string"
                 }
@@ -767,14 +780,31 @@
                     "type": "string"
                 },
                 "session": {
-                    "type": "string",
-                    "enum": [
-                        "session",
-                        "api",
-                        "service"
-                    ]
+                  "enum": [
+                    "session",
+                    "api",
+                    "service"
+                  ],
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/auth.Kind"
+                    }
+                  ]
                 }
             }
+        },
+      "servicekey.Resource": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "ID is the resource's unique identifier",
+            "type": "string"
+          },
+          "type": {
+            "description": "Type is the resource's type",
+            "type": "string"
+          }
         }
+      }
     }
 }

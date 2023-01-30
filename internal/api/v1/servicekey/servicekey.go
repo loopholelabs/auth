@@ -99,7 +99,6 @@ func (a *ServiceKey) ServiceKeyLogin(ctx *fiber.Ctx) error {
 		ServiceKeyID:         sess.ServiceKeyID,
 		UserID:               sess.UserID,
 		Organization:         sess.Organization,
-		ResourceType:         sess.ResourceType,
-		ResourceID:           sess.ResourceID,
+		Resources:            sess.Resources,
 	})
 }

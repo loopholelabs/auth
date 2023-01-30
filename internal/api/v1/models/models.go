@@ -18,6 +18,7 @@ package models
 
 import (
 	"github.com/loopholelabs/auth"
+	"github.com/loopholelabs/auth/pkg/servicekey"
 )
 
 type ConfigResponse struct {
@@ -40,13 +41,12 @@ type DeviceCallbackResponse struct {
 }
 
 type ServiceKeyLoginResponse struct {
-	ServiceSessionID     string `json:"service_session_id"`
-	ServiceSessionSecret string `json:"service_session_secret"`
-	ServiceKeyID         string `json:"service_key_id"`
-	UserID               string `json:"user_id"`
-	Organization         string `json:"organization"`
-	ResourceType         string `json:"resource_type"`
-	ResourceID           string `json:"resource_id"`
+	ServiceSessionID     string                `json:"service_session_id"`
+	ServiceSessionSecret string                `json:"service_session_secret"`
+	ServiceKeyID         string                `json:"service_key_id"`
+	UserID               string                `json:"user_id"`
+	Organization         string                `json:"organization"`
+	Resources            []servicekey.Resource `json:"resources"`
 }
 
 type UserInfoResponse struct {

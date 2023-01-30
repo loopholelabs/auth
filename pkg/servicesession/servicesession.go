@@ -43,15 +43,12 @@ type ServiceSession struct {
 	// Organization is the organization that the Service Key belongs to (optional)
 	Organization string `json:"organization"`
 
-	// ResourceType is the resource type that the Service Key is authorized to access (optional)
-	ResourceType string `json:"resource_type"`
-
-	// ResourceID is the resource that the Service Key is authorized to access (optional unless ResourceType is set)
-	ResourceID string `json:"resource_id"`
+	// Resources are the resources that the Service Key is authorized to access (optional)
+	Resources []servicekey.Resource `json:"resources"`
 }
 
 // New returns a new service session for a user with the given service key
-func New(servicekey *servicekey.ServiceKey) (*ServiceSession, []byte, error) {
+func New(serviceKey *servicekey.ServiceKey) (*ServiceSession, []byte, error) {
 	id := auth.ServiceSessionPrefixString + uuid.New().String()
 	secret := []byte(uuid.New().String())
 	salt := []byte(uuid.New().String())
@@ -63,10 +60,9 @@ func New(servicekey *servicekey.ServiceKey) (*ServiceSession, []byte, error) {
 		ID:           id,
 		Salt:         salt,
 		Hash:         hash,
-		ServiceKeyID: servicekey.ID,
-		UserID:       servicekey.UserID,
-		Organization: servicekey.Organization,
-		ResourceType: servicekey.ResourceType,
-		ResourceID:   servicekey.ResourceID,
+		ServiceKeyID: serviceKey.ID,
+		UserID:       serviceKey.UserID,
+		Organization: serviceKey.Organization,
+		Resources:    serviceKey.Resources,
 	}, secret, nil
 }

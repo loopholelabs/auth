@@ -1,5 +1,15 @@
 basePath: /v1
 definitions:
+  auth.Kind:
+    enum:
+      - session
+      - api
+      - service
+    type: string
+    x-enum-varnames:
+      - KindSession
+      - KindAPIKey
+      - KindServiceSession
   models.ConfigResponse:
     properties:
       default_next_url:
@@ -33,10 +43,10 @@ definitions:
     properties:
       organization:
         type: string
-      resource_id:
-        type: string
-      resource_type:
-        type: string
+      resources:
+        items:
+          $ref: '#/definitions/servicekey.Resource'
+        type: array
       service_key_id:
         type: string
       service_session_id:
@@ -53,10 +63,20 @@ definitions:
       organization:
         type: string
       session:
+        allOf:
+          - $ref: '#/definitions/auth.Kind'
         enum:
-        - session
-        - api
-        - service
+          - session
+          - api
+          - service
+    type: object
+  servicekey.Resource:
+    properties:
+      id:
+        description: ID is the resource's unique identifier
+        type: string
+      type:
+        description: Type is the resource's type
         type: string
     type: object
 host: localhost:8080
