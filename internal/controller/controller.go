@@ -506,39 +506,39 @@ func (m *Controller) GetServiceSessionFromContext(ctx *fiber.Ctx) (*servicesessi
 	return sess, nil
 }
 
-func (m *Controller) LogoutSession(ctx *fiber.Ctx) error {
+func (m *Controller) LogoutSession(ctx *fiber.Ctx) (bool, error) {
 	cookie := ctx.Cookies(CookieKeyString)
 	if cookie != "" {
 		sess, err := m.getSession(ctx, cookie)
 		if sess == nil {
-			return err
+			return false, err
 		}
 		err = m.storage.DeleteSession(ctx.Context(), sess.ID)
 		if err != nil {
 			m.logger.Error().Err(err).Msg("failed to delete session")
-			return ctx.Status(fiber.StatusInternalServerError).SendString("failed to delete session")
+			return false, ctx.Status(fiber.StatusInternalServerError).SendString("failed to delete session")
 		}
 	}
 
 	ctx.ClearCookie(CookieKeyString)
-	return nil
+	return true, nil
 }
 
-func (m *Controller) LogoutServiceSession(ctx *fiber.Ctx) error {
+func (m *Controller) LogoutServiceSession(ctx *fiber.Ctx) (bool, error) {
 	authHeader := ctx.Request().Header.PeekBytes(AuthorizationHeader)
 	if len(authHeader) > len(BearerHeader) {
 		if !bytes.Equal(authHeader[:len(BearerHeader)], BearerHeader) {
-			return nil
+			return true, nil
 		}
 
 		authHeader = authHeader[len(BearerHeader):]
 		if !bytes.HasPrefix(authHeader, auth.ServiceSessionPrefix) {
-			return nil
+			return true, nil
 		}
 
 		keySplit := bytes.Split(authHeader, KeyDelimiter)
 		if len(keySplit) != 2 {
-			return nil
+			return true, nil
 		}
 
 		keyID := string(keySplit[0])
@@ -546,16 +546,16 @@ func (m *Controller) LogoutServiceSession(ctx *fiber.Ctx) error {
 
 		sess, err := m.getServiceSession(ctx, keyID, keySecret)
 		if sess == nil {
-			return err
+			return false, err
 		}
 
 		err = m.storage.DeleteServiceSession(ctx.Context(), sess.ID)
 		if err != nil {
 			m.logger.Error().Err(err).Msg("failed to delete service session")
-			return ctx.Status(fiber.StatusInternalServerError).SendString("failed to delete service session")
+			return false, ctx.Status(fiber.StatusInternalServerError).SendString("failed to delete service session")
 		}
 	}
-	return nil
+	return true, nil
 }
 
 func (m *Controller) getSession(ctx *fiber.Ctx, cookie string) (*session.Session, error) {

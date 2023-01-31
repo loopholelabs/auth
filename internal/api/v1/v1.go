@@ -99,13 +99,13 @@ func (v *V1) App() *fiber.App {
 func (v *V1) Logout(ctx *fiber.Ctx) error {
 	v.logger.Debug().Msgf("received Logout from %s", ctx.IP())
 
-	err := v.options.Controller().LogoutSession(ctx)
-	if err != nil {
+	cont, err := v.options.Controller().LogoutSession(ctx)
+	if !cont {
 		return err
 	}
 
-	err = v.options.Controller().LogoutServiceSession(ctx)
-	if err != nil {
+	cont, err = v.options.Controller().LogoutServiceSession(ctx)
+	if !cont {
 		return err
 	}
 
