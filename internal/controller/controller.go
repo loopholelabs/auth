@@ -460,6 +460,20 @@ func (m *Controller) Validate(ctx *fiber.Ctx) error {
 	return ctx.Status(fiber.StatusUnauthorized).SendString("no valid session cookie or authorization header")
 }
 
+func (m *Controller) AuthAvailable(ctx *fiber.Ctx) bool {
+	cookie := ctx.Cookies(CookieKeyString)
+	if cookie != "" {
+		return true
+	}
+
+	authHeader := ctx.Request().Header.PeekBytes(AuthorizationHeader)
+	if len(authHeader) > len(BearerHeader) {
+		return true
+	}
+
+	return false
+}
+
 func (m *Controller) GetAuthFromContext(ctx *fiber.Ctx) (auth.Kind, string, string, error) {
 	authKind, ok := ctx.Locals(auth.KindContextKey).(auth.Kind)
 	if !ok || authKind == "" {
