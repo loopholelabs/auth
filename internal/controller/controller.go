@@ -460,6 +460,79 @@ func (m *Controller) Validate(ctx *fiber.Ctx) error {
 	return ctx.Status(fiber.StatusUnauthorized).SendString("no valid session cookie or authorization header")
 }
 
+func (m *Controller) ManualValidate(ctx *fiber.Ctx) (bool, error) {
+	cookie := ctx.Cookies(CookieKeyString)
+	if cookie != "" {
+		sess, err := m.getSession(ctx, cookie)
+		if sess == nil {
+			return false, err
+		}
+
+		ctx.Locals(auth.KindContextKey, auth.KindSession)
+		ctx.Locals(auth.SessionContextKey, sess)
+		ctx.Locals(auth.UserContextKey, sess.UserID)
+		ctx.Locals(auth.OrganizationContextKey, sess.Organization)
+		return true, nil
+	}
+
+	authHeader := ctx.Request().Header.PeekBytes(AuthorizationHeader)
+	if len(authHeader) > len(BearerHeader) {
+		if !bytes.Equal(authHeader[:len(BearerHeader)], BearerHeader) {
+			return false, ctx.Status(fiber.StatusUnauthorized).SendString("invalid authorization header")
+		}
+		authHeader = authHeader[len(BearerHeader):]
+		keySplit := bytes.Split(authHeader, KeyDelimiter)
+		if len(keySplit) != 2 {
+			return false, ctx.Status(fiber.StatusUnauthorized).SendString("invalid authorization header")
+		}
+
+		keyID := string(keySplit[0])
+		keySecret := keySplit[1]
+
+		if bytes.HasPrefix(authHeader, auth.APIKeyPrefix) {
+			key, err := m.getAPIKey(ctx, keyID, keySecret)
+			if key == nil {
+				return false, err
+			}
+
+			ctx.Locals(auth.KindContextKey, auth.KindAPIKey)
+			ctx.Locals(auth.APIKeyContextKey, key)
+			ctx.Locals(auth.UserContextKey, key.UserID)
+			ctx.Locals(auth.OrganizationContextKey, key.Organization)
+			return true, nil
+		}
+
+		if bytes.HasPrefix(authHeader, auth.ServiceSessionPrefix) {
+			serviceSession, err := m.getServiceSession(ctx, keyID, keySecret)
+			if serviceSession == nil {
+				return false, err
+			}
+
+			ctx.Locals(auth.KindContextKey, auth.KindServiceSession)
+			ctx.Locals(auth.ServiceSessionContextKey, serviceSession)
+			ctx.Locals(auth.UserContextKey, serviceSession.UserID)
+			ctx.Locals(auth.OrganizationContextKey, serviceSession.Organization)
+			return true, nil
+		}
+	}
+
+	return false, ctx.Status(fiber.StatusUnauthorized).SendString("no valid session cookie or authorization header")
+}
+
+func (m *Controller) AuthAvailable(ctx *fiber.Ctx) bool {
+	cookie := ctx.Cookies(CookieKeyString)
+	if cookie != "" {
+		return true
+	}
+
+	authHeader := ctx.Request().Header.PeekBytes(AuthorizationHeader)
+	if len(authHeader) > len(BearerHeader) {
+		return true
+	}
+
+	return false
+}
+
 func (m *Controller) GetAuthFromContext(ctx *fiber.Ctx) (auth.Kind, string, string, error) {
 	authKind, ok := ctx.Locals(auth.KindContextKey).(auth.Kind)
 	if !ok || authKind == "" {

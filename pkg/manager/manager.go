@@ -235,6 +235,14 @@ func (m *Manager) Validate(ctx *fiber.Ctx) error {
 	return m.controller.Validate(ctx)
 }
 
+func (m *Manager) ManualValidate(ctx *fiber.Ctx) (bool, error) {
+	return m.controller.ManualValidate(ctx)
+}
+
+func (m *Manager) AuthAvailable(ctx *fiber.Ctx) bool {
+	return m.controller.AuthAvailable(ctx)
+}
+
 func (m *Manager) GetAuthFromContext(ctx *fiber.Ctx) (auth.Kind, string, string, error) {
 	return m.controller.GetAuthFromContext(ctx)
 }
