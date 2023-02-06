@@ -390,7 +390,7 @@ func (m *Controller) CreateServiceSession(ctx *fiber.Ctx, keyID string, keySecre
 		return nil, nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to create service session")
 	}
 
-	err = m.storage.SetServiceSession(ctx.Context(), sess.ID, sess.Hash, sess.ServiceKeyID)
+	err = m.storage.SetServiceSession(ctx.Context(), sess.ID, sess.Salt, sess.Hash, sess.ServiceKeyID)
 	if err != nil {
 		m.logger.Error().Err(err).Msg("failed to set service session")
 		return nil, nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to set service session")
