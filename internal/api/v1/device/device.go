@@ -137,6 +137,7 @@ func (d *Device) DeviceCallback(ctx *fiber.Ctx) error {
 // @Failure      400 {string} string
 // @Failure      401 {string} string
 // @Failure      403 {string} string
+// @Failure      429 {string} string
 // @Failure      500 {string} string
 // @Router       /device/poll [post]
 func (d *Device) DevicePoll(ctx *fiber.Ctx) error {
@@ -160,7 +161,7 @@ func (d *Device) DevicePoll(ctx *fiber.Ctx) error {
 	}
 
 	if lastPoll.Add(DefaultPollingRate * time.Second).After(time.Now()) {
-		return ctx.Status(fiber.StatusUnauthorized).SendString("polling rate exceeded")
+		return ctx.Status(fiber.StatusTooManyRequests).SendString("polling rate exceeded")
 	}
 
 	if session != "" {
