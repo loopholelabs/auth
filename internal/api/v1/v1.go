@@ -72,6 +72,7 @@ func (v *V1) init() {
 	v.app.Mount("/device", device.New(v.options, v.logger).App())
 	v.app.Mount("/servicekey", servicekey.New(v.options, v.logger).App())
 
+	v.app.Get("/health", v.Health)
 	v.app.Post("/logout", v.Logout)
 	v.app.Post("/userinfo", v.options.Controller().Validate, v.UserInfo)
 
