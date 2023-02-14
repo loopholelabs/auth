@@ -169,42 +169,42 @@
                     }
                 ],
                 "responses": {
-                  "200": {
-                    "description": "OK",
-                    "schema": {
-                      "type": "string"
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
                     }
-                  },
-                  "400": {
-                    "description": "Bad Request",
-                    "schema": {
-                      "type": "string"
-                    }
-                  },
-                  "401": {
-                    "description": "Unauthorized",
-                    "schema": {
-                      "type": "string"
-                    }
-                  },
-                  "403": {
-                    "description": "Forbidden",
-                    "schema": {
-                      "type": "string"
-                    }
-                  },
-                  "429": {
-                    "description": "Too Many Requests",
-                    "schema": {
-                      "type": "string"
-                    }
-                  },
-                  "500": {
-                    "description": "Internal Server Error",
-                    "schema": {
-                      "type": "string"
-                    }
-                  }
                 }
             }
         },
@@ -404,99 +404,99 @@
                     }
                 ],
                 "responses": {
-                  "307": {
-                    "description": "Temporary Redirect",
-                    "headers": {
-                      "Location": {
-                        "type": "string",
-                        "description": "Redirects to Google"
-                      }
+                    "307": {
+                        "description": "Temporary Redirect",
+                        "headers": {
+                            "Location": {
+                                "type": "string",
+                                "description": "Redirects to Google"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
                     }
-                  },
-                  "401": {
-                    "description": "Unauthorized",
-                    "schema": {
-                      "type": "string"
-                    }
-                  },
-                  "500": {
-                    "description": "Internal Server Error",
-                    "schema": {
-                      "type": "string"
-                    }
-                  }
                 }
             }
         },
-      "/health": {
-        "get": {
-          "description": "Health returns the status of the various services",
-          "consumes": [
-            "application/json"
-          ],
-          "produces": [
-            "application/json"
-          ],
-          "tags": [
-            "health"
-          ],
-          "summary": "Health returns the status of the various services",
-          "responses": {
-            "200": {
-              "description": "OK",
-              "schema": {
-                "$ref": "#/definitions/models.HealthResponse"
-              }
-            },
-            "500": {
-              "description": "Internal Server Error",
-              "schema": {
-                "type": "string"
-              }
+        "/health": {
+            "get": {
+                "description": "Health returns the status of the various services",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "health"
+                ],
+                "summary": "Health returns the status of the various services",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.HealthResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
             }
-          }
-        }
-      },
-      "/logout": {
-        "post": {
-          "description": "Logout logs out a user",
-          "consumes": [
-            "application/json"
-          ],
-          "produces": [
-            "application/json"
-          ],
-          "tags": [
-            "logout"
-          ],
-          "summary": "Logout logs out a user",
-          "responses": {
-            "200": {
-              "description": "OK",
-              "schema": {
-                "type": "string"
-              }
-            },
-            "400": {
-              "description": "Bad Request",
-              "schema": {
-                "type": "string"
-              }
-            },
-            "401": {
-              "description": "Unauthorized",
-              "schema": {
-                "type": "string"
-              }
-            },
-            "500": {
-              "description": "Internal Server Error",
-              "schema": {
-                "type": "string"
-              }
+        },
+        "/logout": {
+            "post": {
+                "description": "Logout logs out a user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "logout"
+                ],
+                "summary": "Logout logs out a user",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
             }
-          }
-        }
         },
         "/magic/callback": {
             "get": {
@@ -721,133 +721,133 @@
         }
     },
     "definitions": {
-      "auth.Kind": {
-        "type": "string",
-        "enum": [
-          "session",
-          "api",
-          "service"
-        ],
-        "x-enum-varnames": [
-          "KindSession",
-          "KindAPIKey",
-          "KindServiceSession"
-        ]
-      },
-      "models.ConfigResponse": {
-        "type": "object",
-        "properties": {
-          "default_next_url": {
-            "type": "string"
-          },
-          "device_enabled": {
-            "type": "boolean"
-          },
-          "endpoint": {
-            "type": "string"
-          },
-          "github_enabled": {
-            "type": "boolean"
-          },
-          "google_enabled": {
-            "type": "boolean"
-          },
-          "magic_enabled": {
-            "type": "boolean"
-          }
-        }
-      },
-      "models.DeviceCallbackResponse": {
-        "type": "object",
-        "properties": {
-          "identifier": {
-            "type": "string"
-          }
-        }
-      },
-      "models.DeviceFlowResponse": {
-        "type": "object",
-        "properties": {
-          "device_code": {
-            "type": "string"
-          },
-          "polling_rate": {
-            "type": "integer"
-          },
-          "user_code": {
-            "type": "string"
-          }
-        }
-      },
-      "models.HealthResponse": {
-        "type": "object",
-        "properties": {
-          "subscriptions": {
-            "type": "boolean"
-          }
-        }
-      },
-      "models.ServiceKeyLoginResponse": {
-        "type": "object",
-        "properties": {
-          "organization": {
-            "type": "string"
-          },
-          "resources": {
-            "type": "array",
-            "items": {
-              "$ref": "#/definitions/servicekey.Resource"
-            }
-          },
-          "service_key_id": {
-            "type": "string"
-          },
-          "service_session_id": {
-            "type": "string"
-          },
-          "service_session_secret": {
-            "type": "string"
-          },
-          "user_id": {
-            "type": "string"
-          }
-        }
-      },
-      "models.UserInfoResponse": {
-        "type": "object",
-        "properties": {
-          "email": {
-            "type": "string"
-          },
-          "organization": {
-            "type": "string"
-          },
-          "session": {
+        "auth.Kind": {
+            "type": "string",
             "enum": [
-              "session",
-              "api",
-              "service"
+                "session",
+                "api",
+                "service"
             ],
-            "allOf": [
-              {
-                "$ref": "#/definitions/auth.Kind"
-              }
+            "x-enum-varnames": [
+                "KindSession",
+                "KindAPIKey",
+                "KindServiceSession"
             ]
-          }
+        },
+        "models.ConfigResponse": {
+            "type": "object",
+            "properties": {
+                "default_next_url": {
+                    "type": "string"
+                },
+                "device_enabled": {
+                    "type": "boolean"
+                },
+                "endpoint": {
+                    "type": "string"
+                },
+                "github_enabled": {
+                    "type": "boolean"
+                },
+                "google_enabled": {
+                    "type": "boolean"
+                },
+                "magic_enabled": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "models.DeviceCallbackResponse": {
+            "type": "object",
+            "properties": {
+                "identifier": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.DeviceFlowResponse": {
+            "type": "object",
+            "properties": {
+                "device_code": {
+                    "type": "string"
+                },
+                "polling_rate": {
+                    "type": "integer"
+                },
+                "user_code": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.HealthResponse": {
+            "type": "object",
+            "properties": {
+                "subscriptions": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "models.ServiceKeyLoginResponse": {
+            "type": "object",
+            "properties": {
+                "organization": {
+                    "type": "string"
+                },
+                "resources": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/servicekey.Resource"
+                    }
+                },
+                "service_key_id": {
+                    "type": "string"
+                },
+                "service_session_id": {
+                    "type": "string"
+                },
+                "service_session_secret": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.UserInfoResponse": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "organization": {
+                    "type": "string"
+                },
+                "session": {
+                    "enum": [
+                        "session",
+                        "api",
+                        "service"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/auth.Kind"
+                        }
+                    ]
+                }
+            }
+        },
+        "servicekey.Resource": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "description": "ID is the resource's unique identifier",
+                    "type": "string"
+                },
+                "type": {
+                    "description": "Type is the resource's type",
+                    "type": "string"
+                }
+            }
         }
-      },
-      "servicekey.Resource": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "description": "ID is the resource's unique identifier",
-            "type": "string"
-          },
-          "type": {
-            "description": "Type is the resource's type",
-            "type": "string"
-          }
-        }
-      }
     }
 }
