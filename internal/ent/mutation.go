@@ -32,6 +32,7 @@ import (
 	"github.com/loopholelabs/auth/internal/ent/predicate"
 
 	"entgo.io/ent"
+	"entgo.io/ent/dialect/sql"
 )
 
 const (
@@ -449,9 +450,24 @@ func (m *DeviceFlowMutation) Where(ps ...predicate.DeviceFlow) {
 	m.predicates = append(m.predicates, ps...)
 }
 
+// WhereP appends storage-level predicates to the DeviceFlowMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *DeviceFlowMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.DeviceFlow, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
 // Op returns the operation name.
 func (m *DeviceFlowMutation) Op() Op {
 	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *DeviceFlowMutation) SetOp(op Op) {
+	m.op = op
 }
 
 // Type returns the node type of this mutation (DeviceFlow).
@@ -1125,9 +1141,24 @@ func (m *GithubFlowMutation) Where(ps ...predicate.GithubFlow) {
 	m.predicates = append(m.predicates, ps...)
 }
 
+// WhereP appends storage-level predicates to the GithubFlowMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *GithubFlowMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.GithubFlow, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
 // Op returns the operation name.
 func (m *GithubFlowMutation) Op() Op {
 	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *GithubFlowMutation) SetOp(op Op) {
+	m.op = op
 }
 
 // Type returns the node type of this mutation (GithubFlow).
@@ -1801,9 +1832,24 @@ func (m *GoogleFlowMutation) Where(ps ...predicate.GoogleFlow) {
 	m.predicates = append(m.predicates, ps...)
 }
 
+// WhereP appends storage-level predicates to the GoogleFlowMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *GoogleFlowMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.GoogleFlow, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
 // Op returns the operation name.
 func (m *GoogleFlowMutation) Op() Op {
 	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *GoogleFlowMutation) SetOp(op Op) {
+	m.op = op
 }
 
 // Type returns the node type of this mutation (GoogleFlow).
@@ -2477,9 +2523,24 @@ func (m *MagicFlowMutation) Where(ps ...predicate.MagicFlow) {
 	m.predicates = append(m.predicates, ps...)
 }
 
+// WhereP appends storage-level predicates to the MagicFlowMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *MagicFlowMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.MagicFlow, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
 // Op returns the operation name.
 func (m *MagicFlowMutation) Op() Op {
 	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *MagicFlowMutation) SetOp(op Op) {
+	m.op = op
 }
 
 // Type returns the node type of this mutation (MagicFlow).

@@ -50,34 +50,7 @@ func (gfu *GoogleFlowUpdate) Mutation() *GoogleFlowMutation {
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (gfu *GoogleFlowUpdate) Save(ctx context.Context) (int, error) {
-	var (
-		err      error
-		affected int
-	)
-	if len(gfu.hooks) == 0 {
-		affected, err = gfu.sqlSave(ctx)
-	} else {
-		var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-			mutation, ok := m.(*GoogleFlowMutation)
-			if !ok {
-				return nil, fmt.Errorf("unexpected mutation type %T", m)
-			}
-			gfu.mutation = mutation
-			affected, err = gfu.sqlSave(ctx)
-			mutation.done = true
-			return affected, err
-		})
-		for i := len(gfu.hooks) - 1; i >= 0; i-- {
-			if gfu.hooks[i] == nil {
-				return 0, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
-			}
-			mut = gfu.hooks[i](mut)
-		}
-		if _, err := mut.Mutate(ctx, gfu.mutation); err != nil {
-			return 0, err
-		}
-	}
-	return affected, err
+	return withHooks[int, GoogleFlowMutation](ctx, gfu.sqlSave, gfu.mutation, gfu.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -134,6 +107,7 @@ func (gfu *GoogleFlowUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		}
 		return 0, err
 	}
+	gfu.mutation.done = true
 	return n, nil
 }
 
@@ -159,40 +133,7 @@ func (gfuo *GoogleFlowUpdateOne) Select(field string, fields ...string) *GoogleF
 
 // Save executes the query and returns the updated GoogleFlow entity.
 func (gfuo *GoogleFlowUpdateOne) Save(ctx context.Context) (*GoogleFlow, error) {
-	var (
-		err  error
-		node *GoogleFlow
-	)
-	if len(gfuo.hooks) == 0 {
-		node, err = gfuo.sqlSave(ctx)
-	} else {
-		var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-			mutation, ok := m.(*GoogleFlowMutation)
-			if !ok {
-				return nil, fmt.Errorf("unexpected mutation type %T", m)
-			}
-			gfuo.mutation = mutation
-			node, err = gfuo.sqlSave(ctx)
-			mutation.done = true
-			return node, err
-		})
-		for i := len(gfuo.hooks) - 1; i >= 0; i-- {
-			if gfuo.hooks[i] == nil {
-				return nil, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
-			}
-			mut = gfuo.hooks[i](mut)
-		}
-		v, err := mut.Mutate(ctx, gfuo.mutation)
-		if err != nil {
-			return nil, err
-		}
-		nv, ok := v.(*GoogleFlow)
-		if !ok {
-			return nil, fmt.Errorf("unexpected node type %T returned from GoogleFlowMutation", v)
-		}
-		node = nv
-	}
-	return node, err
+	return withHooks[*GoogleFlow, GoogleFlowMutation](ctx, gfuo.sqlSave, gfuo.mutation, gfuo.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -269,5 +210,6 @@ func (gfuo *GoogleFlowUpdateOne) sqlSave(ctx context.Context) (_node *GoogleFlow
 		}
 		return nil, err
 	}
+	gfuo.mutation.done = true
 	return _node, nil
 }

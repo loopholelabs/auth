@@ -31,11 +31,10 @@ type DeviceFlowFunc func(context.Context, *ent.DeviceFlowMutation) (ent.Value, e
 
 // Mutate calls f(ctx, m).
 func (f DeviceFlowFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-	mv, ok := m.(*ent.DeviceFlowMutation)
-	if !ok {
-		return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DeviceFlowMutation", m)
+	if mv, ok := m.(*ent.DeviceFlowMutation); ok {
+		return f(ctx, mv)
 	}
-	return f(ctx, mv)
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DeviceFlowMutation", m)
 }
 
 // The GithubFlowFunc type is an adapter to allow the use of ordinary
@@ -44,11 +43,10 @@ type GithubFlowFunc func(context.Context, *ent.GithubFlowMutation) (ent.Value, e
 
 // Mutate calls f(ctx, m).
 func (f GithubFlowFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-	mv, ok := m.(*ent.GithubFlowMutation)
-	if !ok {
-		return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.GithubFlowMutation", m)
+	if mv, ok := m.(*ent.GithubFlowMutation); ok {
+		return f(ctx, mv)
 	}
-	return f(ctx, mv)
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.GithubFlowMutation", m)
 }
 
 // The GoogleFlowFunc type is an adapter to allow the use of ordinary
@@ -57,11 +55,10 @@ type GoogleFlowFunc func(context.Context, *ent.GoogleFlowMutation) (ent.Value, e
 
 // Mutate calls f(ctx, m).
 func (f GoogleFlowFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-	mv, ok := m.(*ent.GoogleFlowMutation)
-	if !ok {
-		return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.GoogleFlowMutation", m)
+	if mv, ok := m.(*ent.GoogleFlowMutation); ok {
+		return f(ctx, mv)
 	}
-	return f(ctx, mv)
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.GoogleFlowMutation", m)
 }
 
 // The MagicFlowFunc type is an adapter to allow the use of ordinary
@@ -70,11 +67,10 @@ type MagicFlowFunc func(context.Context, *ent.MagicFlowMutation) (ent.Value, err
 
 // Mutate calls f(ctx, m).
 func (f MagicFlowFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-	mv, ok := m.(*ent.MagicFlowMutation)
-	if !ok {
-		return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MagicFlowMutation", m)
+	if mv, ok := m.(*ent.MagicFlowMutation); ok {
+		return f(ctx, mv)
 	}
-	return f(ctx, mv)
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MagicFlowMutation", m)
 }
 
 // Condition is a hook condition function.

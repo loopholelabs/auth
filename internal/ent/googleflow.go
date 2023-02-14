@@ -131,7 +131,7 @@ func (gf *GoogleFlow) assignValues(columns []string, values []any) error {
 // Note that you need to call GoogleFlow.Unwrap() before calling this method if this GoogleFlow
 // was returned from a transaction, and the transaction was committed or rolled back.
 func (gf *GoogleFlow) Update() *GoogleFlowUpdateOne {
-	return (&GoogleFlowClient{config: gf.config}).UpdateOne(gf)
+	return NewGoogleFlowClient(gf.config).UpdateOne(gf)
 }
 
 // Unwrap unwraps the GoogleFlow entity that was returned from a transaction after it was closed,

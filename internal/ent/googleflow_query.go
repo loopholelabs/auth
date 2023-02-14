@@ -33,11 +33,9 @@ import (
 // GoogleFlowQuery is the builder for querying GoogleFlow entities.
 type GoogleFlowQuery struct {
 	config
-	limit      *int
-	offset     *int
-	unique     *bool
+	ctx        *QueryContext
 	order      []OrderFunc
-	fields     []string
+	inters     []Interceptor
 	predicates []predicate.GoogleFlow
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
@@ -50,26 +48,26 @@ func (gfq *GoogleFlowQuery) Where(ps ...predicate.GoogleFlow) *GoogleFlowQuery {
 	return gfq
 }
 
-// Limit adds a limit step to the query.
+// Limit the number of records to be returned by this query.
 func (gfq *GoogleFlowQuery) Limit(limit int) *GoogleFlowQuery {
-	gfq.limit = &limit
+	gfq.ctx.Limit = &limit
 	return gfq
 }
 
-// Offset adds an offset step to the query.
+// Offset to start from.
 func (gfq *GoogleFlowQuery) Offset(offset int) *GoogleFlowQuery {
-	gfq.offset = &offset
+	gfq.ctx.Offset = &offset
 	return gfq
 }
 
 // Unique configures the query builder to filter duplicate records on query.
 // By default, unique is set to true, and can be disabled using this method.
 func (gfq *GoogleFlowQuery) Unique(unique bool) *GoogleFlowQuery {
-	gfq.unique = &unique
+	gfq.ctx.Unique = &unique
 	return gfq
 }
 
-// Order adds an order step to the query.
+// Order specifies how the records should be ordered.
 func (gfq *GoogleFlowQuery) Order(o ...OrderFunc) *GoogleFlowQuery {
 	gfq.order = append(gfq.order, o...)
 	return gfq
@@ -78,7 +76,7 @@ func (gfq *GoogleFlowQuery) Order(o ...OrderFunc) *GoogleFlowQuery {
 // First returns the first GoogleFlow entity from the query.
 // Returns a *NotFoundError when no GoogleFlow was found.
 func (gfq *GoogleFlowQuery) First(ctx context.Context) (*GoogleFlow, error) {
-	nodes, err := gfq.Limit(1).All(ctx)
+	nodes, err := gfq.Limit(1).All(setContextOp(ctx, gfq.ctx, "First"))
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +99,7 @@ func (gfq *GoogleFlowQuery) FirstX(ctx context.Context) *GoogleFlow {
 // Returns a *NotFoundError when no GoogleFlow ID was found.
 func (gfq *GoogleFlowQuery) FirstID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = gfq.Limit(1).IDs(ctx); err != nil {
+	if ids, err = gfq.Limit(1).IDs(setContextOp(ctx, gfq.ctx, "FirstID")); err != nil {
 		return
 	}
 	if len(ids) == 0 {
@@ -124,7 +122,7 @@ func (gfq *GoogleFlowQuery) FirstIDX(ctx context.Context) int {
 // Returns a *NotSingularError when more than one GoogleFlow entity is found.
 // Returns a *NotFoundError when no GoogleFlow entities are found.
 func (gfq *GoogleFlowQuery) Only(ctx context.Context) (*GoogleFlow, error) {
-	nodes, err := gfq.Limit(2).All(ctx)
+	nodes, err := gfq.Limit(2).All(setContextOp(ctx, gfq.ctx, "Only"))
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +150,7 @@ func (gfq *GoogleFlowQuery) OnlyX(ctx context.Context) *GoogleFlow {
 // Returns a *NotFoundError when no entities are found.
 func (gfq *GoogleFlowQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = gfq.Limit(2).IDs(ctx); err != nil {
+	if ids, err = gfq.Limit(2).IDs(setContextOp(ctx, gfq.ctx, "OnlyID")); err != nil {
 		return
 	}
 	switch len(ids) {
@@ -177,10 +175,12 @@ func (gfq *GoogleFlowQuery) OnlyIDX(ctx context.Context) int {
 
 // All executes the query and returns a list of GoogleFlows.
 func (gfq *GoogleFlowQuery) All(ctx context.Context) ([]*GoogleFlow, error) {
+	ctx = setContextOp(ctx, gfq.ctx, "All")
 	if err := gfq.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
-	return gfq.sqlAll(ctx)
+	qr := querierAll[[]*GoogleFlow, *GoogleFlowQuery]()
+	return withInterceptors[[]*GoogleFlow](ctx, gfq, qr, gfq.inters)
 }
 
 // AllX is like All, but panics if an error occurs.
@@ -195,6 +195,7 @@ func (gfq *GoogleFlowQuery) AllX(ctx context.Context) []*GoogleFlow {
 // IDs executes the query and returns a list of GoogleFlow IDs.
 func (gfq *GoogleFlowQuery) IDs(ctx context.Context) ([]int, error) {
 	var ids []int
+	ctx = setContextOp(ctx, gfq.ctx, "IDs")
 	if err := gfq.Select(googleflow.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
@@ -212,10 +213,11 @@ func (gfq *GoogleFlowQuery) IDsX(ctx context.Context) []int {
 
 // Count returns the count of the given query.
 func (gfq *GoogleFlowQuery) Count(ctx context.Context) (int, error) {
+	ctx = setContextOp(ctx, gfq.ctx, "Count")
 	if err := gfq.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
-	return gfq.sqlCount(ctx)
+	return withInterceptors[int](ctx, gfq, querierCount[*GoogleFlowQuery](), gfq.inters)
 }
 
 // CountX is like Count, but panics if an error occurs.
@@ -229,10 +231,15 @@ func (gfq *GoogleFlowQuery) CountX(ctx context.Context) int {
 
 // Exist returns true if the query has elements in the graph.
 func (gfq *GoogleFlowQuery) Exist(ctx context.Context) (bool, error) {
-	if err := gfq.prepareQuery(ctx); err != nil {
-		return false, err
+	ctx = setContextOp(ctx, gfq.ctx, "Exist")
+	switch _, err := gfq.FirstID(ctx); {
+	case IsNotFound(err):
+		return false, nil
+	case err != nil:
+		return false, fmt.Errorf("ent: check existence: %w", err)
+	default:
+		return true, nil
 	}
-	return gfq.sqlExist(ctx)
 }
 
 // ExistX is like Exist, but panics if an error occurs.
@@ -252,14 +259,13 @@ func (gfq *GoogleFlowQuery) Clone() *GoogleFlowQuery {
 	}
 	return &GoogleFlowQuery{
 		config:     gfq.config,
-		limit:      gfq.limit,
-		offset:     gfq.offset,
+		ctx:        gfq.ctx.Clone(),
 		order:      append([]OrderFunc{}, gfq.order...),
+		inters:     append([]Interceptor{}, gfq.inters...),
 		predicates: append([]predicate.GoogleFlow{}, gfq.predicates...),
 		// clone intermediate query.
-		sql:    gfq.sql.Clone(),
-		path:   gfq.path,
-		unique: gfq.unique,
+		sql:  gfq.sql.Clone(),
+		path: gfq.path,
 	}
 }
 
@@ -278,16 +284,11 @@ func (gfq *GoogleFlowQuery) Clone() *GoogleFlowQuery {
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
 func (gfq *GoogleFlowQuery) GroupBy(field string, fields ...string) *GoogleFlowGroupBy {
-	grbuild := &GoogleFlowGroupBy{config: gfq.config}
-	grbuild.fields = append([]string{field}, fields...)
-	grbuild.path = func(ctx context.Context) (prev *sql.Selector, err error) {
-		if err := gfq.prepareQuery(ctx); err != nil {
-			return nil, err
-		}
-		return gfq.sqlQuery(ctx), nil
-	}
+	gfq.ctx.Fields = append([]string{field}, fields...)
+	grbuild := &GoogleFlowGroupBy{build: gfq}
+	grbuild.flds = &gfq.ctx.Fields
 	grbuild.label = googleflow.Label
-	grbuild.flds, grbuild.scan = &grbuild.fields, grbuild.Scan
+	grbuild.scan = grbuild.Scan
 	return grbuild
 }
 
@@ -304,11 +305,11 @@ func (gfq *GoogleFlowQuery) GroupBy(field string, fields ...string) *GoogleFlowG
 //		Select(googleflow.FieldCreatedAt).
 //		Scan(ctx, &v)
 func (gfq *GoogleFlowQuery) Select(fields ...string) *GoogleFlowSelect {
-	gfq.fields = append(gfq.fields, fields...)
-	selbuild := &GoogleFlowSelect{GoogleFlowQuery: gfq}
-	selbuild.label = googleflow.Label
-	selbuild.flds, selbuild.scan = &gfq.fields, selbuild.Scan
-	return selbuild
+	gfq.ctx.Fields = append(gfq.ctx.Fields, fields...)
+	sbuild := &GoogleFlowSelect{GoogleFlowQuery: gfq}
+	sbuild.label = googleflow.Label
+	sbuild.flds, sbuild.scan = &gfq.ctx.Fields, sbuild.Scan
+	return sbuild
 }
 
 // Aggregate returns a GoogleFlowSelect configured with the given aggregations.
@@ -317,7 +318,17 @@ func (gfq *GoogleFlowQuery) Aggregate(fns ...AggregateFunc) *GoogleFlowSelect {
 }
 
 func (gfq *GoogleFlowQuery) prepareQuery(ctx context.Context) error {
-	for _, f := range gfq.fields {
+	for _, inter := range gfq.inters {
+		if inter == nil {
+			return fmt.Errorf("ent: uninitialized interceptor (forgotten import ent/runtime?)")
+		}
+		if trv, ok := inter.(Traverser); ok {
+			if err := trv.Traverse(ctx, gfq); err != nil {
+				return err
+			}
+		}
+	}
+	for _, f := range gfq.ctx.Fields {
 		if !googleflow.ValidColumn(f) {
 			return &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
 		}
@@ -359,22 +370,11 @@ func (gfq *GoogleFlowQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*
 
 func (gfq *GoogleFlowQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := gfq.querySpec()
-	_spec.Node.Columns = gfq.fields
-	if len(gfq.fields) > 0 {
-		_spec.Unique = gfq.unique != nil && *gfq.unique
+	_spec.Node.Columns = gfq.ctx.Fields
+	if len(gfq.ctx.Fields) > 0 {
+		_spec.Unique = gfq.ctx.Unique != nil && *gfq.ctx.Unique
 	}
 	return sqlgraph.CountNodes(ctx, gfq.driver, _spec)
-}
-
-func (gfq *GoogleFlowQuery) sqlExist(ctx context.Context) (bool, error) {
-	switch _, err := gfq.FirstID(ctx); {
-	case IsNotFound(err):
-		return false, nil
-	case err != nil:
-		return false, fmt.Errorf("ent: check existence: %w", err)
-	default:
-		return true, nil
-	}
 }
 
 func (gfq *GoogleFlowQuery) querySpec() *sqlgraph.QuerySpec {
@@ -390,10 +390,10 @@ func (gfq *GoogleFlowQuery) querySpec() *sqlgraph.QuerySpec {
 		From:   gfq.sql,
 		Unique: true,
 	}
-	if unique := gfq.unique; unique != nil {
+	if unique := gfq.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
 	}
-	if fields := gfq.fields; len(fields) > 0 {
+	if fields := gfq.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
 		_spec.Node.Columns = append(_spec.Node.Columns, googleflow.FieldID)
 		for i := range fields {
@@ -409,10 +409,10 @@ func (gfq *GoogleFlowQuery) querySpec() *sqlgraph.QuerySpec {
 			}
 		}
 	}
-	if limit := gfq.limit; limit != nil {
+	if limit := gfq.ctx.Limit; limit != nil {
 		_spec.Limit = *limit
 	}
-	if offset := gfq.offset; offset != nil {
+	if offset := gfq.ctx.Offset; offset != nil {
 		_spec.Offset = *offset
 	}
 	if ps := gfq.order; len(ps) > 0 {
@@ -428,7 +428,7 @@ func (gfq *GoogleFlowQuery) querySpec() *sqlgraph.QuerySpec {
 func (gfq *GoogleFlowQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	builder := sql.Dialect(gfq.driver.Dialect())
 	t1 := builder.Table(googleflow.Table)
-	columns := gfq.fields
+	columns := gfq.ctx.Fields
 	if len(columns) == 0 {
 		columns = googleflow.Columns
 	}
@@ -437,7 +437,7 @@ func (gfq *GoogleFlowQuery) sqlQuery(ctx context.Context) *sql.Selector {
 		selector = gfq.sql
 		selector.Select(selector.Columns(columns...)...)
 	}
-	if gfq.unique != nil && *gfq.unique {
+	if gfq.ctx.Unique != nil && *gfq.ctx.Unique {
 		selector.Distinct()
 	}
 	for _, p := range gfq.predicates {
@@ -446,12 +446,12 @@ func (gfq *GoogleFlowQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	for _, p := range gfq.order {
 		p(selector)
 	}
-	if offset := gfq.offset; offset != nil {
+	if offset := gfq.ctx.Offset; offset != nil {
 		// limit is mandatory for offset clause. We start
 		// with default value, and override it below if needed.
 		selector.Offset(*offset).Limit(math.MaxInt32)
 	}
-	if limit := gfq.limit; limit != nil {
+	if limit := gfq.ctx.Limit; limit != nil {
 		selector.Limit(*limit)
 	}
 	return selector
@@ -459,13 +459,8 @@ func (gfq *GoogleFlowQuery) sqlQuery(ctx context.Context) *sql.Selector {
 
 // GoogleFlowGroupBy is the group-by builder for GoogleFlow entities.
 type GoogleFlowGroupBy struct {
-	config
 	selector
-	fields []string
-	fns    []AggregateFunc
-	// intermediate query (i.e. traversal path).
-	sql  *sql.Selector
-	path func(context.Context) (*sql.Selector, error)
+	build *GoogleFlowQuery
 }
 
 // Aggregate adds the given aggregation functions to the group-by query.
@@ -474,58 +469,46 @@ func (gfgb *GoogleFlowGroupBy) Aggregate(fns ...AggregateFunc) *GoogleFlowGroupB
 	return gfgb
 }
 
-// Scan applies the group-by query and scans the result into the given value.
+// Scan applies the selector query and scans the result into the given value.
 func (gfgb *GoogleFlowGroupBy) Scan(ctx context.Context, v any) error {
-	query, err := gfgb.path(ctx)
-	if err != nil {
+	ctx = setContextOp(ctx, gfgb.build.ctx, "GroupBy")
+	if err := gfgb.build.prepareQuery(ctx); err != nil {
 		return err
 	}
-	gfgb.sql = query
-	return gfgb.sqlScan(ctx, v)
+	return scanWithInterceptors[*GoogleFlowQuery, *GoogleFlowGroupBy](ctx, gfgb.build, gfgb, gfgb.build.inters, v)
 }
 
-func (gfgb *GoogleFlowGroupBy) sqlScan(ctx context.Context, v any) error {
-	for _, f := range gfgb.fields {
-		if !googleflow.ValidColumn(f) {
-			return &ValidationError{Name: f, err: fmt.Errorf("invalid field %q for group-by", f)}
-		}
+func (gfgb *GoogleFlowGroupBy) sqlScan(ctx context.Context, root *GoogleFlowQuery, v any) error {
+	selector := root.sqlQuery(ctx).Select()
+	aggregation := make([]string, 0, len(gfgb.fns))
+	for _, fn := range gfgb.fns {
+		aggregation = append(aggregation, fn(selector))
 	}
-	selector := gfgb.sqlQuery()
+	if len(selector.SelectedColumns()) == 0 {
+		columns := make([]string, 0, len(*gfgb.flds)+len(gfgb.fns))
+		for _, f := range *gfgb.flds {
+			columns = append(columns, selector.C(f))
+		}
+		columns = append(columns, aggregation...)
+		selector.Select(columns...)
+	}
+	selector.GroupBy(selector.Columns(*gfgb.flds...)...)
 	if err := selector.Err(); err != nil {
 		return err
 	}
 	rows := &sql.Rows{}
 	query, args := selector.Query()
-	if err := gfgb.driver.Query(ctx, query, args, rows); err != nil {
+	if err := gfgb.build.driver.Query(ctx, query, args, rows); err != nil {
 		return err
 	}
 	defer rows.Close()
 	return sql.ScanSlice(rows, v)
 }
 
-func (gfgb *GoogleFlowGroupBy) sqlQuery() *sql.Selector {
-	selector := gfgb.sql.Select()
-	aggregation := make([]string, 0, len(gfgb.fns))
-	for _, fn := range gfgb.fns {
-		aggregation = append(aggregation, fn(selector))
-	}
-	if len(selector.SelectedColumns()) == 0 {
-		columns := make([]string, 0, len(gfgb.fields)+len(gfgb.fns))
-		for _, f := range gfgb.fields {
-			columns = append(columns, selector.C(f))
-		}
-		columns = append(columns, aggregation...)
-		selector.Select(columns...)
-	}
-	return selector.GroupBy(selector.Columns(gfgb.fields...)...)
-}
-
 // GoogleFlowSelect is the builder for selecting fields of GoogleFlow entities.
 type GoogleFlowSelect struct {
 	*GoogleFlowQuery
 	selector
-	// intermediate query (i.e. traversal path).
-	sql *sql.Selector
 }
 
 // Aggregate adds the given aggregation functions to the selector query.
@@ -536,26 +519,27 @@ func (gfs *GoogleFlowSelect) Aggregate(fns ...AggregateFunc) *GoogleFlowSelect {
 
 // Scan applies the selector query and scans the result into the given value.
 func (gfs *GoogleFlowSelect) Scan(ctx context.Context, v any) error {
+	ctx = setContextOp(ctx, gfs.ctx, "Select")
 	if err := gfs.prepareQuery(ctx); err != nil {
 		return err
 	}
-	gfs.sql = gfs.GoogleFlowQuery.sqlQuery(ctx)
-	return gfs.sqlScan(ctx, v)
+	return scanWithInterceptors[*GoogleFlowQuery, *GoogleFlowSelect](ctx, gfs.GoogleFlowQuery, gfs, gfs.inters, v)
 }
 
-func (gfs *GoogleFlowSelect) sqlScan(ctx context.Context, v any) error {
+func (gfs *GoogleFlowSelect) sqlScan(ctx context.Context, root *GoogleFlowQuery, v any) error {
+	selector := root.sqlQuery(ctx)
 	aggregation := make([]string, 0, len(gfs.fns))
 	for _, fn := range gfs.fns {
-		aggregation = append(aggregation, fn(gfs.sql))
+		aggregation = append(aggregation, fn(selector))
 	}
 	switch n := len(*gfs.selector.flds); {
 	case n == 0 && len(aggregation) > 0:
-		gfs.sql.Select(aggregation...)
+		selector.Select(aggregation...)
 	case n != 0 && len(aggregation) > 0:
-		gfs.sql.AppendSelect(aggregation...)
+		selector.AppendSelect(aggregation...)
 	}
 	rows := &sql.Rows{}
-	query, args := gfs.sql.Query()
+	query, args := selector.Query()
 	if err := gfs.driver.Query(ctx, query, args, rows); err != nil {
 		return err
 	}

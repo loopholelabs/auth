@@ -33,11 +33,9 @@ import (
 // GithubFlowQuery is the builder for querying GithubFlow entities.
 type GithubFlowQuery struct {
 	config
-	limit      *int
-	offset     *int
-	unique     *bool
+	ctx        *QueryContext
 	order      []OrderFunc
-	fields     []string
+	inters     []Interceptor
 	predicates []predicate.GithubFlow
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
@@ -50,26 +48,26 @@ func (gfq *GithubFlowQuery) Where(ps ...predicate.GithubFlow) *GithubFlowQuery {
 	return gfq
 }
 
-// Limit adds a limit step to the query.
+// Limit the number of records to be returned by this query.
 func (gfq *GithubFlowQuery) Limit(limit int) *GithubFlowQuery {
-	gfq.limit = &limit
+	gfq.ctx.Limit = &limit
 	return gfq
 }
 
-// Offset adds an offset step to the query.
+// Offset to start from.
 func (gfq *GithubFlowQuery) Offset(offset int) *GithubFlowQuery {
-	gfq.offset = &offset
+	gfq.ctx.Offset = &offset
 	return gfq
 }
 
 // Unique configures the query builder to filter duplicate records on query.
 // By default, unique is set to true, and can be disabled using this method.
 func (gfq *GithubFlowQuery) Unique(unique bool) *GithubFlowQuery {
-	gfq.unique = &unique
+	gfq.ctx.Unique = &unique
 	return gfq
 }
 
-// Order adds an order step to the query.
+// Order specifies how the records should be ordered.
 func (gfq *GithubFlowQuery) Order(o ...OrderFunc) *GithubFlowQuery {
 	gfq.order = append(gfq.order, o...)
 	return gfq
@@ -78,7 +76,7 @@ func (gfq *GithubFlowQuery) Order(o ...OrderFunc) *GithubFlowQuery {
 // First returns the first GithubFlow entity from the query.
 // Returns a *NotFoundError when no GithubFlow was found.
 func (gfq *GithubFlowQuery) First(ctx context.Context) (*GithubFlow, error) {
-	nodes, err := gfq.Limit(1).All(ctx)
+	nodes, err := gfq.Limit(1).All(setContextOp(ctx, gfq.ctx, "First"))
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +99,7 @@ func (gfq *GithubFlowQuery) FirstX(ctx context.Context) *GithubFlow {
 // Returns a *NotFoundError when no GithubFlow ID was found.
 func (gfq *GithubFlowQuery) FirstID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = gfq.Limit(1).IDs(ctx); err != nil {
+	if ids, err = gfq.Limit(1).IDs(setContextOp(ctx, gfq.ctx, "FirstID")); err != nil {
 		return
 	}
 	if len(ids) == 0 {
@@ -124,7 +122,7 @@ func (gfq *GithubFlowQuery) FirstIDX(ctx context.Context) int {
 // Returns a *NotSingularError when more than one GithubFlow entity is found.
 // Returns a *NotFoundError when no GithubFlow entities are found.
 func (gfq *GithubFlowQuery) Only(ctx context.Context) (*GithubFlow, error) {
-	nodes, err := gfq.Limit(2).All(ctx)
+	nodes, err := gfq.Limit(2).All(setContextOp(ctx, gfq.ctx, "Only"))
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +150,7 @@ func (gfq *GithubFlowQuery) OnlyX(ctx context.Context) *GithubFlow {
 // Returns a *NotFoundError when no entities are found.
 func (gfq *GithubFlowQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = gfq.Limit(2).IDs(ctx); err != nil {
+	if ids, err = gfq.Limit(2).IDs(setContextOp(ctx, gfq.ctx, "OnlyID")); err != nil {
 		return
 	}
 	switch len(ids) {
@@ -177,10 +175,12 @@ func (gfq *GithubFlowQuery) OnlyIDX(ctx context.Context) int {
 
 // All executes the query and returns a list of GithubFlows.
 func (gfq *GithubFlowQuery) All(ctx context.Context) ([]*GithubFlow, error) {
+	ctx = setContextOp(ctx, gfq.ctx, "All")
 	if err := gfq.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
-	return gfq.sqlAll(ctx)
+	qr := querierAll[[]*GithubFlow, *GithubFlowQuery]()
+	return withInterceptors[[]*GithubFlow](ctx, gfq, qr, gfq.inters)
 }
 
 // AllX is like All, but panics if an error occurs.
@@ -195,6 +195,7 @@ func (gfq *GithubFlowQuery) AllX(ctx context.Context) []*GithubFlow {
 // IDs executes the query and returns a list of GithubFlow IDs.
 func (gfq *GithubFlowQuery) IDs(ctx context.Context) ([]int, error) {
 	var ids []int
+	ctx = setContextOp(ctx, gfq.ctx, "IDs")
 	if err := gfq.Select(githubflow.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
@@ -212,10 +213,11 @@ func (gfq *GithubFlowQuery) IDsX(ctx context.Context) []int {
 
 // Count returns the count of the given query.
 func (gfq *GithubFlowQuery) Count(ctx context.Context) (int, error) {
+	ctx = setContextOp(ctx, gfq.ctx, "Count")
 	if err := gfq.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
-	return gfq.sqlCount(ctx)
+	return withInterceptors[int](ctx, gfq, querierCount[*GithubFlowQuery](), gfq.inters)
 }
 
 // CountX is like Count, but panics if an error occurs.
@@ -229,10 +231,15 @@ func (gfq *GithubFlowQuery) CountX(ctx context.Context) int {
 
 // Exist returns true if the query has elements in the graph.
 func (gfq *GithubFlowQuery) Exist(ctx context.Context) (bool, error) {
-	if err := gfq.prepareQuery(ctx); err != nil {
-		return false, err
+	ctx = setContextOp(ctx, gfq.ctx, "Exist")
+	switch _, err := gfq.FirstID(ctx); {
+	case IsNotFound(err):
+		return false, nil
+	case err != nil:
+		return false, fmt.Errorf("ent: check existence: %w", err)
+	default:
+		return true, nil
 	}
-	return gfq.sqlExist(ctx)
 }
 
 // ExistX is like Exist, but panics if an error occurs.
@@ -252,14 +259,13 @@ func (gfq *GithubFlowQuery) Clone() *GithubFlowQuery {
 	}
 	return &GithubFlowQuery{
 		config:     gfq.config,
-		limit:      gfq.limit,
-		offset:     gfq.offset,
+		ctx:        gfq.ctx.Clone(),
 		order:      append([]OrderFunc{}, gfq.order...),
+		inters:     append([]Interceptor{}, gfq.inters...),
 		predicates: append([]predicate.GithubFlow{}, gfq.predicates...),
 		// clone intermediate query.
-		sql:    gfq.sql.Clone(),
-		path:   gfq.path,
-		unique: gfq.unique,
+		sql:  gfq.sql.Clone(),
+		path: gfq.path,
 	}
 }
 
@@ -278,16 +284,11 @@ func (gfq *GithubFlowQuery) Clone() *GithubFlowQuery {
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
 func (gfq *GithubFlowQuery) GroupBy(field string, fields ...string) *GithubFlowGroupBy {
-	grbuild := &GithubFlowGroupBy{config: gfq.config}
-	grbuild.fields = append([]string{field}, fields...)
-	grbuild.path = func(ctx context.Context) (prev *sql.Selector, err error) {
-		if err := gfq.prepareQuery(ctx); err != nil {
-			return nil, err
-		}
-		return gfq.sqlQuery(ctx), nil
-	}
+	gfq.ctx.Fields = append([]string{field}, fields...)
+	grbuild := &GithubFlowGroupBy{build: gfq}
+	grbuild.flds = &gfq.ctx.Fields
 	grbuild.label = githubflow.Label
-	grbuild.flds, grbuild.scan = &grbuild.fields, grbuild.Scan
+	grbuild.scan = grbuild.Scan
 	return grbuild
 }
 
@@ -304,11 +305,11 @@ func (gfq *GithubFlowQuery) GroupBy(field string, fields ...string) *GithubFlowG
 //		Select(githubflow.FieldCreatedAt).
 //		Scan(ctx, &v)
 func (gfq *GithubFlowQuery) Select(fields ...string) *GithubFlowSelect {
-	gfq.fields = append(gfq.fields, fields...)
-	selbuild := &GithubFlowSelect{GithubFlowQuery: gfq}
-	selbuild.label = githubflow.Label
-	selbuild.flds, selbuild.scan = &gfq.fields, selbuild.Scan
-	return selbuild
+	gfq.ctx.Fields = append(gfq.ctx.Fields, fields...)
+	sbuild := &GithubFlowSelect{GithubFlowQuery: gfq}
+	sbuild.label = githubflow.Label
+	sbuild.flds, sbuild.scan = &gfq.ctx.Fields, sbuild.Scan
+	return sbuild
 }
 
 // Aggregate returns a GithubFlowSelect configured with the given aggregations.
@@ -317,7 +318,17 @@ func (gfq *GithubFlowQuery) Aggregate(fns ...AggregateFunc) *GithubFlowSelect {
 }
 
 func (gfq *GithubFlowQuery) prepareQuery(ctx context.Context) error {
-	for _, f := range gfq.fields {
+	for _, inter := range gfq.inters {
+		if inter == nil {
+			return fmt.Errorf("ent: uninitialized interceptor (forgotten import ent/runtime?)")
+		}
+		if trv, ok := inter.(Traverser); ok {
+			if err := trv.Traverse(ctx, gfq); err != nil {
+				return err
+			}
+		}
+	}
+	for _, f := range gfq.ctx.Fields {
 		if !githubflow.ValidColumn(f) {
 			return &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
 		}
@@ -359,22 +370,11 @@ func (gfq *GithubFlowQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*
 
 func (gfq *GithubFlowQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := gfq.querySpec()
-	_spec.Node.Columns = gfq.fields
-	if len(gfq.fields) > 0 {
-		_spec.Unique = gfq.unique != nil && *gfq.unique
+	_spec.Node.Columns = gfq.ctx.Fields
+	if len(gfq.ctx.Fields) > 0 {
+		_spec.Unique = gfq.ctx.Unique != nil && *gfq.ctx.Unique
 	}
 	return sqlgraph.CountNodes(ctx, gfq.driver, _spec)
-}
-
-func (gfq *GithubFlowQuery) sqlExist(ctx context.Context) (bool, error) {
-	switch _, err := gfq.FirstID(ctx); {
-	case IsNotFound(err):
-		return false, nil
-	case err != nil:
-		return false, fmt.Errorf("ent: check existence: %w", err)
-	default:
-		return true, nil
-	}
 }
 
 func (gfq *GithubFlowQuery) querySpec() *sqlgraph.QuerySpec {
@@ -390,10 +390,10 @@ func (gfq *GithubFlowQuery) querySpec() *sqlgraph.QuerySpec {
 		From:   gfq.sql,
 		Unique: true,
 	}
-	if unique := gfq.unique; unique != nil {
+	if unique := gfq.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
 	}
-	if fields := gfq.fields; len(fields) > 0 {
+	if fields := gfq.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
 		_spec.Node.Columns = append(_spec.Node.Columns, githubflow.FieldID)
 		for i := range fields {
@@ -409,10 +409,10 @@ func (gfq *GithubFlowQuery) querySpec() *sqlgraph.QuerySpec {
 			}
 		}
 	}
-	if limit := gfq.limit; limit != nil {
+	if limit := gfq.ctx.Limit; limit != nil {
 		_spec.Limit = *limit
 	}
-	if offset := gfq.offset; offset != nil {
+	if offset := gfq.ctx.Offset; offset != nil {
 		_spec.Offset = *offset
 	}
 	if ps := gfq.order; len(ps) > 0 {
@@ -428,7 +428,7 @@ func (gfq *GithubFlowQuery) querySpec() *sqlgraph.QuerySpec {
 func (gfq *GithubFlowQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	builder := sql.Dialect(gfq.driver.Dialect())
 	t1 := builder.Table(githubflow.Table)
-	columns := gfq.fields
+	columns := gfq.ctx.Fields
 	if len(columns) == 0 {
 		columns = githubflow.Columns
 	}
@@ -437,7 +437,7 @@ func (gfq *GithubFlowQuery) sqlQuery(ctx context.Context) *sql.Selector {
 		selector = gfq.sql
 		selector.Select(selector.Columns(columns...)...)
 	}
-	if gfq.unique != nil && *gfq.unique {
+	if gfq.ctx.Unique != nil && *gfq.ctx.Unique {
 		selector.Distinct()
 	}
 	for _, p := range gfq.predicates {
@@ -446,12 +446,12 @@ func (gfq *GithubFlowQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	for _, p := range gfq.order {
 		p(selector)
 	}
-	if offset := gfq.offset; offset != nil {
+	if offset := gfq.ctx.Offset; offset != nil {
 		// limit is mandatory for offset clause. We start
 		// with default value, and override it below if needed.
 		selector.Offset(*offset).Limit(math.MaxInt32)
 	}
-	if limit := gfq.limit; limit != nil {
+	if limit := gfq.ctx.Limit; limit != nil {
 		selector.Limit(*limit)
 	}
 	return selector
@@ -459,13 +459,8 @@ func (gfq *GithubFlowQuery) sqlQuery(ctx context.Context) *sql.Selector {
 
 // GithubFlowGroupBy is the group-by builder for GithubFlow entities.
 type GithubFlowGroupBy struct {
-	config
 	selector
-	fields []string
-	fns    []AggregateFunc
-	// intermediate query (i.e. traversal path).
-	sql  *sql.Selector
-	path func(context.Context) (*sql.Selector, error)
+	build *GithubFlowQuery
 }
 
 // Aggregate adds the given aggregation functions to the group-by query.
@@ -474,58 +469,46 @@ func (gfgb *GithubFlowGroupBy) Aggregate(fns ...AggregateFunc) *GithubFlowGroupB
 	return gfgb
 }
 
-// Scan applies the group-by query and scans the result into the given value.
+// Scan applies the selector query and scans the result into the given value.
 func (gfgb *GithubFlowGroupBy) Scan(ctx context.Context, v any) error {
-	query, err := gfgb.path(ctx)
-	if err != nil {
+	ctx = setContextOp(ctx, gfgb.build.ctx, "GroupBy")
+	if err := gfgb.build.prepareQuery(ctx); err != nil {
 		return err
 	}
-	gfgb.sql = query
-	return gfgb.sqlScan(ctx, v)
+	return scanWithInterceptors[*GithubFlowQuery, *GithubFlowGroupBy](ctx, gfgb.build, gfgb, gfgb.build.inters, v)
 }
 
-func (gfgb *GithubFlowGroupBy) sqlScan(ctx context.Context, v any) error {
-	for _, f := range gfgb.fields {
-		if !githubflow.ValidColumn(f) {
-			return &ValidationError{Name: f, err: fmt.Errorf("invalid field %q for group-by", f)}
-		}
+func (gfgb *GithubFlowGroupBy) sqlScan(ctx context.Context, root *GithubFlowQuery, v any) error {
+	selector := root.sqlQuery(ctx).Select()
+	aggregation := make([]string, 0, len(gfgb.fns))
+	for _, fn := range gfgb.fns {
+		aggregation = append(aggregation, fn(selector))
 	}
-	selector := gfgb.sqlQuery()
+	if len(selector.SelectedColumns()) == 0 {
+		columns := make([]string, 0, len(*gfgb.flds)+len(gfgb.fns))
+		for _, f := range *gfgb.flds {
+			columns = append(columns, selector.C(f))
+		}
+		columns = append(columns, aggregation...)
+		selector.Select(columns...)
+	}
+	selector.GroupBy(selector.Columns(*gfgb.flds...)...)
 	if err := selector.Err(); err != nil {
 		return err
 	}
 	rows := &sql.Rows{}
 	query, args := selector.Query()
-	if err := gfgb.driver.Query(ctx, query, args, rows); err != nil {
+	if err := gfgb.build.driver.Query(ctx, query, args, rows); err != nil {
 		return err
 	}
 	defer rows.Close()
 	return sql.ScanSlice(rows, v)
 }
 
-func (gfgb *GithubFlowGroupBy) sqlQuery() *sql.Selector {
-	selector := gfgb.sql.Select()
-	aggregation := make([]string, 0, len(gfgb.fns))
-	for _, fn := range gfgb.fns {
-		aggregation = append(aggregation, fn(selector))
-	}
-	if len(selector.SelectedColumns()) == 0 {
-		columns := make([]string, 0, len(gfgb.fields)+len(gfgb.fns))
-		for _, f := range gfgb.fields {
-			columns = append(columns, selector.C(f))
-		}
-		columns = append(columns, aggregation...)
-		selector.Select(columns...)
-	}
-	return selector.GroupBy(selector.Columns(gfgb.fields...)...)
-}
-
 // GithubFlowSelect is the builder for selecting fields of GithubFlow entities.
 type GithubFlowSelect struct {
 	*GithubFlowQuery
 	selector
-	// intermediate query (i.e. traversal path).
-	sql *sql.Selector
 }
 
 // Aggregate adds the given aggregation functions to the selector query.
@@ -536,26 +519,27 @@ func (gfs *GithubFlowSelect) Aggregate(fns ...AggregateFunc) *GithubFlowSelect {
 
 // Scan applies the selector query and scans the result into the given value.
 func (gfs *GithubFlowSelect) Scan(ctx context.Context, v any) error {
+	ctx = setContextOp(ctx, gfs.ctx, "Select")
 	if err := gfs.prepareQuery(ctx); err != nil {
 		return err
 	}
-	gfs.sql = gfs.GithubFlowQuery.sqlQuery(ctx)
-	return gfs.sqlScan(ctx, v)
+	return scanWithInterceptors[*GithubFlowQuery, *GithubFlowSelect](ctx, gfs.GithubFlowQuery, gfs, gfs.inters, v)
 }
 
-func (gfs *GithubFlowSelect) sqlScan(ctx context.Context, v any) error {
+func (gfs *GithubFlowSelect) sqlScan(ctx context.Context, root *GithubFlowQuery, v any) error {
+	selector := root.sqlQuery(ctx)
 	aggregation := make([]string, 0, len(gfs.fns))
 	for _, fn := range gfs.fns {
-		aggregation = append(aggregation, fn(gfs.sql))
+		aggregation = append(aggregation, fn(selector))
 	}
 	switch n := len(*gfs.selector.flds); {
 	case n == 0 && len(aggregation) > 0:
-		gfs.sql.Select(aggregation...)
+		selector.Select(aggregation...)
 	case n != 0 && len(aggregation) > 0:
-		gfs.sql.AppendSelect(aggregation...)
+		selector.AppendSelect(aggregation...)
 	}
 	rows := &sql.Rows{}
-	query, args := gfs.sql.Query()
+	query, args := selector.Query()
 	if err := gfs.driver.Query(ctx, query, args, rows); err != nil {
 		return err
 	}

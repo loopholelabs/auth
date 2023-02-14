@@ -1,6 +1,6 @@
 module github.com/loopholelabs/auth
 
-go 1.18
+go 1.20
 
 require (
 	entgo.io/ent v0.11.7

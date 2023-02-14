@@ -20,7 +20,6 @@ package ent
 
 import (
 	"context"
-	"fmt"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -44,34 +43,7 @@ func (mfd *MagicFlowDelete) Where(ps ...predicate.MagicFlow) *MagicFlowDelete {
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (mfd *MagicFlowDelete) Exec(ctx context.Context) (int, error) {
-	var (
-		err      error
-		affected int
-	)
-	if len(mfd.hooks) == 0 {
-		affected, err = mfd.sqlExec(ctx)
-	} else {
-		var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-			mutation, ok := m.(*MagicFlowMutation)
-			if !ok {
-				return nil, fmt.Errorf("unexpected mutation type %T", m)
-			}
-			mfd.mutation = mutation
-			affected, err = mfd.sqlExec(ctx)
-			mutation.done = true
-			return affected, err
-		})
-		for i := len(mfd.hooks) - 1; i >= 0; i-- {
-			if mfd.hooks[i] == nil {
-				return 0, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
-			}
-			mut = mfd.hooks[i](mut)
-		}
-		if _, err := mut.Mutate(ctx, mfd.mutation); err != nil {
-			return 0, err
-		}
-	}
-	return affected, err
+	return withHooks[int, MagicFlowMutation](ctx, mfd.sqlExec, mfd.mutation, mfd.hooks)
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -104,12 +76,19 @@ func (mfd *MagicFlowDelete) sqlExec(ctx context.Context) (int, error) {
 	if err != nil && sqlgraph.IsConstraintError(err) {
 		err = &ConstraintError{msg: err.Error(), wrap: err}
 	}
+	mfd.mutation.done = true
 	return affected, err
 }
 
 // MagicFlowDeleteOne is the builder for deleting a single MagicFlow entity.
 type MagicFlowDeleteOne struct {
 	mfd *MagicFlowDelete
+}
+
+// Where appends a list predicates to the MagicFlowDelete builder.
+func (mfdo *MagicFlowDeleteOne) Where(ps ...predicate.MagicFlow) *MagicFlowDeleteOne {
+	mfdo.mfd.mutation.Where(ps...)
+	return mfdo
 }
 
 // Exec executes the deletion query.
@@ -127,5 +106,7 @@ func (mfdo *MagicFlowDeleteOne) Exec(ctx context.Context) error {
 
 // ExecX is like Exec, but panics if an error occurs.
 func (mfdo *MagicFlowDeleteOne) ExecX(ctx context.Context) {
-	mfdo.mfd.ExecX(ctx)
+	if err := mfdo.Exec(ctx); err != nil {
+		panic(err)
+	}
 }

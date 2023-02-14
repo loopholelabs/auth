@@ -54,3 +54,7 @@ type UserInfoResponse struct {
 	Session      auth.Kind `enums:"session,api,service"`
 	Organization string    `json:"organization"`
 }
+
+type HealthResponse struct {
+	Subscriptions bool `json:"subscriptions"`
+}

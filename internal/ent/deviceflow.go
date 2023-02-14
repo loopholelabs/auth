@@ -131,7 +131,7 @@ func (df *DeviceFlow) assignValues(columns []string, values []any) error {
 // Note that you need to call DeviceFlow.Unwrap() before calling this method if this DeviceFlow
 // was returned from a transaction, and the transaction was committed or rolled back.
 func (df *DeviceFlow) Update() *DeviceFlowUpdateOne {
-	return (&DeviceFlowClient{config: df.config}).UpdateOne(df)
+	return NewDeviceFlowClient(df.config).UpdateOne(df)
 }
 
 // Unwrap unwraps the DeviceFlow entity that was returned from a transaction after it was closed,

@@ -27,738 +27,482 @@ import (
 
 // ID filters vertices based on their ID field.
 func ID(id int) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldID), id))
-	})
+	return predicate.DeviceFlow(sql.FieldEQ(FieldID, id))
 }
 
 // IDEQ applies the EQ predicate on the ID field.
 func IDEQ(id int) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldID), id))
-	})
+	return predicate.DeviceFlow(sql.FieldEQ(FieldID, id))
 }
 
 // IDNEQ applies the NEQ predicate on the ID field.
 func IDNEQ(id int) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.NEQ(s.C(FieldID), id))
-	})
+	return predicate.DeviceFlow(sql.FieldNEQ(FieldID, id))
 }
 
 // IDIn applies the In predicate on the ID field.
 func IDIn(ids ...int) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		v := make([]any, len(ids))
-		for i := range v {
-			v[i] = ids[i]
-		}
-		s.Where(sql.In(s.C(FieldID), v...))
-	})
+	return predicate.DeviceFlow(sql.FieldIn(FieldID, ids...))
 }
 
 // IDNotIn applies the NotIn predicate on the ID field.
 func IDNotIn(ids ...int) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		v := make([]any, len(ids))
-		for i := range v {
-			v[i] = ids[i]
-		}
-		s.Where(sql.NotIn(s.C(FieldID), v...))
-	})
+	return predicate.DeviceFlow(sql.FieldNotIn(FieldID, ids...))
 }
 
 // IDGT applies the GT predicate on the ID field.
 func IDGT(id int) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.GT(s.C(FieldID), id))
-	})
+	return predicate.DeviceFlow(sql.FieldGT(FieldID, id))
 }
 
 // IDGTE applies the GTE predicate on the ID field.
 func IDGTE(id int) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.GTE(s.C(FieldID), id))
-	})
+	return predicate.DeviceFlow(sql.FieldGTE(FieldID, id))
 }
 
 // IDLT applies the LT predicate on the ID field.
 func IDLT(id int) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.LT(s.C(FieldID), id))
-	})
+	return predicate.DeviceFlow(sql.FieldLT(FieldID, id))
 }
 
 // IDLTE applies the LTE predicate on the ID field.
 func IDLTE(id int) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.LTE(s.C(FieldID), id))
-	})
+	return predicate.DeviceFlow(sql.FieldLTE(FieldID, id))
 }
 
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldCreatedAt), v))
-	})
+	return predicate.DeviceFlow(sql.FieldEQ(FieldCreatedAt, v))
 }
 
 // LastPoll applies equality check predicate on the "last_poll" field. It's identical to LastPollEQ.
 func LastPoll(v time.Time) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldLastPoll), v))
-	})
+	return predicate.DeviceFlow(sql.FieldEQ(FieldLastPoll, v))
 }
 
 // Identifier applies equality check predicate on the "identifier" field. It's identical to IdentifierEQ.
 func Identifier(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldIdentifier), v))
-	})
+	return predicate.DeviceFlow(sql.FieldEQ(FieldIdentifier, v))
 }
 
 // DeviceCode applies equality check predicate on the "device_code" field. It's identical to DeviceCodeEQ.
 func DeviceCode(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldDeviceCode), v))
-	})
+	return predicate.DeviceFlow(sql.FieldEQ(FieldDeviceCode, v))
 }
 
 // UserCode applies equality check predicate on the "user_code" field. It's identical to UserCodeEQ.
 func UserCode(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldUserCode), v))
-	})
+	return predicate.DeviceFlow(sql.FieldEQ(FieldUserCode, v))
 }
 
 // Session applies equality check predicate on the "session" field. It's identical to SessionEQ.
 func Session(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldSession), v))
-	})
+	return predicate.DeviceFlow(sql.FieldEQ(FieldSession, v))
 }
 
 // ExpiresAt applies equality check predicate on the "expires_at" field. It's identical to ExpiresAtEQ.
 func ExpiresAt(v time.Time) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldExpiresAt), v))
-	})
+	return predicate.DeviceFlow(sql.FieldEQ(FieldExpiresAt, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldCreatedAt), v))
-	})
+	return predicate.DeviceFlow(sql.FieldEQ(FieldCreatedAt, v))
 }
 
 // CreatedAtNEQ applies the NEQ predicate on the "created_at" field.
 func CreatedAtNEQ(v time.Time) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.NEQ(s.C(FieldCreatedAt), v))
-	})
+	return predicate.DeviceFlow(sql.FieldNEQ(FieldCreatedAt, v))
 }
 
 // CreatedAtIn applies the In predicate on the "created_at" field.
 func CreatedAtIn(vs ...time.Time) predicate.DeviceFlow {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.In(s.C(FieldCreatedAt), v...))
-	})
+	return predicate.DeviceFlow(sql.FieldIn(FieldCreatedAt, vs...))
 }
 
 // CreatedAtNotIn applies the NotIn predicate on the "created_at" field.
 func CreatedAtNotIn(vs ...time.Time) predicate.DeviceFlow {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.NotIn(s.C(FieldCreatedAt), v...))
-	})
+	return predicate.DeviceFlow(sql.FieldNotIn(FieldCreatedAt, vs...))
 }
 
 // CreatedAtGT applies the GT predicate on the "created_at" field.
 func CreatedAtGT(v time.Time) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.GT(s.C(FieldCreatedAt), v))
-	})
+	return predicate.DeviceFlow(sql.FieldGT(FieldCreatedAt, v))
 }
 
 // CreatedAtGTE applies the GTE predicate on the "created_at" field.
 func CreatedAtGTE(v time.Time) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.GTE(s.C(FieldCreatedAt), v))
-	})
+	return predicate.DeviceFlow(sql.FieldGTE(FieldCreatedAt, v))
 }
 
 // CreatedAtLT applies the LT predicate on the "created_at" field.
 func CreatedAtLT(v time.Time) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.LT(s.C(FieldCreatedAt), v))
-	})
+	return predicate.DeviceFlow(sql.FieldLT(FieldCreatedAt, v))
 }
 
 // CreatedAtLTE applies the LTE predicate on the "created_at" field.
 func CreatedAtLTE(v time.Time) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.LTE(s.C(FieldCreatedAt), v))
-	})
+	return predicate.DeviceFlow(sql.FieldLTE(FieldCreatedAt, v))
 }
 
 // LastPollEQ applies the EQ predicate on the "last_poll" field.
 func LastPollEQ(v time.Time) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldLastPoll), v))
-	})
+	return predicate.DeviceFlow(sql.FieldEQ(FieldLastPoll, v))
 }
 
 // LastPollNEQ applies the NEQ predicate on the "last_poll" field.
 func LastPollNEQ(v time.Time) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.NEQ(s.C(FieldLastPoll), v))
-	})
+	return predicate.DeviceFlow(sql.FieldNEQ(FieldLastPoll, v))
 }
 
 // LastPollIn applies the In predicate on the "last_poll" field.
 func LastPollIn(vs ...time.Time) predicate.DeviceFlow {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.In(s.C(FieldLastPoll), v...))
-	})
+	return predicate.DeviceFlow(sql.FieldIn(FieldLastPoll, vs...))
 }
 
 // LastPollNotIn applies the NotIn predicate on the "last_poll" field.
 func LastPollNotIn(vs ...time.Time) predicate.DeviceFlow {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.NotIn(s.C(FieldLastPoll), v...))
-	})
+	return predicate.DeviceFlow(sql.FieldNotIn(FieldLastPoll, vs...))
 }
 
 // LastPollGT applies the GT predicate on the "last_poll" field.
 func LastPollGT(v time.Time) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.GT(s.C(FieldLastPoll), v))
-	})
+	return predicate.DeviceFlow(sql.FieldGT(FieldLastPoll, v))
 }
 
 // LastPollGTE applies the GTE predicate on the "last_poll" field.
 func LastPollGTE(v time.Time) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.GTE(s.C(FieldLastPoll), v))
-	})
+	return predicate.DeviceFlow(sql.FieldGTE(FieldLastPoll, v))
 }
 
 // LastPollLT applies the LT predicate on the "last_poll" field.
 func LastPollLT(v time.Time) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.LT(s.C(FieldLastPoll), v))
-	})
+	return predicate.DeviceFlow(sql.FieldLT(FieldLastPoll, v))
 }
 
 // LastPollLTE applies the LTE predicate on the "last_poll" field.
 func LastPollLTE(v time.Time) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.LTE(s.C(FieldLastPoll), v))
-	})
+	return predicate.DeviceFlow(sql.FieldLTE(FieldLastPoll, v))
 }
 
 // IdentifierEQ applies the EQ predicate on the "identifier" field.
 func IdentifierEQ(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldIdentifier), v))
-	})
+	return predicate.DeviceFlow(sql.FieldEQ(FieldIdentifier, v))
 }
 
 // IdentifierNEQ applies the NEQ predicate on the "identifier" field.
 func IdentifierNEQ(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.NEQ(s.C(FieldIdentifier), v))
-	})
+	return predicate.DeviceFlow(sql.FieldNEQ(FieldIdentifier, v))
 }
 
 // IdentifierIn applies the In predicate on the "identifier" field.
 func IdentifierIn(vs ...string) predicate.DeviceFlow {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.In(s.C(FieldIdentifier), v...))
-	})
+	return predicate.DeviceFlow(sql.FieldIn(FieldIdentifier, vs...))
 }
 
 // IdentifierNotIn applies the NotIn predicate on the "identifier" field.
 func IdentifierNotIn(vs ...string) predicate.DeviceFlow {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.NotIn(s.C(FieldIdentifier), v...))
-	})
+	return predicate.DeviceFlow(sql.FieldNotIn(FieldIdentifier, vs...))
 }
 
 // IdentifierGT applies the GT predicate on the "identifier" field.
 func IdentifierGT(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.GT(s.C(FieldIdentifier), v))
-	})
+	return predicate.DeviceFlow(sql.FieldGT(FieldIdentifier, v))
 }
 
 // IdentifierGTE applies the GTE predicate on the "identifier" field.
 func IdentifierGTE(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.GTE(s.C(FieldIdentifier), v))
-	})
+	return predicate.DeviceFlow(sql.FieldGTE(FieldIdentifier, v))
 }
 
 // IdentifierLT applies the LT predicate on the "identifier" field.
 func IdentifierLT(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.LT(s.C(FieldIdentifier), v))
-	})
+	return predicate.DeviceFlow(sql.FieldLT(FieldIdentifier, v))
 }
 
 // IdentifierLTE applies the LTE predicate on the "identifier" field.
 func IdentifierLTE(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.LTE(s.C(FieldIdentifier), v))
-	})
+	return predicate.DeviceFlow(sql.FieldLTE(FieldIdentifier, v))
 }
 
 // IdentifierContains applies the Contains predicate on the "identifier" field.
 func IdentifierContains(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.Contains(s.C(FieldIdentifier), v))
-	})
+	return predicate.DeviceFlow(sql.FieldContains(FieldIdentifier, v))
 }
 
 // IdentifierHasPrefix applies the HasPrefix predicate on the "identifier" field.
 func IdentifierHasPrefix(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.HasPrefix(s.C(FieldIdentifier), v))
-	})
+	return predicate.DeviceFlow(sql.FieldHasPrefix(FieldIdentifier, v))
 }
 
 // IdentifierHasSuffix applies the HasSuffix predicate on the "identifier" field.
 func IdentifierHasSuffix(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.HasSuffix(s.C(FieldIdentifier), v))
-	})
+	return predicate.DeviceFlow(sql.FieldHasSuffix(FieldIdentifier, v))
 }
 
 // IdentifierEqualFold applies the EqualFold predicate on the "identifier" field.
 func IdentifierEqualFold(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.EqualFold(s.C(FieldIdentifier), v))
-	})
+	return predicate.DeviceFlow(sql.FieldEqualFold(FieldIdentifier, v))
 }
 
 // IdentifierContainsFold applies the ContainsFold predicate on the "identifier" field.
 func IdentifierContainsFold(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.ContainsFold(s.C(FieldIdentifier), v))
-	})
+	return predicate.DeviceFlow(sql.FieldContainsFold(FieldIdentifier, v))
 }
 
 // DeviceCodeEQ applies the EQ predicate on the "device_code" field.
 func DeviceCodeEQ(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldDeviceCode), v))
-	})
+	return predicate.DeviceFlow(sql.FieldEQ(FieldDeviceCode, v))
 }
 
 // DeviceCodeNEQ applies the NEQ predicate on the "device_code" field.
 func DeviceCodeNEQ(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.NEQ(s.C(FieldDeviceCode), v))
-	})
+	return predicate.DeviceFlow(sql.FieldNEQ(FieldDeviceCode, v))
 }
 
 // DeviceCodeIn applies the In predicate on the "device_code" field.
 func DeviceCodeIn(vs ...string) predicate.DeviceFlow {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.In(s.C(FieldDeviceCode), v...))
-	})
+	return predicate.DeviceFlow(sql.FieldIn(FieldDeviceCode, vs...))
 }
 
 // DeviceCodeNotIn applies the NotIn predicate on the "device_code" field.
 func DeviceCodeNotIn(vs ...string) predicate.DeviceFlow {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.NotIn(s.C(FieldDeviceCode), v...))
-	})
+	return predicate.DeviceFlow(sql.FieldNotIn(FieldDeviceCode, vs...))
 }
 
 // DeviceCodeGT applies the GT predicate on the "device_code" field.
 func DeviceCodeGT(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.GT(s.C(FieldDeviceCode), v))
-	})
+	return predicate.DeviceFlow(sql.FieldGT(FieldDeviceCode, v))
 }
 
 // DeviceCodeGTE applies the GTE predicate on the "device_code" field.
 func DeviceCodeGTE(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.GTE(s.C(FieldDeviceCode), v))
-	})
+	return predicate.DeviceFlow(sql.FieldGTE(FieldDeviceCode, v))
 }
 
 // DeviceCodeLT applies the LT predicate on the "device_code" field.
 func DeviceCodeLT(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.LT(s.C(FieldDeviceCode), v))
-	})
+	return predicate.DeviceFlow(sql.FieldLT(FieldDeviceCode, v))
 }
 
 // DeviceCodeLTE applies the LTE predicate on the "device_code" field.
 func DeviceCodeLTE(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.LTE(s.C(FieldDeviceCode), v))
-	})
+	return predicate.DeviceFlow(sql.FieldLTE(FieldDeviceCode, v))
 }
 
 // DeviceCodeContains applies the Contains predicate on the "device_code" field.
 func DeviceCodeContains(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.Contains(s.C(FieldDeviceCode), v))
-	})
+	return predicate.DeviceFlow(sql.FieldContains(FieldDeviceCode, v))
 }
 
 // DeviceCodeHasPrefix applies the HasPrefix predicate on the "device_code" field.
 func DeviceCodeHasPrefix(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.HasPrefix(s.C(FieldDeviceCode), v))
-	})
+	return predicate.DeviceFlow(sql.FieldHasPrefix(FieldDeviceCode, v))
 }
 
 // DeviceCodeHasSuffix applies the HasSuffix predicate on the "device_code" field.
 func DeviceCodeHasSuffix(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.HasSuffix(s.C(FieldDeviceCode), v))
-	})
+	return predicate.DeviceFlow(sql.FieldHasSuffix(FieldDeviceCode, v))
 }
 
 // DeviceCodeEqualFold applies the EqualFold predicate on the "device_code" field.
 func DeviceCodeEqualFold(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.EqualFold(s.C(FieldDeviceCode), v))
-	})
+	return predicate.DeviceFlow(sql.FieldEqualFold(FieldDeviceCode, v))
 }
 
 // DeviceCodeContainsFold applies the ContainsFold predicate on the "device_code" field.
 func DeviceCodeContainsFold(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.ContainsFold(s.C(FieldDeviceCode), v))
-	})
+	return predicate.DeviceFlow(sql.FieldContainsFold(FieldDeviceCode, v))
 }
 
 // UserCodeEQ applies the EQ predicate on the "user_code" field.
 func UserCodeEQ(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldUserCode), v))
-	})
+	return predicate.DeviceFlow(sql.FieldEQ(FieldUserCode, v))
 }
 
 // UserCodeNEQ applies the NEQ predicate on the "user_code" field.
 func UserCodeNEQ(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.NEQ(s.C(FieldUserCode), v))
-	})
+	return predicate.DeviceFlow(sql.FieldNEQ(FieldUserCode, v))
 }
 
 // UserCodeIn applies the In predicate on the "user_code" field.
 func UserCodeIn(vs ...string) predicate.DeviceFlow {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.In(s.C(FieldUserCode), v...))
-	})
+	return predicate.DeviceFlow(sql.FieldIn(FieldUserCode, vs...))
 }
 
 // UserCodeNotIn applies the NotIn predicate on the "user_code" field.
 func UserCodeNotIn(vs ...string) predicate.DeviceFlow {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.NotIn(s.C(FieldUserCode), v...))
-	})
+	return predicate.DeviceFlow(sql.FieldNotIn(FieldUserCode, vs...))
 }
 
 // UserCodeGT applies the GT predicate on the "user_code" field.
 func UserCodeGT(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.GT(s.C(FieldUserCode), v))
-	})
+	return predicate.DeviceFlow(sql.FieldGT(FieldUserCode, v))
 }
 
 // UserCodeGTE applies the GTE predicate on the "user_code" field.
 func UserCodeGTE(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.GTE(s.C(FieldUserCode), v))
-	})
+	return predicate.DeviceFlow(sql.FieldGTE(FieldUserCode, v))
 }
 
 // UserCodeLT applies the LT predicate on the "user_code" field.
 func UserCodeLT(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.LT(s.C(FieldUserCode), v))
-	})
+	return predicate.DeviceFlow(sql.FieldLT(FieldUserCode, v))
 }
 
 // UserCodeLTE applies the LTE predicate on the "user_code" field.
 func UserCodeLTE(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.LTE(s.C(FieldUserCode), v))
-	})
+	return predicate.DeviceFlow(sql.FieldLTE(FieldUserCode, v))
 }
 
 // UserCodeContains applies the Contains predicate on the "user_code" field.
 func UserCodeContains(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.Contains(s.C(FieldUserCode), v))
-	})
+	return predicate.DeviceFlow(sql.FieldContains(FieldUserCode, v))
 }
 
 // UserCodeHasPrefix applies the HasPrefix predicate on the "user_code" field.
 func UserCodeHasPrefix(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.HasPrefix(s.C(FieldUserCode), v))
-	})
+	return predicate.DeviceFlow(sql.FieldHasPrefix(FieldUserCode, v))
 }
 
 // UserCodeHasSuffix applies the HasSuffix predicate on the "user_code" field.
 func UserCodeHasSuffix(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.HasSuffix(s.C(FieldUserCode), v))
-	})
+	return predicate.DeviceFlow(sql.FieldHasSuffix(FieldUserCode, v))
 }
 
 // UserCodeEqualFold applies the EqualFold predicate on the "user_code" field.
 func UserCodeEqualFold(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.EqualFold(s.C(FieldUserCode), v))
-	})
+	return predicate.DeviceFlow(sql.FieldEqualFold(FieldUserCode, v))
 }
 
 // UserCodeContainsFold applies the ContainsFold predicate on the "user_code" field.
 func UserCodeContainsFold(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.ContainsFold(s.C(FieldUserCode), v))
-	})
+	return predicate.DeviceFlow(sql.FieldContainsFold(FieldUserCode, v))
 }
 
 // SessionEQ applies the EQ predicate on the "session" field.
 func SessionEQ(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldSession), v))
-	})
+	return predicate.DeviceFlow(sql.FieldEQ(FieldSession, v))
 }
 
 // SessionNEQ applies the NEQ predicate on the "session" field.
 func SessionNEQ(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.NEQ(s.C(FieldSession), v))
-	})
+	return predicate.DeviceFlow(sql.FieldNEQ(FieldSession, v))
 }
 
 // SessionIn applies the In predicate on the "session" field.
 func SessionIn(vs ...string) predicate.DeviceFlow {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.In(s.C(FieldSession), v...))
-	})
+	return predicate.DeviceFlow(sql.FieldIn(FieldSession, vs...))
 }
 
 // SessionNotIn applies the NotIn predicate on the "session" field.
 func SessionNotIn(vs ...string) predicate.DeviceFlow {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.NotIn(s.C(FieldSession), v...))
-	})
+	return predicate.DeviceFlow(sql.FieldNotIn(FieldSession, vs...))
 }
 
 // SessionGT applies the GT predicate on the "session" field.
 func SessionGT(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.GT(s.C(FieldSession), v))
-	})
+	return predicate.DeviceFlow(sql.FieldGT(FieldSession, v))
 }
 
 // SessionGTE applies the GTE predicate on the "session" field.
 func SessionGTE(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.GTE(s.C(FieldSession), v))
-	})
+	return predicate.DeviceFlow(sql.FieldGTE(FieldSession, v))
 }
 
 // SessionLT applies the LT predicate on the "session" field.
 func SessionLT(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.LT(s.C(FieldSession), v))
-	})
+	return predicate.DeviceFlow(sql.FieldLT(FieldSession, v))
 }
 
 // SessionLTE applies the LTE predicate on the "session" field.
 func SessionLTE(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.LTE(s.C(FieldSession), v))
-	})
+	return predicate.DeviceFlow(sql.FieldLTE(FieldSession, v))
 }
 
 // SessionContains applies the Contains predicate on the "session" field.
 func SessionContains(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.Contains(s.C(FieldSession), v))
-	})
+	return predicate.DeviceFlow(sql.FieldContains(FieldSession, v))
 }
 
 // SessionHasPrefix applies the HasPrefix predicate on the "session" field.
 func SessionHasPrefix(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.HasPrefix(s.C(FieldSession), v))
-	})
+	return predicate.DeviceFlow(sql.FieldHasPrefix(FieldSession, v))
 }
 
 // SessionHasSuffix applies the HasSuffix predicate on the "session" field.
 func SessionHasSuffix(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.HasSuffix(s.C(FieldSession), v))
-	})
+	return predicate.DeviceFlow(sql.FieldHasSuffix(FieldSession, v))
 }
 
 // SessionIsNil applies the IsNil predicate on the "session" field.
 func SessionIsNil() predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.IsNull(s.C(FieldSession)))
-	})
+	return predicate.DeviceFlow(sql.FieldIsNull(FieldSession))
 }
 
 // SessionNotNil applies the NotNil predicate on the "session" field.
 func SessionNotNil() predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.NotNull(s.C(FieldSession)))
-	})
+	return predicate.DeviceFlow(sql.FieldNotNull(FieldSession))
 }
 
 // SessionEqualFold applies the EqualFold predicate on the "session" field.
 func SessionEqualFold(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.EqualFold(s.C(FieldSession), v))
-	})
+	return predicate.DeviceFlow(sql.FieldEqualFold(FieldSession, v))
 }
 
 // SessionContainsFold applies the ContainsFold predicate on the "session" field.
 func SessionContainsFold(v string) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.ContainsFold(s.C(FieldSession), v))
-	})
+	return predicate.DeviceFlow(sql.FieldContainsFold(FieldSession, v))
 }
 
 // ExpiresAtEQ applies the EQ predicate on the "expires_at" field.
 func ExpiresAtEQ(v time.Time) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldExpiresAt), v))
-	})
+	return predicate.DeviceFlow(sql.FieldEQ(FieldExpiresAt, v))
 }
 
 // ExpiresAtNEQ applies the NEQ predicate on the "expires_at" field.
 func ExpiresAtNEQ(v time.Time) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.NEQ(s.C(FieldExpiresAt), v))
-	})
+	return predicate.DeviceFlow(sql.FieldNEQ(FieldExpiresAt, v))
 }
 
 // ExpiresAtIn applies the In predicate on the "expires_at" field.
 func ExpiresAtIn(vs ...time.Time) predicate.DeviceFlow {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.In(s.C(FieldExpiresAt), v...))
-	})
+	return predicate.DeviceFlow(sql.FieldIn(FieldExpiresAt, vs...))
 }
 
 // ExpiresAtNotIn applies the NotIn predicate on the "expires_at" field.
 func ExpiresAtNotIn(vs ...time.Time) predicate.DeviceFlow {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.NotIn(s.C(FieldExpiresAt), v...))
-	})
+	return predicate.DeviceFlow(sql.FieldNotIn(FieldExpiresAt, vs...))
 }
 
 // ExpiresAtGT applies the GT predicate on the "expires_at" field.
 func ExpiresAtGT(v time.Time) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.GT(s.C(FieldExpiresAt), v))
-	})
+	return predicate.DeviceFlow(sql.FieldGT(FieldExpiresAt, v))
 }
 
 // ExpiresAtGTE applies the GTE predicate on the "expires_at" field.
 func ExpiresAtGTE(v time.Time) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.GTE(s.C(FieldExpiresAt), v))
-	})
+	return predicate.DeviceFlow(sql.FieldGTE(FieldExpiresAt, v))
 }
 
 // ExpiresAtLT applies the LT predicate on the "expires_at" field.
 func ExpiresAtLT(v time.Time) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.LT(s.C(FieldExpiresAt), v))
-	})
+	return predicate.DeviceFlow(sql.FieldLT(FieldExpiresAt, v))
 }
 
 // ExpiresAtLTE applies the LTE predicate on the "expires_at" field.
 func ExpiresAtLTE(v time.Time) predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.LTE(s.C(FieldExpiresAt), v))
-	})
+	return predicate.DeviceFlow(sql.FieldLTE(FieldExpiresAt, v))
 }
 
 // ExpiresAtIsNil applies the IsNil predicate on the "expires_at" field.
 func ExpiresAtIsNil() predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.IsNull(s.C(FieldExpiresAt)))
-	})
+	return predicate.DeviceFlow(sql.FieldIsNull(FieldExpiresAt))
 }
 
 // ExpiresAtNotNil applies the NotNil predicate on the "expires_at" field.
 func ExpiresAtNotNil() predicate.DeviceFlow {
-	return predicate.DeviceFlow(func(s *sql.Selector) {
-		s.Where(sql.NotNull(s.C(FieldExpiresAt)))
-	})
+	return predicate.DeviceFlow(sql.FieldNotNull(FieldExpiresAt))
 }
 
 // And groups predicates with the AND operator between them.

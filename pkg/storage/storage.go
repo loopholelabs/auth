@@ -35,4 +35,5 @@ type Storage interface {
 	APIKey
 	ServiceKey
 	ServiceSession
+	Health
 }

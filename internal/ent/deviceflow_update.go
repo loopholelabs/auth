@@ -105,34 +105,7 @@ func (dfu *DeviceFlowUpdate) Mutation() *DeviceFlowMutation {
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (dfu *DeviceFlowUpdate) Save(ctx context.Context) (int, error) {
-	var (
-		err      error
-		affected int
-	)
-	if len(dfu.hooks) == 0 {
-		affected, err = dfu.sqlSave(ctx)
-	} else {
-		var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-			mutation, ok := m.(*DeviceFlowMutation)
-			if !ok {
-				return nil, fmt.Errorf("unexpected mutation type %T", m)
-			}
-			dfu.mutation = mutation
-			affected, err = dfu.sqlSave(ctx)
-			mutation.done = true
-			return affected, err
-		})
-		for i := len(dfu.hooks) - 1; i >= 0; i-- {
-			if dfu.hooks[i] == nil {
-				return 0, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
-			}
-			mut = dfu.hooks[i](mut)
-		}
-		if _, err := mut.Mutate(ctx, dfu.mutation); err != nil {
-			return 0, err
-		}
-	}
-	return affected, err
+	return withHooks[int, DeviceFlowMutation](ctx, dfu.sqlSave, dfu.mutation, dfu.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -198,6 +171,7 @@ func (dfu *DeviceFlowUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		}
 		return 0, err
 	}
+	dfu.mutation.done = true
 	return n, nil
 }
 
@@ -277,40 +251,7 @@ func (dfuo *DeviceFlowUpdateOne) Select(field string, fields ...string) *DeviceF
 
 // Save executes the query and returns the updated DeviceFlow entity.
 func (dfuo *DeviceFlowUpdateOne) Save(ctx context.Context) (*DeviceFlow, error) {
-	var (
-		err  error
-		node *DeviceFlow
-	)
-	if len(dfuo.hooks) == 0 {
-		node, err = dfuo.sqlSave(ctx)
-	} else {
-		var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-			mutation, ok := m.(*DeviceFlowMutation)
-			if !ok {
-				return nil, fmt.Errorf("unexpected mutation type %T", m)
-			}
-			dfuo.mutation = mutation
-			node, err = dfuo.sqlSave(ctx)
-			mutation.done = true
-			return node, err
-		})
-		for i := len(dfuo.hooks) - 1; i >= 0; i-- {
-			if dfuo.hooks[i] == nil {
-				return nil, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
-			}
-			mut = dfuo.hooks[i](mut)
-		}
-		v, err := mut.Mutate(ctx, dfuo.mutation)
-		if err != nil {
-			return nil, err
-		}
-		nv, ok := v.(*DeviceFlow)
-		if !ok {
-			return nil, fmt.Errorf("unexpected node type %T returned from DeviceFlowMutation", v)
-		}
-		node = nv
-	}
-	return node, err
+	return withHooks[*DeviceFlow, DeviceFlowMutation](ctx, dfuo.sqlSave, dfuo.mutation, dfuo.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -396,5 +337,6 @@ func (dfuo *DeviceFlowUpdateOne) sqlSave(ctx context.Context) (_node *DeviceFlow
 		}
 		return nil, err
 	}
+	dfuo.mutation.done = true
 	return _node, nil
 }

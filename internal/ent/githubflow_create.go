@@ -109,50 +109,8 @@ func (gfc *GithubFlowCreate) Mutation() *GithubFlowMutation {
 
 // Save creates the GithubFlow in the database.
 func (gfc *GithubFlowCreate) Save(ctx context.Context) (*GithubFlow, error) {
-	var (
-		err  error
-		node *GithubFlow
-	)
 	gfc.defaults()
-	if len(gfc.hooks) == 0 {
-		if err = gfc.check(); err != nil {
-			return nil, err
-		}
-		node, err = gfc.sqlSave(ctx)
-	} else {
-		var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-			mutation, ok := m.(*GithubFlowMutation)
-			if !ok {
-				return nil, fmt.Errorf("unexpected mutation type %T", m)
-			}
-			if err = gfc.check(); err != nil {
-				return nil, err
-			}
-			gfc.mutation = mutation
-			if node, err = gfc.sqlSave(ctx); err != nil {
-				return nil, err
-			}
-			mutation.id = &node.ID
-			mutation.done = true
-			return node, err
-		})
-		for i := len(gfc.hooks) - 1; i >= 0; i-- {
-			if gfc.hooks[i] == nil {
-				return nil, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
-			}
-			mut = gfc.hooks[i](mut)
-		}
-		v, err := mut.Mutate(ctx, gfc.mutation)
-		if err != nil {
-			return nil, err
-		}
-		nv, ok := v.(*GithubFlow)
-		if !ok {
-			return nil, fmt.Errorf("unexpected node type %T returned from GithubFlowMutation", v)
-		}
-		node = nv
-	}
-	return node, err
+	return withHooks[*GithubFlow, GithubFlowMutation](ctx, gfc.sqlSave, gfc.mutation, gfc.hooks)
 }
 
 // SaveX calls Save and panics if Save returns an error.
@@ -226,6 +184,9 @@ func (gfc *GithubFlowCreate) check() error {
 }
 
 func (gfc *GithubFlowCreate) sqlSave(ctx context.Context) (*GithubFlow, error) {
+	if err := gfc.check(); err != nil {
+		return nil, err
+	}
 	_node, _spec := gfc.createSpec()
 	if err := sqlgraph.CreateNode(ctx, gfc.driver, _spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
@@ -235,6 +196,8 @@ func (gfc *GithubFlowCreate) sqlSave(ctx context.Context) (*GithubFlow, error) {
 	}
 	id := _spec.ID.Value.(int64)
 	_node.ID = int(id)
+	gfc.mutation.id = &_node.ID
+	gfc.mutation.done = true
 	return _node, nil
 }
 

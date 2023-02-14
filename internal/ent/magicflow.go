@@ -131,7 +131,7 @@ func (mf *MagicFlow) assignValues(columns []string, values []any) error {
 // Note that you need to call MagicFlow.Unwrap() before calling this method if this MagicFlow
 // was returned from a transaction, and the transaction was committed or rolled back.
 func (mf *MagicFlow) Update() *MagicFlowUpdateOne {
-	return (&MagicFlowClient{config: mf.config}).UpdateOne(mf)
+	return NewMagicFlowClient(mf.config).UpdateOne(mf)
 }
 
 // Unwrap unwraps the MagicFlow entity that was returned from a transaction after it was closed,

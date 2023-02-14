@@ -50,34 +50,7 @@ func (mfu *MagicFlowUpdate) Mutation() *MagicFlowMutation {
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (mfu *MagicFlowUpdate) Save(ctx context.Context) (int, error) {
-	var (
-		err      error
-		affected int
-	)
-	if len(mfu.hooks) == 0 {
-		affected, err = mfu.sqlSave(ctx)
-	} else {
-		var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-			mutation, ok := m.(*MagicFlowMutation)
-			if !ok {
-				return nil, fmt.Errorf("unexpected mutation type %T", m)
-			}
-			mfu.mutation = mutation
-			affected, err = mfu.sqlSave(ctx)
-			mutation.done = true
-			return affected, err
-		})
-		for i := len(mfu.hooks) - 1; i >= 0; i-- {
-			if mfu.hooks[i] == nil {
-				return 0, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
-			}
-			mut = mfu.hooks[i](mut)
-		}
-		if _, err := mut.Mutate(ctx, mfu.mutation); err != nil {
-			return 0, err
-		}
-	}
-	return affected, err
+	return withHooks[int, MagicFlowMutation](ctx, mfu.sqlSave, mfu.mutation, mfu.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -134,6 +107,7 @@ func (mfu *MagicFlowUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		}
 		return 0, err
 	}
+	mfu.mutation.done = true
 	return n, nil
 }
 
@@ -159,40 +133,7 @@ func (mfuo *MagicFlowUpdateOne) Select(field string, fields ...string) *MagicFlo
 
 // Save executes the query and returns the updated MagicFlow entity.
 func (mfuo *MagicFlowUpdateOne) Save(ctx context.Context) (*MagicFlow, error) {
-	var (
-		err  error
-		node *MagicFlow
-	)
-	if len(mfuo.hooks) == 0 {
-		node, err = mfuo.sqlSave(ctx)
-	} else {
-		var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-			mutation, ok := m.(*MagicFlowMutation)
-			if !ok {
-				return nil, fmt.Errorf("unexpected mutation type %T", m)
-			}
-			mfuo.mutation = mutation
-			node, err = mfuo.sqlSave(ctx)
-			mutation.done = true
-			return node, err
-		})
-		for i := len(mfuo.hooks) - 1; i >= 0; i-- {
-			if mfuo.hooks[i] == nil {
-				return nil, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
-			}
-			mut = mfuo.hooks[i](mut)
-		}
-		v, err := mut.Mutate(ctx, mfuo.mutation)
-		if err != nil {
-			return nil, err
-		}
-		nv, ok := v.(*MagicFlow)
-		if !ok {
-			return nil, fmt.Errorf("unexpected node type %T returned from MagicFlowMutation", v)
-		}
-		node = nv
-	}
-	return node, err
+	return withHooks[*MagicFlow, MagicFlowMutation](ctx, mfuo.sqlSave, mfuo.mutation, mfuo.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -269,5 +210,6 @@ func (mfuo *MagicFlowUpdateOne) sqlSave(ctx context.Context) (_node *MagicFlow, 
 		}
 		return nil, err
 	}
+	mfuo.mutation.done = true
 	return _node, nil
 }

@@ -20,7 +20,6 @@ package ent
 
 import (
 	"context"
-	"fmt"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -44,34 +43,7 @@ func (dfd *DeviceFlowDelete) Where(ps ...predicate.DeviceFlow) *DeviceFlowDelete
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (dfd *DeviceFlowDelete) Exec(ctx context.Context) (int, error) {
-	var (
-		err      error
-		affected int
-	)
-	if len(dfd.hooks) == 0 {
-		affected, err = dfd.sqlExec(ctx)
-	} else {
-		var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-			mutation, ok := m.(*DeviceFlowMutation)
-			if !ok {
-				return nil, fmt.Errorf("unexpected mutation type %T", m)
-			}
-			dfd.mutation = mutation
-			affected, err = dfd.sqlExec(ctx)
-			mutation.done = true
-			return affected, err
-		})
-		for i := len(dfd.hooks) - 1; i >= 0; i-- {
-			if dfd.hooks[i] == nil {
-				return 0, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
-			}
-			mut = dfd.hooks[i](mut)
-		}
-		if _, err := mut.Mutate(ctx, dfd.mutation); err != nil {
-			return 0, err
-		}
-	}
-	return affected, err
+	return withHooks[int, DeviceFlowMutation](ctx, dfd.sqlExec, dfd.mutation, dfd.hooks)
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -104,12 +76,19 @@ func (dfd *DeviceFlowDelete) sqlExec(ctx context.Context) (int, error) {
 	if err != nil && sqlgraph.IsConstraintError(err) {
 		err = &ConstraintError{msg: err.Error(), wrap: err}
 	}
+	dfd.mutation.done = true
 	return affected, err
 }
 
 // DeviceFlowDeleteOne is the builder for deleting a single DeviceFlow entity.
 type DeviceFlowDeleteOne struct {
 	dfd *DeviceFlowDelete
+}
+
+// Where appends a list predicates to the DeviceFlowDelete builder.
+func (dfdo *DeviceFlowDeleteOne) Where(ps ...predicate.DeviceFlow) *DeviceFlowDeleteOne {
+	dfdo.dfd.mutation.Where(ps...)
+	return dfdo
 }
 
 // Exec executes the deletion query.
@@ -127,5 +106,7 @@ func (dfdo *DeviceFlowDeleteOne) Exec(ctx context.Context) error {
 
 // ExecX is like Exec, but panics if an error occurs.
 func (dfdo *DeviceFlowDeleteOne) ExecX(ctx context.Context) {
-	dfdo.dfd.ExecX(ctx)
+	if err := dfdo.Exec(ctx); err != nil {
+		panic(err)
+	}
 }

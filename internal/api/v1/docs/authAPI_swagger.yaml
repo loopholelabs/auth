@@ -39,6 +39,11 @@ definitions:
       user_code:
         type: string
     type: object
+  models.HealthResponse:
+    properties:
+      subscriptions:
+        type: boolean
+    type: object
   models.ServiceKeyLoginResponse:
     properties:
       organization:
@@ -361,15 +366,34 @@ paths:
             type: string
       summary: GoogleLogin logs in a user with Google
       tags:
-      - google
-      - login
+        - google
+        - login
+  /health:
+    get:
+      consumes:
+        - application/json
+      description: Health returns the status of the various services
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.HealthResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Health returns the status of the various services
+      tags:
+        - health
   /logout:
     post:
       consumes:
-      - application/json
+        - application/json
       description: Logout logs out a user
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: OK

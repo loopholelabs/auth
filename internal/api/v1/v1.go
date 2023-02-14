@@ -136,3 +136,27 @@ func (v *V1) UserInfo(ctx *fiber.Ctx) error {
 		Organization: orgID,
 	})
 }
+
+// Health godoc
+// @Summary      Health returns the status of the various services
+// @Description  Health returns the status of the various services
+// @Tags         health
+// @Accept       json
+// @Produce      json
+// @Success      200 {object} models.HealthResponse
+// @Failure      500 {string} string
+// @Router       /health [get]
+func (v *V1) Health(ctx *fiber.Ctx) error {
+	v.logger.Debug().Msgf("received Health from %s", ctx.IP())
+	subscriptions := v.options.Controller().SubscriptionHealthy()
+
+	if !subscriptions {
+		ctx = ctx.Status(fiber.StatusInternalServerError)
+	} else {
+		ctx = ctx.Status(fiber.StatusOK)
+	}
+
+	return ctx.JSON(&models.HealthResponse{
+		Subscriptions: subscriptions,
+	})
+}

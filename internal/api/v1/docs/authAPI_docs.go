@@ -447,6 +447,35 @@ const docTemplateauthAPI = `{
                 }
             }
         },
+        "/health": {
+            "get": {
+                "description": "Health returns the status of the various services",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "health"
+                ],
+                "summary": "Health returns the status of the various services",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.HealthResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/logout": {
             "post": {
                 "description": "Logout logs out a user",
@@ -766,6 +795,14 @@ const docTemplateauthAPI = `{
                 },
                 "user_code": {
                     "type": "string"
+                }
+            }
+        },
+        "models.HealthResponse": {
+            "type": "object",
+            "properties": {
+                "subscriptions": {
+                    "type": "boolean"
                 }
             }
         },

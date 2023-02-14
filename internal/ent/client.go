@@ -52,7 +52,7 @@ type Client struct {
 
 // NewClient creates a new client configured with the given options.
 func NewClient(opts ...Option) *Client {
-	cfg := config{log: log.Println, hooks: &hooks{}}
+	cfg := config{log: log.Println, hooks: &hooks{}, inters: &inters{}}
 	cfg.options(opts...)
 	client := &Client{config: cfg}
 	client.init()
@@ -159,6 +159,31 @@ func (c *Client) Use(hooks ...Hook) {
 	c.MagicFlow.Use(hooks...)
 }
 
+// Intercept adds the query interceptors to all the entity clients.
+// In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
+func (c *Client) Intercept(interceptors ...Interceptor) {
+	c.DeviceFlow.Intercept(interceptors...)
+	c.GithubFlow.Intercept(interceptors...)
+	c.GoogleFlow.Intercept(interceptors...)
+	c.MagicFlow.Intercept(interceptors...)
+}
+
+// Mutate implements the ent.Mutator interface.
+func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
+	switch m := m.(type) {
+	case *DeviceFlowMutation:
+		return c.DeviceFlow.mutate(ctx, m)
+	case *GithubFlowMutation:
+		return c.GithubFlow.mutate(ctx, m)
+	case *GoogleFlowMutation:
+		return c.GoogleFlow.mutate(ctx, m)
+	case *MagicFlowMutation:
+		return c.MagicFlow.mutate(ctx, m)
+	default:
+		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
+	}
+}
+
 // DeviceFlowClient is a client for the DeviceFlow schema.
 type DeviceFlowClient struct {
 	config
@@ -173,6 +198,12 @@ func NewDeviceFlowClient(c config) *DeviceFlowClient {
 // A call to `Use(f, g, h)` equals to `deviceflow.Hooks(f(g(h())))`.
 func (c *DeviceFlowClient) Use(hooks ...Hook) {
 	c.hooks.DeviceFlow = append(c.hooks.DeviceFlow, hooks...)
+}
+
+// Use adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `deviceflow.Intercept(f(g(h())))`.
+func (c *DeviceFlowClient) Intercept(interceptors ...Interceptor) {
+	c.inters.DeviceFlow = append(c.inters.DeviceFlow, interceptors...)
 }
 
 // Create returns a builder for creating a DeviceFlow entity.
@@ -227,6 +258,8 @@ func (c *DeviceFlowClient) DeleteOneID(id int) *DeviceFlowDeleteOne {
 func (c *DeviceFlowClient) Query() *DeviceFlowQuery {
 	return &DeviceFlowQuery{
 		config: c.config,
+		ctx:    &QueryContext{Type: TypeDeviceFlow},
+		inters: c.Interceptors(),
 	}
 }
 
@@ -249,6 +282,26 @@ func (c *DeviceFlowClient) Hooks() []Hook {
 	return c.hooks.DeviceFlow
 }
 
+// Interceptors returns the client interceptors.
+func (c *DeviceFlowClient) Interceptors() []Interceptor {
+	return c.inters.DeviceFlow
+}
+
+func (c *DeviceFlowClient) mutate(ctx context.Context, m *DeviceFlowMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&DeviceFlowCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&DeviceFlowUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&DeviceFlowUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&DeviceFlowDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown DeviceFlow mutation op: %q", m.Op())
+	}
+}
+
 // GithubFlowClient is a client for the GithubFlow schema.
 type GithubFlowClient struct {
 	config
@@ -263,6 +316,12 @@ func NewGithubFlowClient(c config) *GithubFlowClient {
 // A call to `Use(f, g, h)` equals to `githubflow.Hooks(f(g(h())))`.
 func (c *GithubFlowClient) Use(hooks ...Hook) {
 	c.hooks.GithubFlow = append(c.hooks.GithubFlow, hooks...)
+}
+
+// Use adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `githubflow.Intercept(f(g(h())))`.
+func (c *GithubFlowClient) Intercept(interceptors ...Interceptor) {
+	c.inters.GithubFlow = append(c.inters.GithubFlow, interceptors...)
 }
 
 // Create returns a builder for creating a GithubFlow entity.
@@ -317,6 +376,8 @@ func (c *GithubFlowClient) DeleteOneID(id int) *GithubFlowDeleteOne {
 func (c *GithubFlowClient) Query() *GithubFlowQuery {
 	return &GithubFlowQuery{
 		config: c.config,
+		ctx:    &QueryContext{Type: TypeGithubFlow},
+		inters: c.Interceptors(),
 	}
 }
 
@@ -339,6 +400,26 @@ func (c *GithubFlowClient) Hooks() []Hook {
 	return c.hooks.GithubFlow
 }
 
+// Interceptors returns the client interceptors.
+func (c *GithubFlowClient) Interceptors() []Interceptor {
+	return c.inters.GithubFlow
+}
+
+func (c *GithubFlowClient) mutate(ctx context.Context, m *GithubFlowMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&GithubFlowCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&GithubFlowUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&GithubFlowUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&GithubFlowDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown GithubFlow mutation op: %q", m.Op())
+	}
+}
+
 // GoogleFlowClient is a client for the GoogleFlow schema.
 type GoogleFlowClient struct {
 	config
@@ -353,6 +434,12 @@ func NewGoogleFlowClient(c config) *GoogleFlowClient {
 // A call to `Use(f, g, h)` equals to `googleflow.Hooks(f(g(h())))`.
 func (c *GoogleFlowClient) Use(hooks ...Hook) {
 	c.hooks.GoogleFlow = append(c.hooks.GoogleFlow, hooks...)
+}
+
+// Use adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `googleflow.Intercept(f(g(h())))`.
+func (c *GoogleFlowClient) Intercept(interceptors ...Interceptor) {
+	c.inters.GoogleFlow = append(c.inters.GoogleFlow, interceptors...)
 }
 
 // Create returns a builder for creating a GoogleFlow entity.
@@ -407,6 +494,8 @@ func (c *GoogleFlowClient) DeleteOneID(id int) *GoogleFlowDeleteOne {
 func (c *GoogleFlowClient) Query() *GoogleFlowQuery {
 	return &GoogleFlowQuery{
 		config: c.config,
+		ctx:    &QueryContext{Type: TypeGoogleFlow},
+		inters: c.Interceptors(),
 	}
 }
 
@@ -429,6 +518,26 @@ func (c *GoogleFlowClient) Hooks() []Hook {
 	return c.hooks.GoogleFlow
 }
 
+// Interceptors returns the client interceptors.
+func (c *GoogleFlowClient) Interceptors() []Interceptor {
+	return c.inters.GoogleFlow
+}
+
+func (c *GoogleFlowClient) mutate(ctx context.Context, m *GoogleFlowMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&GoogleFlowCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&GoogleFlowUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&GoogleFlowUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&GoogleFlowDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown GoogleFlow mutation op: %q", m.Op())
+	}
+}
+
 // MagicFlowClient is a client for the MagicFlow schema.
 type MagicFlowClient struct {
 	config
@@ -443,6 +552,12 @@ func NewMagicFlowClient(c config) *MagicFlowClient {
 // A call to `Use(f, g, h)` equals to `magicflow.Hooks(f(g(h())))`.
 func (c *MagicFlowClient) Use(hooks ...Hook) {
 	c.hooks.MagicFlow = append(c.hooks.MagicFlow, hooks...)
+}
+
+// Use adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `magicflow.Intercept(f(g(h())))`.
+func (c *MagicFlowClient) Intercept(interceptors ...Interceptor) {
+	c.inters.MagicFlow = append(c.inters.MagicFlow, interceptors...)
 }
 
 // Create returns a builder for creating a MagicFlow entity.
@@ -497,6 +612,8 @@ func (c *MagicFlowClient) DeleteOneID(id int) *MagicFlowDeleteOne {
 func (c *MagicFlowClient) Query() *MagicFlowQuery {
 	return &MagicFlowQuery{
 		config: c.config,
+		ctx:    &QueryContext{Type: TypeMagicFlow},
+		inters: c.Interceptors(),
 	}
 }
 
@@ -517,4 +634,24 @@ func (c *MagicFlowClient) GetX(ctx context.Context, id int) *MagicFlow {
 // Hooks returns the client hooks.
 func (c *MagicFlowClient) Hooks() []Hook {
 	return c.hooks.MagicFlow
+}
+
+// Interceptors returns the client interceptors.
+func (c *MagicFlowClient) Interceptors() []Interceptor {
+	return c.inters.MagicFlow
+}
+
+func (c *MagicFlowClient) mutate(ctx context.Context, m *MagicFlowMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&MagicFlowCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&MagicFlowUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&MagicFlowUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&MagicFlowDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown MagicFlow mutation op: %q", m.Op())
+	}
 }

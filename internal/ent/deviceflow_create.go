@@ -117,50 +117,8 @@ func (dfc *DeviceFlowCreate) Mutation() *DeviceFlowMutation {
 
 // Save creates the DeviceFlow in the database.
 func (dfc *DeviceFlowCreate) Save(ctx context.Context) (*DeviceFlow, error) {
-	var (
-		err  error
-		node *DeviceFlow
-	)
 	dfc.defaults()
-	if len(dfc.hooks) == 0 {
-		if err = dfc.check(); err != nil {
-			return nil, err
-		}
-		node, err = dfc.sqlSave(ctx)
-	} else {
-		var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-			mutation, ok := m.(*DeviceFlowMutation)
-			if !ok {
-				return nil, fmt.Errorf("unexpected mutation type %T", m)
-			}
-			if err = dfc.check(); err != nil {
-				return nil, err
-			}
-			dfc.mutation = mutation
-			if node, err = dfc.sqlSave(ctx); err != nil {
-				return nil, err
-			}
-			mutation.id = &node.ID
-			mutation.done = true
-			return node, err
-		})
-		for i := len(dfc.hooks) - 1; i >= 0; i-- {
-			if dfc.hooks[i] == nil {
-				return nil, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
-			}
-			mut = dfc.hooks[i](mut)
-		}
-		v, err := mut.Mutate(ctx, dfc.mutation)
-		if err != nil {
-			return nil, err
-		}
-		nv, ok := v.(*DeviceFlow)
-		if !ok {
-			return nil, fmt.Errorf("unexpected node type %T returned from DeviceFlowMutation", v)
-		}
-		node = nv
-	}
-	return node, err
+	return withHooks[*DeviceFlow, DeviceFlowMutation](ctx, dfc.sqlSave, dfc.mutation, dfc.hooks)
 }
 
 // SaveX calls Save and panics if Save returns an error.
@@ -233,6 +191,9 @@ func (dfc *DeviceFlowCreate) check() error {
 }
 
 func (dfc *DeviceFlowCreate) sqlSave(ctx context.Context) (*DeviceFlow, error) {
+	if err := dfc.check(); err != nil {
+		return nil, err
+	}
 	_node, _spec := dfc.createSpec()
 	if err := sqlgraph.CreateNode(ctx, dfc.driver, _spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
@@ -242,6 +203,8 @@ func (dfc *DeviceFlowCreate) sqlSave(ctx context.Context) (*DeviceFlow, error) {
 	}
 	id := _spec.ID.Value.(int64)
 	_node.ID = int(id)
+	dfc.mutation.id = &_node.ID
+	dfc.mutation.done = true
 	return _node, nil
 }
 

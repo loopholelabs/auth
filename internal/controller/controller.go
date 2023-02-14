@@ -631,6 +631,38 @@ func (m *Controller) LogoutServiceSession(ctx *fiber.Ctx) (bool, error) {
 	return true, nil
 }
 
+func (m *Controller) SubscriptionHealthy() bool {
+	errs := m.storage.Errors()
+	ret := true
+
+	if errs.APIKeyError != nil {
+		m.logger.Error().Err(errs.APIKeyError).Msg("storage error for api keys")
+		ret = false
+	}
+
+	if errs.ServiceSessionError != nil {
+		m.logger.Error().Err(errs.ServiceSessionError).Msg("storage error for service sessions")
+		ret = false
+	}
+
+	if errs.SessionError != nil {
+		m.logger.Error().Err(errs.SessionError).Msg("storage error for sessions")
+		ret = false
+	}
+
+	if errs.RegistrationError != nil {
+		m.logger.Error().Err(errs.RegistrationError).Msg("storage error for registrations")
+		ret = false
+	}
+
+	if errs.SecretKeyError != nil {
+		m.logger.Error().Err(errs.SecretKeyError).Msg("storage error for secret keys")
+		ret = false
+	}
+
+	return ret
+}
+
 func (m *Controller) getSession(ctx *fiber.Ctx, cookie string) (*session.Session, error) {
 	m.secretKeyMu.RLock()
 	secretKey := m.secretKey

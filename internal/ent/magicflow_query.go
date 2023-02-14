@@ -33,11 +33,9 @@ import (
 // MagicFlowQuery is the builder for querying MagicFlow entities.
 type MagicFlowQuery struct {
 	config
-	limit      *int
-	offset     *int
-	unique     *bool
+	ctx        *QueryContext
 	order      []OrderFunc
-	fields     []string
+	inters     []Interceptor
 	predicates []predicate.MagicFlow
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
@@ -50,26 +48,26 @@ func (mfq *MagicFlowQuery) Where(ps ...predicate.MagicFlow) *MagicFlowQuery {
 	return mfq
 }
 
-// Limit adds a limit step to the query.
+// Limit the number of records to be returned by this query.
 func (mfq *MagicFlowQuery) Limit(limit int) *MagicFlowQuery {
-	mfq.limit = &limit
+	mfq.ctx.Limit = &limit
 	return mfq
 }
 
-// Offset adds an offset step to the query.
+// Offset to start from.
 func (mfq *MagicFlowQuery) Offset(offset int) *MagicFlowQuery {
-	mfq.offset = &offset
+	mfq.ctx.Offset = &offset
 	return mfq
 }
 
 // Unique configures the query builder to filter duplicate records on query.
 // By default, unique is set to true, and can be disabled using this method.
 func (mfq *MagicFlowQuery) Unique(unique bool) *MagicFlowQuery {
-	mfq.unique = &unique
+	mfq.ctx.Unique = &unique
 	return mfq
 }
 
-// Order adds an order step to the query.
+// Order specifies how the records should be ordered.
 func (mfq *MagicFlowQuery) Order(o ...OrderFunc) *MagicFlowQuery {
 	mfq.order = append(mfq.order, o...)
 	return mfq
@@ -78,7 +76,7 @@ func (mfq *MagicFlowQuery) Order(o ...OrderFunc) *MagicFlowQuery {
 // First returns the first MagicFlow entity from the query.
 // Returns a *NotFoundError when no MagicFlow was found.
 func (mfq *MagicFlowQuery) First(ctx context.Context) (*MagicFlow, error) {
-	nodes, err := mfq.Limit(1).All(ctx)
+	nodes, err := mfq.Limit(1).All(setContextOp(ctx, mfq.ctx, "First"))
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +99,7 @@ func (mfq *MagicFlowQuery) FirstX(ctx context.Context) *MagicFlow {
 // Returns a *NotFoundError when no MagicFlow ID was found.
 func (mfq *MagicFlowQuery) FirstID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = mfq.Limit(1).IDs(ctx); err != nil {
+	if ids, err = mfq.Limit(1).IDs(setContextOp(ctx, mfq.ctx, "FirstID")); err != nil {
 		return
 	}
 	if len(ids) == 0 {
@@ -124,7 +122,7 @@ func (mfq *MagicFlowQuery) FirstIDX(ctx context.Context) int {
 // Returns a *NotSingularError when more than one MagicFlow entity is found.
 // Returns a *NotFoundError when no MagicFlow entities are found.
 func (mfq *MagicFlowQuery) Only(ctx context.Context) (*MagicFlow, error) {
-	nodes, err := mfq.Limit(2).All(ctx)
+	nodes, err := mfq.Limit(2).All(setContextOp(ctx, mfq.ctx, "Only"))
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +150,7 @@ func (mfq *MagicFlowQuery) OnlyX(ctx context.Context) *MagicFlow {
 // Returns a *NotFoundError when no entities are found.
 func (mfq *MagicFlowQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = mfq.Limit(2).IDs(ctx); err != nil {
+	if ids, err = mfq.Limit(2).IDs(setContextOp(ctx, mfq.ctx, "OnlyID")); err != nil {
 		return
 	}
 	switch len(ids) {
@@ -177,10 +175,12 @@ func (mfq *MagicFlowQuery) OnlyIDX(ctx context.Context) int {
 
 // All executes the query and returns a list of MagicFlows.
 func (mfq *MagicFlowQuery) All(ctx context.Context) ([]*MagicFlow, error) {
+	ctx = setContextOp(ctx, mfq.ctx, "All")
 	if err := mfq.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
-	return mfq.sqlAll(ctx)
+	qr := querierAll[[]*MagicFlow, *MagicFlowQuery]()
+	return withInterceptors[[]*MagicFlow](ctx, mfq, qr, mfq.inters)
 }
 
 // AllX is like All, but panics if an error occurs.
@@ -195,6 +195,7 @@ func (mfq *MagicFlowQuery) AllX(ctx context.Context) []*MagicFlow {
 // IDs executes the query and returns a list of MagicFlow IDs.
 func (mfq *MagicFlowQuery) IDs(ctx context.Context) ([]int, error) {
 	var ids []int
+	ctx = setContextOp(ctx, mfq.ctx, "IDs")
 	if err := mfq.Select(magicflow.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
@@ -212,10 +213,11 @@ func (mfq *MagicFlowQuery) IDsX(ctx context.Context) []int {
 
 // Count returns the count of the given query.
 func (mfq *MagicFlowQuery) Count(ctx context.Context) (int, error) {
+	ctx = setContextOp(ctx, mfq.ctx, "Count")
 	if err := mfq.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
-	return mfq.sqlCount(ctx)
+	return withInterceptors[int](ctx, mfq, querierCount[*MagicFlowQuery](), mfq.inters)
 }
 
 // CountX is like Count, but panics if an error occurs.
@@ -229,10 +231,15 @@ func (mfq *MagicFlowQuery) CountX(ctx context.Context) int {
 
 // Exist returns true if the query has elements in the graph.
 func (mfq *MagicFlowQuery) Exist(ctx context.Context) (bool, error) {
-	if err := mfq.prepareQuery(ctx); err != nil {
-		return false, err
+	ctx = setContextOp(ctx, mfq.ctx, "Exist")
+	switch _, err := mfq.FirstID(ctx); {
+	case IsNotFound(err):
+		return false, nil
+	case err != nil:
+		return false, fmt.Errorf("ent: check existence: %w", err)
+	default:
+		return true, nil
 	}
-	return mfq.sqlExist(ctx)
 }
 
 // ExistX is like Exist, but panics if an error occurs.
@@ -252,14 +259,13 @@ func (mfq *MagicFlowQuery) Clone() *MagicFlowQuery {
 	}
 	return &MagicFlowQuery{
 		config:     mfq.config,
-		limit:      mfq.limit,
-		offset:     mfq.offset,
+		ctx:        mfq.ctx.Clone(),
 		order:      append([]OrderFunc{}, mfq.order...),
+		inters:     append([]Interceptor{}, mfq.inters...),
 		predicates: append([]predicate.MagicFlow{}, mfq.predicates...),
 		// clone intermediate query.
-		sql:    mfq.sql.Clone(),
-		path:   mfq.path,
-		unique: mfq.unique,
+		sql:  mfq.sql.Clone(),
+		path: mfq.path,
 	}
 }
 
@@ -278,16 +284,11 @@ func (mfq *MagicFlowQuery) Clone() *MagicFlowQuery {
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
 func (mfq *MagicFlowQuery) GroupBy(field string, fields ...string) *MagicFlowGroupBy {
-	grbuild := &MagicFlowGroupBy{config: mfq.config}
-	grbuild.fields = append([]string{field}, fields...)
-	grbuild.path = func(ctx context.Context) (prev *sql.Selector, err error) {
-		if err := mfq.prepareQuery(ctx); err != nil {
-			return nil, err
-		}
-		return mfq.sqlQuery(ctx), nil
-	}
+	mfq.ctx.Fields = append([]string{field}, fields...)
+	grbuild := &MagicFlowGroupBy{build: mfq}
+	grbuild.flds = &mfq.ctx.Fields
 	grbuild.label = magicflow.Label
-	grbuild.flds, grbuild.scan = &grbuild.fields, grbuild.Scan
+	grbuild.scan = grbuild.Scan
 	return grbuild
 }
 
@@ -304,11 +305,11 @@ func (mfq *MagicFlowQuery) GroupBy(field string, fields ...string) *MagicFlowGro
 //		Select(magicflow.FieldCreatedAt).
 //		Scan(ctx, &v)
 func (mfq *MagicFlowQuery) Select(fields ...string) *MagicFlowSelect {
-	mfq.fields = append(mfq.fields, fields...)
-	selbuild := &MagicFlowSelect{MagicFlowQuery: mfq}
-	selbuild.label = magicflow.Label
-	selbuild.flds, selbuild.scan = &mfq.fields, selbuild.Scan
-	return selbuild
+	mfq.ctx.Fields = append(mfq.ctx.Fields, fields...)
+	sbuild := &MagicFlowSelect{MagicFlowQuery: mfq}
+	sbuild.label = magicflow.Label
+	sbuild.flds, sbuild.scan = &mfq.ctx.Fields, sbuild.Scan
+	return sbuild
 }
 
 // Aggregate returns a MagicFlowSelect configured with the given aggregations.
@@ -317,7 +318,17 @@ func (mfq *MagicFlowQuery) Aggregate(fns ...AggregateFunc) *MagicFlowSelect {
 }
 
 func (mfq *MagicFlowQuery) prepareQuery(ctx context.Context) error {
-	for _, f := range mfq.fields {
+	for _, inter := range mfq.inters {
+		if inter == nil {
+			return fmt.Errorf("ent: uninitialized interceptor (forgotten import ent/runtime?)")
+		}
+		if trv, ok := inter.(Traverser); ok {
+			if err := trv.Traverse(ctx, mfq); err != nil {
+				return err
+			}
+		}
+	}
+	for _, f := range mfq.ctx.Fields {
 		if !magicflow.ValidColumn(f) {
 			return &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
 		}
@@ -359,22 +370,11 @@ func (mfq *MagicFlowQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*M
 
 func (mfq *MagicFlowQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := mfq.querySpec()
-	_spec.Node.Columns = mfq.fields
-	if len(mfq.fields) > 0 {
-		_spec.Unique = mfq.unique != nil && *mfq.unique
+	_spec.Node.Columns = mfq.ctx.Fields
+	if len(mfq.ctx.Fields) > 0 {
+		_spec.Unique = mfq.ctx.Unique != nil && *mfq.ctx.Unique
 	}
 	return sqlgraph.CountNodes(ctx, mfq.driver, _spec)
-}
-
-func (mfq *MagicFlowQuery) sqlExist(ctx context.Context) (bool, error) {
-	switch _, err := mfq.FirstID(ctx); {
-	case IsNotFound(err):
-		return false, nil
-	case err != nil:
-		return false, fmt.Errorf("ent: check existence: %w", err)
-	default:
-		return true, nil
-	}
 }
 
 func (mfq *MagicFlowQuery) querySpec() *sqlgraph.QuerySpec {
@@ -390,10 +390,10 @@ func (mfq *MagicFlowQuery) querySpec() *sqlgraph.QuerySpec {
 		From:   mfq.sql,
 		Unique: true,
 	}
-	if unique := mfq.unique; unique != nil {
+	if unique := mfq.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
 	}
-	if fields := mfq.fields; len(fields) > 0 {
+	if fields := mfq.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
 		_spec.Node.Columns = append(_spec.Node.Columns, magicflow.FieldID)
 		for i := range fields {
@@ -409,10 +409,10 @@ func (mfq *MagicFlowQuery) querySpec() *sqlgraph.QuerySpec {
 			}
 		}
 	}
-	if limit := mfq.limit; limit != nil {
+	if limit := mfq.ctx.Limit; limit != nil {
 		_spec.Limit = *limit
 	}
-	if offset := mfq.offset; offset != nil {
+	if offset := mfq.ctx.Offset; offset != nil {
 		_spec.Offset = *offset
 	}
 	if ps := mfq.order; len(ps) > 0 {
@@ -428,7 +428,7 @@ func (mfq *MagicFlowQuery) querySpec() *sqlgraph.QuerySpec {
 func (mfq *MagicFlowQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	builder := sql.Dialect(mfq.driver.Dialect())
 	t1 := builder.Table(magicflow.Table)
-	columns := mfq.fields
+	columns := mfq.ctx.Fields
 	if len(columns) == 0 {
 		columns = magicflow.Columns
 	}
@@ -437,7 +437,7 @@ func (mfq *MagicFlowQuery) sqlQuery(ctx context.Context) *sql.Selector {
 		selector = mfq.sql
 		selector.Select(selector.Columns(columns...)...)
 	}
-	if mfq.unique != nil && *mfq.unique {
+	if mfq.ctx.Unique != nil && *mfq.ctx.Unique {
 		selector.Distinct()
 	}
 	for _, p := range mfq.predicates {
@@ -446,12 +446,12 @@ func (mfq *MagicFlowQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	for _, p := range mfq.order {
 		p(selector)
 	}
-	if offset := mfq.offset; offset != nil {
+	if offset := mfq.ctx.Offset; offset != nil {
 		// limit is mandatory for offset clause. We start
 		// with default value, and override it below if needed.
 		selector.Offset(*offset).Limit(math.MaxInt32)
 	}
-	if limit := mfq.limit; limit != nil {
+	if limit := mfq.ctx.Limit; limit != nil {
 		selector.Limit(*limit)
 	}
 	return selector
@@ -459,13 +459,8 @@ func (mfq *MagicFlowQuery) sqlQuery(ctx context.Context) *sql.Selector {
 
 // MagicFlowGroupBy is the group-by builder for MagicFlow entities.
 type MagicFlowGroupBy struct {
-	config
 	selector
-	fields []string
-	fns    []AggregateFunc
-	// intermediate query (i.e. traversal path).
-	sql  *sql.Selector
-	path func(context.Context) (*sql.Selector, error)
+	build *MagicFlowQuery
 }
 
 // Aggregate adds the given aggregation functions to the group-by query.
@@ -474,58 +469,46 @@ func (mfgb *MagicFlowGroupBy) Aggregate(fns ...AggregateFunc) *MagicFlowGroupBy 
 	return mfgb
 }
 
-// Scan applies the group-by query and scans the result into the given value.
+// Scan applies the selector query and scans the result into the given value.
 func (mfgb *MagicFlowGroupBy) Scan(ctx context.Context, v any) error {
-	query, err := mfgb.path(ctx)
-	if err != nil {
+	ctx = setContextOp(ctx, mfgb.build.ctx, "GroupBy")
+	if err := mfgb.build.prepareQuery(ctx); err != nil {
 		return err
 	}
-	mfgb.sql = query
-	return mfgb.sqlScan(ctx, v)
+	return scanWithInterceptors[*MagicFlowQuery, *MagicFlowGroupBy](ctx, mfgb.build, mfgb, mfgb.build.inters, v)
 }
 
-func (mfgb *MagicFlowGroupBy) sqlScan(ctx context.Context, v any) error {
-	for _, f := range mfgb.fields {
-		if !magicflow.ValidColumn(f) {
-			return &ValidationError{Name: f, err: fmt.Errorf("invalid field %q for group-by", f)}
-		}
+func (mfgb *MagicFlowGroupBy) sqlScan(ctx context.Context, root *MagicFlowQuery, v any) error {
+	selector := root.sqlQuery(ctx).Select()
+	aggregation := make([]string, 0, len(mfgb.fns))
+	for _, fn := range mfgb.fns {
+		aggregation = append(aggregation, fn(selector))
 	}
-	selector := mfgb.sqlQuery()
+	if len(selector.SelectedColumns()) == 0 {
+		columns := make([]string, 0, len(*mfgb.flds)+len(mfgb.fns))
+		for _, f := range *mfgb.flds {
+			columns = append(columns, selector.C(f))
+		}
+		columns = append(columns, aggregation...)
+		selector.Select(columns...)
+	}
+	selector.GroupBy(selector.Columns(*mfgb.flds...)...)
 	if err := selector.Err(); err != nil {
 		return err
 	}
 	rows := &sql.Rows{}
 	query, args := selector.Query()
-	if err := mfgb.driver.Query(ctx, query, args, rows); err != nil {
+	if err := mfgb.build.driver.Query(ctx, query, args, rows); err != nil {
 		return err
 	}
 	defer rows.Close()
 	return sql.ScanSlice(rows, v)
 }
 
-func (mfgb *MagicFlowGroupBy) sqlQuery() *sql.Selector {
-	selector := mfgb.sql.Select()
-	aggregation := make([]string, 0, len(mfgb.fns))
-	for _, fn := range mfgb.fns {
-		aggregation = append(aggregation, fn(selector))
-	}
-	if len(selector.SelectedColumns()) == 0 {
-		columns := make([]string, 0, len(mfgb.fields)+len(mfgb.fns))
-		for _, f := range mfgb.fields {
-			columns = append(columns, selector.C(f))
-		}
-		columns = append(columns, aggregation...)
-		selector.Select(columns...)
-	}
-	return selector.GroupBy(selector.Columns(mfgb.fields...)...)
-}
-
 // MagicFlowSelect is the builder for selecting fields of MagicFlow entities.
 type MagicFlowSelect struct {
 	*MagicFlowQuery
 	selector
-	// intermediate query (i.e. traversal path).
-	sql *sql.Selector
 }
 
 // Aggregate adds the given aggregation functions to the selector query.
@@ -536,26 +519,27 @@ func (mfs *MagicFlowSelect) Aggregate(fns ...AggregateFunc) *MagicFlowSelect {
 
 // Scan applies the selector query and scans the result into the given value.
 func (mfs *MagicFlowSelect) Scan(ctx context.Context, v any) error {
+	ctx = setContextOp(ctx, mfs.ctx, "Select")
 	if err := mfs.prepareQuery(ctx); err != nil {
 		return err
 	}
-	mfs.sql = mfs.MagicFlowQuery.sqlQuery(ctx)
-	return mfs.sqlScan(ctx, v)
+	return scanWithInterceptors[*MagicFlowQuery, *MagicFlowSelect](ctx, mfs.MagicFlowQuery, mfs, mfs.inters, v)
 }
 
-func (mfs *MagicFlowSelect) sqlScan(ctx context.Context, v any) error {
+func (mfs *MagicFlowSelect) sqlScan(ctx context.Context, root *MagicFlowQuery, v any) error {
+	selector := root.sqlQuery(ctx)
 	aggregation := make([]string, 0, len(mfs.fns))
 	for _, fn := range mfs.fns {
-		aggregation = append(aggregation, fn(mfs.sql))
+		aggregation = append(aggregation, fn(selector))
 	}
 	switch n := len(*mfs.selector.flds); {
 	case n == 0 && len(aggregation) > 0:
-		mfs.sql.Select(aggregation...)
+		selector.Select(aggregation...)
 	case n != 0 && len(aggregation) > 0:
-		mfs.sql.AppendSelect(aggregation...)
+		selector.AppendSelect(aggregation...)
 	}
 	rows := &sql.Rows{}
-	query, args := mfs.sql.Query()
+	query, args := selector.Query()
 	if err := mfs.driver.Query(ctx, query, args, rows); err != nil {
 		return err
 	}

@@ -33,11 +33,9 @@ import (
 // DeviceFlowQuery is the builder for querying DeviceFlow entities.
 type DeviceFlowQuery struct {
 	config
-	limit      *int
-	offset     *int
-	unique     *bool
+	ctx        *QueryContext
 	order      []OrderFunc
-	fields     []string
+	inters     []Interceptor
 	predicates []predicate.DeviceFlow
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
@@ -50,26 +48,26 @@ func (dfq *DeviceFlowQuery) Where(ps ...predicate.DeviceFlow) *DeviceFlowQuery {
 	return dfq
 }
 
-// Limit adds a limit step to the query.
+// Limit the number of records to be returned by this query.
 func (dfq *DeviceFlowQuery) Limit(limit int) *DeviceFlowQuery {
-	dfq.limit = &limit
+	dfq.ctx.Limit = &limit
 	return dfq
 }
 
-// Offset adds an offset step to the query.
+// Offset to start from.
 func (dfq *DeviceFlowQuery) Offset(offset int) *DeviceFlowQuery {
-	dfq.offset = &offset
+	dfq.ctx.Offset = &offset
 	return dfq
 }
 
 // Unique configures the query builder to filter duplicate records on query.
 // By default, unique is set to true, and can be disabled using this method.
 func (dfq *DeviceFlowQuery) Unique(unique bool) *DeviceFlowQuery {
-	dfq.unique = &unique
+	dfq.ctx.Unique = &unique
 	return dfq
 }
 
-// Order adds an order step to the query.
+// Order specifies how the records should be ordered.
 func (dfq *DeviceFlowQuery) Order(o ...OrderFunc) *DeviceFlowQuery {
 	dfq.order = append(dfq.order, o...)
 	return dfq
@@ -78,7 +76,7 @@ func (dfq *DeviceFlowQuery) Order(o ...OrderFunc) *DeviceFlowQuery {
 // First returns the first DeviceFlow entity from the query.
 // Returns a *NotFoundError when no DeviceFlow was found.
 func (dfq *DeviceFlowQuery) First(ctx context.Context) (*DeviceFlow, error) {
-	nodes, err := dfq.Limit(1).All(ctx)
+	nodes, err := dfq.Limit(1).All(setContextOp(ctx, dfq.ctx, "First"))
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +99,7 @@ func (dfq *DeviceFlowQuery) FirstX(ctx context.Context) *DeviceFlow {
 // Returns a *NotFoundError when no DeviceFlow ID was found.
 func (dfq *DeviceFlowQuery) FirstID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = dfq.Limit(1).IDs(ctx); err != nil {
+	if ids, err = dfq.Limit(1).IDs(setContextOp(ctx, dfq.ctx, "FirstID")); err != nil {
 		return
 	}
 	if len(ids) == 0 {
@@ -124,7 +122,7 @@ func (dfq *DeviceFlowQuery) FirstIDX(ctx context.Context) int {
 // Returns a *NotSingularError when more than one DeviceFlow entity is found.
 // Returns a *NotFoundError when no DeviceFlow entities are found.
 func (dfq *DeviceFlowQuery) Only(ctx context.Context) (*DeviceFlow, error) {
-	nodes, err := dfq.Limit(2).All(ctx)
+	nodes, err := dfq.Limit(2).All(setContextOp(ctx, dfq.ctx, "Only"))
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +150,7 @@ func (dfq *DeviceFlowQuery) OnlyX(ctx context.Context) *DeviceFlow {
 // Returns a *NotFoundError when no entities are found.
 func (dfq *DeviceFlowQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = dfq.Limit(2).IDs(ctx); err != nil {
+	if ids, err = dfq.Limit(2).IDs(setContextOp(ctx, dfq.ctx, "OnlyID")); err != nil {
 		return
 	}
 	switch len(ids) {
@@ -177,10 +175,12 @@ func (dfq *DeviceFlowQuery) OnlyIDX(ctx context.Context) int {
 
 // All executes the query and returns a list of DeviceFlows.
 func (dfq *DeviceFlowQuery) All(ctx context.Context) ([]*DeviceFlow, error) {
+	ctx = setContextOp(ctx, dfq.ctx, "All")
 	if err := dfq.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
-	return dfq.sqlAll(ctx)
+	qr := querierAll[[]*DeviceFlow, *DeviceFlowQuery]()
+	return withInterceptors[[]*DeviceFlow](ctx, dfq, qr, dfq.inters)
 }
 
 // AllX is like All, but panics if an error occurs.
@@ -195,6 +195,7 @@ func (dfq *DeviceFlowQuery) AllX(ctx context.Context) []*DeviceFlow {
 // IDs executes the query and returns a list of DeviceFlow IDs.
 func (dfq *DeviceFlowQuery) IDs(ctx context.Context) ([]int, error) {
 	var ids []int
+	ctx = setContextOp(ctx, dfq.ctx, "IDs")
 	if err := dfq.Select(deviceflow.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
@@ -212,10 +213,11 @@ func (dfq *DeviceFlowQuery) IDsX(ctx context.Context) []int {
 
 // Count returns the count of the given query.
 func (dfq *DeviceFlowQuery) Count(ctx context.Context) (int, error) {
+	ctx = setContextOp(ctx, dfq.ctx, "Count")
 	if err := dfq.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
-	return dfq.sqlCount(ctx)
+	return withInterceptors[int](ctx, dfq, querierCount[*DeviceFlowQuery](), dfq.inters)
 }
 
 // CountX is like Count, but panics if an error occurs.
@@ -229,10 +231,15 @@ func (dfq *DeviceFlowQuery) CountX(ctx context.Context) int {
 
 // Exist returns true if the query has elements in the graph.
 func (dfq *DeviceFlowQuery) Exist(ctx context.Context) (bool, error) {
-	if err := dfq.prepareQuery(ctx); err != nil {
-		return false, err
+	ctx = setContextOp(ctx, dfq.ctx, "Exist")
+	switch _, err := dfq.FirstID(ctx); {
+	case IsNotFound(err):
+		return false, nil
+	case err != nil:
+		return false, fmt.Errorf("ent: check existence: %w", err)
+	default:
+		return true, nil
 	}
-	return dfq.sqlExist(ctx)
 }
 
 // ExistX is like Exist, but panics if an error occurs.
@@ -252,14 +259,13 @@ func (dfq *DeviceFlowQuery) Clone() *DeviceFlowQuery {
 	}
 	return &DeviceFlowQuery{
 		config:     dfq.config,
-		limit:      dfq.limit,
-		offset:     dfq.offset,
+		ctx:        dfq.ctx.Clone(),
 		order:      append([]OrderFunc{}, dfq.order...),
+		inters:     append([]Interceptor{}, dfq.inters...),
 		predicates: append([]predicate.DeviceFlow{}, dfq.predicates...),
 		// clone intermediate query.
-		sql:    dfq.sql.Clone(),
-		path:   dfq.path,
-		unique: dfq.unique,
+		sql:  dfq.sql.Clone(),
+		path: dfq.path,
 	}
 }
 
@@ -278,16 +284,11 @@ func (dfq *DeviceFlowQuery) Clone() *DeviceFlowQuery {
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
 func (dfq *DeviceFlowQuery) GroupBy(field string, fields ...string) *DeviceFlowGroupBy {
-	grbuild := &DeviceFlowGroupBy{config: dfq.config}
-	grbuild.fields = append([]string{field}, fields...)
-	grbuild.path = func(ctx context.Context) (prev *sql.Selector, err error) {
-		if err := dfq.prepareQuery(ctx); err != nil {
-			return nil, err
-		}
-		return dfq.sqlQuery(ctx), nil
-	}
+	dfq.ctx.Fields = append([]string{field}, fields...)
+	grbuild := &DeviceFlowGroupBy{build: dfq}
+	grbuild.flds = &dfq.ctx.Fields
 	grbuild.label = deviceflow.Label
-	grbuild.flds, grbuild.scan = &grbuild.fields, grbuild.Scan
+	grbuild.scan = grbuild.Scan
 	return grbuild
 }
 
@@ -304,11 +305,11 @@ func (dfq *DeviceFlowQuery) GroupBy(field string, fields ...string) *DeviceFlowG
 //		Select(deviceflow.FieldCreatedAt).
 //		Scan(ctx, &v)
 func (dfq *DeviceFlowQuery) Select(fields ...string) *DeviceFlowSelect {
-	dfq.fields = append(dfq.fields, fields...)
-	selbuild := &DeviceFlowSelect{DeviceFlowQuery: dfq}
-	selbuild.label = deviceflow.Label
-	selbuild.flds, selbuild.scan = &dfq.fields, selbuild.Scan
-	return selbuild
+	dfq.ctx.Fields = append(dfq.ctx.Fields, fields...)
+	sbuild := &DeviceFlowSelect{DeviceFlowQuery: dfq}
+	sbuild.label = deviceflow.Label
+	sbuild.flds, sbuild.scan = &dfq.ctx.Fields, sbuild.Scan
+	return sbuild
 }
 
 // Aggregate returns a DeviceFlowSelect configured with the given aggregations.
@@ -317,7 +318,17 @@ func (dfq *DeviceFlowQuery) Aggregate(fns ...AggregateFunc) *DeviceFlowSelect {
 }
 
 func (dfq *DeviceFlowQuery) prepareQuery(ctx context.Context) error {
-	for _, f := range dfq.fields {
+	for _, inter := range dfq.inters {
+		if inter == nil {
+			return fmt.Errorf("ent: uninitialized interceptor (forgotten import ent/runtime?)")
+		}
+		if trv, ok := inter.(Traverser); ok {
+			if err := trv.Traverse(ctx, dfq); err != nil {
+				return err
+			}
+		}
+	}
+	for _, f := range dfq.ctx.Fields {
 		if !deviceflow.ValidColumn(f) {
 			return &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
 		}
@@ -359,22 +370,11 @@ func (dfq *DeviceFlowQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*
 
 func (dfq *DeviceFlowQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := dfq.querySpec()
-	_spec.Node.Columns = dfq.fields
-	if len(dfq.fields) > 0 {
-		_spec.Unique = dfq.unique != nil && *dfq.unique
+	_spec.Node.Columns = dfq.ctx.Fields
+	if len(dfq.ctx.Fields) > 0 {
+		_spec.Unique = dfq.ctx.Unique != nil && *dfq.ctx.Unique
 	}
 	return sqlgraph.CountNodes(ctx, dfq.driver, _spec)
-}
-
-func (dfq *DeviceFlowQuery) sqlExist(ctx context.Context) (bool, error) {
-	switch _, err := dfq.FirstID(ctx); {
-	case IsNotFound(err):
-		return false, nil
-	case err != nil:
-		return false, fmt.Errorf("ent: check existence: %w", err)
-	default:
-		return true, nil
-	}
 }
 
 func (dfq *DeviceFlowQuery) querySpec() *sqlgraph.QuerySpec {
@@ -390,10 +390,10 @@ func (dfq *DeviceFlowQuery) querySpec() *sqlgraph.QuerySpec {
 		From:   dfq.sql,
 		Unique: true,
 	}
-	if unique := dfq.unique; unique != nil {
+	if unique := dfq.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
 	}
-	if fields := dfq.fields; len(fields) > 0 {
+	if fields := dfq.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
 		_spec.Node.Columns = append(_spec.Node.Columns, deviceflow.FieldID)
 		for i := range fields {
@@ -409,10 +409,10 @@ func (dfq *DeviceFlowQuery) querySpec() *sqlgraph.QuerySpec {
 			}
 		}
 	}
-	if limit := dfq.limit; limit != nil {
+	if limit := dfq.ctx.Limit; limit != nil {
 		_spec.Limit = *limit
 	}
-	if offset := dfq.offset; offset != nil {
+	if offset := dfq.ctx.Offset; offset != nil {
 		_spec.Offset = *offset
 	}
 	if ps := dfq.order; len(ps) > 0 {
@@ -428,7 +428,7 @@ func (dfq *DeviceFlowQuery) querySpec() *sqlgraph.QuerySpec {
 func (dfq *DeviceFlowQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	builder := sql.Dialect(dfq.driver.Dialect())
 	t1 := builder.Table(deviceflow.Table)
-	columns := dfq.fields
+	columns := dfq.ctx.Fields
 	if len(columns) == 0 {
 		columns = deviceflow.Columns
 	}
@@ -437,7 +437,7 @@ func (dfq *DeviceFlowQuery) sqlQuery(ctx context.Context) *sql.Selector {
 		selector = dfq.sql
 		selector.Select(selector.Columns(columns...)...)
 	}
-	if dfq.unique != nil && *dfq.unique {
+	if dfq.ctx.Unique != nil && *dfq.ctx.Unique {
 		selector.Distinct()
 	}
 	for _, p := range dfq.predicates {
@@ -446,12 +446,12 @@ func (dfq *DeviceFlowQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	for _, p := range dfq.order {
 		p(selector)
 	}
-	if offset := dfq.offset; offset != nil {
+	if offset := dfq.ctx.Offset; offset != nil {
 		// limit is mandatory for offset clause. We start
 		// with default value, and override it below if needed.
 		selector.Offset(*offset).Limit(math.MaxInt32)
 	}
-	if limit := dfq.limit; limit != nil {
+	if limit := dfq.ctx.Limit; limit != nil {
 		selector.Limit(*limit)
 	}
 	return selector
@@ -459,13 +459,8 @@ func (dfq *DeviceFlowQuery) sqlQuery(ctx context.Context) *sql.Selector {
 
 // DeviceFlowGroupBy is the group-by builder for DeviceFlow entities.
 type DeviceFlowGroupBy struct {
-	config
 	selector
-	fields []string
-	fns    []AggregateFunc
-	// intermediate query (i.e. traversal path).
-	sql  *sql.Selector
-	path func(context.Context) (*sql.Selector, error)
+	build *DeviceFlowQuery
 }
 
 // Aggregate adds the given aggregation functions to the group-by query.
@@ -474,58 +469,46 @@ func (dfgb *DeviceFlowGroupBy) Aggregate(fns ...AggregateFunc) *DeviceFlowGroupB
 	return dfgb
 }
 
-// Scan applies the group-by query and scans the result into the given value.
+// Scan applies the selector query and scans the result into the given value.
 func (dfgb *DeviceFlowGroupBy) Scan(ctx context.Context, v any) error {
-	query, err := dfgb.path(ctx)
-	if err != nil {
+	ctx = setContextOp(ctx, dfgb.build.ctx, "GroupBy")
+	if err := dfgb.build.prepareQuery(ctx); err != nil {
 		return err
 	}
-	dfgb.sql = query
-	return dfgb.sqlScan(ctx, v)
+	return scanWithInterceptors[*DeviceFlowQuery, *DeviceFlowGroupBy](ctx, dfgb.build, dfgb, dfgb.build.inters, v)
 }
 
-func (dfgb *DeviceFlowGroupBy) sqlScan(ctx context.Context, v any) error {
-	for _, f := range dfgb.fields {
-		if !deviceflow.ValidColumn(f) {
-			return &ValidationError{Name: f, err: fmt.Errorf("invalid field %q for group-by", f)}
-		}
+func (dfgb *DeviceFlowGroupBy) sqlScan(ctx context.Context, root *DeviceFlowQuery, v any) error {
+	selector := root.sqlQuery(ctx).Select()
+	aggregation := make([]string, 0, len(dfgb.fns))
+	for _, fn := range dfgb.fns {
+		aggregation = append(aggregation, fn(selector))
 	}
-	selector := dfgb.sqlQuery()
+	if len(selector.SelectedColumns()) == 0 {
+		columns := make([]string, 0, len(*dfgb.flds)+len(dfgb.fns))
+		for _, f := range *dfgb.flds {
+			columns = append(columns, selector.C(f))
+		}
+		columns = append(columns, aggregation...)
+		selector.Select(columns...)
+	}
+	selector.GroupBy(selector.Columns(*dfgb.flds...)...)
 	if err := selector.Err(); err != nil {
 		return err
 	}
 	rows := &sql.Rows{}
 	query, args := selector.Query()
-	if err := dfgb.driver.Query(ctx, query, args, rows); err != nil {
+	if err := dfgb.build.driver.Query(ctx, query, args, rows); err != nil {
 		return err
 	}
 	defer rows.Close()
 	return sql.ScanSlice(rows, v)
 }
 
-func (dfgb *DeviceFlowGroupBy) sqlQuery() *sql.Selector {
-	selector := dfgb.sql.Select()
-	aggregation := make([]string, 0, len(dfgb.fns))
-	for _, fn := range dfgb.fns {
-		aggregation = append(aggregation, fn(selector))
-	}
-	if len(selector.SelectedColumns()) == 0 {
-		columns := make([]string, 0, len(dfgb.fields)+len(dfgb.fns))
-		for _, f := range dfgb.fields {
-			columns = append(columns, selector.C(f))
-		}
-		columns = append(columns, aggregation...)
-		selector.Select(columns...)
-	}
-	return selector.GroupBy(selector.Columns(dfgb.fields...)...)
-}
-
 // DeviceFlowSelect is the builder for selecting fields of DeviceFlow entities.
 type DeviceFlowSelect struct {
 	*DeviceFlowQuery
 	selector
-	// intermediate query (i.e. traversal path).
-	sql *sql.Selector
 }
 
 // Aggregate adds the given aggregation functions to the selector query.
@@ -536,26 +519,27 @@ func (dfs *DeviceFlowSelect) Aggregate(fns ...AggregateFunc) *DeviceFlowSelect {
 
 // Scan applies the selector query and scans the result into the given value.
 func (dfs *DeviceFlowSelect) Scan(ctx context.Context, v any) error {
+	ctx = setContextOp(ctx, dfs.ctx, "Select")
 	if err := dfs.prepareQuery(ctx); err != nil {
 		return err
 	}
-	dfs.sql = dfs.DeviceFlowQuery.sqlQuery(ctx)
-	return dfs.sqlScan(ctx, v)
+	return scanWithInterceptors[*DeviceFlowQuery, *DeviceFlowSelect](ctx, dfs.DeviceFlowQuery, dfs, dfs.inters, v)
 }
 
-func (dfs *DeviceFlowSelect) sqlScan(ctx context.Context, v any) error {
+func (dfs *DeviceFlowSelect) sqlScan(ctx context.Context, root *DeviceFlowQuery, v any) error {
+	selector := root.sqlQuery(ctx)
 	aggregation := make([]string, 0, len(dfs.fns))
 	for _, fn := range dfs.fns {
-		aggregation = append(aggregation, fn(dfs.sql))
+		aggregation = append(aggregation, fn(selector))
 	}
 	switch n := len(*dfs.selector.flds); {
 	case n == 0 && len(aggregation) > 0:
-		dfs.sql.Select(aggregation...)
+		selector.Select(aggregation...)
 	case n != 0 && len(aggregation) > 0:
-		dfs.sql.AppendSelect(aggregation...)
+		selector.AppendSelect(aggregation...)
 	}
 	rows := &sql.Rows{}
-	query, args := dfs.sql.Query()
+	query, args := selector.Query()
 	if err := dfs.driver.Query(ctx, query, args, rows); err != nil {
 		return err
 	}
