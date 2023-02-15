@@ -842,16 +842,7 @@ const docTemplateauthAPI = `{
                     "type": "string"
                 },
                 "session": {
-                    "enum": [
-                        "session",
-                        "api",
-                        "service"
-                    ],
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/auth.Kind"
-                        }
-                    ]
+                    "$ref": "#/definitions/auth.Kind"
                 }
             }
         },

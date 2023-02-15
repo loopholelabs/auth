@@ -68,12 +68,7 @@ definitions:
       organization:
         type: string
       session:
-        allOf:
-          - $ref: '#/definitions/auth.Kind'
-        enum:
-          - session
-          - api
-          - service
+        $ref: '#/definitions/auth.Kind'
     type: object
   servicekey.Resource:
     properties:

@@ -51,7 +51,7 @@ type ServiceKeyLoginResponse struct {
 
 type UserInfoResponse struct {
 	Email        string    `json:"email"`
-	Session      auth.Kind `enums:"session,api,service"`
+	Session      auth.Kind `json:"session"`
 	Organization string    `json:"organization"`
 }
 
