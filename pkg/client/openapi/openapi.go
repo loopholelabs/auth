@@ -22,7 +22,7 @@ import (
 	"github.com/go-openapi/runtime/client"
 	"github.com/loopholelabs/auth"
 	"github.com/loopholelabs/auth/internal/cookiejar"
-	"github.com/loopholelabs/auth/internal/session"
+	"github.com/loopholelabs/auth/pkg/client/session"
 	"golang.org/x/net/publicsuffix"
 	"net/http"
 	netCookieJar "net/http/cookiejar"
