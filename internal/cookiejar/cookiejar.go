@@ -186,8 +186,10 @@ func (j *Jar) cookies(u *url.URL, now time.Time) (cookies []*http.Cookie) {
 		if len(s[i].Path) != len(s[j].Path) {
 			return len(s[i].Path) > len(s[j].Path)
 		}
-		if ret := s[i].Creation.Compare(s[j].Creation); ret != 0 {
-			return ret < 0
+		if s[i].Creation.Before(s[j].Creation) {
+			return true
+		} else if s[i].Creation.After(s[j].Creation) {
+			return false
 		}
 		return s[i].seqNum < s[j].seqNum
 	})
