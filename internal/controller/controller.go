@@ -45,6 +45,7 @@ var (
 )
 
 const (
+	CookieKeyString           = "auth-session"
 	MagicKeyString            = "auth-magic"
 	AuthorizationHeaderString = "Authorization"
 	BearerHeaderString        = "Bearer "
@@ -52,6 +53,7 @@ const (
 )
 
 var (
+	CookieKey           = []byte(CookieKeyString)
 	MagicKey            = []byte(MagicKeyString)
 	AuthorizationHeader = []byte(AuthorizationHeaderString)
 	BearerHeader        = []byte(BearerHeaderString)
@@ -217,7 +219,7 @@ func (m *Controller) Stop() error {
 func (m *Controller) GenerateCookie(session string, expiry time.Time) *fiber.Cookie {
 	m.logger.Debug().Msgf("generating cookie with expiry %s", expiry)
 	return &fiber.Cookie{
-		Name:     auth.CookieKeyString,
+		Name:     CookieKeyString,
 		Value:    session,
 		Domain:   m.sessionDomain,
 		Expires:  expiry,
@@ -337,7 +339,7 @@ func (m *Controller) CreateSession(ctx *fiber.Ctx, kind sessionKind.SessionKind,
 	secretKey := m.secretKey
 	m.secretKeyMu.RUnlock()
 
-	encrypted, err := aes.Encrypt(secretKey, auth.CookieKey, data)
+	encrypted, err := aes.Encrypt(secretKey, CookieKey, data)
 	if err != nil {
 		m.logger.Error().Err(err).Msg("failed to encrypt session")
 		return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to encrypt session")
@@ -400,7 +402,7 @@ func (m *Controller) CreateServiceSession(ctx *fiber.Ctx, keyID string, keySecre
 }
 
 func (m *Controller) Validate(ctx *fiber.Ctx) error {
-	cookie := ctx.Cookies(auth.CookieKeyString)
+	cookie := ctx.Cookies(CookieKeyString)
 	if cookie != "" {
 		sess, err := m.getSession(ctx, cookie)
 		if sess == nil {
@@ -459,7 +461,7 @@ func (m *Controller) Validate(ctx *fiber.Ctx) error {
 }
 
 func (m *Controller) ManualValidate(ctx *fiber.Ctx) (bool, error) {
-	cookie := ctx.Cookies(auth.CookieKeyString)
+	cookie := ctx.Cookies(CookieKeyString)
 	if cookie != "" {
 		sess, err := m.getSession(ctx, cookie)
 		if sess == nil {
@@ -518,7 +520,7 @@ func (m *Controller) ManualValidate(ctx *fiber.Ctx) (bool, error) {
 }
 
 func (m *Controller) AuthAvailable(ctx *fiber.Ctx) bool {
-	cookie := ctx.Cookies(auth.CookieKeyString)
+	cookie := ctx.Cookies(CookieKeyString)
 	if cookie != "" {
 		return true
 	}
@@ -578,7 +580,7 @@ func (m *Controller) GetServiceSessionFromContext(ctx *fiber.Ctx) (*servicesessi
 }
 
 func (m *Controller) LogoutSession(ctx *fiber.Ctx) (bool, error) {
-	cookie := ctx.Cookies(auth.CookieKeyString)
+	cookie := ctx.Cookies(CookieKeyString)
 	if cookie != "" {
 		sess, err := m.getSession(ctx, cookie)
 		if sess == nil {
@@ -591,7 +593,7 @@ func (m *Controller) LogoutSession(ctx *fiber.Ctx) (bool, error) {
 		}
 	}
 
-	ctx.ClearCookie(auth.CookieKeyString)
+	ctx.ClearCookie(CookieKeyString)
 	return true, nil
 }
 
@@ -668,11 +670,11 @@ func (m *Controller) getSession(ctx *fiber.Ctx, cookie string) (*session.Session
 	m.secretKeyMu.RUnlock()
 
 	oldSecretKeyUsed := false
-	decrypted, err := aes.Decrypt(secretKey, auth.CookieKey, cookie)
+	decrypted, err := aes.Decrypt(secretKey, CookieKey, cookie)
 	if err != nil {
 		if errors.Is(err, aes.ErrInvalidContent) {
 			if oldSecretKey != nil {
-				decrypted, err = aes.Decrypt(oldSecretKey, auth.CookieKey, cookie)
+				decrypted, err = aes.Decrypt(oldSecretKey, CookieKey, cookie)
 				if err != nil {
 					if errors.Is(err, aes.ErrInvalidContent) {
 						return nil, ctx.Status(fiber.StatusUnauthorized).SendString("invalid session cookie")
@@ -723,7 +725,7 @@ func (m *Controller) getSession(ctx *fiber.Ctx, cookie string) (*session.Session
 			return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to marshal session")
 		}
 
-		encrypted, err := aes.Encrypt(secretKey, auth.CookieKey, data)
+		encrypted, err := aes.Encrypt(secretKey, CookieKey, data)
 		if err != nil {
 			m.logger.Error().Err(err).Msg("failed to encrypt refreshed session")
 			return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to encrypt session")

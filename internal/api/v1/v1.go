@@ -116,7 +116,7 @@ func (v *V1) Logout(ctx *fiber.Ctx) error {
 // UserInfo godoc
 // @Summary      UserInfo checks if a user is logged in and returns their info
 // @Description  UserInfo checks if a user is logged in and returns their info
-// @Tags         login
+// @Tags         userinfo
 // @Accept       json
 // @Produce      json
 // @Success      200 {object} models.UserInfoResponse

@@ -707,7 +707,7 @@ const docTemplateauthAPI = `{
                     "application/json"
                 ],
                 "tags": [
-                    "login"
+                    "userinfo"
                 ],
                 "summary": "UserInfo checks if a user is logged in and returns their info",
                 "responses": {

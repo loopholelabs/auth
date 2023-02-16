@@ -17,14 +17,6 @@
 package auth
 
 const (
-	CookieKeyString = "auth-session"
-)
-
-var (
-	CookieKey = []byte(CookieKeyString)
-)
-
-const (
 	APIKeyPrefixString         = "AK-"
 	ServiceKeyPrefixString     = "SK-"
 	ServiceSessionPrefixString = "SS-"

@@ -555,7 +555,7 @@ paths:
             type: string
       summary: UserInfo checks if a user is logged in and returns their info
       tags:
-      - login
+        - userinfo
 schemes:
 - https
 swagger: "2.0"
