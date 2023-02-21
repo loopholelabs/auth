@@ -148,7 +148,6 @@ func (v *V1) UserInfo(ctx *fiber.Ctx) error {
 // @Failure      500 {string} string
 // @Router       /health [get]
 func (v *V1) Health(ctx *fiber.Ctx) error {
-	v.logger.Debug().Msgf("received Health from %s", ctx.IP())
 	subscriptions := v.options.Controller().SubscriptionHealthy()
 
 	if !subscriptions {
