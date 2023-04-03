@@ -132,10 +132,6 @@ func (m *Controller) Start() error {
 
 	m.registrationMu.Lock()
 	registrationEvents := m.storage.SubscribeToRegistration(m.ctx)
-	if err != nil {
-		m.registrationMu.Unlock()
-		return fmt.Errorf("failed to subscribe to registration events: %w", err)
-	}
 	m.wg.Add(1)
 	go m.subscribeToRegistrationEvents(registrationEvents)
 	m.logger.Info().Msg("subscribed to registration events")
@@ -148,10 +144,6 @@ func (m *Controller) Start() error {
 
 	m.sessionsMu.Lock()
 	sessionEvents := m.storage.SubscribeToSessions(m.ctx)
-	if err != nil {
-		m.sessionsMu.Unlock()
-		return fmt.Errorf("failed to subscribe to session events: %w", err)
-	}
 	m.wg.Add(1)
 	go m.subscribeToSessionEvents(sessionEvents)
 	m.logger.Info().Msg("subscribed to session events")
@@ -168,10 +160,6 @@ func (m *Controller) Start() error {
 
 	m.serviceSessionsMu.Lock()
 	serviceSessionEvents := m.storage.SubscribeToServiceSessions(m.ctx)
-	if err != nil {
-		m.serviceSessionsMu.Unlock()
-		return fmt.Errorf("failed to subscribe to service session events: %w", err)
-	}
 	m.wg.Add(1)
 	go m.subscribeToServiceSessionEvents(serviceSessionEvents)
 	m.logger.Info().Msg("subscribed to service session events")
@@ -188,10 +176,6 @@ func (m *Controller) Start() error {
 
 	m.apikeysMu.Lock()
 	apikeyEvents := m.storage.SubscribeToAPIKeys(m.ctx)
-	if err != nil {
-		m.apikeysMu.Unlock()
-		return fmt.Errorf("failed to subscribe to api key events: %w", err)
-	}
 	m.wg.Add(1)
 	go m.subscribeToAPIKeyEvents(apikeyEvents)
 	m.logger.Info().Msg("subscribed to api key events")
