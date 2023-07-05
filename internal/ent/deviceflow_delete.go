@@ -43,7 +43,7 @@ func (dfd *DeviceFlowDelete) Where(ps ...predicate.DeviceFlow) *DeviceFlowDelete
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (dfd *DeviceFlowDelete) Exec(ctx context.Context) (int, error) {
-	return withHooks[int, DeviceFlowMutation](ctx, dfd.sqlExec, dfd.mutation, dfd.hooks)
+	return withHooks(ctx, dfd.sqlExec, dfd.mutation, dfd.hooks)
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -56,15 +56,7 @@ func (dfd *DeviceFlowDelete) ExecX(ctx context.Context) int {
 }
 
 func (dfd *DeviceFlowDelete) sqlExec(ctx context.Context) (int, error) {
-	_spec := &sqlgraph.DeleteSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table: deviceflow.Table,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: deviceflow.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewDeleteSpec(deviceflow.Table, sqlgraph.NewFieldSpec(deviceflow.FieldID, field.TypeInt))
 	if ps := dfd.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {

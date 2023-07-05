@@ -50,7 +50,7 @@ func (gfu *GoogleFlowUpdate) Mutation() *GoogleFlowMutation {
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (gfu *GoogleFlowUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks[int, GoogleFlowMutation](ctx, gfu.sqlSave, gfu.mutation, gfu.hooks)
+	return withHooks(ctx, gfu.sqlSave, gfu.mutation, gfu.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -76,16 +76,7 @@ func (gfu *GoogleFlowUpdate) ExecX(ctx context.Context) {
 }
 
 func (gfu *GoogleFlowUpdate) sqlSave(ctx context.Context) (n int, err error) {
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   googleflow.Table,
-			Columns: googleflow.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: googleflow.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(googleflow.Table, googleflow.Columns, sqlgraph.NewFieldSpec(googleflow.FieldID, field.TypeInt))
 	if ps := gfu.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -124,6 +115,12 @@ func (gfuo *GoogleFlowUpdateOne) Mutation() *GoogleFlowMutation {
 	return gfuo.mutation
 }
 
+// Where appends a list predicates to the GoogleFlowUpdate builder.
+func (gfuo *GoogleFlowUpdateOne) Where(ps ...predicate.GoogleFlow) *GoogleFlowUpdateOne {
+	gfuo.mutation.Where(ps...)
+	return gfuo
+}
+
 // Select allows selecting one or more fields (columns) of the returned entity.
 // The default is selecting all fields defined in the entity schema.
 func (gfuo *GoogleFlowUpdateOne) Select(field string, fields ...string) *GoogleFlowUpdateOne {
@@ -133,7 +130,7 @@ func (gfuo *GoogleFlowUpdateOne) Select(field string, fields ...string) *GoogleF
 
 // Save executes the query and returns the updated GoogleFlow entity.
 func (gfuo *GoogleFlowUpdateOne) Save(ctx context.Context) (*GoogleFlow, error) {
-	return withHooks[*GoogleFlow, GoogleFlowMutation](ctx, gfuo.sqlSave, gfuo.mutation, gfuo.hooks)
+	return withHooks(ctx, gfuo.sqlSave, gfuo.mutation, gfuo.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -159,16 +156,7 @@ func (gfuo *GoogleFlowUpdateOne) ExecX(ctx context.Context) {
 }
 
 func (gfuo *GoogleFlowUpdateOne) sqlSave(ctx context.Context) (_node *GoogleFlow, err error) {
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   googleflow.Table,
-			Columns: googleflow.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: googleflow.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(googleflow.Table, googleflow.Columns, sqlgraph.NewFieldSpec(googleflow.FieldID, field.TypeInt))
 	id, ok := gfuo.mutation.ID()
 	if !ok {
 		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "GoogleFlow.id" for update`)}

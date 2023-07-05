@@ -34,7 +34,7 @@ import (
 type MagicFlowQuery struct {
 	config
 	ctx        *QueryContext
-	order      []OrderFunc
+	order      []magicflow.OrderOption
 	inters     []Interceptor
 	predicates []predicate.MagicFlow
 	// intermediate query (i.e. traversal path).
@@ -68,7 +68,7 @@ func (mfq *MagicFlowQuery) Unique(unique bool) *MagicFlowQuery {
 }
 
 // Order specifies how the records should be ordered.
-func (mfq *MagicFlowQuery) Order(o ...OrderFunc) *MagicFlowQuery {
+func (mfq *MagicFlowQuery) Order(o ...magicflow.OrderOption) *MagicFlowQuery {
 	mfq.order = append(mfq.order, o...)
 	return mfq
 }
@@ -193,10 +193,12 @@ func (mfq *MagicFlowQuery) AllX(ctx context.Context) []*MagicFlow {
 }
 
 // IDs executes the query and returns a list of MagicFlow IDs.
-func (mfq *MagicFlowQuery) IDs(ctx context.Context) ([]int, error) {
-	var ids []int
+func (mfq *MagicFlowQuery) IDs(ctx context.Context) (ids []int, err error) {
+	if mfq.ctx.Unique == nil && mfq.path != nil {
+		mfq.Unique(true)
+	}
 	ctx = setContextOp(ctx, mfq.ctx, "IDs")
-	if err := mfq.Select(magicflow.FieldID).Scan(ctx, &ids); err != nil {
+	if err = mfq.Select(magicflow.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
@@ -260,7 +262,7 @@ func (mfq *MagicFlowQuery) Clone() *MagicFlowQuery {
 	return &MagicFlowQuery{
 		config:     mfq.config,
 		ctx:        mfq.ctx.Clone(),
-		order:      append([]OrderFunc{}, mfq.order...),
+		order:      append([]magicflow.OrderOption{}, mfq.order...),
 		inters:     append([]Interceptor{}, mfq.inters...),
 		predicates: append([]predicate.MagicFlow{}, mfq.predicates...),
 		// clone intermediate query.
@@ -378,20 +380,12 @@ func (mfq *MagicFlowQuery) sqlCount(ctx context.Context) (int, error) {
 }
 
 func (mfq *MagicFlowQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := &sqlgraph.QuerySpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   magicflow.Table,
-			Columns: magicflow.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: magicflow.FieldID,
-			},
-		},
-		From:   mfq.sql,
-		Unique: true,
-	}
+	_spec := sqlgraph.NewQuerySpec(magicflow.Table, magicflow.Columns, sqlgraph.NewFieldSpec(magicflow.FieldID, field.TypeInt))
+	_spec.From = mfq.sql
 	if unique := mfq.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
+	} else if mfq.path != nil {
+		_spec.Unique = true
 	}
 	if fields := mfq.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))

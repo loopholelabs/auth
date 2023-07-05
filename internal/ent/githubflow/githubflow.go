@@ -20,6 +20,8 @@ package githubflow
 
 import (
 	"time"
+
+	"entgo.io/ent/dialect/sql"
 )
 
 const (
@@ -79,3 +81,46 @@ var (
 	// NextURLValidator is a validator for the "next_url" field. It is called by the builders before save.
 	NextURLValidator func(string) error
 )
+
+// OrderOption defines the ordering options for the GithubFlow queries.
+type OrderOption func(*sql.Selector)
+
+// ByID orders the results by the id field.
+func ByID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldID, opts...).ToFunc()
+}
+
+// ByCreatedAt orders the results by the created_at field.
+func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
+}
+
+// ByState orders the results by the state field.
+func ByState(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldState, opts...).ToFunc()
+}
+
+// ByVerifier orders the results by the verifier field.
+func ByVerifier(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldVerifier, opts...).ToFunc()
+}
+
+// ByChallenge orders the results by the challenge field.
+func ByChallenge(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldChallenge, opts...).ToFunc()
+}
+
+// ByNextURL orders the results by the next_url field.
+func ByNextURL(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldNextURL, opts...).ToFunc()
+}
+
+// ByOrganization orders the results by the organization field.
+func ByOrganization(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOrganization, opts...).ToFunc()
+}
+
+// ByDeviceIdentifier orders the results by the device_identifier field.
+func ByDeviceIdentifier(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDeviceIdentifier, opts...).ToFunc()
+}

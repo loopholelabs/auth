@@ -34,7 +34,7 @@ import (
 type GoogleFlowQuery struct {
 	config
 	ctx        *QueryContext
-	order      []OrderFunc
+	order      []googleflow.OrderOption
 	inters     []Interceptor
 	predicates []predicate.GoogleFlow
 	// intermediate query (i.e. traversal path).
@@ -68,7 +68,7 @@ func (gfq *GoogleFlowQuery) Unique(unique bool) *GoogleFlowQuery {
 }
 
 // Order specifies how the records should be ordered.
-func (gfq *GoogleFlowQuery) Order(o ...OrderFunc) *GoogleFlowQuery {
+func (gfq *GoogleFlowQuery) Order(o ...googleflow.OrderOption) *GoogleFlowQuery {
 	gfq.order = append(gfq.order, o...)
 	return gfq
 }
@@ -193,10 +193,12 @@ func (gfq *GoogleFlowQuery) AllX(ctx context.Context) []*GoogleFlow {
 }
 
 // IDs executes the query and returns a list of GoogleFlow IDs.
-func (gfq *GoogleFlowQuery) IDs(ctx context.Context) ([]int, error) {
-	var ids []int
+func (gfq *GoogleFlowQuery) IDs(ctx context.Context) (ids []int, err error) {
+	if gfq.ctx.Unique == nil && gfq.path != nil {
+		gfq.Unique(true)
+	}
 	ctx = setContextOp(ctx, gfq.ctx, "IDs")
-	if err := gfq.Select(googleflow.FieldID).Scan(ctx, &ids); err != nil {
+	if err = gfq.Select(googleflow.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
@@ -260,7 +262,7 @@ func (gfq *GoogleFlowQuery) Clone() *GoogleFlowQuery {
 	return &GoogleFlowQuery{
 		config:     gfq.config,
 		ctx:        gfq.ctx.Clone(),
-		order:      append([]OrderFunc{}, gfq.order...),
+		order:      append([]googleflow.OrderOption{}, gfq.order...),
 		inters:     append([]Interceptor{}, gfq.inters...),
 		predicates: append([]predicate.GoogleFlow{}, gfq.predicates...),
 		// clone intermediate query.
@@ -378,20 +380,12 @@ func (gfq *GoogleFlowQuery) sqlCount(ctx context.Context) (int, error) {
 }
 
 func (gfq *GoogleFlowQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := &sqlgraph.QuerySpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   googleflow.Table,
-			Columns: googleflow.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: googleflow.FieldID,
-			},
-		},
-		From:   gfq.sql,
-		Unique: true,
-	}
+	_spec := sqlgraph.NewQuerySpec(googleflow.Table, googleflow.Columns, sqlgraph.NewFieldSpec(googleflow.FieldID, field.TypeInt))
+	_spec.From = gfq.sql
 	if unique := gfq.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
+	} else if gfq.path != nil {
+		_spec.Unique = true
 	}
 	if fields := gfq.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))

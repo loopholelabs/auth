@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/loopholelabs/auth/internal/ent/githubflow"
 )
@@ -46,6 +47,7 @@ type GithubFlow struct {
 	Organization string `json:"organization,omitempty"`
 	// DeviceIdentifier holds the value of the "device_identifier" field.
 	DeviceIdentifier string `json:"device_identifier,omitempty"`
+	selectValues     sql.SelectValues
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -60,7 +62,7 @@ func (*GithubFlow) scanValues(columns []string) ([]any, error) {
 		case githubflow.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
 		default:
-			return nil, fmt.Errorf("unexpected column %q for type GithubFlow", columns[i])
+			values[i] = new(sql.UnknownType)
 		}
 	}
 	return values, nil
@@ -122,9 +124,17 @@ func (gf *GithubFlow) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				gf.DeviceIdentifier = value.String
 			}
+		default:
+			gf.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
+}
+
+// Value returns the ent.Value that was dynamically selected and assigned to the GithubFlow.
+// This includes values selected through modifiers, order, etc.
+func (gf *GithubFlow) Value(name string) (ent.Value, error) {
+	return gf.selectValues.Get(name)
 }
 
 // Update returns a builder for updating this GithubFlow.
@@ -176,9 +186,3 @@ func (gf *GithubFlow) String() string {
 
 // GithubFlows is a parsable slice of GithubFlow.
 type GithubFlows []*GithubFlow
-
-func (gf GithubFlows) config(cfg config) {
-	for _i := range gf {
-		gf[_i].config = cfg
-	}
-}

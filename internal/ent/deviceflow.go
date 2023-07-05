@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/loopholelabs/auth/internal/ent/deviceflow"
 )
@@ -45,7 +46,8 @@ type DeviceFlow struct {
 	// Session holds the value of the "session" field.
 	Session string `json:"session,omitempty"`
 	// ExpiresAt holds the value of the "expires_at" field.
-	ExpiresAt time.Time `json:"expires_at,omitempty"`
+	ExpiresAt    time.Time `json:"expires_at,omitempty"`
+	selectValues sql.SelectValues
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -60,7 +62,7 @@ func (*DeviceFlow) scanValues(columns []string) ([]any, error) {
 		case deviceflow.FieldCreatedAt, deviceflow.FieldLastPoll, deviceflow.FieldExpiresAt:
 			values[i] = new(sql.NullTime)
 		default:
-			return nil, fmt.Errorf("unexpected column %q for type DeviceFlow", columns[i])
+			values[i] = new(sql.UnknownType)
 		}
 	}
 	return values, nil
@@ -122,9 +124,17 @@ func (df *DeviceFlow) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				df.ExpiresAt = value.Time
 			}
+		default:
+			df.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
+}
+
+// Value returns the ent.Value that was dynamically selected and assigned to the DeviceFlow.
+// This includes values selected through modifiers, order, etc.
+func (df *DeviceFlow) Value(name string) (ent.Value, error) {
+	return df.selectValues.Get(name)
 }
 
 // Update returns a builder for updating this DeviceFlow.
@@ -176,9 +186,3 @@ func (df *DeviceFlow) String() string {
 
 // DeviceFlows is a parsable slice of DeviceFlow.
 type DeviceFlows []*DeviceFlow
-
-func (df DeviceFlows) config(cfg config) {
-	for _i := range df {
-		df[_i].config = cfg
-	}
-}

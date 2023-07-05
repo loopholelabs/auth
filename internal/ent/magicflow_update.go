@@ -50,7 +50,7 @@ func (mfu *MagicFlowUpdate) Mutation() *MagicFlowMutation {
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (mfu *MagicFlowUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks[int, MagicFlowMutation](ctx, mfu.sqlSave, mfu.mutation, mfu.hooks)
+	return withHooks(ctx, mfu.sqlSave, mfu.mutation, mfu.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -76,16 +76,7 @@ func (mfu *MagicFlowUpdate) ExecX(ctx context.Context) {
 }
 
 func (mfu *MagicFlowUpdate) sqlSave(ctx context.Context) (n int, err error) {
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   magicflow.Table,
-			Columns: magicflow.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: magicflow.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(magicflow.Table, magicflow.Columns, sqlgraph.NewFieldSpec(magicflow.FieldID, field.TypeInt))
 	if ps := mfu.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -124,6 +115,12 @@ func (mfuo *MagicFlowUpdateOne) Mutation() *MagicFlowMutation {
 	return mfuo.mutation
 }
 
+// Where appends a list predicates to the MagicFlowUpdate builder.
+func (mfuo *MagicFlowUpdateOne) Where(ps ...predicate.MagicFlow) *MagicFlowUpdateOne {
+	mfuo.mutation.Where(ps...)
+	return mfuo
+}
+
 // Select allows selecting one or more fields (columns) of the returned entity.
 // The default is selecting all fields defined in the entity schema.
 func (mfuo *MagicFlowUpdateOne) Select(field string, fields ...string) *MagicFlowUpdateOne {
@@ -133,7 +130,7 @@ func (mfuo *MagicFlowUpdateOne) Select(field string, fields ...string) *MagicFlo
 
 // Save executes the query and returns the updated MagicFlow entity.
 func (mfuo *MagicFlowUpdateOne) Save(ctx context.Context) (*MagicFlow, error) {
-	return withHooks[*MagicFlow, MagicFlowMutation](ctx, mfuo.sqlSave, mfuo.mutation, mfuo.hooks)
+	return withHooks(ctx, mfuo.sqlSave, mfuo.mutation, mfuo.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -159,16 +156,7 @@ func (mfuo *MagicFlowUpdateOne) ExecX(ctx context.Context) {
 }
 
 func (mfuo *MagicFlowUpdateOne) sqlSave(ctx context.Context) (_node *MagicFlow, err error) {
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   magicflow.Table,
-			Columns: magicflow.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: magicflow.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(magicflow.Table, magicflow.Columns, sqlgraph.NewFieldSpec(magicflow.FieldID, field.TypeInt))
 	id, ok := mfuo.mutation.ID()
 	if !ok {
 		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "MagicFlow.id" for update`)}

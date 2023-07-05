@@ -25,14 +25,13 @@ import (
 	"sync"
 	"time"
 
+	"entgo.io/ent"
+	"entgo.io/ent/dialect/sql"
 	"github.com/loopholelabs/auth/internal/ent/deviceflow"
 	"github.com/loopholelabs/auth/internal/ent/githubflow"
 	"github.com/loopholelabs/auth/internal/ent/googleflow"
 	"github.com/loopholelabs/auth/internal/ent/magicflow"
 	"github.com/loopholelabs/auth/internal/ent/predicate"
-
-	"entgo.io/ent"
-	"entgo.io/ent/dialect/sql"
 )
 
 const (

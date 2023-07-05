@@ -110,7 +110,7 @@ func (gfc *GoogleFlowCreate) Mutation() *GoogleFlowMutation {
 // Save creates the GoogleFlow in the database.
 func (gfc *GoogleFlowCreate) Save(ctx context.Context) (*GoogleFlow, error) {
 	gfc.defaults()
-	return withHooks[*GoogleFlow, GoogleFlowMutation](ctx, gfc.sqlSave, gfc.mutation, gfc.hooks)
+	return withHooks(ctx, gfc.sqlSave, gfc.mutation, gfc.hooks)
 }
 
 // SaveX calls Save and panics if Save returns an error.
@@ -204,13 +204,7 @@ func (gfc *GoogleFlowCreate) sqlSave(ctx context.Context) (*GoogleFlow, error) {
 func (gfc *GoogleFlowCreate) createSpec() (*GoogleFlow, *sqlgraph.CreateSpec) {
 	var (
 		_node = &GoogleFlow{config: gfc.config}
-		_spec = &sqlgraph.CreateSpec{
-			Table: googleflow.Table,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: googleflow.FieldID,
-			},
-		}
+		_spec = sqlgraph.NewCreateSpec(googleflow.Table, sqlgraph.NewFieldSpec(googleflow.FieldID, field.TypeInt))
 	)
 	if value, ok := gfc.mutation.CreatedAt(); ok {
 		_spec.SetField(googleflow.FieldCreatedAt, field.TypeTime, value)
@@ -267,8 +261,8 @@ func (gfcb *GoogleFlowCreateBulk) Save(ctx context.Context) ([]*GoogleFlow, erro
 					return nil, err
 				}
 				builder.mutation = mutation
-				nodes[i], specs[i] = builder.createSpec()
 				var err error
+				nodes[i], specs[i] = builder.createSpec()
 				if i < len(mutators)-1 {
 					_, err = mutators[i+1].Mutate(root, gfcb.builders[i+1].mutation)
 				} else {

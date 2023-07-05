@@ -34,7 +34,7 @@ import (
 type GithubFlowQuery struct {
 	config
 	ctx        *QueryContext
-	order      []OrderFunc
+	order      []githubflow.OrderOption
 	inters     []Interceptor
 	predicates []predicate.GithubFlow
 	// intermediate query (i.e. traversal path).
@@ -68,7 +68,7 @@ func (gfq *GithubFlowQuery) Unique(unique bool) *GithubFlowQuery {
 }
 
 // Order specifies how the records should be ordered.
-func (gfq *GithubFlowQuery) Order(o ...OrderFunc) *GithubFlowQuery {
+func (gfq *GithubFlowQuery) Order(o ...githubflow.OrderOption) *GithubFlowQuery {
 	gfq.order = append(gfq.order, o...)
 	return gfq
 }
@@ -193,10 +193,12 @@ func (gfq *GithubFlowQuery) AllX(ctx context.Context) []*GithubFlow {
 }
 
 // IDs executes the query and returns a list of GithubFlow IDs.
-func (gfq *GithubFlowQuery) IDs(ctx context.Context) ([]int, error) {
-	var ids []int
+func (gfq *GithubFlowQuery) IDs(ctx context.Context) (ids []int, err error) {
+	if gfq.ctx.Unique == nil && gfq.path != nil {
+		gfq.Unique(true)
+	}
 	ctx = setContextOp(ctx, gfq.ctx, "IDs")
-	if err := gfq.Select(githubflow.FieldID).Scan(ctx, &ids); err != nil {
+	if err = gfq.Select(githubflow.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
@@ -260,7 +262,7 @@ func (gfq *GithubFlowQuery) Clone() *GithubFlowQuery {
 	return &GithubFlowQuery{
 		config:     gfq.config,
 		ctx:        gfq.ctx.Clone(),
-		order:      append([]OrderFunc{}, gfq.order...),
+		order:      append([]githubflow.OrderOption{}, gfq.order...),
 		inters:     append([]Interceptor{}, gfq.inters...),
 		predicates: append([]predicate.GithubFlow{}, gfq.predicates...),
 		// clone intermediate query.
@@ -378,20 +380,12 @@ func (gfq *GithubFlowQuery) sqlCount(ctx context.Context) (int, error) {
 }
 
 func (gfq *GithubFlowQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := &sqlgraph.QuerySpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   githubflow.Table,
-			Columns: githubflow.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: githubflow.FieldID,
-			},
-		},
-		From:   gfq.sql,
-		Unique: true,
-	}
+	_spec := sqlgraph.NewQuerySpec(githubflow.Table, githubflow.Columns, sqlgraph.NewFieldSpec(githubflow.FieldID, field.TypeInt))
+	_spec.From = gfq.sql
 	if unique := gfq.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
+	} else if gfq.path != nil {
+		_spec.Unique = true
 	}
 	if fields := gfq.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))

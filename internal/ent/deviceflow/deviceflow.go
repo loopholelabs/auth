@@ -20,6 +20,8 @@ package deviceflow
 
 import (
 	"time"
+
+	"entgo.io/ent/dialect/sql"
 )
 
 const (
@@ -79,3 +81,46 @@ var (
 	// UserCodeValidator is a validator for the "user_code" field. It is called by the builders before save.
 	UserCodeValidator func(string) error
 )
+
+// OrderOption defines the ordering options for the DeviceFlow queries.
+type OrderOption func(*sql.Selector)
+
+// ByID orders the results by the id field.
+func ByID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldID, opts...).ToFunc()
+}
+
+// ByCreatedAt orders the results by the created_at field.
+func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
+}
+
+// ByLastPoll orders the results by the last_poll field.
+func ByLastPoll(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLastPoll, opts...).ToFunc()
+}
+
+// ByIdentifier orders the results by the identifier field.
+func ByIdentifier(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIdentifier, opts...).ToFunc()
+}
+
+// ByDeviceCode orders the results by the device_code field.
+func ByDeviceCode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDeviceCode, opts...).ToFunc()
+}
+
+// ByUserCode orders the results by the user_code field.
+func ByUserCode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUserCode, opts...).ToFunc()
+}
+
+// BySession orders the results by the session field.
+func BySession(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSession, opts...).ToFunc()
+}
+
+// ByExpiresAt orders the results by the expires_at field.
+func ByExpiresAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldExpiresAt, opts...).ToFunc()
+}

@@ -105,7 +105,7 @@ func (dfu *DeviceFlowUpdate) Mutation() *DeviceFlowMutation {
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (dfu *DeviceFlowUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks[int, DeviceFlowMutation](ctx, dfu.sqlSave, dfu.mutation, dfu.hooks)
+	return withHooks(ctx, dfu.sqlSave, dfu.mutation, dfu.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -131,16 +131,7 @@ func (dfu *DeviceFlowUpdate) ExecX(ctx context.Context) {
 }
 
 func (dfu *DeviceFlowUpdate) sqlSave(ctx context.Context) (n int, err error) {
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   deviceflow.Table,
-			Columns: deviceflow.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: deviceflow.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(deviceflow.Table, deviceflow.Columns, sqlgraph.NewFieldSpec(deviceflow.FieldID, field.TypeInt))
 	if ps := dfu.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -242,6 +233,12 @@ func (dfuo *DeviceFlowUpdateOne) Mutation() *DeviceFlowMutation {
 	return dfuo.mutation
 }
 
+// Where appends a list predicates to the DeviceFlowUpdate builder.
+func (dfuo *DeviceFlowUpdateOne) Where(ps ...predicate.DeviceFlow) *DeviceFlowUpdateOne {
+	dfuo.mutation.Where(ps...)
+	return dfuo
+}
+
 // Select allows selecting one or more fields (columns) of the returned entity.
 // The default is selecting all fields defined in the entity schema.
 func (dfuo *DeviceFlowUpdateOne) Select(field string, fields ...string) *DeviceFlowUpdateOne {
@@ -251,7 +248,7 @@ func (dfuo *DeviceFlowUpdateOne) Select(field string, fields ...string) *DeviceF
 
 // Save executes the query and returns the updated DeviceFlow entity.
 func (dfuo *DeviceFlowUpdateOne) Save(ctx context.Context) (*DeviceFlow, error) {
-	return withHooks[*DeviceFlow, DeviceFlowMutation](ctx, dfuo.sqlSave, dfuo.mutation, dfuo.hooks)
+	return withHooks(ctx, dfuo.sqlSave, dfuo.mutation, dfuo.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -277,16 +274,7 @@ func (dfuo *DeviceFlowUpdateOne) ExecX(ctx context.Context) {
 }
 
 func (dfuo *DeviceFlowUpdateOne) sqlSave(ctx context.Context) (_node *DeviceFlow, err error) {
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   deviceflow.Table,
-			Columns: deviceflow.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: deviceflow.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(deviceflow.Table, deviceflow.Columns, sqlgraph.NewFieldSpec(deviceflow.FieldID, field.TypeInt))
 	id, ok := dfuo.mutation.ID()
 	if !ok {
 		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "DeviceFlow.id" for update`)}

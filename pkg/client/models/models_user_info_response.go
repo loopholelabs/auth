@@ -91,6 +91,10 @@ func (m *ModelsUserInfoResponse) ContextValidate(ctx context.Context, formats st
 
 func (m *ModelsUserInfoResponse) contextValidateSession(ctx context.Context, formats strfmt.Registry) error {
 
+	if swag.IsZero(m.Session) { // not required
+		return nil
+	}
+
 	if err := m.Session.ContextValidate(ctx, formats); err != nil {
 		if ve, ok := err.(*errors.Validation); ok {
 			return ve.ValidateName("session")

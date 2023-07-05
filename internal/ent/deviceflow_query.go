@@ -34,7 +34,7 @@ import (
 type DeviceFlowQuery struct {
 	config
 	ctx        *QueryContext
-	order      []OrderFunc
+	order      []deviceflow.OrderOption
 	inters     []Interceptor
 	predicates []predicate.DeviceFlow
 	// intermediate query (i.e. traversal path).
@@ -68,7 +68,7 @@ func (dfq *DeviceFlowQuery) Unique(unique bool) *DeviceFlowQuery {
 }
 
 // Order specifies how the records should be ordered.
-func (dfq *DeviceFlowQuery) Order(o ...OrderFunc) *DeviceFlowQuery {
+func (dfq *DeviceFlowQuery) Order(o ...deviceflow.OrderOption) *DeviceFlowQuery {
 	dfq.order = append(dfq.order, o...)
 	return dfq
 }
@@ -193,10 +193,12 @@ func (dfq *DeviceFlowQuery) AllX(ctx context.Context) []*DeviceFlow {
 }
 
 // IDs executes the query and returns a list of DeviceFlow IDs.
-func (dfq *DeviceFlowQuery) IDs(ctx context.Context) ([]int, error) {
-	var ids []int
+func (dfq *DeviceFlowQuery) IDs(ctx context.Context) (ids []int, err error) {
+	if dfq.ctx.Unique == nil && dfq.path != nil {
+		dfq.Unique(true)
+	}
 	ctx = setContextOp(ctx, dfq.ctx, "IDs")
-	if err := dfq.Select(deviceflow.FieldID).Scan(ctx, &ids); err != nil {
+	if err = dfq.Select(deviceflow.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
@@ -260,7 +262,7 @@ func (dfq *DeviceFlowQuery) Clone() *DeviceFlowQuery {
 	return &DeviceFlowQuery{
 		config:     dfq.config,
 		ctx:        dfq.ctx.Clone(),
-		order:      append([]OrderFunc{}, dfq.order...),
+		order:      append([]deviceflow.OrderOption{}, dfq.order...),
 		inters:     append([]Interceptor{}, dfq.inters...),
 		predicates: append([]predicate.DeviceFlow{}, dfq.predicates...),
 		// clone intermediate query.
@@ -378,20 +380,12 @@ func (dfq *DeviceFlowQuery) sqlCount(ctx context.Context) (int, error) {
 }
 
 func (dfq *DeviceFlowQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := &sqlgraph.QuerySpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   deviceflow.Table,
-			Columns: deviceflow.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: deviceflow.FieldID,
-			},
-		},
-		From:   dfq.sql,
-		Unique: true,
-	}
+	_spec := sqlgraph.NewQuerySpec(deviceflow.Table, deviceflow.Columns, sqlgraph.NewFieldSpec(deviceflow.FieldID, field.TypeInt))
+	_spec.From = dfq.sql
 	if unique := dfq.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
+	} else if dfq.path != nil {
+		_spec.Unique = true
 	}
 	if fields := dfq.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))

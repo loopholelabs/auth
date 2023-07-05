@@ -110,7 +110,7 @@ func (gfc *GithubFlowCreate) Mutation() *GithubFlowMutation {
 // Save creates the GithubFlow in the database.
 func (gfc *GithubFlowCreate) Save(ctx context.Context) (*GithubFlow, error) {
 	gfc.defaults()
-	return withHooks[*GithubFlow, GithubFlowMutation](ctx, gfc.sqlSave, gfc.mutation, gfc.hooks)
+	return withHooks(ctx, gfc.sqlSave, gfc.mutation, gfc.hooks)
 }
 
 // SaveX calls Save and panics if Save returns an error.
@@ -204,13 +204,7 @@ func (gfc *GithubFlowCreate) sqlSave(ctx context.Context) (*GithubFlow, error) {
 func (gfc *GithubFlowCreate) createSpec() (*GithubFlow, *sqlgraph.CreateSpec) {
 	var (
 		_node = &GithubFlow{config: gfc.config}
-		_spec = &sqlgraph.CreateSpec{
-			Table: githubflow.Table,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: githubflow.FieldID,
-			},
-		}
+		_spec = sqlgraph.NewCreateSpec(githubflow.Table, sqlgraph.NewFieldSpec(githubflow.FieldID, field.TypeInt))
 	)
 	if value, ok := gfc.mutation.CreatedAt(); ok {
 		_spec.SetField(githubflow.FieldCreatedAt, field.TypeTime, value)
@@ -267,8 +261,8 @@ func (gfcb *GithubFlowCreateBulk) Save(ctx context.Context) ([]*GithubFlow, erro
 					return nil, err
 				}
 				builder.mutation = mutation
-				nodes[i], specs[i] = builder.createSpec()
 				var err error
+				nodes[i], specs[i] = builder.createSpec()
 				if i < len(mutators)-1 {
 					_, err = mutators[i+1].Mutate(root, gfcb.builders[i+1].mutation)
 				} else {

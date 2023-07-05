@@ -43,7 +43,7 @@ func (gfd *GithubFlowDelete) Where(ps ...predicate.GithubFlow) *GithubFlowDelete
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (gfd *GithubFlowDelete) Exec(ctx context.Context) (int, error) {
-	return withHooks[int, GithubFlowMutation](ctx, gfd.sqlExec, gfd.mutation, gfd.hooks)
+	return withHooks(ctx, gfd.sqlExec, gfd.mutation, gfd.hooks)
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -56,15 +56,7 @@ func (gfd *GithubFlowDelete) ExecX(ctx context.Context) int {
 }
 
 func (gfd *GithubFlowDelete) sqlExec(ctx context.Context) (int, error) {
-	_spec := &sqlgraph.DeleteSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table: githubflow.Table,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: githubflow.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewDeleteSpec(githubflow.Table, sqlgraph.NewFieldSpec(githubflow.FieldID, field.TypeInt))
 	if ps := gfd.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {

@@ -43,7 +43,7 @@ func (mfd *MagicFlowDelete) Where(ps ...predicate.MagicFlow) *MagicFlowDelete {
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (mfd *MagicFlowDelete) Exec(ctx context.Context) (int, error) {
-	return withHooks[int, MagicFlowMutation](ctx, mfd.sqlExec, mfd.mutation, mfd.hooks)
+	return withHooks(ctx, mfd.sqlExec, mfd.mutation, mfd.hooks)
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -56,15 +56,7 @@ func (mfd *MagicFlowDelete) ExecX(ctx context.Context) int {
 }
 
 func (mfd *MagicFlowDelete) sqlExec(ctx context.Context) (int, error) {
-	_spec := &sqlgraph.DeleteSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table: magicflow.Table,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: magicflow.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewDeleteSpec(magicflow.Table, sqlgraph.NewFieldSpec(magicflow.FieldID, field.TypeInt))
 	if ps := mfd.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {

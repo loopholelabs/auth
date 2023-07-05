@@ -50,7 +50,7 @@ func (gfu *GithubFlowUpdate) Mutation() *GithubFlowMutation {
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (gfu *GithubFlowUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks[int, GithubFlowMutation](ctx, gfu.sqlSave, gfu.mutation, gfu.hooks)
+	return withHooks(ctx, gfu.sqlSave, gfu.mutation, gfu.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -76,16 +76,7 @@ func (gfu *GithubFlowUpdate) ExecX(ctx context.Context) {
 }
 
 func (gfu *GithubFlowUpdate) sqlSave(ctx context.Context) (n int, err error) {
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   githubflow.Table,
-			Columns: githubflow.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: githubflow.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(githubflow.Table, githubflow.Columns, sqlgraph.NewFieldSpec(githubflow.FieldID, field.TypeInt))
 	if ps := gfu.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -124,6 +115,12 @@ func (gfuo *GithubFlowUpdateOne) Mutation() *GithubFlowMutation {
 	return gfuo.mutation
 }
 
+// Where appends a list predicates to the GithubFlowUpdate builder.
+func (gfuo *GithubFlowUpdateOne) Where(ps ...predicate.GithubFlow) *GithubFlowUpdateOne {
+	gfuo.mutation.Where(ps...)
+	return gfuo
+}
+
 // Select allows selecting one or more fields (columns) of the returned entity.
 // The default is selecting all fields defined in the entity schema.
 func (gfuo *GithubFlowUpdateOne) Select(field string, fields ...string) *GithubFlowUpdateOne {
@@ -133,7 +130,7 @@ func (gfuo *GithubFlowUpdateOne) Select(field string, fields ...string) *GithubF
 
 // Save executes the query and returns the updated GithubFlow entity.
 func (gfuo *GithubFlowUpdateOne) Save(ctx context.Context) (*GithubFlow, error) {
-	return withHooks[*GithubFlow, GithubFlowMutation](ctx, gfuo.sqlSave, gfuo.mutation, gfuo.hooks)
+	return withHooks(ctx, gfuo.sqlSave, gfuo.mutation, gfuo.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -159,16 +156,7 @@ func (gfuo *GithubFlowUpdateOne) ExecX(ctx context.Context) {
 }
 
 func (gfuo *GithubFlowUpdateOne) sqlSave(ctx context.Context) (_node *GithubFlow, err error) {
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   githubflow.Table,
-			Columns: githubflow.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: githubflow.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(githubflow.Table, githubflow.Columns, sqlgraph.NewFieldSpec(githubflow.FieldID, field.TypeInt))
 	id, ok := gfuo.mutation.ID()
 	if !ok {
 		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "GithubFlow.id" for update`)}

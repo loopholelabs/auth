@@ -43,7 +43,7 @@ func (gfd *GoogleFlowDelete) Where(ps ...predicate.GoogleFlow) *GoogleFlowDelete
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (gfd *GoogleFlowDelete) Exec(ctx context.Context) (int, error) {
-	return withHooks[int, GoogleFlowMutation](ctx, gfd.sqlExec, gfd.mutation, gfd.hooks)
+	return withHooks(ctx, gfd.sqlExec, gfd.mutation, gfd.hooks)
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -56,15 +56,7 @@ func (gfd *GoogleFlowDelete) ExecX(ctx context.Context) int {
 }
 
 func (gfd *GoogleFlowDelete) sqlExec(ctx context.Context) (int, error) {
-	_spec := &sqlgraph.DeleteSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table: googleflow.Table,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: googleflow.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewDeleteSpec(googleflow.Table, sqlgraph.NewFieldSpec(googleflow.FieldID, field.TypeInt))
 	if ps := gfd.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {

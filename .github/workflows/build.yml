@@ -20,10 +20,10 @@ jobs:
           cache: true
 
       - name: Install swaggo
-        run: go install github.com/swaggo/swag/cmd/swag@v1.8.10
+        run: go install github.com/swaggo/swag/cmd/swag@v1.16.1
 
       - name: Install swagger
-        run: go install github.com/go-swagger/go-swagger/cmd/swagger@v0.30.4
+        run: go install github.com/go-swagger/go-swagger/cmd/swagger@v0.30.5
 
       - name: Generate
         run: go generate ./...

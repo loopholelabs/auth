@@ -118,7 +118,7 @@ func (dfc *DeviceFlowCreate) Mutation() *DeviceFlowMutation {
 // Save creates the DeviceFlow in the database.
 func (dfc *DeviceFlowCreate) Save(ctx context.Context) (*DeviceFlow, error) {
 	dfc.defaults()
-	return withHooks[*DeviceFlow, DeviceFlowMutation](ctx, dfc.sqlSave, dfc.mutation, dfc.hooks)
+	return withHooks(ctx, dfc.sqlSave, dfc.mutation, dfc.hooks)
 }
 
 // SaveX calls Save and panics if Save returns an error.
@@ -211,13 +211,7 @@ func (dfc *DeviceFlowCreate) sqlSave(ctx context.Context) (*DeviceFlow, error) {
 func (dfc *DeviceFlowCreate) createSpec() (*DeviceFlow, *sqlgraph.CreateSpec) {
 	var (
 		_node = &DeviceFlow{config: dfc.config}
-		_spec = &sqlgraph.CreateSpec{
-			Table: deviceflow.Table,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: deviceflow.FieldID,
-			},
-		}
+		_spec = sqlgraph.NewCreateSpec(deviceflow.Table, sqlgraph.NewFieldSpec(deviceflow.FieldID, field.TypeInt))
 	)
 	if value, ok := dfc.mutation.CreatedAt(); ok {
 		_spec.SetField(deviceflow.FieldCreatedAt, field.TypeTime, value)
@@ -274,8 +268,8 @@ func (dfcb *DeviceFlowCreateBulk) Save(ctx context.Context) ([]*DeviceFlow, erro
 					return nil, err
 				}
 				builder.mutation = mutation
-				nodes[i], specs[i] = builder.createSpec()
 				var err error
+				nodes[i], specs[i] = builder.createSpec()
 				if i < len(mutators)-1 {
 					_, err = mutators[i+1].Mutate(root, dfcb.builders[i+1].mutation)
 				} else {

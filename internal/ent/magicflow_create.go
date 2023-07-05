@@ -110,7 +110,7 @@ func (mfc *MagicFlowCreate) Mutation() *MagicFlowMutation {
 // Save creates the MagicFlow in the database.
 func (mfc *MagicFlowCreate) Save(ctx context.Context) (*MagicFlow, error) {
 	mfc.defaults()
-	return withHooks[*MagicFlow, MagicFlowMutation](ctx, mfc.sqlSave, mfc.mutation, mfc.hooks)
+	return withHooks(ctx, mfc.sqlSave, mfc.mutation, mfc.hooks)
 }
 
 // SaveX calls Save and panics if Save returns an error.
@@ -204,13 +204,7 @@ func (mfc *MagicFlowCreate) sqlSave(ctx context.Context) (*MagicFlow, error) {
 func (mfc *MagicFlowCreate) createSpec() (*MagicFlow, *sqlgraph.CreateSpec) {
 	var (
 		_node = &MagicFlow{config: mfc.config}
-		_spec = &sqlgraph.CreateSpec{
-			Table: magicflow.Table,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: magicflow.FieldID,
-			},
-		}
+		_spec = sqlgraph.NewCreateSpec(magicflow.Table, sqlgraph.NewFieldSpec(magicflow.FieldID, field.TypeInt))
 	)
 	if value, ok := mfc.mutation.CreatedAt(); ok {
 		_spec.SetField(magicflow.FieldCreatedAt, field.TypeTime, value)
@@ -267,8 +261,8 @@ func (mfcb *MagicFlowCreateBulk) Save(ctx context.Context) ([]*MagicFlow, error)
 					return nil, err
 				}
 				builder.mutation = mutation
-				nodes[i], specs[i] = builder.createSpec()
 				var err error
+				nodes[i], specs[i] = builder.createSpec()
 				if i < len(mutators)-1 {
 					_, err = mutators[i+1].Mutate(root, mfcb.builders[i+1].mutation)
 				} else {

@@ -26,13 +26,13 @@ import (
 
 	"github.com/loopholelabs/auth/internal/ent/migrate"
 
+	"entgo.io/ent"
+	"entgo.io/ent/dialect"
+	"entgo.io/ent/dialect/sql"
 	"github.com/loopholelabs/auth/internal/ent/deviceflow"
 	"github.com/loopholelabs/auth/internal/ent/githubflow"
 	"github.com/loopholelabs/auth/internal/ent/googleflow"
 	"github.com/loopholelabs/auth/internal/ent/magicflow"
-
-	"entgo.io/ent/dialect"
-	"entgo.io/ent/dialect/sql"
 )
 
 // Client is the client that holds all ent builders.
@@ -65,6 +65,55 @@ func (c *Client) init() {
 	c.GithubFlow = NewGithubFlowClient(c.config)
 	c.GoogleFlow = NewGoogleFlowClient(c.config)
 	c.MagicFlow = NewMagicFlowClient(c.config)
+}
+
+type (
+	// config is the configuration for the client and its builder.
+	config struct {
+		// driver used for executing database requests.
+		driver dialect.Driver
+		// debug enable a debug logging.
+		debug bool
+		// log used for logging on debug mode.
+		log func(...any)
+		// hooks to execute on mutations.
+		hooks *hooks
+		// interceptors to execute on queries.
+		inters *inters
+	}
+	// Option function to configure the client.
+	Option func(*config)
+)
+
+// options applies the options on the config object.
+func (c *config) options(opts ...Option) {
+	for _, opt := range opts {
+		opt(c)
+	}
+	if c.debug {
+		c.driver = dialect.Debug(c.driver, c.log)
+	}
+}
+
+// Debug enables debug logging on the ent.Driver.
+func Debug() Option {
+	return func(c *config) {
+		c.debug = true
+	}
+}
+
+// Log sets the logging function for debug mode.
+func Log(fn func(...any)) Option {
+	return func(c *config) {
+		c.log = fn
+	}
+}
+
+// Driver configures the client driver.
+func Driver(driver dialect.Driver) Option {
+	return func(c *config) {
+		c.driver = driver
+	}
 }
 
 // Open opens a database/sql.DB specified by the driver name and
@@ -200,7 +249,7 @@ func (c *DeviceFlowClient) Use(hooks ...Hook) {
 	c.hooks.DeviceFlow = append(c.hooks.DeviceFlow, hooks...)
 }
 
-// Use adds a list of query interceptors to the interceptors stack.
+// Intercept adds a list of query interceptors to the interceptors stack.
 // A call to `Intercept(f, g, h)` equals to `deviceflow.Intercept(f(g(h())))`.
 func (c *DeviceFlowClient) Intercept(interceptors ...Interceptor) {
 	c.inters.DeviceFlow = append(c.inters.DeviceFlow, interceptors...)
@@ -318,7 +367,7 @@ func (c *GithubFlowClient) Use(hooks ...Hook) {
 	c.hooks.GithubFlow = append(c.hooks.GithubFlow, hooks...)
 }
 
-// Use adds a list of query interceptors to the interceptors stack.
+// Intercept adds a list of query interceptors to the interceptors stack.
 // A call to `Intercept(f, g, h)` equals to `githubflow.Intercept(f(g(h())))`.
 func (c *GithubFlowClient) Intercept(interceptors ...Interceptor) {
 	c.inters.GithubFlow = append(c.inters.GithubFlow, interceptors...)
@@ -436,7 +485,7 @@ func (c *GoogleFlowClient) Use(hooks ...Hook) {
 	c.hooks.GoogleFlow = append(c.hooks.GoogleFlow, hooks...)
 }
 
-// Use adds a list of query interceptors to the interceptors stack.
+// Intercept adds a list of query interceptors to the interceptors stack.
 // A call to `Intercept(f, g, h)` equals to `googleflow.Intercept(f(g(h())))`.
 func (c *GoogleFlowClient) Intercept(interceptors ...Interceptor) {
 	c.inters.GoogleFlow = append(c.inters.GoogleFlow, interceptors...)
@@ -554,7 +603,7 @@ func (c *MagicFlowClient) Use(hooks ...Hook) {
 	c.hooks.MagicFlow = append(c.hooks.MagicFlow, hooks...)
 }
 
-// Use adds a list of query interceptors to the interceptors stack.
+// Intercept adds a list of query interceptors to the interceptors stack.
 // A call to `Intercept(f, g, h)` equals to `magicflow.Intercept(f(g(h())))`.
 func (c *MagicFlowClient) Intercept(interceptors ...Interceptor) {
 	c.inters.MagicFlow = append(c.inters.MagicFlow, interceptors...)
@@ -655,3 +704,13 @@ func (c *MagicFlowClient) mutate(ctx context.Context, m *MagicFlowMutation) (Val
 		return nil, fmt.Errorf("ent: unknown MagicFlow mutation op: %q", m.Op())
 	}
 }
+
+// hooks and interceptors per client, for fast access.
+type (
+	hooks struct {
+		DeviceFlow, GithubFlow, GoogleFlow, MagicFlow []ent.Hook
+	}
+	inters struct {
+		DeviceFlow, GithubFlow, GoogleFlow, MagicFlow []ent.Interceptor
+	}
+)
