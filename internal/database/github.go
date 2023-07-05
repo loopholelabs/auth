@@ -28,18 +28,18 @@ var _ github.Database = (*Database)(nil)
 
 func (d *Database) SetGithubFlow(ctx context.Context, state string, verifier string, challenge string, nextURL string, organization string, deviceIdentifier string) error {
 	d.logger.Debug().Msgf("setting github flow for %s", state)
-	_, err := d.client.GithubFlow.Create().SetState(state).SetVerifier(verifier).SetChallenge(challenge).SetNextURL(nextURL).SetOrganization(organization).SetDeviceIdentifier(deviceIdentifier).Save(ctx)
+	_, err := d.client.GithubFlow.Create().SetIdentifier(state).SetVerifier(verifier).SetChallenge(challenge).SetNextURL(nextURL).SetOrganization(organization).SetDeviceIdentifier(deviceIdentifier).Save(ctx)
 	return err
 }
 
 func (d *Database) GetGithubFlow(ctx context.Context, state string) (*ent.GithubFlow, error) {
 	d.logger.Debug().Msgf("getting github flow for %s", state)
-	return d.client.GithubFlow.Query().Where(githubflow.State(state)).Only(ctx)
+	return d.client.GithubFlow.Query().Where(githubflow.Identifier(state)).Only(ctx)
 }
 
 func (d *Database) DeleteGithubFlow(ctx context.Context, state string) error {
 	d.logger.Debug().Msgf("deleting github flow for %s", state)
-	_, err := d.client.GithubFlow.Delete().Where(githubflow.State(state)).Exec(ctx)
+	_, err := d.client.GithubFlow.Delete().Where(githubflow.Identifier(state)).Exec(ctx)
 	return err
 }
 

@@ -50,9 +50,9 @@ func (gfc *GithubFlowCreate) SetNillableCreatedAt(t *time.Time) *GithubFlowCreat
 	return gfc
 }
 
-// SetState sets the "state" field.
-func (gfc *GithubFlowCreate) SetState(s string) *GithubFlowCreate {
-	gfc.mutation.SetState(s)
+// SetIdentifier sets the "identifier" field.
+func (gfc *GithubFlowCreate) SetIdentifier(s string) *GithubFlowCreate {
+	gfc.mutation.SetIdentifier(s)
 	return gfc
 }
 
@@ -148,12 +148,12 @@ func (gfc *GithubFlowCreate) check() error {
 	if _, ok := gfc.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "GithubFlow.created_at"`)}
 	}
-	if _, ok := gfc.mutation.State(); !ok {
-		return &ValidationError{Name: "state", err: errors.New(`ent: missing required field "GithubFlow.state"`)}
+	if _, ok := gfc.mutation.Identifier(); !ok {
+		return &ValidationError{Name: "identifier", err: errors.New(`ent: missing required field "GithubFlow.identifier"`)}
 	}
-	if v, ok := gfc.mutation.State(); ok {
-		if err := githubflow.StateValidator(v); err != nil {
-			return &ValidationError{Name: "state", err: fmt.Errorf(`ent: validator failed for field "GithubFlow.state": %w`, err)}
+	if v, ok := gfc.mutation.Identifier(); ok {
+		if err := githubflow.IdentifierValidator(v); err != nil {
+			return &ValidationError{Name: "identifier", err: fmt.Errorf(`ent: validator failed for field "GithubFlow.identifier": %w`, err)}
 		}
 	}
 	if _, ok := gfc.mutation.Verifier(); !ok {
@@ -210,9 +210,9 @@ func (gfc *GithubFlowCreate) createSpec() (*GithubFlow, *sqlgraph.CreateSpec) {
 		_spec.SetField(githubflow.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
 	}
-	if value, ok := gfc.mutation.State(); ok {
-		_spec.SetField(githubflow.FieldState, field.TypeString, value)
-		_node.State = value
+	if value, ok := gfc.mutation.Identifier(); ok {
+		_spec.SetField(githubflow.FieldIdentifier, field.TypeString, value)
+		_node.Identifier = value
 	}
 	if value, ok := gfc.mutation.Verifier(); ok {
 		_spec.SetField(githubflow.FieldVerifier, field.TypeString, value)

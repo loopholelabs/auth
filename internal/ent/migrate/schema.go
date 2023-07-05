@@ -28,11 +28,11 @@ var (
 	DeviceFlowsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "created_at", Type: field.TypeTime},
-		{Name: "last_poll", Type: field.TypeTime},
 		{Name: "identifier", Type: field.TypeString, Unique: true},
 		{Name: "device_code", Type: field.TypeString, Unique: true},
 		{Name: "user_code", Type: field.TypeString, Unique: true},
 		{Name: "session", Type: field.TypeString, Unique: true, Nullable: true},
+		{Name: "last_poll", Type: field.TypeTime},
 		{Name: "expires_at", Type: field.TypeTime, Nullable: true},
 	}
 	// DeviceFlowsTable holds the schema information for the "device_flows" table.
@@ -45,7 +45,7 @@ var (
 	GithubFlowsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "created_at", Type: field.TypeTime},
-		{Name: "state", Type: field.TypeString, Unique: true},
+		{Name: "identifier", Type: field.TypeString, Unique: true},
 		{Name: "verifier", Type: field.TypeString, Unique: true},
 		{Name: "challenge", Type: field.TypeString, Unique: true},
 		{Name: "next_url", Type: field.TypeString},
@@ -62,7 +62,7 @@ var (
 	GoogleFlowsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "created_at", Type: field.TypeTime},
-		{Name: "state", Type: field.TypeString, Unique: true},
+		{Name: "identifier", Type: field.TypeString, Unique: true},
 		{Name: "verifier", Type: field.TypeString, Unique: true},
 		{Name: "challenge", Type: field.TypeString, Unique: true},
 		{Name: "next_url", Type: field.TypeString},
@@ -79,6 +79,7 @@ var (
 	MagicFlowsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "created_at", Type: field.TypeTime},
+		{Name: "identifier", Type: field.TypeString, Unique: true},
 		{Name: "email", Type: field.TypeString, Unique: true},
 		{Name: "ip_address", Type: field.TypeString},
 		{Name: "secret", Type: field.TypeString},

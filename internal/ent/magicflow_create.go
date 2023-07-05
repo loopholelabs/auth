@@ -50,6 +50,12 @@ func (mfc *MagicFlowCreate) SetNillableCreatedAt(t *time.Time) *MagicFlowCreate 
 	return mfc
 }
 
+// SetIdentifier sets the "identifier" field.
+func (mfc *MagicFlowCreate) SetIdentifier(s string) *MagicFlowCreate {
+	mfc.mutation.SetIdentifier(s)
+	return mfc
+}
+
 // SetEmail sets the "email" field.
 func (mfc *MagicFlowCreate) SetEmail(s string) *MagicFlowCreate {
 	mfc.mutation.SetEmail(s)
@@ -148,6 +154,14 @@ func (mfc *MagicFlowCreate) check() error {
 	if _, ok := mfc.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "MagicFlow.created_at"`)}
 	}
+	if _, ok := mfc.mutation.Identifier(); !ok {
+		return &ValidationError{Name: "identifier", err: errors.New(`ent: missing required field "MagicFlow.identifier"`)}
+	}
+	if v, ok := mfc.mutation.Identifier(); ok {
+		if err := magicflow.IdentifierValidator(v); err != nil {
+			return &ValidationError{Name: "identifier", err: fmt.Errorf(`ent: validator failed for field "MagicFlow.identifier": %w`, err)}
+		}
+	}
 	if _, ok := mfc.mutation.Email(); !ok {
 		return &ValidationError{Name: "email", err: errors.New(`ent: missing required field "MagicFlow.email"`)}
 	}
@@ -209,6 +223,10 @@ func (mfc *MagicFlowCreate) createSpec() (*MagicFlow, *sqlgraph.CreateSpec) {
 	if value, ok := mfc.mutation.CreatedAt(); ok {
 		_spec.SetField(magicflow.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
+	}
+	if value, ok := mfc.mutation.Identifier(); ok {
+		_spec.SetField(magicflow.FieldIdentifier, field.TypeString, value)
+		_node.Identifier = value
 	}
 	if value, ok := mfc.mutation.Email(); ok {
 		_spec.SetField(magicflow.FieldEmail, field.TypeString, value)

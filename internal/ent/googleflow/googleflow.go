@@ -31,8 +31,8 @@ const (
 	FieldID = "id"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
-	// FieldState holds the string denoting the state field in the database.
-	FieldState = "state"
+	// FieldIdentifier holds the string denoting the identifier field in the database.
+	FieldIdentifier = "identifier"
 	// FieldVerifier holds the string denoting the verifier field in the database.
 	FieldVerifier = "verifier"
 	// FieldChallenge holds the string denoting the challenge field in the database.
@@ -51,7 +51,7 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldCreatedAt,
-	FieldState,
+	FieldIdentifier,
 	FieldVerifier,
 	FieldChallenge,
 	FieldNextURL,
@@ -72,8 +72,8 @@ func ValidColumn(column string) bool {
 var (
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
-	// StateValidator is a validator for the "state" field. It is called by the builders before save.
-	StateValidator func(string) error
+	// IdentifierValidator is a validator for the "identifier" field. It is called by the builders before save.
+	IdentifierValidator func(string) error
 	// VerifierValidator is a validator for the "verifier" field. It is called by the builders before save.
 	VerifierValidator func(string) error
 	// ChallengeValidator is a validator for the "challenge" field. It is called by the builders before save.
@@ -95,9 +95,9 @@ func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
 }
 
-// ByState orders the results by the state field.
-func ByState(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldState, opts...).ToFunc()
+// ByIdentifier orders the results by the identifier field.
+func ByIdentifier(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIdentifier, opts...).ToFunc()
 }
 
 // ByVerifier orders the results by the verifier field.

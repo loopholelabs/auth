@@ -75,6 +75,11 @@ func CreatedAt(v time.Time) predicate.MagicFlow {
 	return predicate.MagicFlow(sql.FieldEQ(FieldCreatedAt, v))
 }
 
+// Identifier applies equality check predicate on the "identifier" field. It's identical to IdentifierEQ.
+func Identifier(v string) predicate.MagicFlow {
+	return predicate.MagicFlow(sql.FieldEQ(FieldIdentifier, v))
+}
+
 // Email applies equality check predicate on the "email" field. It's identical to EmailEQ.
 func Email(v string) predicate.MagicFlow {
 	return predicate.MagicFlow(sql.FieldEQ(FieldEmail, v))
@@ -143,6 +148,71 @@ func CreatedAtLT(v time.Time) predicate.MagicFlow {
 // CreatedAtLTE applies the LTE predicate on the "created_at" field.
 func CreatedAtLTE(v time.Time) predicate.MagicFlow {
 	return predicate.MagicFlow(sql.FieldLTE(FieldCreatedAt, v))
+}
+
+// IdentifierEQ applies the EQ predicate on the "identifier" field.
+func IdentifierEQ(v string) predicate.MagicFlow {
+	return predicate.MagicFlow(sql.FieldEQ(FieldIdentifier, v))
+}
+
+// IdentifierNEQ applies the NEQ predicate on the "identifier" field.
+func IdentifierNEQ(v string) predicate.MagicFlow {
+	return predicate.MagicFlow(sql.FieldNEQ(FieldIdentifier, v))
+}
+
+// IdentifierIn applies the In predicate on the "identifier" field.
+func IdentifierIn(vs ...string) predicate.MagicFlow {
+	return predicate.MagicFlow(sql.FieldIn(FieldIdentifier, vs...))
+}
+
+// IdentifierNotIn applies the NotIn predicate on the "identifier" field.
+func IdentifierNotIn(vs ...string) predicate.MagicFlow {
+	return predicate.MagicFlow(sql.FieldNotIn(FieldIdentifier, vs...))
+}
+
+// IdentifierGT applies the GT predicate on the "identifier" field.
+func IdentifierGT(v string) predicate.MagicFlow {
+	return predicate.MagicFlow(sql.FieldGT(FieldIdentifier, v))
+}
+
+// IdentifierGTE applies the GTE predicate on the "identifier" field.
+func IdentifierGTE(v string) predicate.MagicFlow {
+	return predicate.MagicFlow(sql.FieldGTE(FieldIdentifier, v))
+}
+
+// IdentifierLT applies the LT predicate on the "identifier" field.
+func IdentifierLT(v string) predicate.MagicFlow {
+	return predicate.MagicFlow(sql.FieldLT(FieldIdentifier, v))
+}
+
+// IdentifierLTE applies the LTE predicate on the "identifier" field.
+func IdentifierLTE(v string) predicate.MagicFlow {
+	return predicate.MagicFlow(sql.FieldLTE(FieldIdentifier, v))
+}
+
+// IdentifierContains applies the Contains predicate on the "identifier" field.
+func IdentifierContains(v string) predicate.MagicFlow {
+	return predicate.MagicFlow(sql.FieldContains(FieldIdentifier, v))
+}
+
+// IdentifierHasPrefix applies the HasPrefix predicate on the "identifier" field.
+func IdentifierHasPrefix(v string) predicate.MagicFlow {
+	return predicate.MagicFlow(sql.FieldHasPrefix(FieldIdentifier, v))
+}
+
+// IdentifierHasSuffix applies the HasSuffix predicate on the "identifier" field.
+func IdentifierHasSuffix(v string) predicate.MagicFlow {
+	return predicate.MagicFlow(sql.FieldHasSuffix(FieldIdentifier, v))
+}
+
+// IdentifierEqualFold applies the EqualFold predicate on the "identifier" field.
+func IdentifierEqualFold(v string) predicate.MagicFlow {
+	return predicate.MagicFlow(sql.FieldEqualFold(FieldIdentifier, v))
+}
+
+// IdentifierContainsFold applies the ContainsFold predicate on the "identifier" field.
+func IdentifierContainsFold(v string) predicate.MagicFlow {
+	return predicate.MagicFlow(sql.FieldContainsFold(FieldIdentifier, v))
 }
 
 // EmailEQ applies the EQ predicate on the "email" field.

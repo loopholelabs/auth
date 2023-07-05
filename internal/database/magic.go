@@ -18,6 +18,7 @@ package database
 
 import (
 	"context"
+	"github.com/google/uuid"
 	"github.com/loopholelabs/auth/internal/ent"
 	"github.com/loopholelabs/auth/internal/ent/magicflow"
 	"github.com/loopholelabs/auth/internal/provider/magic"
@@ -27,8 +28,9 @@ import (
 var _ magic.Database = (*Database)(nil)
 
 func (d *Database) SetMagicFlow(ctx context.Context, email string, ip string, secret string, nextURL string, organization string, deviceIdentifier string) error {
-	d.logger.Debug().Msgf("setting magic flow for %s", email)
-	_, err := d.client.MagicFlow.Create().SetEmail(email).SetIPAddress(ip).SetSecret(secret).SetNextURL(nextURL).SetOrganization(organization).SetDeviceIdentifier(deviceIdentifier).Save(ctx)
+	identifier := uuid.New().String()
+	d.logger.Debug().Msgf("setting magic flow for %s (identifier: %s)", email, identifier)
+	_, err := d.client.MagicFlow.Create().SetIdentifier(identifier).SetEmail(email).SetIPAddress(ip).SetSecret(secret).SetNextURL(nextURL).SetOrganization(organization).SetDeviceIdentifier(deviceIdentifier).Save(ctx)
 	return err
 }
 

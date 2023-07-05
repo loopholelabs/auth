@@ -44,20 +44,6 @@ func (dfu *DeviceFlowUpdate) Where(ps ...predicate.DeviceFlow) *DeviceFlowUpdate
 	return dfu
 }
 
-// SetLastPoll sets the "last_poll" field.
-func (dfu *DeviceFlowUpdate) SetLastPoll(t time.Time) *DeviceFlowUpdate {
-	dfu.mutation.SetLastPoll(t)
-	return dfu
-}
-
-// SetNillableLastPoll sets the "last_poll" field if the given value is not nil.
-func (dfu *DeviceFlowUpdate) SetNillableLastPoll(t *time.Time) *DeviceFlowUpdate {
-	if t != nil {
-		dfu.SetLastPoll(*t)
-	}
-	return dfu
-}
-
 // SetSession sets the "session" field.
 func (dfu *DeviceFlowUpdate) SetSession(s string) *DeviceFlowUpdate {
 	dfu.mutation.SetSession(s)
@@ -75,6 +61,20 @@ func (dfu *DeviceFlowUpdate) SetNillableSession(s *string) *DeviceFlowUpdate {
 // ClearSession clears the value of the "session" field.
 func (dfu *DeviceFlowUpdate) ClearSession() *DeviceFlowUpdate {
 	dfu.mutation.ClearSession()
+	return dfu
+}
+
+// SetLastPoll sets the "last_poll" field.
+func (dfu *DeviceFlowUpdate) SetLastPoll(t time.Time) *DeviceFlowUpdate {
+	dfu.mutation.SetLastPoll(t)
+	return dfu
+}
+
+// SetNillableLastPoll sets the "last_poll" field if the given value is not nil.
+func (dfu *DeviceFlowUpdate) SetNillableLastPoll(t *time.Time) *DeviceFlowUpdate {
+	if t != nil {
+		dfu.SetLastPoll(*t)
+	}
 	return dfu
 }
 
@@ -139,14 +139,14 @@ func (dfu *DeviceFlowUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			}
 		}
 	}
-	if value, ok := dfu.mutation.LastPoll(); ok {
-		_spec.SetField(deviceflow.FieldLastPoll, field.TypeTime, value)
-	}
 	if value, ok := dfu.mutation.Session(); ok {
 		_spec.SetField(deviceflow.FieldSession, field.TypeString, value)
 	}
 	if dfu.mutation.SessionCleared() {
 		_spec.ClearField(deviceflow.FieldSession, field.TypeString)
+	}
+	if value, ok := dfu.mutation.LastPoll(); ok {
+		_spec.SetField(deviceflow.FieldLastPoll, field.TypeTime, value)
 	}
 	if value, ok := dfu.mutation.ExpiresAt(); ok {
 		_spec.SetField(deviceflow.FieldExpiresAt, field.TypeTime, value)
@@ -174,20 +174,6 @@ type DeviceFlowUpdateOne struct {
 	mutation *DeviceFlowMutation
 }
 
-// SetLastPoll sets the "last_poll" field.
-func (dfuo *DeviceFlowUpdateOne) SetLastPoll(t time.Time) *DeviceFlowUpdateOne {
-	dfuo.mutation.SetLastPoll(t)
-	return dfuo
-}
-
-// SetNillableLastPoll sets the "last_poll" field if the given value is not nil.
-func (dfuo *DeviceFlowUpdateOne) SetNillableLastPoll(t *time.Time) *DeviceFlowUpdateOne {
-	if t != nil {
-		dfuo.SetLastPoll(*t)
-	}
-	return dfuo
-}
-
 // SetSession sets the "session" field.
 func (dfuo *DeviceFlowUpdateOne) SetSession(s string) *DeviceFlowUpdateOne {
 	dfuo.mutation.SetSession(s)
@@ -205,6 +191,20 @@ func (dfuo *DeviceFlowUpdateOne) SetNillableSession(s *string) *DeviceFlowUpdate
 // ClearSession clears the value of the "session" field.
 func (dfuo *DeviceFlowUpdateOne) ClearSession() *DeviceFlowUpdateOne {
 	dfuo.mutation.ClearSession()
+	return dfuo
+}
+
+// SetLastPoll sets the "last_poll" field.
+func (dfuo *DeviceFlowUpdateOne) SetLastPoll(t time.Time) *DeviceFlowUpdateOne {
+	dfuo.mutation.SetLastPoll(t)
+	return dfuo
+}
+
+// SetNillableLastPoll sets the "last_poll" field if the given value is not nil.
+func (dfuo *DeviceFlowUpdateOne) SetNillableLastPoll(t *time.Time) *DeviceFlowUpdateOne {
+	if t != nil {
+		dfuo.SetLastPoll(*t)
+	}
 	return dfuo
 }
 
@@ -299,14 +299,14 @@ func (dfuo *DeviceFlowUpdateOne) sqlSave(ctx context.Context) (_node *DeviceFlow
 			}
 		}
 	}
-	if value, ok := dfuo.mutation.LastPoll(); ok {
-		_spec.SetField(deviceflow.FieldLastPoll, field.TypeTime, value)
-	}
 	if value, ok := dfuo.mutation.Session(); ok {
 		_spec.SetField(deviceflow.FieldSession, field.TypeString, value)
 	}
 	if dfuo.mutation.SessionCleared() {
 		_spec.ClearField(deviceflow.FieldSession, field.TypeString)
+	}
+	if value, ok := dfuo.mutation.LastPoll(); ok {
+		_spec.SetField(deviceflow.FieldLastPoll, field.TypeTime, value)
 	}
 	if value, ok := dfuo.mutation.ExpiresAt(); ok {
 		_spec.SetField(deviceflow.FieldExpiresAt, field.TypeTime, value)

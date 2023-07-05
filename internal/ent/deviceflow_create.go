@@ -50,20 +50,6 @@ func (dfc *DeviceFlowCreate) SetNillableCreatedAt(t *time.Time) *DeviceFlowCreat
 	return dfc
 }
 
-// SetLastPoll sets the "last_poll" field.
-func (dfc *DeviceFlowCreate) SetLastPoll(t time.Time) *DeviceFlowCreate {
-	dfc.mutation.SetLastPoll(t)
-	return dfc
-}
-
-// SetNillableLastPoll sets the "last_poll" field if the given value is not nil.
-func (dfc *DeviceFlowCreate) SetNillableLastPoll(t *time.Time) *DeviceFlowCreate {
-	if t != nil {
-		dfc.SetLastPoll(*t)
-	}
-	return dfc
-}
-
 // SetIdentifier sets the "identifier" field.
 func (dfc *DeviceFlowCreate) SetIdentifier(s string) *DeviceFlowCreate {
 	dfc.mutation.SetIdentifier(s)
@@ -92,6 +78,20 @@ func (dfc *DeviceFlowCreate) SetSession(s string) *DeviceFlowCreate {
 func (dfc *DeviceFlowCreate) SetNillableSession(s *string) *DeviceFlowCreate {
 	if s != nil {
 		dfc.SetSession(*s)
+	}
+	return dfc
+}
+
+// SetLastPoll sets the "last_poll" field.
+func (dfc *DeviceFlowCreate) SetLastPoll(t time.Time) *DeviceFlowCreate {
+	dfc.mutation.SetLastPoll(t)
+	return dfc
+}
+
+// SetNillableLastPoll sets the "last_poll" field if the given value is not nil.
+func (dfc *DeviceFlowCreate) SetNillableLastPoll(t *time.Time) *DeviceFlowCreate {
+	if t != nil {
+		dfc.SetLastPoll(*t)
 	}
 	return dfc
 }
@@ -160,9 +160,6 @@ func (dfc *DeviceFlowCreate) check() error {
 	if _, ok := dfc.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "DeviceFlow.created_at"`)}
 	}
-	if _, ok := dfc.mutation.LastPoll(); !ok {
-		return &ValidationError{Name: "last_poll", err: errors.New(`ent: missing required field "DeviceFlow.last_poll"`)}
-	}
 	if _, ok := dfc.mutation.Identifier(); !ok {
 		return &ValidationError{Name: "identifier", err: errors.New(`ent: missing required field "DeviceFlow.identifier"`)}
 	}
@@ -186,6 +183,9 @@ func (dfc *DeviceFlowCreate) check() error {
 		if err := deviceflow.UserCodeValidator(v); err != nil {
 			return &ValidationError{Name: "user_code", err: fmt.Errorf(`ent: validator failed for field "DeviceFlow.user_code": %w`, err)}
 		}
+	}
+	if _, ok := dfc.mutation.LastPoll(); !ok {
+		return &ValidationError{Name: "last_poll", err: errors.New(`ent: missing required field "DeviceFlow.last_poll"`)}
 	}
 	return nil
 }
@@ -217,10 +217,6 @@ func (dfc *DeviceFlowCreate) createSpec() (*DeviceFlow, *sqlgraph.CreateSpec) {
 		_spec.SetField(deviceflow.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
 	}
-	if value, ok := dfc.mutation.LastPoll(); ok {
-		_spec.SetField(deviceflow.FieldLastPoll, field.TypeTime, value)
-		_node.LastPoll = value
-	}
 	if value, ok := dfc.mutation.Identifier(); ok {
 		_spec.SetField(deviceflow.FieldIdentifier, field.TypeString, value)
 		_node.Identifier = value
@@ -236,6 +232,10 @@ func (dfc *DeviceFlowCreate) createSpec() (*DeviceFlow, *sqlgraph.CreateSpec) {
 	if value, ok := dfc.mutation.Session(); ok {
 		_spec.SetField(deviceflow.FieldSession, field.TypeString, value)
 		_node.Session = value
+	}
+	if value, ok := dfc.mutation.LastPoll(); ok {
+		_spec.SetField(deviceflow.FieldLastPoll, field.TypeTime, value)
+		_node.LastPoll = value
 	}
 	if value, ok := dfc.mutation.ExpiresAt(); ok {
 		_spec.SetField(deviceflow.FieldExpiresAt, field.TypeTime, value)

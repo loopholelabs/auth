@@ -28,7 +28,7 @@ func TestSession(t *testing.T) {
 	sess := New(sessionKind.Default, pkey, "test-userid", "test-organization")
 	require.Equal(t, sessionKind.Default, sess.Kind)
 	require.Equal(t, pkey, sess.Provider)
-	require.Equal(t, "test-userid", sess.UserID)
+	require.Equal(t, "test-userid", sess.Owner)
 	require.Equal(t, "test-organization", sess.Organization)
 
 	require.False(t, sess.Expired())

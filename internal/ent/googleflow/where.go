@@ -75,9 +75,9 @@ func CreatedAt(v time.Time) predicate.GoogleFlow {
 	return predicate.GoogleFlow(sql.FieldEQ(FieldCreatedAt, v))
 }
 
-// State applies equality check predicate on the "state" field. It's identical to StateEQ.
-func State(v string) predicate.GoogleFlow {
-	return predicate.GoogleFlow(sql.FieldEQ(FieldState, v))
+// Identifier applies equality check predicate on the "identifier" field. It's identical to IdentifierEQ.
+func Identifier(v string) predicate.GoogleFlow {
+	return predicate.GoogleFlow(sql.FieldEQ(FieldIdentifier, v))
 }
 
 // Verifier applies equality check predicate on the "verifier" field. It's identical to VerifierEQ.
@@ -145,69 +145,69 @@ func CreatedAtLTE(v time.Time) predicate.GoogleFlow {
 	return predicate.GoogleFlow(sql.FieldLTE(FieldCreatedAt, v))
 }
 
-// StateEQ applies the EQ predicate on the "state" field.
-func StateEQ(v string) predicate.GoogleFlow {
-	return predicate.GoogleFlow(sql.FieldEQ(FieldState, v))
+// IdentifierEQ applies the EQ predicate on the "identifier" field.
+func IdentifierEQ(v string) predicate.GoogleFlow {
+	return predicate.GoogleFlow(sql.FieldEQ(FieldIdentifier, v))
 }
 
-// StateNEQ applies the NEQ predicate on the "state" field.
-func StateNEQ(v string) predicate.GoogleFlow {
-	return predicate.GoogleFlow(sql.FieldNEQ(FieldState, v))
+// IdentifierNEQ applies the NEQ predicate on the "identifier" field.
+func IdentifierNEQ(v string) predicate.GoogleFlow {
+	return predicate.GoogleFlow(sql.FieldNEQ(FieldIdentifier, v))
 }
 
-// StateIn applies the In predicate on the "state" field.
-func StateIn(vs ...string) predicate.GoogleFlow {
-	return predicate.GoogleFlow(sql.FieldIn(FieldState, vs...))
+// IdentifierIn applies the In predicate on the "identifier" field.
+func IdentifierIn(vs ...string) predicate.GoogleFlow {
+	return predicate.GoogleFlow(sql.FieldIn(FieldIdentifier, vs...))
 }
 
-// StateNotIn applies the NotIn predicate on the "state" field.
-func StateNotIn(vs ...string) predicate.GoogleFlow {
-	return predicate.GoogleFlow(sql.FieldNotIn(FieldState, vs...))
+// IdentifierNotIn applies the NotIn predicate on the "identifier" field.
+func IdentifierNotIn(vs ...string) predicate.GoogleFlow {
+	return predicate.GoogleFlow(sql.FieldNotIn(FieldIdentifier, vs...))
 }
 
-// StateGT applies the GT predicate on the "state" field.
-func StateGT(v string) predicate.GoogleFlow {
-	return predicate.GoogleFlow(sql.FieldGT(FieldState, v))
+// IdentifierGT applies the GT predicate on the "identifier" field.
+func IdentifierGT(v string) predicate.GoogleFlow {
+	return predicate.GoogleFlow(sql.FieldGT(FieldIdentifier, v))
 }
 
-// StateGTE applies the GTE predicate on the "state" field.
-func StateGTE(v string) predicate.GoogleFlow {
-	return predicate.GoogleFlow(sql.FieldGTE(FieldState, v))
+// IdentifierGTE applies the GTE predicate on the "identifier" field.
+func IdentifierGTE(v string) predicate.GoogleFlow {
+	return predicate.GoogleFlow(sql.FieldGTE(FieldIdentifier, v))
 }
 
-// StateLT applies the LT predicate on the "state" field.
-func StateLT(v string) predicate.GoogleFlow {
-	return predicate.GoogleFlow(sql.FieldLT(FieldState, v))
+// IdentifierLT applies the LT predicate on the "identifier" field.
+func IdentifierLT(v string) predicate.GoogleFlow {
+	return predicate.GoogleFlow(sql.FieldLT(FieldIdentifier, v))
 }
 
-// StateLTE applies the LTE predicate on the "state" field.
-func StateLTE(v string) predicate.GoogleFlow {
-	return predicate.GoogleFlow(sql.FieldLTE(FieldState, v))
+// IdentifierLTE applies the LTE predicate on the "identifier" field.
+func IdentifierLTE(v string) predicate.GoogleFlow {
+	return predicate.GoogleFlow(sql.FieldLTE(FieldIdentifier, v))
 }
 
-// StateContains applies the Contains predicate on the "state" field.
-func StateContains(v string) predicate.GoogleFlow {
-	return predicate.GoogleFlow(sql.FieldContains(FieldState, v))
+// IdentifierContains applies the Contains predicate on the "identifier" field.
+func IdentifierContains(v string) predicate.GoogleFlow {
+	return predicate.GoogleFlow(sql.FieldContains(FieldIdentifier, v))
 }
 
-// StateHasPrefix applies the HasPrefix predicate on the "state" field.
-func StateHasPrefix(v string) predicate.GoogleFlow {
-	return predicate.GoogleFlow(sql.FieldHasPrefix(FieldState, v))
+// IdentifierHasPrefix applies the HasPrefix predicate on the "identifier" field.
+func IdentifierHasPrefix(v string) predicate.GoogleFlow {
+	return predicate.GoogleFlow(sql.FieldHasPrefix(FieldIdentifier, v))
 }
 
-// StateHasSuffix applies the HasSuffix predicate on the "state" field.
-func StateHasSuffix(v string) predicate.GoogleFlow {
-	return predicate.GoogleFlow(sql.FieldHasSuffix(FieldState, v))
+// IdentifierHasSuffix applies the HasSuffix predicate on the "identifier" field.
+func IdentifierHasSuffix(v string) predicate.GoogleFlow {
+	return predicate.GoogleFlow(sql.FieldHasSuffix(FieldIdentifier, v))
 }
 
-// StateEqualFold applies the EqualFold predicate on the "state" field.
-func StateEqualFold(v string) predicate.GoogleFlow {
-	return predicate.GoogleFlow(sql.FieldEqualFold(FieldState, v))
+// IdentifierEqualFold applies the EqualFold predicate on the "identifier" field.
+func IdentifierEqualFold(v string) predicate.GoogleFlow {
+	return predicate.GoogleFlow(sql.FieldEqualFold(FieldIdentifier, v))
 }
 
-// StateContainsFold applies the ContainsFold predicate on the "state" field.
-func StateContainsFold(v string) predicate.GoogleFlow {
-	return predicate.GoogleFlow(sql.FieldContainsFold(FieldState, v))
+// IdentifierContainsFold applies the ContainsFold predicate on the "identifier" field.
+func IdentifierContainsFold(v string) predicate.GoogleFlow {
+	return predicate.GoogleFlow(sql.FieldContainsFold(FieldIdentifier, v))
 }
 
 // VerifierEQ applies the EQ predicate on the "verifier" field.

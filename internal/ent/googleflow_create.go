@@ -50,9 +50,9 @@ func (gfc *GoogleFlowCreate) SetNillableCreatedAt(t *time.Time) *GoogleFlowCreat
 	return gfc
 }
 
-// SetState sets the "state" field.
-func (gfc *GoogleFlowCreate) SetState(s string) *GoogleFlowCreate {
-	gfc.mutation.SetState(s)
+// SetIdentifier sets the "identifier" field.
+func (gfc *GoogleFlowCreate) SetIdentifier(s string) *GoogleFlowCreate {
+	gfc.mutation.SetIdentifier(s)
 	return gfc
 }
 
@@ -148,12 +148,12 @@ func (gfc *GoogleFlowCreate) check() error {
 	if _, ok := gfc.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "GoogleFlow.created_at"`)}
 	}
-	if _, ok := gfc.mutation.State(); !ok {
-		return &ValidationError{Name: "state", err: errors.New(`ent: missing required field "GoogleFlow.state"`)}
+	if _, ok := gfc.mutation.Identifier(); !ok {
+		return &ValidationError{Name: "identifier", err: errors.New(`ent: missing required field "GoogleFlow.identifier"`)}
 	}
-	if v, ok := gfc.mutation.State(); ok {
-		if err := googleflow.StateValidator(v); err != nil {
-			return &ValidationError{Name: "state", err: fmt.Errorf(`ent: validator failed for field "GoogleFlow.state": %w`, err)}
+	if v, ok := gfc.mutation.Identifier(); ok {
+		if err := googleflow.IdentifierValidator(v); err != nil {
+			return &ValidationError{Name: "identifier", err: fmt.Errorf(`ent: validator failed for field "GoogleFlow.identifier": %w`, err)}
 		}
 	}
 	if _, ok := gfc.mutation.Verifier(); !ok {
@@ -210,9 +210,9 @@ func (gfc *GoogleFlowCreate) createSpec() (*GoogleFlow, *sqlgraph.CreateSpec) {
 		_spec.SetField(googleflow.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
 	}
-	if value, ok := gfc.mutation.State(); ok {
-		_spec.SetField(googleflow.FieldState, field.TypeString, value)
-		_node.State = value
+	if value, ok := gfc.mutation.Identifier(); ok {
+		_spec.SetField(googleflow.FieldIdentifier, field.TypeString, value)
+		_node.Identifier = value
 	}
 	if value, ok := gfc.mutation.Verifier(); ok {
 		_spec.SetField(googleflow.FieldVerifier, field.TypeString, value)

@@ -35,6 +35,8 @@ type MagicFlow struct {
 	ID int `json:"id,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
+	// Identifier holds the value of the "identifier" field.
+	Identifier string `json:"identifier,omitempty"`
 	// Email holds the value of the "email" field.
 	Email string `json:"email,omitempty"`
 	// IPAddress holds the value of the "ip_address" field.
@@ -57,7 +59,7 @@ func (*MagicFlow) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case magicflow.FieldID:
 			values[i] = new(sql.NullInt64)
-		case magicflow.FieldEmail, magicflow.FieldIPAddress, magicflow.FieldSecret, magicflow.FieldNextURL, magicflow.FieldOrganization, magicflow.FieldDeviceIdentifier:
+		case magicflow.FieldIdentifier, magicflow.FieldEmail, magicflow.FieldIPAddress, magicflow.FieldSecret, magicflow.FieldNextURL, magicflow.FieldOrganization, magicflow.FieldDeviceIdentifier:
 			values[i] = new(sql.NullString)
 		case magicflow.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
@@ -87,6 +89,12 @@ func (mf *MagicFlow) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
 			} else if value.Valid {
 				mf.CreatedAt = value.Time
+			}
+		case magicflow.FieldIdentifier:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field identifier", values[i])
+			} else if value.Valid {
+				mf.Identifier = value.String
 			}
 		case magicflow.FieldEmail:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -162,6 +170,9 @@ func (mf *MagicFlow) String() string {
 	builder.WriteString(fmt.Sprintf("id=%v, ", mf.ID))
 	builder.WriteString("created_at=")
 	builder.WriteString(mf.CreatedAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	builder.WriteString("identifier=")
+	builder.WriteString(mf.Identifier)
 	builder.WriteString(", ")
 	builder.WriteString("email=")
 	builder.WriteString(mf.Email)

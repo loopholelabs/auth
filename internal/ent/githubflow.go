@@ -35,8 +35,8 @@ type GithubFlow struct {
 	ID int `json:"id,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
-	// State holds the value of the "state" field.
-	State string `json:"state,omitempty"`
+	// Identifier holds the value of the "identifier" field.
+	Identifier string `json:"identifier,omitempty"`
 	// Verifier holds the value of the "verifier" field.
 	Verifier string `json:"verifier,omitempty"`
 	// Challenge holds the value of the "challenge" field.
@@ -57,7 +57,7 @@ func (*GithubFlow) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case githubflow.FieldID:
 			values[i] = new(sql.NullInt64)
-		case githubflow.FieldState, githubflow.FieldVerifier, githubflow.FieldChallenge, githubflow.FieldNextURL, githubflow.FieldOrganization, githubflow.FieldDeviceIdentifier:
+		case githubflow.FieldIdentifier, githubflow.FieldVerifier, githubflow.FieldChallenge, githubflow.FieldNextURL, githubflow.FieldOrganization, githubflow.FieldDeviceIdentifier:
 			values[i] = new(sql.NullString)
 		case githubflow.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
@@ -88,11 +88,11 @@ func (gf *GithubFlow) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				gf.CreatedAt = value.Time
 			}
-		case githubflow.FieldState:
+		case githubflow.FieldIdentifier:
 			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field state", values[i])
+				return fmt.Errorf("unexpected type %T for field identifier", values[i])
 			} else if value.Valid {
-				gf.State = value.String
+				gf.Identifier = value.String
 			}
 		case githubflow.FieldVerifier:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -163,8 +163,8 @@ func (gf *GithubFlow) String() string {
 	builder.WriteString("created_at=")
 	builder.WriteString(gf.CreatedAt.Format(time.ANSIC))
 	builder.WriteString(", ")
-	builder.WriteString("state=")
-	builder.WriteString(gf.State)
+	builder.WriteString("identifier=")
+	builder.WriteString(gf.Identifier)
 	builder.WriteString(", ")
 	builder.WriteString("verifier=")
 	builder.WriteString(gf.Verifier)

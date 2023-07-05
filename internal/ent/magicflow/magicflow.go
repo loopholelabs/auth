@@ -31,6 +31,8 @@ const (
 	FieldID = "id"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
+	// FieldIdentifier holds the string denoting the identifier field in the database.
+	FieldIdentifier = "identifier"
 	// FieldEmail holds the string denoting the email field in the database.
 	FieldEmail = "email"
 	// FieldIPAddress holds the string denoting the ip_address field in the database.
@@ -51,6 +53,7 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldCreatedAt,
+	FieldIdentifier,
 	FieldEmail,
 	FieldIPAddress,
 	FieldSecret,
@@ -72,6 +75,8 @@ func ValidColumn(column string) bool {
 var (
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
+	// IdentifierValidator is a validator for the "identifier" field. It is called by the builders before save.
+	IdentifierValidator func(string) error
 	// EmailValidator is a validator for the "email" field. It is called by the builders before save.
 	EmailValidator func(string) error
 	// IPAddressValidator is a validator for the "ip_address" field. It is called by the builders before save.
@@ -93,6 +98,11 @@ func ByID(opts ...sql.OrderTermOption) OrderOption {
 // ByCreatedAt orders the results by the created_at field.
 func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
+}
+
+// ByIdentifier orders the results by the identifier field.
+func ByIdentifier(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIdentifier, opts...).ToFunc()
 }
 
 // ByEmail orders the results by the email field.

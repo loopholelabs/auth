@@ -31,8 +31,6 @@ const (
 	FieldID = "id"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
-	// FieldLastPoll holds the string denoting the last_poll field in the database.
-	FieldLastPoll = "last_poll"
 	// FieldIdentifier holds the string denoting the identifier field in the database.
 	FieldIdentifier = "identifier"
 	// FieldDeviceCode holds the string denoting the device_code field in the database.
@@ -41,6 +39,8 @@ const (
 	FieldUserCode = "user_code"
 	// FieldSession holds the string denoting the session field in the database.
 	FieldSession = "session"
+	// FieldLastPoll holds the string denoting the last_poll field in the database.
+	FieldLastPoll = "last_poll"
 	// FieldExpiresAt holds the string denoting the expires_at field in the database.
 	FieldExpiresAt = "expires_at"
 	// Table holds the table name of the deviceflow in the database.
@@ -51,11 +51,11 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldCreatedAt,
-	FieldLastPoll,
 	FieldIdentifier,
 	FieldDeviceCode,
 	FieldUserCode,
 	FieldSession,
+	FieldLastPoll,
 	FieldExpiresAt,
 }
 
@@ -72,14 +72,14 @@ func ValidColumn(column string) bool {
 var (
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
-	// DefaultLastPoll holds the default value on creation for the "last_poll" field.
-	DefaultLastPoll func() time.Time
 	// IdentifierValidator is a validator for the "identifier" field. It is called by the builders before save.
 	IdentifierValidator func(string) error
 	// DeviceCodeValidator is a validator for the "device_code" field. It is called by the builders before save.
 	DeviceCodeValidator func(string) error
 	// UserCodeValidator is a validator for the "user_code" field. It is called by the builders before save.
 	UserCodeValidator func(string) error
+	// DefaultLastPoll holds the default value on creation for the "last_poll" field.
+	DefaultLastPoll func() time.Time
 )
 
 // OrderOption defines the ordering options for the DeviceFlow queries.
@@ -93,11 +93,6 @@ func ByID(opts ...sql.OrderTermOption) OrderOption {
 // ByCreatedAt orders the results by the created_at field.
 func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
-}
-
-// ByLastPoll orders the results by the last_poll field.
-func ByLastPoll(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldLastPoll, opts...).ToFunc()
 }
 
 // ByIdentifier orders the results by the identifier field.
@@ -118,6 +113,11 @@ func ByUserCode(opts ...sql.OrderTermOption) OrderOption {
 // BySession orders the results by the session field.
 func BySession(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSession, opts...).ToFunc()
+}
+
+// ByLastPoll orders the results by the last_poll field.
+func ByLastPoll(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLastPoll, opts...).ToFunc()
 }
 
 // ByExpiresAt orders the results by the expires_at field.

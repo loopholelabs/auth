@@ -35,8 +35,6 @@ type DeviceFlow struct {
 	ID int `json:"id,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
-	// LastPoll holds the value of the "last_poll" field.
-	LastPoll time.Time `json:"last_poll,omitempty"`
 	// Identifier holds the value of the "identifier" field.
 	Identifier string `json:"identifier,omitempty"`
 	// DeviceCode holds the value of the "device_code" field.
@@ -45,6 +43,8 @@ type DeviceFlow struct {
 	UserCode string `json:"user_code,omitempty"`
 	// Session holds the value of the "session" field.
 	Session string `json:"session,omitempty"`
+	// LastPoll holds the value of the "last_poll" field.
+	LastPoll time.Time `json:"last_poll,omitempty"`
 	// ExpiresAt holds the value of the "expires_at" field.
 	ExpiresAt    time.Time `json:"expires_at,omitempty"`
 	selectValues sql.SelectValues
@@ -88,12 +88,6 @@ func (df *DeviceFlow) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				df.CreatedAt = value.Time
 			}
-		case deviceflow.FieldLastPoll:
-			if value, ok := values[i].(*sql.NullTime); !ok {
-				return fmt.Errorf("unexpected type %T for field last_poll", values[i])
-			} else if value.Valid {
-				df.LastPoll = value.Time
-			}
 		case deviceflow.FieldIdentifier:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field identifier", values[i])
@@ -117,6 +111,12 @@ func (df *DeviceFlow) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field session", values[i])
 			} else if value.Valid {
 				df.Session = value.String
+			}
+		case deviceflow.FieldLastPoll:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field last_poll", values[i])
+			} else if value.Valid {
+				df.LastPoll = value.Time
 			}
 		case deviceflow.FieldExpiresAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -163,9 +163,6 @@ func (df *DeviceFlow) String() string {
 	builder.WriteString("created_at=")
 	builder.WriteString(df.CreatedAt.Format(time.ANSIC))
 	builder.WriteString(", ")
-	builder.WriteString("last_poll=")
-	builder.WriteString(df.LastPoll.Format(time.ANSIC))
-	builder.WriteString(", ")
 	builder.WriteString("identifier=")
 	builder.WriteString(df.Identifier)
 	builder.WriteString(", ")
@@ -177,6 +174,9 @@ func (df *DeviceFlow) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("session=")
 	builder.WriteString(df.Session)
+	builder.WriteString(", ")
+	builder.WriteString("last_poll=")
+	builder.WriteString(df.LastPoll.Format(time.ANSIC))
 	builder.WriteString(", ")
 	builder.WriteString("expires_at=")
 	builder.WriteString(df.ExpiresAt.Format(time.ANSIC))
