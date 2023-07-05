@@ -1,17 +1,17 @@
 /*
-	Copyright 2023 Loophole Labs
+ 	Copyright 2023 Loophole Labs
 
-	Licensed under the Apache License, Version 2.0 (the "License");
-	you may not use this file except in compliance with the License.
-	You may obtain a copy of the License at
+ 	Licensed under the Apache License, Version 2.0 (the "License");
+ 	you may not use this file except in compliance with the License.
+ 	You may obtain a copy of the License at
 
-		   http://www.apache.org/licenses/LICENSE-2.0
+ 		   http://www.apache.org/licenses/LICENSE-2.0
 
-	Unless required by applicable law or agreed to in writing, software
-	distributed under the License is distributed on an "AS IS" BASIS,
-	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-	See the License for the specific language governing permissions and
-	limitations under the License.
+ 	Unless required by applicable law or agreed to in writing, software
+ 	distributed under the License is distributed on an "AS IS" BASIS,
+ 	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ 	See the License for the specific language governing permissions and
+ 	limitations under the License.
 */
 
 package controller
@@ -58,6 +58,8 @@ var (
 	AuthorizationHeader = []byte(AuthorizationHeaderString)
 	BearerHeader        = []byte(BearerHeaderString)
 	KeyDelimiter        = []byte(KeyDelimiterString)
+
+	EmptySecretKey = [32]byte{}
 )
 
 type Controller struct {
@@ -69,8 +71,8 @@ type Controller struct {
 	ctx               context.Context
 	cancel            context.CancelFunc
 
-	secretKey    []byte
-	oldSecretKey []byte
+	secretKey    [32]byte
+	oldSecretKey [32]byte
 	secretKeyMu  sync.RWMutex
 
 	registration   bool
@@ -115,7 +117,7 @@ func (m *Controller) Start() error {
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
 			m.logger.Info().Msg("no secret key found, generating new one")
-			m.secretKey = utils.RandomBytes(32)
+			m.secretKey = [32]byte(utils.RandomBytes(32))
 			err = m.storage.SetSecretKey(m.ctx, m.secretKey)
 			m.secretKeyMu.Unlock()
 			if err != nil {
@@ -153,7 +155,7 @@ func (m *Controller) Start() error {
 		return fmt.Errorf("failed to list session IDs: %w", err)
 	}
 	for _, sess := range sessions {
-		m.sessions[sess.ID] = struct{}{}
+		m.sessions[sess.Identifier] = struct{}{}
 	}
 	m.sessionsMu.Unlock()
 	m.logger.Info().Msg("retrieved sessions")
@@ -169,7 +171,7 @@ func (m *Controller) Start() error {
 		return fmt.Errorf("failed to list service sessions: %w", err)
 	}
 	for _, sess := range serviceSessions {
-		m.serviceSessions[sess.ID] = sess
+		m.serviceSessions[sess.Identifier] = sess
 	}
 	m.serviceSessionsMu.Unlock()
 	m.logger.Info().Msg("retrieved service sessions")
@@ -185,7 +187,7 @@ func (m *Controller) Start() error {
 		return fmt.Errorf("failed to list api keys: %w", err)
 	}
 	for _, key := range apikeys {
-		m.apikeys[key.ID] = key
+		m.apikeys[key.Identifier] = key
 	}
 	m.apikeysMu.Unlock()
 	m.logger.Info().Msg("retrieved api keys")
@@ -243,7 +245,7 @@ func (m *Controller) DecryptMagic(encrypted string) (string, string, error) {
 	decrypted, err := aes.Decrypt(secretKey, MagicKey, encrypted)
 	if err != nil {
 		if errors.Is(err, aes.ErrInvalidContent) {
-			if oldSecretKey != nil {
+			if oldSecretKey != EmptySecretKey {
 				decrypted, err = aes.Decrypt(oldSecretKey, MagicKey, encrypted)
 				if err != nil {
 					return "", "", fmt.Errorf("failed to decrypt magic link token: %w", err)
@@ -264,9 +266,9 @@ func (m *Controller) DecryptMagic(encrypted string) (string, string, error) {
 	return ma.Email, ma.Secret, nil
 }
 
-func (m *Controller) CreateSession(ctx *fiber.Ctx, kind sessionKind.SessionKind, provider provider.Key, userID string, organization string) (*fiber.Cookie, error) {
-	m.logger.Debug().Msgf("creating session for user %s (org '%s')", userID, organization)
-	exists, err := m.storage.UserExists(ctx.Context(), userID)
+func (m *Controller) CreateSession(ctx *fiber.Ctx, kind sessionKind.SessionKind, provider provider.Key, userIdentifier string, organization string) (*fiber.Cookie, error) {
+	m.logger.Debug().Msgf("creating session for user %s (org '%s')", userIdentifier, organization)
+	exists, err := m.storage.UserExists(ctx.Context(), userIdentifier)
 	if err != nil {
 		m.logger.Error().Err(err).Msg("failed to check if user exists")
 		return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to check if user exists")
@@ -277,7 +279,7 @@ func (m *Controller) CreateSession(ctx *fiber.Ctx, kind sessionKind.SessionKind,
 			return nil, ctx.Status(fiber.StatusNotFound).SendString("user does not exist")
 		}
 
-		m.logger.Debug().Msgf("user %s does not exist", userID)
+		m.logger.Debug().Msgf("user %s does not exist", userIdentifier)
 		m.registrationMu.RLock()
 		registration := m.registration
 		m.registrationMu.RUnlock()
@@ -286,10 +288,10 @@ func (m *Controller) CreateSession(ctx *fiber.Ctx, kind sessionKind.SessionKind,
 			return nil, ctx.Status(fiber.StatusNotFound).SendString("user does not exist")
 		}
 
-		m.logger.Debug().Msgf("creating user %s", userID)
+		m.logger.Debug().Msgf("creating user %s", userIdentifier)
 
 		c := &claims.Claims{
-			UserID: userID,
+			Identifier: userIdentifier,
 		}
 
 		err = m.storage.NewUser(ctx.Context(), c)
@@ -300,8 +302,8 @@ func (m *Controller) CreateSession(ctx *fiber.Ctx, kind sessionKind.SessionKind,
 	}
 
 	if organization != "" {
-		m.logger.Debug().Msgf("checking if user %s is member of organization %s", userID, organization)
-		exists, err = m.storage.UserOrganizationExists(ctx.Context(), userID, organization)
+		m.logger.Debug().Msgf("checking if user %s is member of organization %s", userIdentifier, organization)
+		exists, err = m.storage.UserOrganizationExists(ctx.Context(), userIdentifier, organization)
 		if err != nil {
 			m.logger.Error().Err(err).Msg("failed to check if organization exists")
 			return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to check if organization exists")
@@ -312,7 +314,7 @@ func (m *Controller) CreateSession(ctx *fiber.Ctx, kind sessionKind.SessionKind,
 		}
 	}
 
-	sess := session.New(kind, provider, userID, organization)
+	sess := session.New(kind, provider, userIdentifier, organization)
 	data, err := json.Marshal(sess)
 	if err != nil {
 		m.logger.Error().Err(err).Msg("failed to marshal session")
@@ -335,7 +337,7 @@ func (m *Controller) CreateSession(ctx *fiber.Ctx, kind sessionKind.SessionKind,
 		return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to set session")
 	}
 
-	m.logger.Debug().Msgf("created session %s for user %s (org '%s') with expiry %s", sess.ID, sess.UserID, sess.Organization, sess.Expiry)
+	m.logger.Debug().Msgf("created session %s for owner %s (org '%s') with expiry %s", sess.Identifier, sess.Owner, sess.Organization, sess.Expiry)
 
 	return m.GenerateCookie(encrypted, sess.Expiry), nil
 }
@@ -362,7 +364,7 @@ func (m *Controller) CreateServiceSession(ctx *fiber.Ctx, keyID string, keySecre
 		return nil, nil, ctx.Status(fiber.StatusUnauthorized).SendString("service key has reached its maximum uses")
 	}
 
-	err = m.storage.IncrementServiceKeyNumUsed(ctx.Context(), serviceKey.ID, 1)
+	err = m.storage.IncrementServiceKeyNumUsed(ctx.Context(), serviceKey.Identifier, 1)
 	if err != nil {
 		m.logger.Error().Err(err).Msg("failed to increment service key num used")
 		return nil, nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to increment service key num used")
@@ -374,13 +376,13 @@ func (m *Controller) CreateServiceSession(ctx *fiber.Ctx, keyID string, keySecre
 		return nil, nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to create service session")
 	}
 
-	err = m.storage.SetServiceSession(ctx.Context(), sess.ID, sess.Salt, sess.Hash, sess.ServiceKeyID)
+	err = m.storage.SetServiceSession(ctx.Context(), sess.Identifier, sess.Salt, sess.Hash, sess.ServiceKeyIdentifier)
 	if err != nil {
 		m.logger.Error().Err(err).Msg("failed to set service session")
 		return nil, nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to set service session")
 	}
 
-	m.logger.Debug().Msgf("created service session %s for user %s (org '%s')", sess.ID, sess.UserID, sess.Organization)
+	m.logger.Debug().Msgf("created service session %s for user %s (org '%s')", sess.Identifier, sess.Owner, sess.Organization)
 
 	return sess, secret, nil
 }
@@ -395,7 +397,7 @@ func (m *Controller) Validate(ctx *fiber.Ctx) error {
 
 		ctx.Locals(auth.KindContextKey, auth.KindSession)
 		ctx.Locals(auth.SessionContextKey, sess)
-		ctx.Locals(auth.UserContextKey, sess.UserID)
+		ctx.Locals(auth.UserContextKey, sess.Owner)
 		ctx.Locals(auth.OrganizationContextKey, sess.Organization)
 		return ctx.Next()
 	}
@@ -422,8 +424,7 @@ func (m *Controller) Validate(ctx *fiber.Ctx) error {
 
 			ctx.Locals(auth.KindContextKey, auth.KindAPIKey)
 			ctx.Locals(auth.APIKeyContextKey, key)
-			ctx.Locals(auth.UserContextKey, key.UserID)
-			ctx.Locals(auth.OrganizationContextKey, key.Organization)
+			ctx.Locals(auth.UserContextKey, key.Owner)
 			return ctx.Next()
 		}
 
@@ -435,7 +436,7 @@ func (m *Controller) Validate(ctx *fiber.Ctx) error {
 
 			ctx.Locals(auth.KindContextKey, auth.KindServiceSession)
 			ctx.Locals(auth.ServiceSessionContextKey, serviceSession)
-			ctx.Locals(auth.UserContextKey, serviceSession.UserID)
+			ctx.Locals(auth.UserContextKey, serviceSession.Owner)
 			ctx.Locals(auth.OrganizationContextKey, serviceSession.Organization)
 			return ctx.Next()
 		}
@@ -454,7 +455,7 @@ func (m *Controller) ManualValidate(ctx *fiber.Ctx) (bool, error) {
 
 		ctx.Locals(auth.KindContextKey, auth.KindSession)
 		ctx.Locals(auth.SessionContextKey, sess)
-		ctx.Locals(auth.UserContextKey, sess.UserID)
+		ctx.Locals(auth.UserContextKey, sess.Organization)
 		ctx.Locals(auth.OrganizationContextKey, sess.Organization)
 		return true, nil
 	}
@@ -481,8 +482,7 @@ func (m *Controller) ManualValidate(ctx *fiber.Ctx) (bool, error) {
 
 			ctx.Locals(auth.KindContextKey, auth.KindAPIKey)
 			ctx.Locals(auth.APIKeyContextKey, key)
-			ctx.Locals(auth.UserContextKey, key.UserID)
-			ctx.Locals(auth.OrganizationContextKey, key.Organization)
+			ctx.Locals(auth.UserContextKey, key.Owner)
 			return true, nil
 		}
 
@@ -494,7 +494,7 @@ func (m *Controller) ManualValidate(ctx *fiber.Ctx) (bool, error) {
 
 			ctx.Locals(auth.KindContextKey, auth.KindServiceSession)
 			ctx.Locals(auth.ServiceSessionContextKey, serviceSession)
-			ctx.Locals(auth.UserContextKey, serviceSession.UserID)
+			ctx.Locals(auth.UserContextKey, serviceSession.Owner)
 			ctx.Locals(auth.OrganizationContextKey, serviceSession.Organization)
 			return true, nil
 		}
@@ -570,7 +570,7 @@ func (m *Controller) LogoutSession(ctx *fiber.Ctx) (bool, error) {
 		if sess == nil {
 			return false, err
 		}
-		err = m.storage.DeleteSession(ctx.Context(), sess.ID)
+		err = m.storage.DeleteSession(ctx.Context(), sess.Identifier)
 		if err != nil {
 			m.logger.Error().Err(err).Msg("failed to delete session")
 			return false, ctx.Status(fiber.StatusInternalServerError).SendString("failed to delete session")
@@ -606,7 +606,7 @@ func (m *Controller) LogoutServiceSession(ctx *fiber.Ctx) (bool, error) {
 			return false, err
 		}
 
-		err = m.storage.DeleteServiceSession(ctx.Context(), sess.ID)
+		err = m.storage.DeleteServiceSession(ctx.Context(), sess.Identifier)
 		if err != nil {
 			m.logger.Error().Err(err).Msg("failed to delete service session")
 			return false, ctx.Status(fiber.StatusInternalServerError).SendString("failed to delete service session")
@@ -657,7 +657,7 @@ func (m *Controller) getSession(ctx *fiber.Ctx, cookie string) (*session.Session
 	decrypted, err := aes.Decrypt(secretKey, CookieKey, cookie)
 	if err != nil {
 		if errors.Is(err, aes.ErrInvalidContent) {
-			if oldSecretKey != nil {
+			if oldSecretKey != EmptySecretKey {
 				decrypted, err = aes.Decrypt(oldSecretKey, CookieKey, cookie)
 				if err != nil {
 					if errors.Is(err, aes.ErrInvalidContent) {
@@ -688,10 +688,10 @@ func (m *Controller) getSession(ctx *fiber.Ctx, cookie string) (*session.Session
 	}
 
 	m.sessionsMu.RLock()
-	_, exists := m.sessions[sess.ID]
+	_, exists := m.sessions[sess.Identifier]
 	m.sessionsMu.RUnlock()
 	if !exists {
-		_, err = m.storage.GetSession(ctx.Context(), sess.ID)
+		_, err = m.storage.GetSession(ctx.Context(), sess.Identifier)
 		if err != nil {
 			if errors.Is(err, storage.ErrNotFound) {
 				return nil, ctx.Status(fiber.StatusUnauthorized).SendString("session does not exist")
@@ -715,7 +715,7 @@ func (m *Controller) getSession(ctx *fiber.Ctx, cookie string) (*session.Session
 			return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to encrypt session")
 		}
 
-		err = m.storage.UpdateSessionExpiry(ctx.Context(), sess.ID, sess.Expiry)
+		err = m.storage.UpdateSessionExpiry(ctx.Context(), sess.Identifier, sess.Expiry)
 		if err != nil {
 			m.logger.Error().Err(err).Msg("failed to update session expiry")
 			return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to update session expiry")
@@ -773,7 +773,7 @@ func (m *Controller) getServiceSession(ctx *fiber.Ctx, sessionID string, session
 	return sess, nil
 }
 
-func (m *Controller) subscribeToSecretKeyEvents(events <-chan *storage.SecretKeyEvent) {
+func (m *Controller) subscribeToSecretKeyEvents(events <-chan storage.SecretKeyEvent) {
 	defer m.wg.Done()
 	for {
 		select {
@@ -784,7 +784,7 @@ func (m *Controller) subscribeToSecretKeyEvents(events <-chan *storage.SecretKey
 			m.logger.Info().Msg("secret key updated")
 			m.secretKeyMu.Lock()
 			m.oldSecretKey = m.secretKey
-			m.secretKey = event.SecretKey
+			m.secretKey = event
 			m.secretKeyMu.Unlock()
 		}
 	}
@@ -815,14 +815,14 @@ func (m *Controller) subscribeToSessionEvents(events <-chan *storage.SessionEven
 			return
 		case event := <-events:
 			if event.Deleted {
-				m.logger.Debug().Msgf("session %s deleted", event.ID)
+				m.logger.Debug().Msgf("session %s deleted", event.Identifier)
 				m.sessionsMu.Lock()
-				delete(m.sessions, event.ID)
+				delete(m.sessions, event.Identifier)
 				m.sessionsMu.Unlock()
 			} else {
-				m.logger.Debug().Msgf("session %s created", event.ID)
+				m.logger.Debug().Msgf("session %s created", event.Identifier)
 				m.sessionsMu.Lock()
-				m.sessions[event.ID] = struct{}{}
+				m.sessions[event.Identifier] = struct{}{}
 				m.sessionsMu.Unlock()
 			}
 		}
@@ -865,17 +865,17 @@ func (m *Controller) subscribeToServiceSessionEvents(events <-chan *storage.Serv
 			return
 		case event := <-events:
 			if event.Deleted {
-				m.logger.Debug().Msgf("service session %s deleted", event.ID)
+				m.logger.Debug().Msgf("service session %s deleted", event.Identifier)
 				m.serviceSessionsMu.Lock()
-				delete(m.serviceSessions, event.ID)
+				delete(m.serviceSessions, event.Identifier)
 				m.serviceSessionsMu.Unlock()
 			} else {
-				m.logger.Debug().Msgf("service session %s created or updated", event.ID)
+				m.logger.Debug().Msgf("service session %s created or updated", event.Identifier)
 				if event.ServiceSession == nil {
-					m.logger.Error().Msgf("service session in create or update event for service session ID %s is nil", event.ID)
+					m.logger.Error().Msgf("service session in create or update event for service session ID %s is nil", event.Identifier)
 				} else {
 					m.serviceSessionsMu.Lock()
-					m.serviceSessions[event.ID] = event.ServiceSession
+					m.serviceSessions[event.Identifier] = event.ServiceSession
 					m.serviceSessionsMu.Unlock()
 				}
 			}

@@ -1,17 +1,17 @@
 /*
-	Copyright 2023 Loophole Labs
+ 	Copyright 2023 Loophole Labs
 
-	Licensed under the Apache License, Version 2.0 (the "License");
-	you may not use this file except in compliance with the License.
-	You may obtain a copy of the License at
+ 	Licensed under the Apache License, Version 2.0 (the "License");
+ 	you may not use this file except in compliance with the License.
+ 	You may obtain a copy of the License at
 
-		   http://www.apache.org/licenses/LICENSE-2.0
+ 		   http://www.apache.org/licenses/LICENSE-2.0
 
-	Unless required by applicable law or agreed to in writing, software
-	distributed under the License is distributed on an "AS IS" BASIS,
-	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-	See the License for the specific language governing permissions and
-	limitations under the License.
+ 	Unless required by applicable law or agreed to in writing, software
+ 	distributed under the License is distributed on an "AS IS" BASIS,
+ 	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ 	See the License for the specific language governing permissions and
+ 	limitations under the License.
 */
 
 package google
@@ -39,9 +39,9 @@ var (
 )
 
 const (
-	Key        = "google"
-	GCInterval = time.Minute
-	Expiry     = time.Minute * 5
+	Key        provider.Key = "google"
+	GCInterval              = time.Minute
+	Expiry                  = time.Minute * 5
 )
 
 var (
@@ -98,12 +98,15 @@ func (g *Google) Stop() error {
 }
 
 func (g *Google) StartFlow(ctx context.Context, nextURL string, organization string, deviceIdentifier string) (string, error) {
-	verifier := pkce.NewCodeVerifier()
+	verifier, err := pkce.NewCodeVerifier(-1)
+	if err != nil {
+		return "", err
+	}
 	challenge := pkce.CodeChallengeS256(verifier)
 	state := uuid.New().String()
 
 	g.logger.Debug().Msgf("starting flow for state %s with org '%s' and device identifier '%s'", state, organization, deviceIdentifier)
-	err := g.database.SetGoogleFlow(ctx, state, verifier, challenge, nextURL, organization, deviceIdentifier)
+	err = g.database.SetGoogleFlow(ctx, state, verifier, challenge, nextURL, organization, deviceIdentifier)
 	if err != nil {
 		return "", err
 	}

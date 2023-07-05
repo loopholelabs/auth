@@ -835,7 +835,7 @@
                     "type": "string"
                 },
                 "type": {
-                    "description": "Type is the resource's type",
+                    "description": "Type is the resource's type\n\nThis can be customized to the application that is using the Service Key",
                     "type": "string"
                 }
             }

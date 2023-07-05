@@ -76,7 +76,10 @@ definitions:
         description: ID is the resource's unique identifier
         type: string
       type:
-        description: Type is the resource's type
+        description: |-
+          Type is the resource's type
+
+          This can be customized to the application that is using the Service Key
         type: string
     type: object
 host: localhost:8080
