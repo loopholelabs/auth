@@ -28,18 +28,18 @@ var _ google.Database = (*Database)(nil)
 
 func (d *Database) SetGoogleFlow(ctx context.Context, state string, verifier string, challenge string, nextURL string, organization string, deviceIdentifier string) error {
 	d.logger.Debug().Msgf("setting google flow for %s", state)
-	_, err := d.client.GoogleFlow.Create().SetState(state).SetVerifier(verifier).SetChallenge(challenge).SetNextURL(nextURL).SetOrganization(organization).SetDeviceIdentifier(deviceIdentifier).Save(ctx)
+	_, err := d.client.GoogleFlow.Create().SetIdentifier(state).SetVerifier(verifier).SetChallenge(challenge).SetNextURL(nextURL).SetOrganization(organization).SetDeviceIdentifier(deviceIdentifier).Save(ctx)
 	return err
 }
 
 func (d *Database) GetGoogleFlow(ctx context.Context, state string) (*ent.GoogleFlow, error) {
 	d.logger.Debug().Msgf("getting google flow for %s", state)
-	return d.client.GoogleFlow.Query().Where(googleflow.State(state)).Only(ctx)
+	return d.client.GoogleFlow.Query().Where(googleflow.Identifier(state)).Only(ctx)
 }
 
 func (d *Database) DeleteGoogleFlow(ctx context.Context, state string) error {
 	d.logger.Debug().Msgf("deleting google flow for %s", state)
-	_, err := d.client.GoogleFlow.Delete().Where(googleflow.State(state)).Exec(ctx)
+	_, err := d.client.GoogleFlow.Delete().Where(googleflow.Identifier(state)).Exec(ctx)
 	return err
 }
 

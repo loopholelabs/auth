@@ -31,11 +31,11 @@ type DeviceFlow struct {
 func (DeviceFlow) Fields() []ent.Field {
 	return []ent.Field{
 		field.Time("created_at").Immutable().Default(time.Now),
-		field.Time("last_poll").Default(time.Now),
 		field.String("identifier").Unique().Immutable().NotEmpty(),
 		field.String("device_code").Unique().Immutable().NotEmpty(),
 		field.String("user_code").Unique().Immutable().NotEmpty(),
 		field.String("session").Unique().Optional(),
+		field.Time("last_poll").Default(time.Now),
 		field.Time("expires_at").Optional(),
 	}
 }

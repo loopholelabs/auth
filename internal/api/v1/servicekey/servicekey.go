@@ -94,10 +94,10 @@ func (a *ServiceKey) ServiceKeyLogin(ctx *fiber.Ctx) error {
 	}
 
 	return ctx.JSON(&models.ServiceKeyLoginResponse{
-		ServiceSessionID:     sess.ID,
+		ServiceSessionID:     sess.Identifier,
 		ServiceSessionSecret: string(secret),
-		ServiceKeyID:         sess.ServiceKeyID,
-		UserID:               sess.UserID,
+		ServiceKeyID:         sess.ServiceKeyIdentifier,
+		UserID:               sess.Owner,
 		Organization:         sess.Organization,
 		Resources:            sess.Resources,
 	})

@@ -31,6 +31,7 @@ type MagicFlow struct {
 func (MagicFlow) Fields() []ent.Field {
 	return []ent.Field{
 		field.Time("created_at").Immutable().Default(time.Now),
+		field.String("identifier").Unique().Immutable().NotEmpty(),
 		field.String("email").Unique().Immutable().NotEmpty(),
 		field.String("ip_address").Immutable().NotEmpty(),
 		field.String("secret").Immutable().NotEmpty(),
