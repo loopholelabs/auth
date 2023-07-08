@@ -17,14 +17,14 @@
 package session
 
 import (
-	"github.com/loopholelabs/auth/pkg/provider"
+	"github.com/loopholelabs/auth/pkg/flow"
 	"github.com/loopholelabs/auth/pkg/sessionKind"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
 
 func TestSession(t *testing.T) {
-	pkey := provider.Key("test-provider")
+	pkey := flow.Key("test-provider")
 	sess := New(sessionKind.Default, pkey, "test-userid", "test-organization")
 	require.Equal(t, sessionKind.Default, sess.Kind)
 	require.Equal(t, pkey, sess.Provider)

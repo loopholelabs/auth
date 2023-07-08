@@ -14,17 +14,28 @@
 	limitations under the License.
 */
 
-package magic
+package flow
 
-import (
-	"context"
-	"github.com/loopholelabs/auth/internal/ent"
-	"time"
+import "errors"
+
+var (
+	ErrInvalidOptions = errors.New("invalid options")
 )
 
-type Database interface {
-	SetMagicFlow(ctx context.Context, email string, ip string, secret string, nextURL string, organization string, deviceIdentifier string) error
-	GetMagicFlow(ctx context.Context, email string) (*ent.MagicFlow, error)
-	DeleteMagicFlow(ctx context.Context, email string) error
-	GCMagicFlow(ctx context.Context, expiry time.Duration) (int, error)
+// Key uniquely identifies authentication providers
+//
+// Each provider must create its own globally unique key
+type Key string
+
+// Flow is an authentication flow provider that authorizes
+// a user and returns a set of claims
+type Flow interface {
+	// Key returns the authentication provider's unique key
+	Key() Key
+
+	// Start starts the Provider
+	Start() error
+
+	// Stop stops the Provider
+	Stop() error
 }

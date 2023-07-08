@@ -1,17 +1,17 @@
 /*
- 	Copyright 2023 Loophole Labs
+	Copyright 2023 Loophole Labs
 
- 	Licensed under the Apache License, Version 2.0 (the "License");
- 	you may not use this file except in compliance with the License.
- 	You may obtain a copy of the License at
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at
 
- 		   http://www.apache.org/licenses/LICENSE-2.0
+		   http://www.apache.org/licenses/LICENSE-2.0
 
- 	Unless required by applicable law or agreed to in writing, software
- 	distributed under the License is distributed on an "AS IS" BASIS,
- 	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- 	See the License for the specific language governing permissions and
- 	limitations under the License.
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
 */
 
 package controller
@@ -25,11 +25,11 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/loopholelabs/auth"
 	"github.com/loopholelabs/auth/internal/aes"
-	"github.com/loopholelabs/auth/internal/magic"
 	"github.com/loopholelabs/auth/internal/utils"
 	"github.com/loopholelabs/auth/pkg/apikey"
 	"github.com/loopholelabs/auth/pkg/claims"
-	"github.com/loopholelabs/auth/pkg/provider"
+	"github.com/loopholelabs/auth/pkg/flow"
+	"github.com/loopholelabs/auth/pkg/magic"
 	"github.com/loopholelabs/auth/pkg/servicesession"
 	"github.com/loopholelabs/auth/pkg/session"
 	"github.com/loopholelabs/auth/pkg/sessionKind"
@@ -266,7 +266,7 @@ func (m *Controller) DecryptMagic(encrypted string) (string, string, error) {
 	return ma.Email, ma.Secret, nil
 }
 
-func (m *Controller) CreateSession(ctx *fiber.Ctx, kind sessionKind.SessionKind, provider provider.Key, userIdentifier string, organization string) (*fiber.Cookie, error) {
+func (m *Controller) CreateSession(ctx *fiber.Ctx, kind sessionKind.SessionKind, provider flow.Key, userIdentifier string, organization string) (*fiber.Cookie, error) {
 	m.logger.Debug().Msgf("creating session for user %s (org '%s')", userIdentifier, organization)
 	exists, err := m.storage.UserExists(ctx.Context(), userIdentifier)
 	if err != nil {

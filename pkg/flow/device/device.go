@@ -1,62 +1,63 @@
 /*
- 	Copyright 2023 Loophole Labs
+	Copyright 2023 Loophole Labs
 
- 	Licensed under the Apache License, Version 2.0 (the "License");
- 	you may not use this file except in compliance with the License.
- 	You may obtain a copy of the License at
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at
 
- 		   http://www.apache.org/licenses/LICENSE-2.0
+		   http://www.apache.org/licenses/LICENSE-2.0
 
- 	Unless required by applicable law or agreed to in writing, software
- 	distributed under the License is distributed on an "AS IS" BASIS,
- 	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- 	See the License for the specific language governing permissions and
- 	limitations under the License.
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
 */
 
 package device
 
 import (
 	"context"
+	"errors"
 	"github.com/google/uuid"
-	"github.com/loopholelabs/auth/internal/ent"
 	"github.com/loopholelabs/auth/internal/utils"
-	"github.com/loopholelabs/auth/pkg/provider"
+	"github.com/loopholelabs/auth/pkg/flow"
+	"github.com/loopholelabs/auth/pkg/storage"
 	"github.com/rs/zerolog"
 	"strings"
 	"sync"
 	"time"
 )
 
-var _ provider.Provider = (*Device)(nil)
+var _ flow.Flow = (*Device)(nil)
 
 const (
-	Key        provider.Key = "device"
-	GCInterval              = time.Minute
-	Expiry                  = time.Minute * 5
+	Key        flow.Key = "device"
+	GCInterval          = time.Minute
+	Expiry              = time.Minute * 5
 )
 
 type Device struct {
-	logger   *zerolog.Logger
-	database Database
-	wg       sync.WaitGroup
-	ctx      context.Context
-	cancel   context.CancelFunc
+	logger  *zerolog.Logger
+	storage storage.Device
+	wg      sync.WaitGroup
+	ctx     context.Context
+	cancel  context.CancelFunc
 }
 
-func New(database Database, logger *zerolog.Logger) *Device {
+func New(storage storage.Device, logger *zerolog.Logger) *Device {
 	l := logger.With().Str("AUTH", "DEVICE-FLOW").Logger()
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &Device{
-		logger:   &l,
-		database: database,
-		ctx:      ctx,
-		cancel:   cancel,
+		logger:  &l,
+		storage: storage,
+		ctx:     ctx,
+		cancel:  cancel,
 	}
 }
 
-func (g *Device) Key() provider.Key {
+func (g *Device) Key() flow.Key {
 	return Key
 }
 
@@ -77,7 +78,7 @@ func (g *Device) StartFlow(ctx context.Context) (string, string, error) {
 	userCode := uuid.New().String()
 	identifier := uuid.New().String()
 
-	err := g.database.SetDeviceFlow(ctx, identifier, deviceCode, userCode)
+	err := g.storage.SetDeviceFlow(ctx, identifier, deviceCode, userCode)
 	if err != nil {
 		return "", "", err
 	}
@@ -86,18 +87,18 @@ func (g *Device) StartFlow(ctx context.Context) (string, string, error) {
 }
 
 func (g *Device) ValidateFlow(ctx context.Context, deviceCode string) (string, error) {
-	flow, err := g.database.GetDeviceFlow(ctx, deviceCode)
+	f, err := g.storage.GetDeviceFlow(ctx, deviceCode)
 	if err != nil {
 		return "", err
 	}
 
-	return flow.Identifier, nil
+	return f.Identifier, nil
 }
 
 func (g *Device) FlowExists(ctx context.Context, identifier string) (bool, error) {
-	_, err := g.database.GetDeviceFlowIdentifier(ctx, identifier)
+	_, err := g.storage.GetDeviceFlowIdentifier(ctx, identifier)
 	if err != nil {
-		if ent.IsNotFound(err) {
+		if errors.Is(err, storage.ErrNotFound) {
 			return false, nil
 		}
 		return false, err
@@ -107,23 +108,23 @@ func (g *Device) FlowExists(ctx context.Context, identifier string) (bool, error
 }
 
 func (g *Device) PollFlow(ctx context.Context, userCode string) (string, time.Time, time.Time, error) {
-	flow, err := g.database.GetDeviceFlowUserCode(ctx, userCode)
+	f, err := g.storage.GetDeviceFlowUserCode(ctx, userCode)
 	if err != nil {
 		return "", time.Time{}, time.Time{}, err
 	}
 
-	if flow.Session != "" {
-		err = g.database.DeleteDeviceFlow(ctx, flow.DeviceCode)
+	if f.Session != "" {
+		err = g.storage.DeleteDeviceFlow(ctx, f.DeviceCode)
 		if err != nil {
 			return "", time.Time{}, time.Time{}, err
 		}
 	}
 
-	return flow.Session, flow.ExpiresAt, flow.LastPoll, nil
+	return f.Session, f.ExpiresAt, f.LastPoll, nil
 }
 
 func (g *Device) CompleteFlow(ctx context.Context, identifier string, session string, expiry time.Time) error {
-	err := g.database.UpdateDeviceFlow(ctx, identifier, session, expiry)
+	err := g.storage.UpdateDeviceFlow(ctx, identifier, session, expiry)
 	if err != nil {
 		return err
 	}
@@ -139,7 +140,7 @@ func (g *Device) gc() {
 			g.logger.Info().Msg("GC Stopped")
 			return
 		case <-time.After(GCInterval):
-			deleted, err := g.database.GCDeviceFlow(g.ctx, Expiry)
+			deleted, err := g.storage.GCDeviceFlow(g.ctx, Expiry)
 			if err != nil {
 				g.logger.Error().Err(err).Msg("failed to garbage collect expired device flows")
 			} else {

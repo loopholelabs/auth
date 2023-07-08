@@ -25,12 +25,11 @@ import (
 	"github.com/loopholelabs/auth/internal/api"
 	"github.com/loopholelabs/auth/internal/api/v1/options"
 	"github.com/loopholelabs/auth/internal/controller"
-	"github.com/loopholelabs/auth/internal/database"
-	"github.com/loopholelabs/auth/internal/provider/device"
-	"github.com/loopholelabs/auth/internal/provider/github"
-	"github.com/loopholelabs/auth/internal/provider/google"
-	"github.com/loopholelabs/auth/internal/provider/magic"
 	"github.com/loopholelabs/auth/pkg/apikey"
+	"github.com/loopholelabs/auth/pkg/flow/device"
+	"github.com/loopholelabs/auth/pkg/flow/github"
+	"github.com/loopholelabs/auth/pkg/flow/google"
+	"github.com/loopholelabs/auth/pkg/flow/magic"
 	"github.com/loopholelabs/auth/pkg/servicesession"
 	"github.com/loopholelabs/auth/pkg/session"
 	"github.com/loopholelabs/auth/pkg/storage"
@@ -43,12 +42,11 @@ var (
 )
 
 type Options struct {
+	Storage              storage.Storage
 	Endpoint             string
 	TLS                  bool
 	SessionDomain        string
 	DefaultNextURL       string
-	DatabaseURL          string
-	Storage              storage.Storage
 	GithubClientID       string
 	GithubClientSecret   string
 	GoogleClientID       string
@@ -65,7 +63,7 @@ type Options struct {
 type Manager struct {
 	logger     *zerolog.Logger
 	controller *controller.Controller
-	database   *database.Database
+	storage    storage.Storage
 	api        *api.API
 	ctx        context.Context
 	cancel     context.CancelFunc
@@ -74,10 +72,6 @@ type Manager struct {
 
 func New(opts *Options, logger *zerolog.Logger) (*Manager, error) {
 	l := logger.With().Str("AUTH", "MANAGER").Logger()
-
-	if opts.DatabaseURL == "" {
-		return nil, fmt.Errorf("%w: database url is required", ErrInvalidOptions)
-	}
 
 	if opts.DefaultNextURL == "" {
 		return nil, fmt.Errorf("%w: default next url is required", ErrInvalidOptions)
@@ -95,11 +89,6 @@ func New(opts *Options, logger *zerolog.Logger) (*Manager, error) {
 		return nil, fmt.Errorf("%w: session domain is required", ErrInvalidOptions)
 	}
 
-	db, err := database.New(opts.DatabaseURL, &l)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize database: %w", err)
-	}
-
 	scheme := "http"
 	if opts.TLS {
 		scheme = "https"
@@ -107,8 +96,12 @@ func New(opts *Options, logger *zerolog.Logger) (*Manager, error) {
 
 	var githubProvider options.Github
 	if opts.GithubClientID != "" && opts.GithubClientSecret != "" {
-		ghp := github.New(opts.GithubClientID, opts.GithubClientSecret, fmt.Sprintf("%s://%s/v1/github/callback", scheme, opts.Endpoint), db, &l)
-		err = ghp.Start()
+		ghp := github.New(opts.Storage, &github.Options{
+			ClientID:     opts.GithubClientID,
+			ClientSecret: opts.GithubClientSecret,
+			Redirect:     fmt.Sprintf("%s://%s/v1/github/callback", scheme, opts.Endpoint),
+		}, &l)
+		err := ghp.Start()
 		if err != nil {
 			return nil, fmt.Errorf("failed to start github provider: %w", err)
 		}
@@ -119,8 +112,12 @@ func New(opts *Options, logger *zerolog.Logger) (*Manager, error) {
 
 	var googleProvider options.Google
 	if opts.GoogleClientID != "" && opts.GoogleClientSecret != "" {
-		ggp := google.New(opts.GoogleClientID, opts.GoogleClientSecret, fmt.Sprintf("%s://%s/v1/google/callback", scheme, opts.Endpoint), db, &l)
-		err = ggp.Start()
+		ggp := google.New(opts.Storage, &google.Options{
+			ClientID:     opts.GoogleClientID,
+			ClientSecret: opts.GoogleClientSecret,
+			Redirect:     fmt.Sprintf("%s://%s/v1/google/callback", scheme, opts.Endpoint),
+		}, &l)
+		err := ggp.Start()
 		if err != nil {
 			return nil, fmt.Errorf("failed to start google provider: %w", err)
 		}
@@ -131,8 +128,8 @@ func New(opts *Options, logger *zerolog.Logger) (*Manager, error) {
 
 	var deviceProvider options.Device
 	if opts.DeviceCode {
-		dp := device.New(db, &l)
-		err = dp.Start()
+		dp := device.New(opts.Storage, &l)
+		err := dp.Start()
 		if err != nil {
 			return nil, fmt.Errorf("failed to start device code provider: %w", err)
 		}
@@ -143,7 +140,7 @@ func New(opts *Options, logger *zerolog.Logger) (*Manager, error) {
 
 	var magicProvider options.Magic
 	if opts.PostmarkAPIToken != "" && opts.PostmarkTemplateID != 0 && opts.MagicLinkFrom != "" && opts.MagicLinkProjectName != "" && opts.MagicLinkProjectURL != "" {
-		mp := magic.New(db, &magic.Options{
+		mp := magic.New(opts.Storage, &magic.Options{
 			APIToken:   opts.PostmarkAPIToken,
 			TemplateID: opts.PostmarkTemplateID,
 			Tag:        opts.PostmarkTag,
@@ -151,7 +148,7 @@ func New(opts *Options, logger *zerolog.Logger) (*Manager, error) {
 			Project:    opts.MagicLinkProjectName,
 			ProjectURL: opts.MagicLinkProjectURL,
 		}, &l)
-		err = mp.Start()
+		err := mp.Start()
 		if err != nil {
 			return nil, fmt.Errorf("failed to start magic link provider: %w", err)
 		}
@@ -161,7 +158,7 @@ func New(opts *Options, logger *zerolog.Logger) (*Manager, error) {
 	}
 
 	c := controller.New(opts.SessionDomain, opts.TLS, opts.Storage, &l)
-	err = c.Start()
+	err := c.Start()
 	if err != nil {
 		return nil, fmt.Errorf("failed to start controller: %w", err)
 	}
@@ -173,7 +170,7 @@ func New(opts *Options, logger *zerolog.Logger) (*Manager, error) {
 	return &Manager{
 		logger:     &l,
 		controller: c,
-		database:   db,
+		storage:    opts.Storage,
 		api:        a,
 		ctx:        ctx,
 		cancel:     cancel,
@@ -217,8 +214,8 @@ func (m *Manager) Cleanup() error {
 		}
 	}
 
-	if m.database != nil {
-		err := m.database.Shutdown()
+	if m.storage != nil {
+		err := m.storage.Shutdown()
 		if err != nil {
 			return err
 		}

@@ -22,10 +22,10 @@ import (
 	"github.com/AfterShip/email-verifier"
 	"github.com/gofiber/fiber/v2"
 	"github.com/loopholelabs/auth/internal/api/v1/options"
-	"github.com/loopholelabs/auth/internal/ent"
-	"github.com/loopholelabs/auth/internal/provider/magic"
 	"github.com/loopholelabs/auth/internal/utils"
+	"github.com/loopholelabs/auth/pkg/flow/magic"
 	"github.com/loopholelabs/auth/pkg/sessionKind"
+	"github.com/loopholelabs/auth/pkg/storage"
 	"github.com/rs/zerolog"
 )
 
@@ -171,7 +171,7 @@ func (d *Magic) MagicCallback(ctx *fiber.Ctx) error {
 	d.logger.Debug().Msgf("completing flow for %s", email)
 	organization, nextURL, deviceIdentifier, err := d.options.MagicProvider().CompleteFlow(ctx.Context(), email, secret)
 	if err != nil {
-		if ent.IsNotFound(err) || errors.Is(err, magic.ErrInvalidSecret) {
+		if errors.Is(err, storage.ErrNotFound) || errors.Is(err, magic.ErrInvalidSecret) {
 			return ctx.Status(fiber.StatusUnauthorized).SendString("invalid magic link token")
 		}
 		d.logger.Error().Err(err).Msg("failed to complete magic link flow")

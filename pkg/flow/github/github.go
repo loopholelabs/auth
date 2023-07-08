@@ -1,17 +1,17 @@
 /*
- 	Copyright 2023 Loophole Labs
+	Copyright 2023 Loophole Labs
 
- 	Licensed under the Apache License, Version 2.0 (the "License");
- 	you may not use this file except in compliance with the License.
- 	You may obtain a copy of the License at
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at
 
- 		   http://www.apache.org/licenses/LICENSE-2.0
+		   http://www.apache.org/licenses/LICENSE-2.0
 
- 	Unless required by applicable law or agreed to in writing, software
- 	distributed under the License is distributed on an "AS IS" BASIS,
- 	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- 	See the License for the specific language governing permissions and
- 	limitations under the License.
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
 */
 
 package github
@@ -22,7 +22,8 @@ import (
 	"errors"
 	"github.com/google/uuid"
 	"github.com/grokify/go-pkce"
-	"github.com/loopholelabs/auth/pkg/provider"
+	"github.com/loopholelabs/auth/pkg/flow"
+	"github.com/loopholelabs/auth/pkg/storage"
 	"github.com/rs/zerolog"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/github"
@@ -32,16 +33,16 @@ import (
 	"time"
 )
 
-var _ provider.Provider = (*Github)(nil)
+var _ flow.Flow = (*Github)(nil)
 
 var (
 	ErrInvalidResponse = errors.New("invalid response")
 )
 
 const (
-	Key        provider.Key = "github"
-	GCInterval              = time.Minute
-	Expiry                  = time.Minute * 5
+	Key        flow.Key = "github"
+	GCInterval          = time.Minute
+	Expiry              = time.Minute * 5
 )
 
 var (
@@ -55,39 +56,64 @@ type email struct {
 	Visibility string `json:"visibility"`
 }
 
-type Github struct {
-	logger   *zerolog.Logger
-	conf     *oauth2.Config
-	database Database
-	wg       sync.WaitGroup
-	ctx      context.Context
-	cancel   context.CancelFunc
+type Options struct {
+	ClientID     string
+	ClientSecret string
+	Redirect     string
 }
 
-func New(clientID string, clientSecret string, redirect string, database Database, logger *zerolog.Logger) *Github {
+type Github struct {
+	logger  *zerolog.Logger
+	storage storage.Github
+	options *Options
+	conf    *oauth2.Config
+	wg      sync.WaitGroup
+	ctx     context.Context
+	cancel  context.CancelFunc
+}
+
+func New(storage storage.Github, options *Options, logger *zerolog.Logger) *Github {
 	l := logger.With().Str("AUTH", "GITHUB-OAUTH-PROVIDER").Logger()
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &Github{
-		logger: &l,
-		conf: &oauth2.Config{
-			RedirectURL:  redirect,
-			ClientID:     clientID,
-			ClientSecret: clientSecret,
-			Scopes:       defaultScopes,
-			Endpoint:     github.Endpoint,
-		},
-		database: database,
-		ctx:      ctx,
-		cancel:   cancel,
+		logger:  &l,
+		storage: storage,
+		options: options,
+		ctx:     ctx,
+		cancel:  cancel,
 	}
 }
 
-func (g *Github) Key() provider.Key {
+func (g *Github) Key() flow.Key {
 	return Key
 }
 
 func (g *Github) Start() error {
+	if g.options == nil {
+		return flow.ErrInvalidOptions
+	}
+
+	if g.options.ClientID == "" {
+		return flow.ErrInvalidOptions
+	}
+
+	if g.options.ClientSecret == "" {
+		return flow.ErrInvalidOptions
+	}
+
+	if g.options.Redirect == "" {
+		return flow.ErrInvalidOptions
+	}
+
+	g.conf = &oauth2.Config{
+		RedirectURL:  g.options.Redirect,
+		ClientID:     g.options.ClientID,
+		ClientSecret: g.options.ClientSecret,
+		Scopes:       defaultScopes,
+		Endpoint:     github.Endpoint,
+	}
+
 	g.wg.Add(1)
 	go g.gc()
 	return nil
@@ -108,7 +134,7 @@ func (g *Github) StartFlow(ctx context.Context, nextURL string, organization str
 	state := uuid.New().String()
 
 	g.logger.Debug().Msgf("starting flow for state %s with org '%s' and device identifier '%s'", state, organization, deviceIdentifier)
-	err = g.database.SetGithubFlow(ctx, state, verifier, challenge, nextURL, organization, deviceIdentifier)
+	err = g.storage.SetGithubFlow(ctx, state, verifier, challenge, nextURL, organization, deviceIdentifier)
 	if err != nil {
 		return "", err
 	}
@@ -118,19 +144,19 @@ func (g *Github) StartFlow(ctx context.Context, nextURL string, organization str
 
 func (g *Github) CompleteFlow(ctx context.Context, code string, state string) (string, string, string, string, error) {
 	g.logger.Debug().Msgf("completing flow for state %s", state)
-	flow, err := g.database.GetGithubFlow(ctx, state)
+	f, err := g.storage.GetGithubFlow(ctx, state)
 	if err != nil {
 		return "", "", "", "", err
 	}
 
 	g.logger.Debug().Msgf("found flow for state %s, deleting", state)
-	err = g.database.DeleteGithubFlow(ctx, state)
+	err = g.storage.DeleteGithubFlow(ctx, state)
 	if err != nil {
 		return "", "", "", "", err
 	}
 
 	g.logger.Debug().Msgf("exchanging code for token for state %s", state)
-	token, err := g.conf.Exchange(ctx, code, oauth2.SetAuthURLParam(pkce.ParamCodeVerifier, flow.Verifier))
+	token, err := g.conf.Exchange(ctx, code, oauth2.SetAuthURLParam(pkce.ParamCodeVerifier, f.Verifier))
 	if err != nil {
 		return "", "", "", "", err
 	}
@@ -170,7 +196,7 @@ func (g *Github) CompleteFlow(ctx context.Context, code string, state string) (s
 	for _, e := range emails {
 		if e.Primary && e.Verified {
 			g.logger.Debug().Msgf("found primary and verified email %s for state %s", e.Email, state)
-			return e.Email, flow.Organization, flow.NextURL, flow.DeviceIdentifier, nil
+			return e.Email, f.Organization, f.NextURL, f.DeviceIdentifier, nil
 		}
 	}
 
@@ -186,7 +212,7 @@ func (g *Github) gc() {
 			g.logger.Info().Msg("GC Stopped")
 			return
 		case <-time.After(GCInterval):
-			deleted, err := g.database.GCGithubFlow(g.ctx, Expiry)
+			deleted, err := g.storage.GCGithubFlow(g.ctx, Expiry)
 			if err != nil {
 				g.logger.Error().Err(err).Msg("failed to garbage collect expired github flows")
 			} else {
