@@ -17,11 +17,12 @@
 package device
 
 import (
+	"errors"
 	"github.com/gofiber/fiber/v2"
 	"github.com/loopholelabs/auth/internal/api/v1/models"
 	"github.com/loopholelabs/auth/internal/api/v1/options"
-	"github.com/loopholelabs/auth/internal/ent"
 	"github.com/loopholelabs/auth/internal/utils"
+	"github.com/loopholelabs/auth/pkg/storage"
 	"github.com/rs/zerolog"
 	"time"
 )
@@ -114,7 +115,7 @@ func (d *Device) DeviceCallback(ctx *fiber.Ctx) error {
 
 	identifier, err := d.options.DeviceProvider().ValidateFlow(ctx.Context(), code)
 	if err != nil {
-		if ent.IsNotFound(err) {
+		if errors.Is(err, storage.ErrNotFound) {
 			return ctx.Status(fiber.StatusUnauthorized).SendString("invalid code")
 		}
 		d.logger.Error().Err(err).Msg("failed to validate device code")
@@ -153,7 +154,7 @@ func (d *Device) DevicePoll(ctx *fiber.Ctx) error {
 
 	session, expires, lastPoll, err := d.options.DeviceProvider().PollFlow(ctx.Context(), code)
 	if err != nil {
-		if ent.IsNotFound(err) {
+		if errors.Is(err, storage.ErrNotFound) {
 			return ctx.Status(fiber.StatusUnauthorized).SendString("invalid code")
 		}
 		d.logger.Error().Err(err).Msg("failed to poll device code")

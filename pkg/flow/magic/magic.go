@@ -1,17 +1,17 @@
 /*
- 	Copyright 2023 Loophole Labs
+	Copyright 2023 Loophole Labs
 
- 	Licensed under the Apache License, Version 2.0 (the "License");
- 	you may not use this file except in compliance with the License.
- 	You may obtain a copy of the License at
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at
 
- 		   http://www.apache.org/licenses/LICENSE-2.0
+		   http://www.apache.org/licenses/LICENSE-2.0
 
- 	Unless required by applicable law or agreed to in writing, software
- 	distributed under the License is distributed on an "AS IS" BASIS,
- 	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- 	See the License for the specific language governing permissions and
- 	limitations under the License.
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
 */
 
 package magic
@@ -23,7 +23,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
-	"github.com/loopholelabs/auth/pkg/provider"
+	"github.com/loopholelabs/auth/pkg/flow"
+	"github.com/loopholelabs/auth/pkg/storage"
 	"github.com/mattevans/postmark-go"
 	"github.com/rs/zerolog"
 	"net/http"
@@ -31,11 +32,10 @@ import (
 	"time"
 )
 
-var _ provider.Provider = (*Magic)(nil)
+var _ flow.Flow = (*Magic)(nil)
 
 var (
-	ErrInvalidOptions = errors.New("invalid options")
-	ErrInvalidSecret  = errors.New("invalid secret")
+	ErrInvalidSecret = errors.New("invalid secret")
 )
 
 const (
@@ -44,9 +44,9 @@ const (
 )
 
 const (
-	Key        provider.Key = "magic"
-	GCInterval              = time.Minute
-	Expiry                  = time.Minute * 5
+	Key        flow.Key = "magic"
+	GCInterval          = time.Minute
+	Expiry              = time.Minute * 5
 )
 
 type Options struct {
@@ -60,7 +60,7 @@ type Options struct {
 
 type Magic struct {
 	logger    *zerolog.Logger
-	database  Database
+	storage   storage.Magic
 	options   *Options
 	client    *postmark.Client
 	transport *http.Transport
@@ -69,38 +69,38 @@ type Magic struct {
 	cancel    context.CancelFunc
 }
 
-func New(database Database, options *Options, logger *zerolog.Logger) *Magic {
+func New(storage storage.Magic, options *Options, logger *zerolog.Logger) *Magic {
 	l := logger.With().Str("AUTH", "MAGIC-LINK-PROVIDER").Logger()
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &Magic{
-		logger:   &l,
-		database: database,
-		options:  options,
-		ctx:      ctx,
-		cancel:   cancel,
+		logger:  &l,
+		storage: storage,
+		options: options,
+		ctx:     ctx,
+		cancel:  cancel,
 	}
 }
 
-func (g *Magic) Key() provider.Key {
+func (g *Magic) Key() flow.Key {
 	return Key
 }
 
 func (g *Magic) Start() error {
 	if g.options == nil {
-		return ErrInvalidOptions
+		return flow.ErrInvalidOptions
 	}
 
 	if g.options.APIToken == "" {
-		return ErrInvalidOptions
+		return flow.ErrInvalidOptions
 	}
 
 	if g.options.From == "" {
-		return ErrInvalidOptions
+		return flow.ErrInvalidOptions
 	}
 
 	if g.options.TemplateID == 0 {
-		return ErrInvalidOptions
+		return flow.ErrInvalidOptions
 	}
 
 	g.transport = &http.Transport{
@@ -122,16 +122,16 @@ func (g *Magic) Stop() error {
 func (g *Magic) StartFlow(ctx context.Context, email string, ip string, nextURL string, organization string, deviceIdentifier string) (string, error) {
 	secret := uuid.New().String()
 
-	_, err := g.database.GetMagicFlow(ctx, email)
+	_, err := g.storage.GetMagicFlow(ctx, email)
 	if err == nil {
-		err = g.database.DeleteMagicFlow(ctx, email)
+		err = g.storage.DeleteMagicFlow(ctx, email)
 		if err != nil {
 			return "", err
 		}
 	}
 
 	g.logger.Debug().Msgf("starting flow for %s (ip: %s) with org '%s' and device identifier '%s'", email, ip, organization, deviceIdentifier)
-	err = g.database.SetMagicFlow(ctx, email, ip, secret, nextURL, organization, deviceIdentifier)
+	err = g.storage.SetMagicFlow(ctx, email, ip, secret, nextURL, organization, deviceIdentifier)
 	if err != nil {
 		return "", err
 	}
@@ -195,22 +195,22 @@ func (g *Magic) SendMagic(ctx context.Context, url string, email string, ip stri
 
 func (g *Magic) CompleteFlow(ctx context.Context, email string, secret string) (string, string, string, error) {
 	g.logger.Debug().Msgf("completing flow for email %s", email)
-	flow, err := g.database.GetMagicFlow(ctx, email)
+	f, err := g.storage.GetMagicFlow(ctx, email)
 	if err != nil {
 		return "", "", "", err
 	}
 
-	if flow.Secret != secret {
+	if f.Secret != secret {
 		return "", "", "", ErrInvalidSecret
 	}
 
 	g.logger.Debug().Msgf("validated flow for %s, deleting", email)
-	err = g.database.DeleteMagicFlow(ctx, email)
+	err = g.storage.DeleteMagicFlow(ctx, email)
 	if err != nil {
 		return "", "", "", err
 	}
 
-	return flow.Organization, flow.NextURL, flow.DeviceIdentifier, nil
+	return f.Organization, f.NextURL, f.DeviceIdentifier, nil
 }
 
 func (g *Magic) gc() {
@@ -221,7 +221,7 @@ func (g *Magic) gc() {
 			g.logger.Info().Msg("GC Stopped")
 			return
 		case <-time.After(GCInterval):
-			deleted, err := g.database.GCMagicFlow(g.ctx, Expiry)
+			deleted, err := g.storage.GCMagicFlow(g.ctx, Expiry)
 			if err != nil {
 				g.logger.Error().Err(err).Msg("failed to garbage collect expired magic flows")
 			} else {

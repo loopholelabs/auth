@@ -27,7 +27,6 @@ import (
 var (
 	ErrListenAddressRequired  = errors.New("listen address is required")
 	ErrEndpointRequired       = errors.New("endpoint is required")
-	ErrDatabaseURLRequired    = errors.New("database url is required")
 	ErrSessionDomainRequired  = errors.New("session domain is required")
 	ErrDefaultNextURLRequired = errors.New("default next url is required")
 )
@@ -44,7 +43,6 @@ type Config struct {
 	Endpoint       string `yaml:"endpoint"`
 	SessionDomain  string `yaml:"session_domain"`
 	DefaultNextURL string `yaml:"default_next_url"`
-	DatabaseURL    string `yaml:"database_url"`
 
 	GithubClientID     string `yaml:"github_client_id"`
 	GithubClientSecret string `yaml:"github_client_secret"`
@@ -73,9 +71,6 @@ func (c *Config) Validate() error {
 	if c.Endpoint == "" {
 		return ErrEndpointRequired
 	}
-	if c.DatabaseURL == "" {
-		return ErrDatabaseURLRequired
-	}
 	if c.SessionDomain == "" {
 		return ErrSessionDomainRequired
 	}
@@ -91,7 +86,6 @@ func (c *Config) RootPersistentFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&c.SessionDomain, "auth-session-domain", DefaultSessionDomain, "The auth api's session domain")
 	flags.StringVar(&c.DefaultNextURL, "auth-default-next-url", DefaultNextURL, "The auth api's default next url")
 
-	flags.StringVar(&c.DatabaseURL, "auth-database-url", "", "The auth api's database url")
 	flags.StringVar(&c.GithubClientID, "auth-github-client-id", "", "The auth api's github client id")
 	flags.StringVar(&c.GithubClientSecret, "auth-github-client-secret", "", "The auth api's github client secret")
 	flags.StringVar(&c.GoogleClientID, "auth-google-client-id", "", "The auth api's google client id")
@@ -117,7 +111,6 @@ func (c *Config) GenerateOptions(storage storage.Storage, tls bool, projectName 
 		TLS:                  tls,
 		SessionDomain:        c.SessionDomain,
 		DefaultNextURL:       c.DefaultNextURL,
-		DatabaseURL:          c.DatabaseURL,
 		Storage:              storage,
 		GithubClientID:       c.GithubClientID,
 		GithubClientSecret:   c.GithubClientSecret,

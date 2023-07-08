@@ -18,10 +18,10 @@ package options
 
 import (
 	"github.com/loopholelabs/auth/internal/controller"
-	"github.com/loopholelabs/auth/internal/provider/device"
-	"github.com/loopholelabs/auth/internal/provider/github"
-	"github.com/loopholelabs/auth/internal/provider/google"
-	"github.com/loopholelabs/auth/internal/provider/magic"
+	"github.com/loopholelabs/auth/pkg/flow/device"
+	"github.com/loopholelabs/auth/pkg/flow/github"
+	"github.com/loopholelabs/auth/pkg/flow/google"
+	"github.com/loopholelabs/auth/pkg/flow/magic"
 )
 
 type Github func() *github.Github
