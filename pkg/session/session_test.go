@@ -25,8 +25,8 @@ import (
 
 func TestSession(t *testing.T) {
 	pkey := flow.Key("test-provider")
-	sess := New(sessionKind.Default, pkey, "test-userid", "test-organization")
-	require.Equal(t, sessionKind.Default, sess.Kind)
+	sess := New(sessionKind.Google, pkey, "test-userid", "test-organization")
+	require.Equal(t, sessionKind.Google, sess.Kind)
 	require.Equal(t, pkey, sess.Provider)
 	require.Equal(t, "test-userid", sess.Owner)
 	require.Equal(t, "test-organization", sess.Organization)

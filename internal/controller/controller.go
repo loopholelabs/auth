@@ -19,6 +19,7 @@ package controller
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -46,7 +47,6 @@ var (
 
 const (
 	CookieKeyString           = "auth-session"
-	MagicKeyString            = "auth-magic"
 	AuthorizationHeaderString = "Authorization"
 	BearerHeaderString        = "Bearer "
 	KeyDelimiterString        = "."
@@ -54,7 +54,6 @@ const (
 
 var (
 	CookieKey           = []byte(CookieKeyString)
-	MagicKey            = []byte(MagicKeyString)
 	AuthorizationHeader = []byte(AuthorizationHeaderString)
 	BearerHeader        = []byte(BearerHeaderString)
 	KeyDelimiter        = []byte(KeyDelimiterString)
@@ -215,11 +214,7 @@ func (m *Controller) GenerateCookie(session string, expiry time.Time) *fiber.Coo
 	}
 }
 
-func (m *Controller) EncryptMagic(email string, secret string) (string, error) {
-	m.secretKeyMu.RLock()
-	secretKey := m.secretKey
-	m.secretKeyMu.RUnlock()
-
+func (m *Controller) EncodeMagic(email string, secret []byte) (string, error) {
 	data, err := json.Marshal(&magic.Magic{
 		Email:  email,
 		Secret: secret,
@@ -228,39 +223,19 @@ func (m *Controller) EncryptMagic(email string, secret string) (string, error) {
 		return "", fmt.Errorf("failed to marshal magic: %w", err)
 	}
 
-	encrypted, err := aes.Encrypt(secretKey, MagicKey, data)
-	if err != nil {
-		return "", fmt.Errorf("failed to encrypt magic: %w", err)
-	}
-
-	return encrypted, nil
+	return base64.URLEncoding.EncodeToString(data), nil
 }
 
-func (m *Controller) DecryptMagic(encrypted string) (string, string, error) {
-	m.secretKeyMu.RLock()
-	secretKey := m.secretKey
-	oldSecretKey := m.oldSecretKey
-	m.secretKeyMu.RUnlock()
-
-	decrypted, err := aes.Decrypt(secretKey, MagicKey, encrypted)
+func (m *Controller) DecodeMagic(encoded string) (string, []byte, error) {
+	data, err := base64.URLEncoding.DecodeString(encoded)
 	if err != nil {
-		if errors.Is(err, aes.ErrInvalidContent) {
-			if oldSecretKey != EmptySecretKey {
-				decrypted, err = aes.Decrypt(oldSecretKey, MagicKey, encrypted)
-				if err != nil {
-					return "", "", fmt.Errorf("failed to decrypt magic link token: %w", err)
-				}
-			} else {
-				return "", "", fmt.Errorf("failed to decrypt magic link token: %w", err)
-			}
-		} else {
-			return "", "", fmt.Errorf("failed to decrypt magic link token: %w", err)
-		}
+		return "", nil, fmt.Errorf("failed to decode magic link token: %w", err)
 	}
+
 	ma := new(magic.Magic)
-	err = json.Unmarshal(decrypted, ma)
+	err = json.Unmarshal(data, ma)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to unmarshal magic: %w", err)
+		return "", nil, fmt.Errorf("failed to unmarshal magic: %w", err)
 	}
 
 	return ma.Email, ma.Secret, nil

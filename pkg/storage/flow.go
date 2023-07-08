@@ -56,7 +56,8 @@ type MagicFlow struct {
 	Identifier       string `json:"identifier"`
 	Email            string `json:"email"`
 	IPAddress        string `json:"ip_address"`
-	Secret           string `json:"secret"`
+	Salt             []byte `json:"salt"`
+	Hash             []byte `json:"hash"`
 	NextURL          string `json:"next_url"`
 	Organization     string `json:"organization"`
 	DeviceIdentifier string `json:"device_identifier"`
@@ -87,7 +88,7 @@ type Google interface {
 }
 
 type Magic interface {
-	SetMagicFlow(ctx context.Context, email string, ip string, secret string, nextURL string, organization string, deviceIdentifier string) error
+	SetMagicFlow(ctx context.Context, email string, salt []byte, hash []byte, ip string, nextURL string, organization string, deviceIdentifier string) error
 	GetMagicFlow(ctx context.Context, email string) (*MagicFlow, error)
 	DeleteMagicFlow(ctx context.Context, email string) error
 	GCMagicFlow(ctx context.Context, expiry time.Duration) (int, error)

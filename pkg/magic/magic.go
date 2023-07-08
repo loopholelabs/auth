@@ -20,6 +20,6 @@ type Magic struct {
 	// Email is the Email address associated with the Magic Link
 	Email string `json:"email"`
 
-	// Secret is the secret associated with the Magic Link
-	Secret string `json:"secret"`
+	// Secret is the secret token associated with the Magic Link
+	Secret []byte `json:"secret"`
 }

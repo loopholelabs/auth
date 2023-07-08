@@ -141,7 +141,7 @@ func (a *Github) GithubCallback(ctx *fiber.Ctx) error {
 
 	a.logger.Debug().Msgf("creating session for user %s", userID)
 
-	kind := sessionKind.Default
+	kind := sessionKind.Github
 	if deviceIdentifier != "" {
 		if a.options.DeviceProvider() == nil {
 			return ctx.Status(fiber.StatusUnauthorized).SendString("device provider is not enabled")

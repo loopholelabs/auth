@@ -27,6 +27,7 @@ import (
 	"github.com/loopholelabs/auth/pkg/storage"
 	"github.com/mattevans/postmark-go"
 	"github.com/rs/zerolog"
+	"golang.org/x/crypto/bcrypt"
 	"net/http"
 	"sync"
 	"time"
@@ -119,21 +120,26 @@ func (g *Magic) Stop() error {
 	return nil
 }
 
-func (g *Magic) StartFlow(ctx context.Context, email string, ip string, nextURL string, organization string, deviceIdentifier string) (string, error) {
-	secret := uuid.New().String()
+func (g *Magic) StartFlow(ctx context.Context, email string, ip string, nextURL string, organization string, deviceIdentifier string) ([]byte, error) {
+	secret := []byte(uuid.New().String())
+	salt := []byte(uuid.New().String())
+	hash, err := bcrypt.GenerateFromPassword(append(salt, secret...), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, err
+	}
 
-	_, err := g.storage.GetMagicFlow(ctx, email)
+	_, err = g.storage.GetMagicFlow(ctx, email)
 	if err == nil {
 		err = g.storage.DeleteMagicFlow(ctx, email)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 	}
 
 	g.logger.Debug().Msgf("starting flow for %s (ip: %s) with org '%s' and device identifier '%s'", email, ip, organization, deviceIdentifier)
-	err = g.storage.SetMagicFlow(ctx, email, ip, secret, nextURL, organization, deviceIdentifier)
+	err = g.storage.SetMagicFlow(ctx, email, salt, hash, ip, nextURL, organization, deviceIdentifier)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	return secret, nil
@@ -193,14 +199,14 @@ func (g *Magic) SendMagic(ctx context.Context, url string, email string, ip stri
 	return nil
 }
 
-func (g *Magic) CompleteFlow(ctx context.Context, email string, secret string) (string, string, string, error) {
+func (g *Magic) CompleteFlow(ctx context.Context, email string, secret []byte) (string, string, string, error) {
 	g.logger.Debug().Msgf("completing flow for email %s", email)
 	f, err := g.storage.GetMagicFlow(ctx, email)
 	if err != nil {
 		return "", "", "", err
 	}
 
-	if f.Secret != secret {
+	if bcrypt.CompareHashAndPassword(f.Hash, append(f.Salt, secret...)) != nil {
 		return "", "", "", ErrInvalidSecret
 	}
 

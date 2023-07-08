@@ -19,6 +19,8 @@ package sessionKind
 type SessionKind string
 
 const (
-	Default SessionKind = "default"
-	Device  SessionKind = "device"
+	Device SessionKind = "device"
+	Github SessionKind = "github"
+	Google SessionKind = "google"
+	Magic  SessionKind = "magic"
 )

@@ -118,7 +118,7 @@ func (d *Magic) MagicFlow(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusInternalServerError).SendString("failed to get device code and user code")
 	}
 
-	encrypted, err := d.options.Controller().EncryptMagic(email, secret)
+	encoded, err := d.options.Controller().EncodeMagic(email, secret)
 	if err != nil {
 		d.logger.Error().Err(err).Msg("failed to encrypt magic")
 		return ctx.Status(fiber.StatusInternalServerError).SendString("failed to encrypt magic")
@@ -128,7 +128,7 @@ func (d *Magic) MagicFlow(ctx *fiber.Ctx) error {
 		scheme = "https"
 	}
 	url := fmt.Sprintf("%s://%s", scheme, d.options.Endpoint())
-	err = d.options.MagicProvider().SendMagic(ctx.Context(), url, email, ctx.IP(), encrypted)
+	err = d.options.MagicProvider().SendMagic(ctx.Context(), url, email, ctx.IP(), encoded)
 	if err != nil {
 		d.logger.Error().Err(err).Msg("failed to send magic link")
 		return ctx.Status(fiber.StatusInternalServerError).SendString("failed to send magic link")
@@ -157,12 +157,12 @@ func (d *Magic) MagicCallback(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusUnauthorized).SendString("magic link provider is not enabled")
 	}
 
-	token := ctx.Query("token")
-	if token == "" {
+	encodedToken := ctx.Query("token")
+	if encodedToken == "" {
 		return ctx.Status(fiber.StatusUnauthorized).SendString("token is required")
 	}
 
-	email, secret, err := d.options.Controller().DecryptMagic(token)
+	email, secret, err := d.options.Controller().DecodeMagic(encodedToken)
 	if err != nil {
 		d.logger.Error().Err(err).Msg("failed to decrypt magic link token")
 		return ctx.Status(fiber.StatusUnauthorized).SendString("invalid magic link token")
@@ -180,7 +180,7 @@ func (d *Magic) MagicCallback(ctx *fiber.Ctx) error {
 
 	d.logger.Debug().Msgf("creating session for user %s", email)
 
-	kind := sessionKind.Default
+	kind := sessionKind.Magic
 	if deviceIdentifier != "" {
 		if d.options.DeviceProvider() == nil {
 			return ctx.Status(fiber.StatusUnauthorized).SendString("device provider is not enabled")
