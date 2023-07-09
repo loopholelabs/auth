@@ -241,20 +241,21 @@ func (m *Controller) DecodeMagic(encoded string) (string, []byte, error) {
 	return ma.Email, ma.Secret, nil
 }
 
-func (m *Controller) CreateSession(ctx *fiber.Ctx, kind sessionKind.SessionKind, provider flow.Key, userIdentifier string, organization string) (*fiber.Cookie, error) {
-	m.logger.Debug().Msgf("creating session for user %s (org '%s')", userIdentifier, organization)
-	exists, err := m.storage.UserExists(ctx.Context(), userIdentifier)
+func (m *Controller) CreateSession(ctx *fiber.Ctx, kind sessionKind.SessionKind, provider flow.Key, email string, organization string) (*fiber.Cookie, error) {
+	m.logger.Debug().Msgf("creating session for user %s (org '%s')", email, organization)
+
+	userInfo, err := m.storage.UserInfoByEmail(ctx.Context(), email)
 	if err != nil {
 		m.logger.Error().Err(err).Msg("failed to check if user exists")
 		return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to check if user exists")
 	}
 
-	if !exists {
+	if userInfo == nil {
 		if organization != "" {
 			return nil, ctx.Status(fiber.StatusNotFound).SendString("user does not exist")
 		}
 
-		m.logger.Debug().Msgf("user %s does not exist", userIdentifier)
+		m.logger.Debug().Msgf("user %s does not exist", email)
 		m.registrationMu.RLock()
 		registration := m.registration
 		m.registrationMu.RUnlock()
@@ -263,13 +264,13 @@ func (m *Controller) CreateSession(ctx *fiber.Ctx, kind sessionKind.SessionKind,
 			return nil, ctx.Status(fiber.StatusNotFound).SendString("user does not exist")
 		}
 
-		m.logger.Debug().Msgf("creating user %s", userIdentifier)
+		m.logger.Debug().Msgf("creating user %s", email)
 
 		c := &claims.Claims{
-			Identifier: userIdentifier,
+			Identifier: email,
 		}
 
-		err = m.storage.NewUser(ctx.Context(), c)
+		userInfo, err = m.storage.NewUser(ctx.Context(), c)
 		if err != nil {
 			m.logger.Error().Err(err).Msg("failed to create user")
 			return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to create user")
@@ -277,8 +278,8 @@ func (m *Controller) CreateSession(ctx *fiber.Ctx, kind sessionKind.SessionKind,
 	}
 
 	if organization != "" {
-		m.logger.Debug().Msgf("checking if user %s is member of organization %s", userIdentifier, organization)
-		exists, err = m.storage.UserOrganizationExists(ctx.Context(), userIdentifier, organization)
+		m.logger.Debug().Msgf("checking if user %s is member of organization %s", email, organization)
+		exists, err := m.storage.UserOrganizationExists(ctx.Context(), userInfo.Identifier, organization)
 		if err != nil {
 			m.logger.Error().Err(err).Msg("failed to check if organization exists")
 			return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to check if organization exists")
@@ -289,7 +290,7 @@ func (m *Controller) CreateSession(ctx *fiber.Ctx, kind sessionKind.SessionKind,
 		}
 	}
 
-	sess := session.New(kind, provider, userIdentifier, organization)
+	sess := session.New(kind, provider, userInfo.Identifier, organization)
 	data, err := json.Marshal(sess)
 	if err != nil {
 		m.logger.Error().Err(err).Msg("failed to marshal session")
@@ -312,7 +313,7 @@ func (m *Controller) CreateSession(ctx *fiber.Ctx, kind sessionKind.SessionKind,
 		return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to set session")
 	}
 
-	m.logger.Debug().Msgf("created session %s for owner %s (org '%s') with expiry %s", sess.Identifier, sess.Owner, sess.Organization, sess.Expiry)
+	m.logger.Debug().Msgf("created session %s for owner %s (org '%s') with expiry %s", sess.Identifier, sess.Creator, sess.Organization, sess.Expiry)
 
 	return m.GenerateCookie(encrypted, sess.Expiry), nil
 }
@@ -372,7 +373,7 @@ func (m *Controller) Validate(ctx *fiber.Ctx) error {
 
 		ctx.Locals(auth.KindContextKey, auth.KindSession)
 		ctx.Locals(auth.SessionContextKey, sess)
-		ctx.Locals(auth.UserContextKey, sess.Owner)
+		ctx.Locals(auth.UserContextKey, sess.Creator)
 		ctx.Locals(auth.OrganizationContextKey, sess.Organization)
 		return ctx.Next()
 	}

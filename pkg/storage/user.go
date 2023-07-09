@@ -36,9 +36,15 @@ type User interface {
 
 	// UserInfo returns the user information for the given identifier. If there is an
 	// error while retrieving the user information, an error is returned, otherwise
-	// the user information is returned. An error should not be returned if the
-	// user does not exist.
+	// the user information is returned. UserInfo is nil if the user does not exist, and
+	// an error is not returned.
 	UserInfo(ctx context.Context, identifier string) (*UserInfo, error)
+
+	// UserInfoByEmail returns the user information for the given email. If there is an
+	// error while retrieving the user information, an error is returned, otherwise
+	// the user information is returned. UserInfo is nil if the user does not exist, and
+	// an error is not returned.
+	UserInfoByEmail(ctx context.Context, email string) (*UserInfo, error)
 
 	// UserOrganizationExists verifies whether the given user identifier is part of the
 	// given organization. If there is an error while checking if the user is
@@ -50,8 +56,8 @@ type User interface {
 	UserOrganizationExists(ctx context.Context, identifier string, organization string) (bool, error)
 
 	// NewUser creates a new user with the given claims. If the user already
-	// exists, an error is returned. If the user does not exist, the user is
+	// exists, ErrAlreadyExists is returned. If the user does not exist, the user is
 	// created and the claims are set. If there is an error while creating the
 	// user, an error is returned.
-	NewUser(ctx context.Context, claims *claims.Claims) error
+	NewUser(ctx context.Context, claims *claims.Claims) (*UserInfo, error)
 }

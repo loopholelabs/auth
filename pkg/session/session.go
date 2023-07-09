@@ -38,19 +38,19 @@ type Session struct {
 	Kind         sessionKind.SessionKind `json:"kind"`
 	Identifier   string                  `json:"identifier"`
 	Provider     flow.Key                `json:"provider"`
-	Owner        string                  `json:"owner"`
+	Creator      string                  `json:"creator"`
 	Organization string                  `json:"organization"`
 }
 
-// New returns a new session for a user with the given kind key, provider key, owner identifier, and organization
-func New(kind sessionKind.SessionKind, provider flow.Key, owner string, organization string) *Session {
+// New returns a new session for a user with the given kind key, provider key, creator identifier, and organization
+func New(kind sessionKind.SessionKind, provider flow.Key, creator string, organization string) *Session {
 	return &Session{
 		Creation:     time.Now(),
 		Expiry:       time.Now().Add(Expiry),
 		Kind:         kind,
 		Identifier:   uuid.New().String(),
 		Provider:     provider,
-		Owner:        owner,
+		Creator:      creator,
 		Organization: organization,
 	}
 }
