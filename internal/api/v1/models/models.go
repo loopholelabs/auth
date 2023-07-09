@@ -44,7 +44,7 @@ type ServiceKeyLoginResponse struct {
 	ServiceSessionID     string                `json:"service_session_id"`
 	ServiceSessionSecret string                `json:"service_session_secret"`
 	ServiceKeyID         string                `json:"service_key_id"`
-	Owner                string                `json:"owner"`
+	Creator              string                `json:"creator"`
 	Organization         string                `json:"organization"`
 	Resources            []servicekey.Resource `json:"resources"`
 }

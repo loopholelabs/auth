@@ -357,7 +357,7 @@ func (m *Controller) CreateServiceSession(ctx *fiber.Ctx, keyID string, keySecre
 		return nil, nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to set service session")
 	}
 
-	m.logger.Debug().Msgf("created service session %s for user %s (org '%s')", sess.Identifier, sess.Owner, sess.Organization)
+	m.logger.Debug().Msgf("created service session %s for user %s (org '%s')", sess.Identifier, sess.Creator, sess.Organization)
 
 	return sess, secret, nil
 }
@@ -399,7 +399,8 @@ func (m *Controller) Validate(ctx *fiber.Ctx) error {
 
 			ctx.Locals(auth.KindContextKey, auth.KindAPIKey)
 			ctx.Locals(auth.APIKeyContextKey, key)
-			ctx.Locals(auth.UserContextKey, key.Owner)
+			ctx.Locals(auth.UserContextKey, key.Creator)
+			ctx.Locals(auth.OrganizationContextKey, key.Organization)
 			return ctx.Next()
 		}
 
@@ -411,7 +412,7 @@ func (m *Controller) Validate(ctx *fiber.Ctx) error {
 
 			ctx.Locals(auth.KindContextKey, auth.KindServiceSession)
 			ctx.Locals(auth.ServiceSessionContextKey, serviceSession)
-			ctx.Locals(auth.UserContextKey, serviceSession.Owner)
+			ctx.Locals(auth.UserContextKey, serviceSession.Creator)
 			ctx.Locals(auth.OrganizationContextKey, serviceSession.Organization)
 			return ctx.Next()
 		}
@@ -457,7 +458,8 @@ func (m *Controller) ManualValidate(ctx *fiber.Ctx) (bool, error) {
 
 			ctx.Locals(auth.KindContextKey, auth.KindAPIKey)
 			ctx.Locals(auth.APIKeyContextKey, key)
-			ctx.Locals(auth.UserContextKey, key.Owner)
+			ctx.Locals(auth.UserContextKey, key.Creator)
+			ctx.Locals(auth.OrganizationContextKey, key.Organization)
 			return true, nil
 		}
 
@@ -469,7 +471,7 @@ func (m *Controller) ManualValidate(ctx *fiber.Ctx) (bool, error) {
 
 			ctx.Locals(auth.KindContextKey, auth.KindServiceSession)
 			ctx.Locals(auth.ServiceSessionContextKey, serviceSession)
-			ctx.Locals(auth.UserContextKey, serviceSession.Owner)
+			ctx.Locals(auth.UserContextKey, serviceSession.Creator)
 			ctx.Locals(auth.OrganizationContextKey, serviceSession.Organization)
 			return true, nil
 		}
@@ -503,18 +505,11 @@ func (m *Controller) GetAuthFromContext(ctx *fiber.Ctx) (auth.Kind, string, stri
 		return "", "", "", ErrInvalidContext
 	}
 
-	switch authKind {
-	case auth.KindSession, auth.KindServiceSession:
-		orgID, ok := ctx.Locals(auth.OrganizationContextKey).(string)
-		if !ok {
-			return "", "", "", ErrInvalidContext
-		}
-		return authKind, userID, orgID, nil
-	case auth.KindAPIKey:
-		return authKind, userID, "", nil
+	orgID, ok := ctx.Locals(auth.OrganizationContextKey).(string)
+	if !ok {
+		return "", "", "", ErrInvalidContext
 	}
-
-	return "", "", "", ErrInvalidContext
+	return authKind, userID, orgID, nil
 }
 
 func (m *Controller) GetUserInfo(ctx *fiber.Ctx) (auth.Kind, *storage.UserInfo, string, error) {
@@ -533,18 +528,11 @@ func (m *Controller) GetUserInfo(ctx *fiber.Ctx) (auth.Kind, *storage.UserInfo, 
 		return "", nil, "", ErrInvalidContext
 	}
 
-	switch authKind {
-	case auth.KindSession, auth.KindServiceSession:
-		orgID, ok := ctx.Locals(auth.OrganizationContextKey).(string)
-		if !ok {
-			return "", nil, "", ErrInvalidContext
-		}
-		return authKind, userInfo, orgID, nil
-	case auth.KindAPIKey:
-		return authKind, userInfo, "", nil
+	orgID, ok := ctx.Locals(auth.OrganizationContextKey).(string)
+	if !ok {
+		return "", nil, "", ErrInvalidContext
 	}
-
-	return "", nil, "", ErrInvalidContext
+	return authKind, userInfo, orgID, nil
 }
 
 func (m *Controller) GetSessionFromContext(ctx *fiber.Ctx) (*session.Session, error) {

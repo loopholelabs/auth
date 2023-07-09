@@ -97,7 +97,7 @@ func (a *ServiceKey) ServiceKeyLogin(ctx *fiber.Ctx) error {
 		ServiceSessionID:     sess.Identifier,
 		ServiceSessionSecret: string(secret),
 		ServiceKeyID:         sess.ServiceKeyIdentifier,
-		Owner:                sess.Owner,
+		Creator:              sess.Creator,
 		Organization:         sess.Organization,
 		Resources:            sess.Resources,
 	})

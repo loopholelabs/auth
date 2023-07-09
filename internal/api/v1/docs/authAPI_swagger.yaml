@@ -46,9 +46,9 @@ definitions:
     type: object
   models.ServiceKeyLoginResponse:
     properties:
-      organization:
+      creator:
         type: string
-      owner:
+      organization:
         type: string
       resources:
         items:

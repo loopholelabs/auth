@@ -35,11 +35,11 @@ import (
 // swagger:model models.ServiceKeyLoginResponse
 type ModelsServiceKeyLoginResponse struct {
 
+	// creator
+	Creator string `json:"creator,omitempty"`
+
 	// organization
 	Organization string `json:"organization,omitempty"`
-
-	// owner
-	Owner string `json:"owner,omitempty"`
 
 	// resources
 	Resources []*ServicekeyResource `json:"resources"`

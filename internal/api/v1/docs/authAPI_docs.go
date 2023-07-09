@@ -810,10 +810,10 @@ const docTemplateauthAPI = `{
         "models.ServiceKeyLoginResponse": {
             "type": "object",
             "properties": {
-                "organization": {
+                "creator": {
                     "type": "string"
                 },
-                "owner": {
+                "organization": {
                     "type": "string"
                 },
                 "resources": {
