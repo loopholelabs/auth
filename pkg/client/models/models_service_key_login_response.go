@@ -38,6 +38,9 @@ type ModelsServiceKeyLoginResponse struct {
 	// organization
 	Organization string `json:"organization,omitempty"`
 
+	// owner
+	Owner string `json:"owner,omitempty"`
+
 	// resources
 	Resources []*ServicekeyResource `json:"resources"`
 
@@ -49,9 +52,6 @@ type ModelsServiceKeyLoginResponse struct {
 
 	// service session secret
 	ServiceSessionSecret string `json:"service_session_secret,omitempty"`
-
-	// user id
-	UserID string `json:"user_id,omitempty"`
 }
 
 // Validate validates this models service key login response

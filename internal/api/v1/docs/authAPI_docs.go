@@ -813,6 +813,9 @@ const docTemplateauthAPI = `{
                 "organization": {
                     "type": "string"
                 },
+                "owner": {
+                    "type": "string"
+                },
                 "resources": {
                     "type": "array",
                     "items": {
@@ -827,9 +830,6 @@ const docTemplateauthAPI = `{
                 },
                 "service_session_secret": {
                     "type": "string"
-                },
-                "user_id": {
-                    "type": "string"
                 }
             }
         },
@@ -839,11 +839,14 @@ const docTemplateauthAPI = `{
                 "email": {
                     "type": "string"
                 },
-                "organization": {
+                "identifier": {
                     "type": "string"
                 },
-                "session": {
+                "kind": {
                     "$ref": "#/definitions/auth.Kind"
+                },
+                "organization": {
+                    "type": "string"
                 }
             }
         },

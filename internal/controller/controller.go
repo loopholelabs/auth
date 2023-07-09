@@ -503,12 +503,48 @@ func (m *Controller) GetAuthFromContext(ctx *fiber.Ctx) (auth.Kind, string, stri
 		return "", "", "", ErrInvalidContext
 	}
 
-	orgID, ok := ctx.Locals(auth.OrganizationContextKey).(string)
-	if !ok {
-		return "", "", "", ErrInvalidContext
+	switch authKind {
+	case auth.KindSession, auth.KindServiceSession:
+		orgID, ok := ctx.Locals(auth.OrganizationContextKey).(string)
+		if !ok {
+			return "", "", "", ErrInvalidContext
+		}
+		return authKind, userID, orgID, nil
+	case auth.KindAPIKey:
+		return authKind, userID, "", nil
 	}
 
-	return authKind, userID, orgID, nil
+	return "", "", "", ErrInvalidContext
+}
+
+func (m *Controller) GetUserInfo(ctx *fiber.Ctx) (auth.Kind, *storage.UserInfo, string, error) {
+	authKind, ok := ctx.Locals(auth.KindContextKey).(auth.Kind)
+	if !ok || authKind == "" {
+		return "", nil, "", ErrInvalidContext
+	}
+
+	userID, ok := ctx.Locals(auth.UserContextKey).(string)
+	if !ok || userID == "" {
+		return "", nil, "", ErrInvalidContext
+	}
+
+	userInfo, err := m.storage.UserInfo(ctx.Context(), userID)
+	if err != nil || userInfo == nil {
+		return "", nil, "", ErrInvalidContext
+	}
+
+	switch authKind {
+	case auth.KindSession, auth.KindServiceSession:
+		orgID, ok := ctx.Locals(auth.OrganizationContextKey).(string)
+		if !ok {
+			return "", nil, "", ErrInvalidContext
+		}
+		return authKind, userInfo, orgID, nil
+	case auth.KindAPIKey:
+		return authKind, userInfo, "", nil
+	}
+
+	return "", nil, "", ErrInvalidContext
 }
 
 func (m *Controller) GetSessionFromContext(ctx *fiber.Ctx) (*session.Session, error) {

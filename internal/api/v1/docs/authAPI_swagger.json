@@ -793,6 +793,9 @@
                 "organization": {
                     "type": "string"
                 },
+                "owner": {
+                    "type": "string"
+                },
                 "resources": {
                     "type": "array",
                     "items": {
@@ -807,9 +810,6 @@
                 },
                 "service_session_secret": {
                     "type": "string"
-                },
-                "user_id": {
-                    "type": "string"
                 }
             }
         },
@@ -819,11 +819,14 @@
                 "email": {
                     "type": "string"
                 },
-                "organization": {
+                "identifier": {
                     "type": "string"
                 },
-                "session": {
+                "kind": {
                     "$ref": "#/definitions/auth.Kind"
+                },
+                "organization": {
+                    "type": "string"
                 }
             }
         },

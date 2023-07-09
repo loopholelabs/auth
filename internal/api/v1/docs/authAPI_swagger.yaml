@@ -48,6 +48,8 @@ definitions:
     properties:
       organization:
         type: string
+      owner:
+        type: string
       resources:
         items:
           $ref: '#/definitions/servicekey.Resource'
@@ -58,17 +60,17 @@ definitions:
         type: string
       service_session_secret:
         type: string
-      user_id:
-        type: string
     type: object
   models.UserInfoResponse:
     properties:
       email:
         type: string
+      identifier:
+        type: string
+      kind:
+        $ref: '#/definitions/auth.Kind'
       organization:
         type: string
-      session:
-        $ref: '#/definitions/auth.Kind'
     type: object
   servicekey.Resource:
     properties:

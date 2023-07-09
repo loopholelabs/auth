@@ -44,14 +44,15 @@ type ServiceKeyLoginResponse struct {
 	ServiceSessionID     string                `json:"service_session_id"`
 	ServiceSessionSecret string                `json:"service_session_secret"`
 	ServiceKeyID         string                `json:"service_key_id"`
-	UserID               string                `json:"user_id"`
+	Owner                string                `json:"owner"`
 	Organization         string                `json:"organization"`
 	Resources            []servicekey.Resource `json:"resources"`
 }
 
 type UserInfoResponse struct {
+	Identifier   string    `json:"identifier"`
 	Email        string    `json:"email"`
-	Session      auth.Kind `json:"session"`
+	Kind         auth.Kind `json:"kind"`
 	Organization string    `json:"organization"`
 }
 

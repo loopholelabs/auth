@@ -37,18 +37,21 @@ type ModelsUserInfoResponse struct {
 	// email
 	Email string `json:"email,omitempty"`
 
+	// identifier
+	Identifier string `json:"identifier,omitempty"`
+
+	// kind
+	Kind AuthKind `json:"kind,omitempty"`
+
 	// organization
 	Organization string `json:"organization,omitempty"`
-
-	// session
-	Session AuthKind `json:"session,omitempty"`
 }
 
 // Validate validates this models user info response
 func (m *ModelsUserInfoResponse) Validate(formats strfmt.Registry) error {
 	var res []error
 
-	if err := m.validateSession(formats); err != nil {
+	if err := m.validateKind(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -58,16 +61,16 @@ func (m *ModelsUserInfoResponse) Validate(formats strfmt.Registry) error {
 	return nil
 }
 
-func (m *ModelsUserInfoResponse) validateSession(formats strfmt.Registry) error {
-	if swag.IsZero(m.Session) { // not required
+func (m *ModelsUserInfoResponse) validateKind(formats strfmt.Registry) error {
+	if swag.IsZero(m.Kind) { // not required
 		return nil
 	}
 
-	if err := m.Session.Validate(formats); err != nil {
+	if err := m.Kind.Validate(formats); err != nil {
 		if ve, ok := err.(*errors.Validation); ok {
-			return ve.ValidateName("session")
+			return ve.ValidateName("kind")
 		} else if ce, ok := err.(*errors.CompositeError); ok {
-			return ce.ValidateName("session")
+			return ce.ValidateName("kind")
 		}
 		return err
 	}
@@ -79,7 +82,7 @@ func (m *ModelsUserInfoResponse) validateSession(formats strfmt.Registry) error 
 func (m *ModelsUserInfoResponse) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	var res []error
 
-	if err := m.contextValidateSession(ctx, formats); err != nil {
+	if err := m.contextValidateKind(ctx, formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -89,17 +92,17 @@ func (m *ModelsUserInfoResponse) ContextValidate(ctx context.Context, formats st
 	return nil
 }
 
-func (m *ModelsUserInfoResponse) contextValidateSession(ctx context.Context, formats strfmt.Registry) error {
+func (m *ModelsUserInfoResponse) contextValidateKind(ctx context.Context, formats strfmt.Registry) error {
 
-	if swag.IsZero(m.Session) { // not required
+	if swag.IsZero(m.Kind) { // not required
 		return nil
 	}
 
-	if err := m.Session.ContextValidate(ctx, formats); err != nil {
+	if err := m.Kind.ContextValidate(ctx, formats); err != nil {
 		if ve, ok := err.(*errors.Validation); ok {
-			return ve.ValidateName("session")
+			return ve.ValidateName("kind")
 		} else if ce, ok := err.(*errors.CompositeError); ok {
-			return ce.ValidateName("session")
+			return ce.ValidateName("kind")
 		}
 		return err
 	}
