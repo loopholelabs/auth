@@ -21,7 +21,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/loopholelabs/auth/internal/api/v1/options"
 	"github.com/loopholelabs/auth/internal/utils"
-	"github.com/loopholelabs/auth/pkg/sessionKind"
 	"github.com/loopholelabs/auth/pkg/storage"
 	"github.com/rs/zerolog"
 )
@@ -141,15 +140,15 @@ func (a *Google) GoogleCallback(ctx *fiber.Ctx) error {
 
 	a.logger.Debug().Msgf("creating session for user %s", userID)
 
-	kind := sessionKind.Google
+	device := false
 	if deviceIdentifier != "" {
 		if a.options.DeviceProvider() == nil {
 			return ctx.Status(fiber.StatusUnauthorized).SendString("device provider is not enabled")
 		}
-		kind = sessionKind.Device
+		device = true
 	}
 
-	cookie, err := a.options.Controller().CreateSession(ctx, kind, a.options.GoogleProvider().Key(), userID, organization)
+	cookie, err := a.options.Controller().CreateSession(ctx, device, a.options.GoogleProvider().Key(), userID, organization)
 	if cookie == nil {
 		return err
 	}

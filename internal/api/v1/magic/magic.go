@@ -24,7 +24,6 @@ import (
 	"github.com/loopholelabs/auth/internal/api/v1/options"
 	"github.com/loopholelabs/auth/internal/utils"
 	"github.com/loopholelabs/auth/pkg/flow/magic"
-	"github.com/loopholelabs/auth/pkg/sessionKind"
 	"github.com/loopholelabs/auth/pkg/storage"
 	"github.com/rs/zerolog"
 )
@@ -180,15 +179,15 @@ func (d *Magic) MagicCallback(ctx *fiber.Ctx) error {
 
 	d.logger.Debug().Msgf("creating session for user %s", userID)
 
-	kind := sessionKind.Magic
+	device := false
 	if deviceIdentifier != "" {
 		if d.options.DeviceProvider() == nil {
 			return ctx.Status(fiber.StatusUnauthorized).SendString("device provider is not enabled")
 		}
-		kind = sessionKind.Device
+		device = true
 	}
 
-	cookie, err := d.options.Controller().CreateSession(ctx, kind, d.options.MagicProvider().Key(), userID, organization)
+	cookie, err := d.options.Controller().CreateSession(ctx, device, d.options.MagicProvider().Key(), userID, organization)
 	if cookie == nil {
 		return err
 	}

@@ -33,7 +33,6 @@ import (
 	"github.com/loopholelabs/auth/pkg/magic"
 	"github.com/loopholelabs/auth/pkg/servicesession"
 	"github.com/loopholelabs/auth/pkg/session"
-	"github.com/loopholelabs/auth/pkg/sessionKind"
 	"github.com/loopholelabs/auth/pkg/storage"
 	"github.com/rs/zerolog"
 	"golang.org/x/crypto/bcrypt"
@@ -241,7 +240,7 @@ func (m *Controller) DecodeMagic(encoded string) (string, []byte, error) {
 	return ma.Email, ma.Secret, nil
 }
 
-func (m *Controller) CreateSession(ctx *fiber.Ctx, kind sessionKind.SessionKind, provider flow.Key, userID string, organization string) (*fiber.Cookie, error) {
+func (m *Controller) CreateSession(ctx *fiber.Ctx, device bool, provider flow.Key, userID string, organization string) (*fiber.Cookie, error) {
 	m.logger.Debug().Msgf("creating session for user %s (org '%s')", userID, organization)
 
 	exists, err := m.storage.UserExists(ctx.Context(), userID)
@@ -290,7 +289,7 @@ func (m *Controller) CreateSession(ctx *fiber.Ctx, kind sessionKind.SessionKind,
 		}
 	}
 
-	sess := session.New(kind, provider, userID, organization)
+	sess := session.New(device, provider, userID, organization)
 	data, err := json.Marshal(sess)
 	if err != nil {
 		m.logger.Error().Err(err).Msg("failed to marshal session")

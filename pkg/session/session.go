@@ -19,7 +19,6 @@ package session
 import (
 	"github.com/google/uuid"
 	"github.com/loopholelabs/auth/pkg/flow"
-	"github.com/loopholelabs/auth/pkg/sessionKind"
 	"time"
 )
 
@@ -33,21 +32,21 @@ const (
 
 // Session represents a user's authenticated session
 type Session struct {
-	Creation     time.Time               `json:"creation"`
-	Expiry       time.Time               `json:"expiry"`
-	Kind         sessionKind.SessionKind `json:"kind"`
-	Identifier   string                  `json:"identifier"`
-	Provider     flow.Key                `json:"provider"`
-	Creator      string                  `json:"creator"`
-	Organization string                  `json:"organization"`
+	Creation     time.Time `json:"creation"`
+	Expiry       time.Time `json:"expiry"`
+	Device       bool      `json:"device"`
+	Identifier   string    `json:"identifier"`
+	Provider     flow.Key  `json:"provider"`
+	Creator      string    `json:"creator"`
+	Organization string    `json:"organization"`
 }
 
 // New returns a new session for a user with the given kind key, provider key, creator identifier, and organization
-func New(kind sessionKind.SessionKind, provider flow.Key, creator string, organization string) *Session {
+func New(device bool, provider flow.Key, creator string, organization string) *Session {
 	return &Session{
 		Creation:     time.Now(),
 		Expiry:       time.Now().Add(Expiry),
-		Kind:         kind,
+		Device:       device,
 		Identifier:   uuid.New().String(),
 		Provider:     provider,
 		Creator:      creator,
