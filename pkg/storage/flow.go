@@ -18,79 +18,37 @@ package storage
 
 import (
 	"context"
+	"github.com/loopholelabs/auth/pkg/flow"
 	"time"
 )
 
-// DeviceFlow holds the Device Code Authorization Flow
-type DeviceFlow struct {
-	Identifier        string    `json:"identifier"`
-	DeviceCode        string    `json:"device_code"`
-	UserCode          string    `json:"user_code"`
-	SessionIdentifier string    `json:"session_identifier"`
-	EncryptedSession  string    `json:"encrypted_session"`
-	LastPoll          time.Time `json:"last_poll"`
-	ExpiresAt         time.Time `json:"expires_at"`
-}
-
-// GithubFlow holds the Github Authorization Flow
-type GithubFlow struct {
-	Identifier       string `json:"identifier"`
-	Verifier         string `json:"verifier"`
-	Challenge        string `json:"challenge"`
-	NextURL          string `json:"next_url"`
-	Organization     string `json:"organization"`
-	DeviceIdentifier string `json:"device_identifier"`
-}
-
-// GoogleFlow holds the Google Authorization Flow
-type GoogleFlow struct {
-	Identifier       string `json:"identifier"`
-	Verifier         string `json:"verifier"`
-	Challenge        string `json:"challenge"`
-	NextURL          string `json:"next_url"`
-	Organization     string `json:"organization"`
-	DeviceIdentifier string `json:"device_identifier"`
-}
-
-// MagicFlow holds the Magic Authorization Flow
-type MagicFlow struct {
-	Identifier       string `json:"identifier"`
-	Email            string `json:"email"`
-	IPAddress        string `json:"ip_address"`
-	Salt             []byte `json:"salt"`
-	Hash             []byte `json:"hash"`
-	NextURL          string `json:"next_url"`
-	Organization     string `json:"organization"`
-	DeviceIdentifier string `json:"device_identifier"`
-}
-
 type Device interface {
 	SetDeviceFlow(ctx context.Context, identifier string, deviceCode string, userCode string) error
-	GetDeviceFlow(ctx context.Context, deviceCode string) (*DeviceFlow, error)
+	GetDeviceFlow(ctx context.Context, deviceCode string) (*flow.Device, error)
 	UpdateDeviceFlow(ctx context.Context, identifier string, sessionID string, encryptedSession string, expiry time.Time) error
-	GetDeviceFlowUserCode(ctx context.Context, userCode string) (*DeviceFlow, error)
-	GetDeviceFlowIdentifier(ctx context.Context, identifier string) (*DeviceFlow, error)
+	GetDeviceFlowUserCode(ctx context.Context, userCode string) (*flow.Device, error)
+	GetDeviceFlowIdentifier(ctx context.Context, identifier string) (*flow.Device, error)
 	DeleteDeviceFlow(ctx context.Context, deviceCode string) error
 	GCDeviceFlow(ctx context.Context, expiry time.Duration) (int, error)
 }
 
 type Github interface {
 	SetGithubFlow(ctx context.Context, state string, verifier string, challenge string, nextURL string, organization string, deviceIdentifier string) error
-	GetGithubFlow(ctx context.Context, state string) (*GithubFlow, error)
+	GetGithubFlow(ctx context.Context, state string) (*flow.Github, error)
 	DeleteGithubFlow(ctx context.Context, state string) error
 	GCGithubFlow(ctx context.Context, expiry time.Duration) (int, error)
 }
 
 type Google interface {
 	SetGoogleFlow(ctx context.Context, state string, verifier string, challenge string, nextURL string, organization string, deviceIdentifier string) error
-	GetGoogleFlow(ctx context.Context, state string) (*GoogleFlow, error)
+	GetGoogleFlow(ctx context.Context, state string) (*flow.Google, error)
 	DeleteGoogleFlow(ctx context.Context, state string) error
 	GCGoogleFlow(ctx context.Context, expiry time.Duration) (int, error)
 }
 
 type Magic interface {
 	SetMagicFlow(ctx context.Context, email string, salt []byte, hash []byte, ip string, nextURL string, organization string, deviceIdentifier string) error
-	GetMagicFlow(ctx context.Context, email string) (*MagicFlow, error)
+	GetMagicFlow(ctx context.Context, email string) (*flow.Magic, error)
 	DeleteMagicFlow(ctx context.Context, email string) error
 	GCMagicFlow(ctx context.Context, expiry time.Duration) (int, error)
 }

@@ -16,7 +16,10 @@
 
 package flow
 
-import "errors"
+import (
+	"errors"
+	"time"
+)
 
 var (
 	ErrInvalidOptions = errors.New("invalid options")
@@ -38,4 +41,47 @@ type Flow interface {
 
 	// Stop stops the Provider
 	Stop() error
+}
+
+// Device holds the Device Code Authorization Flow
+type Device struct {
+	Identifier        string    `json:"identifier"`
+	DeviceCode        string    `json:"device_code"`
+	UserCode          string    `json:"user_code"`
+	SessionIdentifier string    `json:"session_identifier"`
+	EncryptedSession  string    `json:"encrypted_session"`
+	LastPoll          time.Time `json:"last_poll"`
+	ExpiresAt         time.Time `json:"expires_at"`
+}
+
+// Github holds the Github Authorization Flow
+type Github struct {
+	Identifier       string `json:"identifier"`
+	Verifier         string `json:"verifier"`
+	Challenge        string `json:"challenge"`
+	NextURL          string `json:"next_url"`
+	Organization     string `json:"organization"`
+	DeviceIdentifier string `json:"device_identifier"`
+}
+
+// Google holds the Google Authorization Flow
+type Google struct {
+	Identifier       string `json:"identifier"`
+	Verifier         string `json:"verifier"`
+	Challenge        string `json:"challenge"`
+	NextURL          string `json:"next_url"`
+	Organization     string `json:"organization"`
+	DeviceIdentifier string `json:"device_identifier"`
+}
+
+// Magic holds the Magic Authorization Flow
+type Magic struct {
+	Identifier       string `json:"identifier"`
+	Email            string `json:"email"`
+	IPAddress        string `json:"ip_address"`
+	Salt             []byte `json:"salt"`
+	Hash             []byte `json:"hash"`
+	NextURL          string `json:"next_url"`
+	Organization     string `json:"organization"`
+	DeviceIdentifier string `json:"device_identifier"`
 }
