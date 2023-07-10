@@ -51,7 +51,6 @@ type ServiceKeyLoginResponse struct {
 
 type UserInfoResponse struct {
 	Identifier   string    `json:"identifier"`
-	Email        string    `json:"email"`
 	Kind         auth.Kind `json:"kind"`
 	Organization string    `json:"organization"`
 }

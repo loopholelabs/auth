@@ -130,7 +130,7 @@ func (a *Google) GoogleCallback(ctx *fiber.Ctx) error {
 	}
 
 	a.logger.Debug().Msgf("completing flow for state %s", state)
-	email, organization, nextURL, deviceIdentifier, err := a.options.GoogleProvider().CompleteFlow(ctx.Context(), code, state)
+	userID, organization, nextURL, deviceIdentifier, err := a.options.GoogleProvider().CompleteFlow(ctx.Context(), code, state)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
 			return ctx.Status(fiber.StatusUnauthorized).SendString("code is invalid")
@@ -139,7 +139,7 @@ func (a *Google) GoogleCallback(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusInternalServerError).SendString("failed to get token")
 	}
 
-	a.logger.Debug().Msgf("creating session for user %s", email)
+	a.logger.Debug().Msgf("creating session for user %s", userID)
 
 	kind := sessionKind.Google
 	if deviceIdentifier != "" {
@@ -149,7 +149,7 @@ func (a *Google) GoogleCallback(ctx *fiber.Ctx) error {
 		kind = sessionKind.Device
 	}
 
-	cookie, err := a.options.Controller().CreateSession(ctx, kind, a.options.GoogleProvider().Key(), email, organization)
+	cookie, err := a.options.Controller().CreateSession(ctx, kind, a.options.GoogleProvider().Key(), userID, organization)
 	if cookie == nil {
 		return err
 	}

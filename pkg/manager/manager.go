@@ -240,10 +240,6 @@ func (m *Manager) AuthAvailable(ctx *fiber.Ctx) bool {
 	return m.controller.AuthAvailable(ctx)
 }
 
-func (m *Manager) GetUserInfo(ctx *fiber.Ctx) (auth.Kind, *storage.UserInfo, string, error) {
-	return m.controller.GetUserInfo(ctx)
-}
-
 func (m *Manager) GetAuthFromContext(ctx *fiber.Ctx) (auth.Kind, string, string, error) {
 	return m.controller.GetAuthFromContext(ctx)
 }

@@ -836,9 +836,6 @@ const docTemplateauthAPI = `{
         "models.UserInfoResponse": {
             "type": "object",
             "properties": {
-                "email": {
-                    "type": "string"
-                },
                 "identifier": {
                     "type": "string"
                 },

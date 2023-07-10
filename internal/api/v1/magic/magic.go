@@ -162,14 +162,14 @@ func (d *Magic) MagicCallback(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusUnauthorized).SendString("token is required")
 	}
 
-	email, secret, err := d.options.Controller().DecodeMagic(encodedToken)
+	userID, secret, err := d.options.Controller().DecodeMagic(encodedToken)
 	if err != nil {
 		d.logger.Error().Err(err).Msg("failed to decrypt magic link token")
 		return ctx.Status(fiber.StatusUnauthorized).SendString("invalid magic link token")
 	}
 
-	d.logger.Debug().Msgf("completing flow for %s", email)
-	organization, nextURL, deviceIdentifier, err := d.options.MagicProvider().CompleteFlow(ctx.Context(), email, secret)
+	d.logger.Debug().Msgf("completing flow for %s", userID)
+	organization, nextURL, deviceIdentifier, err := d.options.MagicProvider().CompleteFlow(ctx.Context(), userID, secret)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) || errors.Is(err, magic.ErrInvalidSecret) {
 			return ctx.Status(fiber.StatusUnauthorized).SendString("invalid magic link token")
@@ -178,7 +178,7 @@ func (d *Magic) MagicCallback(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusInternalServerError).SendString("failed to complete magic link flow")
 	}
 
-	d.logger.Debug().Msgf("creating session for user %s", email)
+	d.logger.Debug().Msgf("creating session for user %s", userID)
 
 	kind := sessionKind.Magic
 	if deviceIdentifier != "" {
@@ -188,7 +188,7 @@ func (d *Magic) MagicCallback(ctx *fiber.Ctx) error {
 		kind = sessionKind.Device
 	}
 
-	cookie, err := d.options.Controller().CreateSession(ctx, kind, d.options.MagicProvider().Key(), email, organization)
+	cookie, err := d.options.Controller().CreateSession(ctx, kind, d.options.MagicProvider().Key(), userID, organization)
 	if cookie == nil {
 		return err
 	}

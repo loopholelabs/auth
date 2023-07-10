@@ -63,8 +63,6 @@ definitions:
     type: object
   models.UserInfoResponse:
     properties:
-      email:
-        type: string
       identifier:
         type: string
       kind:

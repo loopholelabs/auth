@@ -34,9 +34,6 @@ import (
 // swagger:model models.UserInfoResponse
 type ModelsUserInfoResponse struct {
 
-	// email
-	Email string `json:"email,omitempty"`
-
 	// identifier
 	Identifier string `json:"identifier,omitempty"`
 

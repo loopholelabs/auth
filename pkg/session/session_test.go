@@ -28,7 +28,7 @@ func TestSession(t *testing.T) {
 	sess := New(sessionKind.Google, pkey, "test-userid", "test-organization")
 	require.Equal(t, sessionKind.Google, sess.Kind)
 	require.Equal(t, pkey, sess.Provider)
-	require.Equal(t, "test-userid", sess.Owner)
+	require.Equal(t, "test-userid", sess.Creator)
 	require.Equal(t, "test-organization", sess.Organization)
 
 	require.False(t, sess.Expired())
