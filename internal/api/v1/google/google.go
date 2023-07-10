@@ -148,13 +148,13 @@ func (a *Google) GoogleCallback(ctx *fiber.Ctx) error {
 		device = true
 	}
 
-	cookie, err := a.options.Controller().CreateSession(ctx, device, a.options.GoogleProvider().Key(), userID, organization)
+	cookie, sessionID, err := a.options.Controller().CreateSession(ctx, device, a.options.GoogleProvider().Key(), userID, organization)
 	if cookie == nil {
 		return err
 	}
 
 	if deviceIdentifier != "" {
-		err = a.options.DeviceProvider().CompleteFlow(ctx.Context(), deviceIdentifier, cookie.Value, cookie.Expires)
+		err = a.options.DeviceProvider().CompleteFlow(ctx.Context(), deviceIdentifier, sessionID, cookie.Value, cookie.Expires)
 		if err != nil {
 			a.logger.Error().Err(err).Msg("failed to complete device flow")
 			return ctx.Status(fiber.StatusInternalServerError).SendString("failed to complete device flow")

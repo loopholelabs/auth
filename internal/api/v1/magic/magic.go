@@ -187,13 +187,13 @@ func (d *Magic) MagicCallback(ctx *fiber.Ctx) error {
 		device = true
 	}
 
-	cookie, err := d.options.Controller().CreateSession(ctx, device, d.options.MagicProvider().Key(), userID, organization)
+	cookie, sessionID, err := d.options.Controller().CreateSession(ctx, device, d.options.MagicProvider().Key(), userID, organization)
 	if cookie == nil {
 		return err
 	}
 
 	if deviceIdentifier != "" {
-		err = d.options.DeviceProvider().CompleteFlow(ctx.Context(), deviceIdentifier, cookie.Value, cookie.Expires)
+		err = d.options.DeviceProvider().CompleteFlow(ctx.Context(), deviceIdentifier, sessionID, cookie.Value, cookie.Expires)
 		if err != nil {
 			d.logger.Error().Err(err).Msg("failed to complete device flow")
 			return ctx.Status(fiber.StatusInternalServerError).SendString("failed to complete device flow")

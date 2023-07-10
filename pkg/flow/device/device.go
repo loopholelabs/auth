@@ -113,18 +113,18 @@ func (g *Device) PollFlow(ctx context.Context, userCode string) (string, time.Ti
 		return "", time.Time{}, time.Time{}, err
 	}
 
-	if f.Session != "" {
+	if f.EncryptedSession != "" {
 		err = g.storage.DeleteDeviceFlow(ctx, f.DeviceCode)
 		if err != nil {
 			return "", time.Time{}, time.Time{}, err
 		}
 	}
 
-	return f.Session, f.ExpiresAt, f.LastPoll, nil
+	return f.EncryptedSession, f.ExpiresAt, f.LastPoll, nil
 }
 
-func (g *Device) CompleteFlow(ctx context.Context, identifier string, session string, expiry time.Time) error {
-	err := g.storage.UpdateDeviceFlow(ctx, identifier, session, expiry)
+func (g *Device) CompleteFlow(ctx context.Context, identifier string, sessionID string, encryptedSession string, expiry time.Time) error {
+	err := g.storage.UpdateDeviceFlow(ctx, identifier, sessionID, encryptedSession, expiry)
 	if err != nil {
 		return err
 	}

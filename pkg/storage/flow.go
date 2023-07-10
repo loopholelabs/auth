@@ -23,12 +23,13 @@ import (
 
 // DeviceFlow holds the Device Code Authorization Flow
 type DeviceFlow struct {
-	Identifier string    `json:"identifier"`
-	DeviceCode string    `json:"device_code"`
-	UserCode   string    `json:"user_code"`
-	Session    string    `json:"session"`
-	LastPoll   time.Time `json:"last_poll"`
-	ExpiresAt  time.Time `json:"expires_at"`
+	Identifier        string    `json:"identifier"`
+	DeviceCode        string    `json:"device_code"`
+	UserCode          string    `json:"user_code"`
+	SessionIdentifier string    `json:"session_identifier"`
+	EncryptedSession  string    `json:"encrypted_session"`
+	LastPoll          time.Time `json:"last_poll"`
+	ExpiresAt         time.Time `json:"expires_at"`
 }
 
 // GithubFlow holds the Github Authorization Flow
@@ -66,7 +67,7 @@ type MagicFlow struct {
 type Device interface {
 	SetDeviceFlow(ctx context.Context, identifier string, deviceCode string, userCode string) error
 	GetDeviceFlow(ctx context.Context, deviceCode string) (*DeviceFlow, error)
-	UpdateDeviceFlow(ctx context.Context, identifier string, session string, expiry time.Time) error
+	UpdateDeviceFlow(ctx context.Context, identifier string, sessionID string, encryptedSession string, expiry time.Time) error
 	GetDeviceFlowUserCode(ctx context.Context, userCode string) (*DeviceFlow, error)
 	GetDeviceFlowIdentifier(ctx context.Context, identifier string) (*DeviceFlow, error)
 	DeleteDeviceFlow(ctx context.Context, deviceCode string) error

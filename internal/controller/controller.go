@@ -240,18 +240,18 @@ func (m *Controller) DecodeMagic(encoded string) (string, []byte, error) {
 	return ma.Email, ma.Secret, nil
 }
 
-func (m *Controller) CreateSession(ctx *fiber.Ctx, device bool, provider flow.Key, userID string, organization string) (*fiber.Cookie, error) {
+func (m *Controller) CreateSession(ctx *fiber.Ctx, device bool, provider flow.Key, userID string, organization string) (*fiber.Cookie, string, error) {
 	m.logger.Debug().Msgf("creating session for user %s (org '%s')", userID, organization)
 
 	exists, err := m.storage.UserExists(ctx.Context(), userID)
 	if err != nil {
 		m.logger.Error().Err(err).Msg("failed to check if user exists")
-		return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to check if user exists")
+		return nil, "", ctx.Status(fiber.StatusInternalServerError).SendString("failed to check if user exists")
 	}
 
 	if !exists {
 		if organization != "" {
-			return nil, ctx.Status(fiber.StatusNotFound).SendString("user does not exist")
+			return nil, "", ctx.Status(fiber.StatusNotFound).SendString("user does not exist")
 		}
 
 		m.logger.Debug().Msgf("user %s does not exist", userID)
@@ -260,7 +260,7 @@ func (m *Controller) CreateSession(ctx *fiber.Ctx, device bool, provider flow.Ke
 		m.registrationMu.RUnlock()
 
 		if !registration {
-			return nil, ctx.Status(fiber.StatusNotFound).SendString("user does not exist")
+			return nil, "", ctx.Status(fiber.StatusNotFound).SendString("user does not exist")
 		}
 
 		m.logger.Debug().Msgf("creating user %s", userID)
@@ -272,7 +272,7 @@ func (m *Controller) CreateSession(ctx *fiber.Ctx, device bool, provider flow.Ke
 		err = m.storage.NewUser(ctx.Context(), c)
 		if err != nil {
 			m.logger.Error().Err(err).Msg("failed to create user")
-			return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to create user")
+			return nil, "", ctx.Status(fiber.StatusInternalServerError).SendString("failed to create user")
 		}
 	}
 
@@ -281,11 +281,11 @@ func (m *Controller) CreateSession(ctx *fiber.Ctx, device bool, provider flow.Ke
 		exists, err := m.storage.UserOrganizationExists(ctx.Context(), userID, organization)
 		if err != nil {
 			m.logger.Error().Err(err).Msg("failed to check if organization exists")
-			return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to check if organization exists")
+			return nil, "", ctx.Status(fiber.StatusInternalServerError).SendString("failed to check if organization exists")
 		}
 
 		if !exists {
-			return nil, ctx.Status(fiber.StatusForbidden).SendString("invalid organization")
+			return nil, "", ctx.Status(fiber.StatusForbidden).SendString("invalid organization")
 		}
 	}
 
@@ -293,7 +293,7 @@ func (m *Controller) CreateSession(ctx *fiber.Ctx, device bool, provider flow.Ke
 	data, err := json.Marshal(sess)
 	if err != nil {
 		m.logger.Error().Err(err).Msg("failed to marshal session")
-		return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to marshal session")
+		return nil, "", ctx.Status(fiber.StatusInternalServerError).SendString("failed to marshal session")
 	}
 
 	m.secretKeyMu.RLock()
@@ -303,18 +303,18 @@ func (m *Controller) CreateSession(ctx *fiber.Ctx, device bool, provider flow.Ke
 	encrypted, err := aes.Encrypt(secretKey, CookieKey, data)
 	if err != nil {
 		m.logger.Error().Err(err).Msg("failed to encrypt session")
-		return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to encrypt session")
+		return nil, "", ctx.Status(fiber.StatusInternalServerError).SendString("failed to encrypt session")
 	}
 
 	err = m.storage.SetSession(ctx.Context(), sess)
 	if err != nil {
 		m.logger.Error().Err(err).Msg("failed to set session")
-		return nil, ctx.Status(fiber.StatusInternalServerError).SendString("failed to set session")
+		return nil, "", ctx.Status(fiber.StatusInternalServerError).SendString("failed to set session")
 	}
 
 	m.logger.Debug().Msgf("created session %s for owner %s (org '%s') with expiry %s", sess.Identifier, sess.Creator, sess.Organization, sess.Expiry)
 
-	return m.GenerateCookie(encrypted, sess.Expiry), nil
+	return m.GenerateCookie(encrypted, sess.Expiry), sess.Identifier, nil
 }
 
 func (m *Controller) CreateServiceSession(ctx *fiber.Ctx, keyID string, keySecret []byte) (*servicesession.ServiceSession, []byte, error) {
