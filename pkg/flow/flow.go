@@ -76,7 +76,6 @@ type Google struct {
 
 // Magic holds the Magic Authorization Flow
 type Magic struct {
-	Identifier       string `json:"identifier"`
 	Email            string `json:"email"`
 	IPAddress        string `json:"ip_address"`
 	Salt             []byte `json:"salt"`
