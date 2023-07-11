@@ -32,10 +32,10 @@ const (
 
 // Session represents a user's authenticated session
 type Session struct {
+	Identifier   string    `json:"identifier"`
 	Creation     time.Time `json:"creation"`
 	Expiry       time.Time `json:"expiry"`
 	Device       bool      `json:"device"`
-	Identifier   string    `json:"identifier"`
 	Provider     flow.Key  `json:"provider"`
 	Creator      string    `json:"creator"`
 	Organization string    `json:"organization"`

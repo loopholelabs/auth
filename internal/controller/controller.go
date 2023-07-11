@@ -814,17 +814,17 @@ func (m *Controller) subscribeToAPIKeyEvents(events <-chan *storage.APIKeyEvent)
 			return
 		case event := <-events:
 			if event.Deleted {
-				m.logger.Debug().Msgf("api key %s deleted", event.ID)
+				m.logger.Debug().Msgf("api key %s deleted", event.Identifier)
 				m.apikeysMu.Lock()
-				delete(m.apikeys, event.ID)
+				delete(m.apikeys, event.Identifier)
 				m.apikeysMu.Unlock()
 			} else {
-				m.logger.Debug().Msgf("api key %s created or updated", event.ID)
+				m.logger.Debug().Msgf("api key %s created or updated", event.Identifier)
 				if event.APIKey == nil {
-					m.logger.Error().Msgf("api key in create or update event for api key ID %s is nil", event.ID)
+					m.logger.Error().Msgf("api key in create or update event for api key ID %s is nil", event.Identifier)
 				} else {
 					m.apikeysMu.Lock()
-					m.apikeys[event.ID] = event.APIKey
+					m.apikeys[event.Identifier] = event.APIKey
 					m.apikeysMu.Unlock()
 				}
 			}
