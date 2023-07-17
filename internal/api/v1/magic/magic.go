@@ -192,7 +192,7 @@ func (d *Magic) MagicCallback(ctx *fiber.Ctx) error {
 		return err
 	}
 
-	if deviceIdentifier != "" {
+	if device {
 		err = d.options.DeviceProvider().CompleteFlow(ctx.Context(), deviceIdentifier, sessionID, cookie.Value, cookie.Expires)
 		if err != nil {
 			d.logger.Error().Err(err).Msg("failed to complete device flow")

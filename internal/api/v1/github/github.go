@@ -153,7 +153,7 @@ func (a *Github) GithubCallback(ctx *fiber.Ctx) error {
 		return err
 	}
 
-	if deviceIdentifier != "" {
+	if device {
 		err = a.options.DeviceProvider().CompleteFlow(ctx.Context(), deviceIdentifier, sessionID, cookie.Value, cookie.Expires)
 		if err != nil {
 			a.logger.Error().Err(err).Msg("failed to complete device flow")
