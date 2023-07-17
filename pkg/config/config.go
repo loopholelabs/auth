@@ -98,10 +98,6 @@ func (c *Config) RootPersistentFlags(flags *pflag.FlagSet) {
 }
 
 func (c *Config) GlobalRequiredFlags(cmd *cobra.Command) error {
-	err := cmd.MarkFlagRequired("auth-database-url")
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
