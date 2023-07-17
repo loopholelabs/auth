@@ -278,7 +278,7 @@ func (m *Controller) CreateSession(ctx *fiber.Ctx, device bool, provider flow.Ke
 
 	if organization != "" {
 		m.logger.Debug().Msgf("checking if user %s is member of organization %s", userID, organization)
-		exists, err := m.storage.UserOrganizationExists(ctx.Context(), userID, organization)
+		exists, err = m.storage.UserOrganizationExists(ctx.Context(), userID, organization)
 		if err != nil {
 			m.logger.Error().Err(err).Msg("failed to check if organization exists")
 			return nil, "", ctx.Status(fiber.StatusInternalServerError).SendString("failed to check if organization exists")
@@ -286,6 +286,12 @@ func (m *Controller) CreateSession(ctx *fiber.Ctx, device bool, provider flow.Ke
 
 		if !exists {
 			return nil, "", ctx.Status(fiber.StatusForbidden).SendString("invalid organization")
+		}
+	} else {
+		organization, err = m.storage.UserDefaultOrganization(ctx.Context(), userID)
+		if err != nil {
+			m.logger.Error().Err(err).Msg("failed to get user's default organization")
+			return nil, "", ctx.Status(fiber.StatusInternalServerError).SendString("failed to get user's default organization")
 		}
 	}
 

@@ -38,6 +38,13 @@ type User interface {
 	// should be false.
 	UserOrganizationExists(ctx context.Context, identifier string, organization string) (bool, error)
 
+	// UserDefaultOrganization returns the default organization for the given user
+	// identifier. If there is an error while getting the default organization,
+	// an error is returned, otherwise the organization is returned. If the user does not exist
+	// ErrNotFound is returned. If the user does not have a default organization,
+	// ErrNotFound is returned.
+	UserDefaultOrganization(ctx context.Context, identifier string) (string, error)
+
 	// NewUser creates a new user with the given claims. If the user already
 	// exists, ErrAlreadyExists is returned. If the user does not exist, the user is
 	// created and the claims are set. If there is an error while creating the
