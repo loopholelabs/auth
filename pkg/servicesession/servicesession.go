@@ -18,7 +18,7 @@ package servicesession
 
 import (
 	"github.com/google/uuid"
-	"github.com/loopholelabs/auth"
+	"github.com/loopholelabs/auth/pkg/prefix"
 	"github.com/loopholelabs/auth/pkg/servicekey"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -57,7 +57,7 @@ type ServiceSession struct {
 
 // New returns a new service session for a user with the given service key
 func New(serviceKey *servicekey.ServiceKey) (*ServiceSession, []byte, error) {
-	identifier := auth.ServiceSessionPrefixString + uuid.New().String()
+	identifier := prefix.ServiceSessionString + uuid.New().String()
 	secret := []byte(uuid.New().String())
 	salt := []byte(uuid.New().String())
 	hash, err := bcrypt.GenerateFromPassword(append(salt, secret...), bcrypt.DefaultCost)

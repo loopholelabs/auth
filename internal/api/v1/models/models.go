@@ -17,7 +17,7 @@
 package models
 
 import (
-	"github.com/loopholelabs/auth"
+	"github.com/loopholelabs/auth/pkg/kind"
 	"github.com/loopholelabs/auth/pkg/servicekey"
 )
 
@@ -51,7 +51,7 @@ type ServiceKeyLoginResponse struct {
 
 type UserInfoResponse struct {
 	Identifier   string    `json:"identifier"`
-	Kind         auth.Kind `json:"kind"`
+	Kind         kind.Kind `json:"kind"`
 	Organization string    `json:"organization"`
 }
 

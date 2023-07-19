@@ -14,23 +14,12 @@
 	limitations under the License.
 */
 
-package session
+package kind
 
-import (
-	"github.com/loopholelabs/auth/pkg/kind"
-	"time"
+type Kind string
+
+const (
+	Session        Kind = "session"
+	APIKey         Kind = "api"
+	ServiceSession Kind = "service"
 )
-
-type Session struct {
-	Kind   kind.Kind `yaml:"kind"`
-	Value  string    `yaml:"value"`
-	Expiry time.Time `yaml:"expiry"`
-}
-
-func New(kind kind.Kind, value string, expiry time.Time) *Session {
-	return &Session{
-		Kind:   kind,
-		Value:  value,
-		Expiry: expiry,
-	}
-}

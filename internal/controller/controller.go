@@ -24,13 +24,15 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gofiber/fiber/v2"
-	"github.com/loopholelabs/auth"
 	"github.com/loopholelabs/auth/internal/aes"
 	"github.com/loopholelabs/auth/internal/utils"
 	"github.com/loopholelabs/auth/pkg/apikey"
 	"github.com/loopholelabs/auth/pkg/claims"
 	"github.com/loopholelabs/auth/pkg/flow"
+	"github.com/loopholelabs/auth/pkg/key"
+	"github.com/loopholelabs/auth/pkg/kind"
 	"github.com/loopholelabs/auth/pkg/magic"
+	"github.com/loopholelabs/auth/pkg/prefix"
 	"github.com/loopholelabs/auth/pkg/servicesession"
 	"github.com/loopholelabs/auth/pkg/session"
 	"github.com/loopholelabs/auth/pkg/storage"
@@ -376,10 +378,10 @@ func (m *Controller) Validate(ctx *fiber.Ctx) error {
 			return err
 		}
 
-		ctx.Locals(auth.KindContextKey, auth.KindSession)
-		ctx.Locals(auth.SessionContextKey, sess)
-		ctx.Locals(auth.UserContextKey, sess.Creator)
-		ctx.Locals(auth.OrganizationContextKey, sess.Organization)
+		ctx.Locals(key.KindContext, kind.Session)
+		ctx.Locals(key.SessionContext, sess)
+		ctx.Locals(key.UserContext, sess.Creator)
+		ctx.Locals(key.OrganizationContext, sess.Organization)
 		return ctx.Next()
 	}
 
@@ -397,29 +399,29 @@ func (m *Controller) Validate(ctx *fiber.Ctx) error {
 		keyID := string(keySplit[0])
 		keySecret := keySplit[1]
 
-		if bytes.HasPrefix(authHeader, auth.APIKeyPrefix) {
-			key, err := m.getAPIKey(ctx, keyID, keySecret)
-			if key == nil {
+		if bytes.HasPrefix(authHeader, prefix.APIKey) {
+			k, err := m.getAPIKey(ctx, keyID, keySecret)
+			if k == nil {
 				return err
 			}
 
-			ctx.Locals(auth.KindContextKey, auth.KindAPIKey)
-			ctx.Locals(auth.APIKeyContextKey, key)
-			ctx.Locals(auth.UserContextKey, key.Creator)
-			ctx.Locals(auth.OrganizationContextKey, key.Organization)
+			ctx.Locals(key.KindContext, kind.APIKey)
+			ctx.Locals(key.APIKeyContext, k)
+			ctx.Locals(key.UserContext, k.Creator)
+			ctx.Locals(key.OrganizationContext, k.Organization)
 			return ctx.Next()
 		}
 
-		if bytes.HasPrefix(authHeader, auth.ServiceSessionPrefix) {
+		if bytes.HasPrefix(authHeader, prefix.ServiceSession) {
 			serviceSession, err := m.getServiceSession(ctx, keyID, keySecret)
 			if serviceSession == nil {
 				return err
 			}
 
-			ctx.Locals(auth.KindContextKey, auth.KindServiceSession)
-			ctx.Locals(auth.ServiceSessionContextKey, serviceSession)
-			ctx.Locals(auth.UserContextKey, serviceSession.Creator)
-			ctx.Locals(auth.OrganizationContextKey, serviceSession.Organization)
+			ctx.Locals(key.KindContext, kind.ServiceSession)
+			ctx.Locals(key.ServiceSessionContext, serviceSession)
+			ctx.Locals(key.UserContext, serviceSession.Creator)
+			ctx.Locals(key.OrganizationContext, serviceSession.Organization)
 			return ctx.Next()
 		}
 	}
@@ -435,10 +437,10 @@ func (m *Controller) ManualValidate(ctx *fiber.Ctx) (bool, error) {
 			return false, err
 		}
 
-		ctx.Locals(auth.KindContextKey, auth.KindSession)
-		ctx.Locals(auth.SessionContextKey, sess)
-		ctx.Locals(auth.UserContextKey, sess.Organization)
-		ctx.Locals(auth.OrganizationContextKey, sess.Organization)
+		ctx.Locals(key.KindContext, kind.Session)
+		ctx.Locals(key.SessionContext, sess)
+		ctx.Locals(key.UserContext, sess.Organization)
+		ctx.Locals(key.OrganizationContext, sess.Organization)
 		return true, nil
 	}
 
@@ -456,29 +458,29 @@ func (m *Controller) ManualValidate(ctx *fiber.Ctx) (bool, error) {
 		keyID := string(keySplit[0])
 		keySecret := keySplit[1]
 
-		if bytes.HasPrefix(authHeader, auth.APIKeyPrefix) {
-			key, err := m.getAPIKey(ctx, keyID, keySecret)
-			if key == nil {
+		if bytes.HasPrefix(authHeader, prefix.APIKey) {
+			k, err := m.getAPIKey(ctx, keyID, keySecret)
+			if k == nil {
 				return false, err
 			}
 
-			ctx.Locals(auth.KindContextKey, auth.KindAPIKey)
-			ctx.Locals(auth.APIKeyContextKey, key)
-			ctx.Locals(auth.UserContextKey, key.Creator)
-			ctx.Locals(auth.OrganizationContextKey, key.Organization)
+			ctx.Locals(key.KindContext, kind.APIKey)
+			ctx.Locals(key.APIKeyContext, k)
+			ctx.Locals(key.UserContext, k.Creator)
+			ctx.Locals(key.OrganizationContext, k.Organization)
 			return true, nil
 		}
 
-		if bytes.HasPrefix(authHeader, auth.ServiceSessionPrefix) {
+		if bytes.HasPrefix(authHeader, prefix.ServiceSession) {
 			serviceSession, err := m.getServiceSession(ctx, keyID, keySecret)
 			if serviceSession == nil {
 				return false, err
 			}
 
-			ctx.Locals(auth.KindContextKey, auth.KindServiceSession)
-			ctx.Locals(auth.ServiceSessionContextKey, serviceSession)
-			ctx.Locals(auth.UserContextKey, serviceSession.Creator)
-			ctx.Locals(auth.OrganizationContextKey, serviceSession.Organization)
+			ctx.Locals(key.KindContext, kind.ServiceSession)
+			ctx.Locals(key.ServiceSessionContext, serviceSession)
+			ctx.Locals(key.UserContext, serviceSession.Creator)
+			ctx.Locals(key.OrganizationContext, serviceSession.Organization)
 			return true, nil
 		}
 	}
@@ -500,18 +502,18 @@ func (m *Controller) AuthAvailable(ctx *fiber.Ctx) bool {
 	return false
 }
 
-func (m *Controller) GetAuthFromContext(ctx *fiber.Ctx) (auth.Kind, string, string, error) {
-	authKind, ok := ctx.Locals(auth.KindContextKey).(auth.Kind)
+func (m *Controller) GetAuthFromContext(ctx *fiber.Ctx) (kind.Kind, string, string, error) {
+	authKind, ok := ctx.Locals(key.KindContext).(kind.Kind)
 	if !ok || authKind == "" {
 		return "", "", "", ErrInvalidContext
 	}
 
-	userID, ok := ctx.Locals(auth.UserContextKey).(string)
+	userID, ok := ctx.Locals(key.UserContext).(string)
 	if !ok || userID == "" {
 		return "", "", "", ErrInvalidContext
 	}
 
-	orgID, ok := ctx.Locals(auth.OrganizationContextKey).(string)
+	orgID, ok := ctx.Locals(key.OrganizationContext).(string)
 	if !ok {
 		return "", "", "", ErrInvalidContext
 	}
@@ -519,7 +521,7 @@ func (m *Controller) GetAuthFromContext(ctx *fiber.Ctx) (auth.Kind, string, stri
 }
 
 func (m *Controller) GetSessionFromContext(ctx *fiber.Ctx) (*session.Session, error) {
-	sess, ok := ctx.Locals(auth.SessionContextKey).(*session.Session)
+	sess, ok := ctx.Locals(key.SessionContext).(*session.Session)
 	if !ok || sess == nil {
 		return nil, ErrInvalidContext
 	}
@@ -528,7 +530,7 @@ func (m *Controller) GetSessionFromContext(ctx *fiber.Ctx) (*session.Session, er
 }
 
 func (m *Controller) GetAPIKeyFromContext(ctx *fiber.Ctx) (*apikey.APIKey, error) {
-	key, ok := ctx.Locals(auth.APIKeyContextKey).(*apikey.APIKey)
+	key, ok := ctx.Locals(key.APIKeyContext).(*apikey.APIKey)
 	if !ok || key == nil {
 		return nil, ErrInvalidContext
 	}
@@ -537,7 +539,7 @@ func (m *Controller) GetAPIKeyFromContext(ctx *fiber.Ctx) (*apikey.APIKey, error
 }
 
 func (m *Controller) GetServiceSessionFromContext(ctx *fiber.Ctx) (*servicesession.ServiceSession, error) {
-	sess, ok := ctx.Locals(auth.ServiceSessionContextKey).(*servicesession.ServiceSession)
+	sess, ok := ctx.Locals(key.ServiceSessionContext).(*servicesession.ServiceSession)
 	if !ok || sess == nil {
 		return nil, ErrInvalidContext
 	}
@@ -571,7 +573,7 @@ func (m *Controller) LogoutServiceSession(ctx *fiber.Ctx) (bool, error) {
 		}
 
 		authHeader = authHeader[len(BearerHeader):]
-		if !bytes.HasPrefix(authHeader, auth.ServiceSessionPrefix) {
+		if !bytes.HasPrefix(authHeader, prefix.ServiceSession) {
 			return true, nil
 		}
 

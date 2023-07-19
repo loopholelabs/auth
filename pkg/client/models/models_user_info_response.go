@@ -38,7 +38,7 @@ type ModelsUserInfoResponse struct {
 	Identifier string `json:"identifier,omitempty"`
 
 	// kind
-	Kind AuthKind `json:"kind,omitempty"`
+	Kind KindKind `json:"kind,omitempty"`
 
 	// organization
 	Organization string `json:"organization,omitempty"`

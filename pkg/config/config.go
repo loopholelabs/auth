@@ -18,9 +18,7 @@ package config
 
 import (
 	"errors"
-	"github.com/loopholelabs/auth/pkg/manager"
-	"github.com/loopholelabs/auth/pkg/storage"
-	"github.com/spf13/cobra"
+	"github.com/loopholelabs/auth"
 	"github.com/spf13/pflag"
 )
 
@@ -32,6 +30,7 @@ var (
 )
 
 const (
+	DefaultDisabled      = false
 	DefaultListenAddress = "127.0.0.1:8081"
 	DefaultEndpoint      = "localhost:8081"
 	DefaultSessionDomain = "localhost"
@@ -39,24 +38,28 @@ const (
 )
 
 type Config struct {
-	ListenAddress  string `yaml:"listen_address"`
-	Endpoint       string `yaml:"endpoint"`
-	SessionDomain  string `yaml:"session_domain"`
-	DefaultNextURL string `yaml:"default_next_url"`
-
-	GithubClientID     string `yaml:"github_client_id"`
-	GithubClientSecret string `yaml:"github_client_secret"`
-	GoogleClientID     string `yaml:"github_client_id"`
-	GoogleClientSecret string `yaml:"github_client_secret"`
-	DeviceCode         bool   `yaml:"device"`
-	PostmarkAPIToken   string `yaml:"postmark_api_token"`
-	PostmarkTemplateID int    `yaml:"postmark_template_id"`
-	PostmarkTag        string `yaml:"postmark_tag"`
-	MagicLinkFrom      string `yaml:"magic_link_from"`
+	Disabled             bool   `yaml:"disabled"`
+	ListenAddress        string `yaml:"listen_address"`
+	Endpoint             string `yaml:"endpoint"`
+	TLS                  bool   `yaml:"tls"`
+	SessionDomain        string `yaml:"session_domain"`
+	DefaultNextURL       string `yaml:"default_next_url"`
+	GithubClientID       string `yaml:"github_client_id"`
+	GithubClientSecret   string `yaml:"github_client_secret"`
+	GoogleClientID       string `yaml:"github_client_id"`
+	GoogleClientSecret   string `yaml:"github_client_secret"`
+	DeviceCode           bool   `yaml:"device"`
+	PostmarkAPIToken     string `yaml:"postmark_api_token"`
+	PostmarkTemplateID   int    `yaml:"postmark_template_id"`
+	PostmarkTag          string `yaml:"postmark_tag"`
+	MagicLinkFrom        string `yaml:"magic_link_from"`
+	MagicLinkProjectName string `yaml:"magic_link_project_name"`
+	MagicLinkProjectURL  string `yaml:"magic_link_project_url"`
 }
 
 func New() *Config {
 	return &Config{
+		Disabled:       DefaultDisabled,
 		ListenAddress:  DefaultListenAddress,
 		Endpoint:       DefaultEndpoint,
 		SessionDomain:  DefaultSessionDomain,
@@ -65,27 +68,30 @@ func New() *Config {
 }
 
 func (c *Config) Validate() error {
-	if c.ListenAddress == "" {
-		return ErrListenAddressRequired
-	}
-	if c.Endpoint == "" {
-		return ErrEndpointRequired
-	}
-	if c.SessionDomain == "" {
-		return ErrSessionDomainRequired
-	}
-	if c.DefaultNextURL == "" {
-		return ErrDefaultNextURLRequired
+	if !c.Disabled {
+		if c.ListenAddress == "" {
+			return ErrListenAddressRequired
+		}
+		if c.Endpoint == "" {
+			return ErrEndpointRequired
+		}
+		if c.SessionDomain == "" {
+			return ErrSessionDomainRequired
+		}
+		if c.DefaultNextURL == "" {
+			return ErrDefaultNextURLRequired
+		}
 	}
 	return nil
 }
 
 func (c *Config) RootPersistentFlags(flags *pflag.FlagSet) {
+	flags.BoolVar(&c.Disabled, "auth-disabled", DefaultDisabled, "Disable the auth api")
 	flags.StringVar(&c.ListenAddress, "auth-listen-address", DefaultListenAddress, "The auth api's listen address")
 	flags.StringVar(&c.Endpoint, "auth-endpoint", DefaultEndpoint, "The auth api's endpoint")
+	flags.BoolVar(&c.TLS, "auth-tls", false, "The auth api's tls")
 	flags.StringVar(&c.SessionDomain, "auth-session-domain", DefaultSessionDomain, "The auth api's session domain")
 	flags.StringVar(&c.DefaultNextURL, "auth-default-next-url", DefaultNextURL, "The auth api's default next url")
-
 	flags.StringVar(&c.GithubClientID, "auth-github-client-id", "", "The auth api's github client id")
 	flags.StringVar(&c.GithubClientSecret, "auth-github-client-secret", "", "The auth api's github client secret")
 	flags.StringVar(&c.GoogleClientID, "auth-google-client-id", "", "The auth api's google client id")
@@ -95,29 +101,29 @@ func (c *Config) RootPersistentFlags(flags *pflag.FlagSet) {
 	flags.IntVar(&c.PostmarkTemplateID, "auth-postmark-template-id", 0, "The auth api's postmark template id")
 	flags.StringVar(&c.PostmarkTag, "auth-postmark-tag", "", "The auth api's postmark tag")
 	flags.StringVar(&c.MagicLinkFrom, "auth-magic-link-from", "", "The auth api's magic link from field")
+	flags.StringVar(&c.MagicLinkProjectName, "auth-magic-link-project-name", "", "The auth api's magic link project name")
+	flags.StringVar(&c.MagicLinkProjectURL, "auth-magic-link-project-url", "", "The auth api's magic link project url")
 }
 
-func (c *Config) GlobalRequiredFlags(cmd *cobra.Command) error {
-	return nil
-}
-
-func (c *Config) GenerateOptions(storage storage.Storage, tls bool, projectName string, projectURL string) *manager.Options {
-	return &manager.Options{
+func (c *Config) GenerateOptions(logName string) *auth.Options {
+	return &auth.Options{
+		LogName:              logName,
+		Disabled:             c.Disabled,
+		ListenAddress:        c.ListenAddress,
 		Endpoint:             c.Endpoint,
-		TLS:                  tls,
+		TLS:                  c.TLS,
 		SessionDomain:        c.SessionDomain,
 		DefaultNextURL:       c.DefaultNextURL,
-		Storage:              storage,
 		GithubClientID:       c.GithubClientID,
 		GithubClientSecret:   c.GithubClientSecret,
 		GoogleClientID:       c.GoogleClientID,
 		GoogleClientSecret:   c.GoogleClientSecret,
-		DeviceCode:           c.DeviceCode,
+		DeviceCodeEnabled:    c.DeviceCode,
 		PostmarkAPIToken:     c.PostmarkAPIToken,
 		PostmarkTemplateID:   c.PostmarkTemplateID,
 		PostmarkTag:          c.PostmarkTag,
 		MagicLinkFrom:        c.MagicLinkFrom,
-		MagicLinkProjectName: projectName,
-		MagicLinkProjectURL:  projectURL,
+		MagicLinkProjectName: c.MagicLinkProjectName,
+		MagicLinkProjectURL:  c.MagicLinkProjectURL,
 	}
 }

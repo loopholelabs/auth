@@ -1,15 +1,15 @@
 basePath: /v1
 definitions:
-  auth.Kind:
+  kind.Kind:
     enum:
       - session
       - api
       - service
     type: string
     x-enum-varnames:
-      - KindSession
-      - KindAPIKey
-      - KindServiceSession
+      - Session
+      - APIKey
+      - ServiceSession
   models.ConfigResponse:
     properties:
       default_next_url:
@@ -66,7 +66,7 @@ definitions:
       identifier:
         type: string
       kind:
-        $ref: '#/definitions/auth.Kind'
+        $ref: '#/definitions/kind.Kind'
       organization:
         type: string
     type: object

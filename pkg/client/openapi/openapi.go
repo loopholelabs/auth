@@ -20,9 +20,9 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/go-openapi/runtime/client"
-	"github.com/loopholelabs/auth"
 	"github.com/loopholelabs/auth/internal/cookiejar"
 	"github.com/loopholelabs/auth/pkg/client/session"
+	"github.com/loopholelabs/auth/pkg/kind"
 	"golang.org/x/net/publicsuffix"
 	"net/http"
 	netCookieJar "net/http/cookiejar"
@@ -54,7 +54,7 @@ func AuthenticatedClient(cookieURL *url.URL, endpoint string, basePath string, s
 	c := UnauthenticatedClient(endpoint, basePath, schemes, tlsConfig)
 
 	switch session.Kind {
-	case auth.KindSession:
+	case kind.Session:
 		c.Jar.SetCookies(cookieURL, []*http.Cookie{
 			{
 				Name:     "auth-session",
@@ -66,7 +66,7 @@ func AuthenticatedClient(cookieURL *url.URL, endpoint string, basePath string, s
 				SameSite: http.SameSiteLaxMode,
 			},
 		})
-	case auth.KindServiceSession, auth.KindAPIKey:
+	case kind.ServiceSession, kind.APIKey:
 		c.DefaultAuthentication = client.APIKeyAuth("Authorization", "header", fmt.Sprintf("Bearer %s", session.Value))
 	default:
 		return nil, fmt.Errorf("unknown session kind: %s", session.Kind)

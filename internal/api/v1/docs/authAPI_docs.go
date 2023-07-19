@@ -741,7 +741,7 @@ const docTemplateauthAPI = `{
         }
     },
     "definitions": {
-        "auth.Kind": {
+        "kind.Kind": {
             "type": "string",
             "enum": [
                 "session",
@@ -749,9 +749,9 @@ const docTemplateauthAPI = `{
                 "service"
             ],
             "x-enum-varnames": [
-                "KindSession",
-                "KindAPIKey",
-                "KindServiceSession"
+                "Session",
+                "APIKey",
+                "ServiceSession"
             ]
         },
         "models.ConfigResponse": {
@@ -840,7 +840,7 @@ const docTemplateauthAPI = `{
                     "type": "string"
                 },
                 "kind": {
-                    "$ref": "#/definitions/auth.Kind"
+                    "$ref": "#/definitions/kind.Kind"
                 },
                 "organization": {
                     "type": "string"
