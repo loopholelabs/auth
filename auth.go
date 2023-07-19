@@ -169,26 +169,16 @@ func New(options *Options, storage storage.Storage, logger *zerolog.Logger) (*Au
 	}, nil
 }
 
-func (m *Auth) StartAPI() error {
+func (m *Auth) Start() error {
+	m.logger.Debug().Msgf("starting auth on %s", m.options.ListenAddress)
 	return m.api.Start(m.options.ListenAddress)
 }
 
-func (m *Auth) StopAPI() error {
+func (m *Auth) Stop() error {
 	if m.cancel != nil {
 		m.cancel()
 	}
 
-	if m.api != nil {
-		err := m.api.Stop()
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (m *Auth) Cleanup() error {
 	if m.controller != nil {
 		err := m.controller.Stop()
 		if err != nil {
@@ -196,8 +186,8 @@ func (m *Auth) Cleanup() error {
 		}
 	}
 
-	if m.storage != nil {
-		err := m.storage.Shutdown()
+	if m.api != nil {
+		err := m.api.Stop()
 		if err != nil {
 			return err
 		}
