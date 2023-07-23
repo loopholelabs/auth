@@ -24,14 +24,10 @@ import (
 	"github.com/loopholelabs/auth/internal/api"
 	v1Options "github.com/loopholelabs/auth/internal/api/v1/options"
 	"github.com/loopholelabs/auth/internal/controller"
-	"github.com/loopholelabs/auth/pkg/apikey"
 	"github.com/loopholelabs/auth/pkg/flow/device"
 	"github.com/loopholelabs/auth/pkg/flow/github"
 	"github.com/loopholelabs/auth/pkg/flow/google"
 	"github.com/loopholelabs/auth/pkg/flow/magic"
-	"github.com/loopholelabs/auth/pkg/kind"
-	"github.com/loopholelabs/auth/pkg/servicesession"
-	"github.com/loopholelabs/auth/pkg/session"
 	"github.com/loopholelabs/auth/pkg/storage"
 	"github.com/rs/zerolog"
 )
@@ -196,34 +192,10 @@ func (m *Auth) Stop() error {
 	return nil
 }
 
-func (m *Auth) Delimiter() string {
-	return controller.KeyDelimiterString
-}
-
 func (m *Auth) Validate(ctx *fiber.Ctx) error {
 	return m.controller.Validate(ctx)
 }
 
 func (m *Auth) ManualValidate(ctx *fiber.Ctx) (bool, error) {
 	return m.controller.ManualValidate(ctx)
-}
-
-func (m *Auth) AuthAvailable(ctx *fiber.Ctx) bool {
-	return m.controller.AuthAvailable(ctx)
-}
-
-func (m *Auth) GetAuthFromContext(ctx *fiber.Ctx) (kind.Kind, string, string, error) {
-	return m.controller.GetAuthFromContext(ctx)
-}
-
-func (m *Auth) GetSessionFromContext(ctx *fiber.Ctx) (*session.Session, error) {
-	return m.controller.GetSessionFromContext(ctx)
-}
-
-func (m *Auth) GetAPIKeyFromContext(ctx *fiber.Ctx) (*apikey.APIKey, error) {
-	return m.controller.GetAPIKeyFromContext(ctx)
-}
-
-func (m *Auth) GetServiceSessionFromContext(ctx *fiber.Ctx) (*servicesession.ServiceSession, error) {
-	return m.controller.GetServiceSessionFromContext(ctx)
 }

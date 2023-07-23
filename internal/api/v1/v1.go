@@ -28,6 +28,7 @@ import (
 	"github.com/loopholelabs/auth/internal/api/v1/options"
 	"github.com/loopholelabs/auth/internal/api/v1/servicekey"
 	"github.com/loopholelabs/auth/internal/utils"
+	"github.com/loopholelabs/auth/pkg/helpers"
 	"github.com/rs/zerolog"
 )
 
@@ -126,7 +127,7 @@ func (v *V1) Logout(ctx *fiber.Ctx) error {
 // @Router       /userinfo [post]
 func (v *V1) UserInfo(ctx *fiber.Ctx) error {
 	v.logger.Debug().Msgf("received UserInfo from %s", ctx.IP())
-	kind, userID, orgID, err := v.options.Controller().GetAuthFromContext(ctx)
+	kind, userID, orgID, err := helpers.GetAuthFromContext(ctx)
 	if err != nil {
 		v.logger.Error().Err(err).Msg("failed to get user info from context")
 		return ctx.Status(fiber.StatusInternalServerError).SendString("error getting user info from context")

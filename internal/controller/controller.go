@@ -186,8 +186,8 @@ func (m *Controller) Start() error {
 		m.apikeysMu.Unlock()
 		return fmt.Errorf("failed to list api keys: %w", err)
 	}
-	for _, key := range apikeys {
-		m.apikeys[key.Identifier] = key
+	for _, k := range apikeys {
+		m.apikeys[k.Identifier] = k
 	}
 	m.apikeysMu.Unlock()
 	m.logger.Info().Msg("retrieved api keys")
@@ -488,65 +488,6 @@ func (m *Controller) ManualValidate(ctx *fiber.Ctx) (bool, error) {
 	return false, ctx.Status(fiber.StatusUnauthorized).SendString("no valid session cookie or authorization header")
 }
 
-func (m *Controller) AuthAvailable(ctx *fiber.Ctx) bool {
-	cookie := ctx.Cookies(CookieKeyString)
-	if cookie != "" {
-		return true
-	}
-
-	authHeader := ctx.Request().Header.PeekBytes(AuthorizationHeader)
-	if len(authHeader) > len(BearerHeader) {
-		return true
-	}
-
-	return false
-}
-
-func (m *Controller) GetAuthFromContext(ctx *fiber.Ctx) (kind.Kind, string, string, error) {
-	authKind, ok := ctx.Locals(key.KindContext).(kind.Kind)
-	if !ok || authKind == "" {
-		return "", "", "", ErrInvalidContext
-	}
-
-	userID, ok := ctx.Locals(key.UserContext).(string)
-	if !ok || userID == "" {
-		return "", "", "", ErrInvalidContext
-	}
-
-	orgID, ok := ctx.Locals(key.OrganizationContext).(string)
-	if !ok {
-		return "", "", "", ErrInvalidContext
-	}
-	return authKind, userID, orgID, nil
-}
-
-func (m *Controller) GetSessionFromContext(ctx *fiber.Ctx) (*session.Session, error) {
-	sess, ok := ctx.Locals(key.SessionContext).(*session.Session)
-	if !ok || sess == nil {
-		return nil, ErrInvalidContext
-	}
-
-	return sess, nil
-}
-
-func (m *Controller) GetAPIKeyFromContext(ctx *fiber.Ctx) (*apikey.APIKey, error) {
-	key, ok := ctx.Locals(key.APIKeyContext).(*apikey.APIKey)
-	if !ok || key == nil {
-		return nil, ErrInvalidContext
-	}
-
-	return key, nil
-}
-
-func (m *Controller) GetServiceSessionFromContext(ctx *fiber.Ctx) (*servicesession.ServiceSession, error) {
-	sess, ok := ctx.Locals(key.ServiceSessionContext).(*servicesession.ServiceSession)
-	if !ok || sess == nil {
-		return nil, ErrInvalidContext
-	}
-
-	return sess, nil
-}
-
 func (m *Controller) LogoutSession(ctx *fiber.Ctx) (bool, error) {
 	cookie := ctx.Cookies(CookieKeyString)
 	if cookie != "" {
@@ -713,11 +654,11 @@ func (m *Controller) getSession(ctx *fiber.Ctx, cookie string) (*session.Session
 
 func (m *Controller) getAPIKey(ctx *fiber.Ctx, keyID string, keySecret []byte) (*apikey.APIKey, error) {
 	m.apikeysMu.RLock()
-	key, ok := m.apikeys[keyID]
+	k, ok := m.apikeys[keyID]
 	m.apikeysMu.RUnlock()
 	if !ok {
 		var err error
-		key, err = m.storage.GetAPIKey(ctx.Context(), keyID)
+		k, err = m.storage.GetAPIKey(ctx.Context(), keyID)
 		if err != nil {
 			if errors.Is(err, storage.ErrNotFound) {
 				return nil, ctx.Status(fiber.StatusUnauthorized).SendString("api key does not exist")
@@ -727,11 +668,11 @@ func (m *Controller) getAPIKey(ctx *fiber.Ctx, keyID string, keySecret []byte) (
 		}
 	}
 
-	if bcrypt.CompareHashAndPassword(key.Hash, append(key.Salt, keySecret...)) != nil {
+	if bcrypt.CompareHashAndPassword(k.Hash, append(k.Salt, keySecret...)) != nil {
 		return nil, ctx.Status(fiber.StatusUnauthorized).SendString("invalid api key")
 	}
 
-	return key, nil
+	return k, nil
 }
 
 func (m *Controller) getServiceSession(ctx *fiber.Ctx, sessionID string, sessionSecret []byte) (*servicesession.ServiceSession, error) {
