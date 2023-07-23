@@ -19,15 +19,9 @@ package auth
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/gofiber/fiber/v2"
 	"github.com/loopholelabs/auth/internal/api"
-	v1Options "github.com/loopholelabs/auth/internal/api/v1/options"
 	"github.com/loopholelabs/auth/internal/controller"
-	"github.com/loopholelabs/auth/pkg/flow/device"
-	"github.com/loopholelabs/auth/pkg/flow/github"
-	"github.com/loopholelabs/auth/pkg/flow/google"
-	"github.com/loopholelabs/auth/pkg/flow/magic"
 	"github.com/loopholelabs/auth/pkg/storage"
 	"github.com/rs/zerolog"
 )
@@ -37,24 +31,11 @@ var (
 )
 
 type Options struct {
-	LogName              string
-	Disabled             bool
-	ListenAddress        string
-	Endpoint             string
-	TLS                  bool
-	SessionDomain        string
-	DefaultNextURL       string
-	GithubClientID       string
-	GithubClientSecret   string
-	GoogleClientID       string
-	GoogleClientSecret   string
-	DeviceCodeEnabled    bool
-	PostmarkAPIToken     string
-	PostmarkTemplateID   int
-	PostmarkTag          string
-	MagicLinkFrom        string
-	MagicLinkProjectName string
-	MagicLinkProjectURL  string
+	LogName       string
+	Disabled      bool
+	SessionDomain string
+	TLS           bool
+	API           *api.Options
 }
 
 type Auth struct {
@@ -76,98 +57,34 @@ func New(options *Options, storage storage.Storage, logger *zerolog.Logger) (*Au
 		return nil, ErrDisabled
 	}
 
-	scheme := "http"
-	if options.TLS {
-		scheme = "https"
-	}
-
-	var githubProvider v1Options.Github
-	if options.GithubClientID != "" && options.GithubClientSecret != "" {
-		ghp := github.New(storage, &github.Options{
-			ClientID:     options.GithubClientID,
-			ClientSecret: options.GithubClientSecret,
-			Redirect:     fmt.Sprintf("%s://%s/v1/github/callback", scheme, options.Endpoint),
-		}, &l)
-		err := ghp.Start()
-		if err != nil {
-			return nil, fmt.Errorf("failed to start github provider: %w", err)
-		}
-		githubProvider = func() *github.Github {
-			return ghp
-		}
-	}
-
-	var googleProvider v1Options.Google
-	if options.GoogleClientID != "" && options.GoogleClientSecret != "" {
-		ggp := google.New(storage, &google.Options{
-			ClientID:     options.GoogleClientID,
-			ClientSecret: options.GoogleClientSecret,
-			Redirect:     fmt.Sprintf("%s://%s/v1/google/callback", scheme, options.Endpoint),
-		}, &l)
-		err := ggp.Start()
-		if err != nil {
-			return nil, fmt.Errorf("failed to start google provider: %w", err)
-		}
-		googleProvider = func() *google.Google {
-			return ggp
-		}
-	}
-
-	var deviceProvider v1Options.Device
-	if options.DeviceCodeEnabled {
-		dp := device.New(storage, &l)
-		err := dp.Start()
-		if err != nil {
-			return nil, fmt.Errorf("failed to start device code provider: %w", err)
-		}
-		deviceProvider = func() *device.Device {
-			return dp
-		}
-	}
-
-	var magicProvider v1Options.Magic
-	if options.PostmarkAPIToken != "" && options.PostmarkTemplateID != 0 && options.MagicLinkFrom != "" && options.MagicLinkProjectName != "" && options.MagicLinkProjectURL != "" {
-		mp := magic.New(storage, &magic.Options{
-			APIToken:   options.PostmarkAPIToken,
-			TemplateID: options.PostmarkTemplateID,
-			Tag:        options.PostmarkTag,
-			From:       options.MagicLinkFrom,
-			Project:    options.MagicLinkProjectName,
-			ProjectURL: options.MagicLinkProjectURL,
-		}, &l)
-		err := mp.Start()
-		if err != nil {
-			return nil, fmt.Errorf("failed to start magic link provider: %w", err)
-		}
-		magicProvider = func() *magic.Magic {
-			return mp
-		}
-	}
-
-	c := controller.New(options.SessionDomain, options.TLS, storage, &l)
-	err := c.Start()
-	if err != nil {
-		return nil, fmt.Errorf("failed to start controller: %w", err)
-	}
-
 	ctx, cancel := context.WithCancel(context.Background())
-
-	a := api.New(v1Options.New(c, options.DefaultNextURL, options.Endpoint, options.TLS, v1Options.WithGithub(githubProvider), v1Options.WithGoogle(googleProvider), v1Options.WithDevice(deviceProvider), v1Options.WithMagic(magicProvider)), &l)
-
-	return &Auth{
+	c := controller.New(options.SessionDomain, options.TLS, storage, &l)
+	a := &Auth{
 		logger:     &l,
 		options:    options,
 		storage:    storage,
 		controller: c,
-		api:        a,
 		ctx:        ctx,
 		cancel:     cancel,
-	}, nil
+	}
+
+	return a, nil
 }
 
 func (m *Auth) Start() error {
-	m.logger.Debug().Msgf("starting auth on %s", m.options.ListenAddress)
-	return m.api.Start(m.options.ListenAddress)
+	m.logger.Debug().Msg("starting auth controller")
+	err := m.controller.Start()
+	if err != nil {
+		return err
+	}
+
+	if !m.options.API.Disabled {
+		m.api = api.New(m.options.API, m.storage, m.controller, m.logger)
+		m.logger.Debug().Msgf("starting auth API on %s", m.options.API.ListenAddress)
+		return m.api.Start()
+	}
+
+	return nil
 }
 
 func (m *Auth) Stop() error {
@@ -182,7 +99,7 @@ func (m *Auth) Stop() error {
 		}
 	}
 
-	if m.api != nil {
+	if !m.options.API.Disabled {
 		err := m.api.Stop()
 		if err != nil {
 			return err

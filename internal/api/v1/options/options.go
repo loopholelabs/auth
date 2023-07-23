@@ -24,105 +24,42 @@ import (
 	"github.com/loopholelabs/auth/pkg/flow/magic"
 )
 
-type Github func() *github.Github
-
-type Google func() *google.Google
-
-type Device func() *device.Device
-
-type Magic func() *magic.Magic
-
-type Modifier func(*Options)
-
-func WithGithub(github Github) Modifier {
-	return func(options *Options) {
-		options.github = github
-	}
-}
-
-func WithGoogle(google Google) Modifier {
-	return func(options *Options) {
-		options.google = google
-	}
-}
-
-func WithDevice(device Device) Modifier {
-	return func(options *Options) {
-		options.device = device
-	}
-}
-
-func WithMagic(magic Magic) Modifier {
-	return func(options *Options) {
-		options.magic = magic
-	}
-}
-
 type Options struct {
-	github         Github
-	google         Google
-	device         Device
-	magic          Magic
-	defaultNextURL string
+	device         *device.Device
+	github         *github.Github
+	google         *google.Google
+	magic          *magic.Magic
 	controller     *controller.Controller
-
-	endpoint string
-	tls      bool
+	endpoint       string
+	tls            bool
+	defaultNextURL string
 }
 
-func New(controller *controller.Controller, defaultNextURL string, endpoint string, tls bool, modifiers ...Modifier) *Options {
-	options := &Options{
+func New(controller *controller.Controller, device *device.Device, github *github.Github, google *google.Google, magic *magic.Magic, endpoint string, tls bool, defaultNextURL string) *Options {
+	return &Options{
 		controller:     controller,
+		device:         device,
+		github:         github,
+		google:         google,
+		magic:          magic,
 		defaultNextURL: defaultNextURL,
-		endpoint:       endpoint,
-		tls:            tls,
 	}
-
-	for _, modifier := range modifiers {
-		modifier(options)
-	}
-
-	if options.github == nil {
-		options.github = func() *github.Github {
-			return nil
-		}
-	}
-
-	if options.google == nil {
-		options.google = func() *google.Google {
-			return nil
-		}
-	}
-
-	if options.device == nil {
-		options.device = func() *device.Device {
-			return nil
-		}
-	}
-
-	if options.magic == nil {
-		options.magic = func() *magic.Magic {
-			return nil
-		}
-	}
-
-	return options
 }
 
 func (o *Options) GithubProvider() *github.Github {
-	return o.github()
+	return o.github
 }
 
 func (o *Options) GoogleProvider() *google.Google {
-	return o.google()
+	return o.google
 }
 
 func (o *Options) DeviceProvider() *device.Device {
-	return o.device()
+	return o.device
 }
 
 func (o *Options) MagicProvider() *magic.Magic {
-	return o.magic()
+	return o.magic
 }
 
 func (o *Options) Controller() *controller.Controller {
