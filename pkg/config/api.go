@@ -144,7 +144,7 @@ func (c *APIConfig) RootPersistentFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&c.Endpoint, "auth-api-endpoint", APIDefaultEndpoint, "The Auth service's API endpoint")
 	flags.BoolVar(&c.TLS, "auth-api-tls", APIDefaultTLS, "Whether to enable TLS for the Auth service's API")
 	flags.StringVar(&c.DefaultNextURL, "auth-api-default-next-url", APIDefaultNextURL, "The auth service's API default next url")
-	flags.BoolVar(&c.DeviceCodeEnabled, "auth-api-device-code", false, "Whether to enable the Auth service's API Device Code Provider")
+	flags.BoolVar(&c.DeviceCodeEnabled, "auth-api-device-code-enabled", false, "Whether to enable the Auth service's API Device Code Provider")
 	flags.BoolVar(&c.GithubEnabled, "auth-api-github-enabled", false, "Whether to enable the Auth service's API Github Provider")
 	flags.StringVar(&c.GithubClientID, "auth-api-github-client-id", "", "The Auth service's API Github Client ID")
 	flags.StringVar(&c.GithubClientSecret, "auth-api-github-client-secret", "", "The Auth service's API Github Client Secret")
