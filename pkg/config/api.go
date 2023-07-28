@@ -50,25 +50,25 @@ const (
 )
 
 type APIConfig struct {
-	Disabled             bool   `yaml:"disabled"`
-	ListenAddress        string `yaml:"listen_address"`
-	Endpoint             string `yaml:"endpoint"`
-	TLS                  bool   `yaml:"tls"`
-	DefaultNextURL       string `yaml:"default_next_url"`
-	DeviceCodeEnabled    bool   `yaml:"device_code_enabled"`
-	GithubEnabled        bool   `yaml:"github_enabled"`
-	GithubClientID       string `yaml:"github_client_id"`
-	GithubClientSecret   string `yaml:"github_client_secret"`
-	GoogleEnabled        bool   `yaml:"google_enabled"`
-	GoogleClientID       string `yaml:"github_client_id"`
-	GoogleClientSecret   string `yaml:"github_client_secret"`
-	MagicLinkEnabled     bool   `yaml:"magic_link_enabled"`
-	MagicLinkFrom        string `yaml:"magic_link_from"`
-	MagicLinkProjectName string `yaml:"magic_link_project_name"`
-	MagicLinkProjectURL  string `yaml:"magic_link_project_url"`
-	PostmarkAPIToken     string `yaml:"postmark_api_token"`
-	PostmarkTemplateID   int    `yaml:"postmark_template_id"`
-	PostmarkTag          string `yaml:"postmark_tag"`
+	Disabled             bool   `mapstructure:"disabled"`
+	ListenAddress        string `mapstructure:"listen_address"`
+	Endpoint             string `mapstructure:"endpoint"`
+	TLS                  bool   `mapstructure:"tls"`
+	DefaultNextURL       string `mapstructure:"default_next_url"`
+	DeviceCodeEnabled    bool   `mapstructure:"device_code_enabled"`
+	GithubEnabled        bool   `mapstructure:"github_enabled"`
+	GithubClientID       string `mapstructure:"github_client_id"`
+	GithubClientSecret   string `mapstructure:"github_client_secret"`
+	GoogleEnabled        bool   `mapstructure:"google_enabled"`
+	GoogleClientID       string `mapstructure:"github_client_id"`
+	GoogleClientSecret   string `mapstructure:"github_client_secret"`
+	MagicLinkEnabled     bool   `mapstructure:"magic_link_enabled"`
+	MagicLinkFrom        string `mapstructure:"magic_link_from"`
+	MagicLinkProjectName string `mapstructure:"magic_link_project_name"`
+	MagicLinkProjectURL  string `mapstructure:"magic_link_project_url"`
+	PostmarkAPIToken     string `mapstructure:"postmark_api_token"`
+	PostmarkTemplateID   int    `mapstructure:"postmark_template_id"`
+	PostmarkTag          string `mapstructure:"postmark_tag"`
 }
 
 func NewAPI() *APIConfig {

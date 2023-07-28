@@ -33,10 +33,10 @@ const (
 )
 
 type Config struct {
-	Disabled      bool       `yaml:"disabled"`
-	SessionDomain string     `yaml:"session_domain"`
-	TLS           bool       `yaml:"tls"`
-	API           *APIConfig `yaml:"api"`
+	Disabled      bool       `mapstructure:"disabled"`
+	SessionDomain string     `mapstructure:"session_domain"`
+	TLS           bool       `mapstructure:"tls"`
+	API           *APIConfig `mapstructure:"api"`
 }
 
 func New() *Config {
