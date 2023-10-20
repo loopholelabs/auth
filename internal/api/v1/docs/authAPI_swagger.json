@@ -722,17 +722,17 @@
     },
     "definitions": {
         "kind.Kind": {
-          "type": "string",
-          "enum": [
-            "session",
-            "api",
-            "service"
-          ],
-          "x-enum-varnames": [
-            "Session",
-            "APIKey",
-            "ServiceSession"
-          ]
+            "type": "string",
+            "enum": [
+                "session",
+                "api",
+                "service"
+            ],
+            "x-enum-varnames": [
+                "Session",
+                "APIKey",
+                "ServiceSession"
+            ]
         },
         "models.ConfigResponse": {
             "type": "object",
@@ -820,7 +820,7 @@
                     "type": "string"
                 },
                 "kind": {
-                  "$ref": "#/definitions/kind.Kind"
+                    "$ref": "#/definitions/kind.Kind"
                 },
                 "organization": {
                     "type": "string"

@@ -32,7 +32,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
-//go:generate swag init -g v1.go -o docs --parseDependency --instanceName authAPI -d ./
+//go:generate go run -mod=mod github.com/swaggo/swag/cmd/swag@v1.16.2 init -g v1.go -o docs --parseDependency --instanceName authAPI -d ./
 type V1 struct {
 	logger  *zerolog.Logger
 	app     *fiber.App
