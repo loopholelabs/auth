@@ -42,6 +42,7 @@ func New(controller *controller.Controller, device *device.Device, github *githu
 		github:         github,
 		google:         google,
 		magic:          magic,
+		endpoint:       endpoint,
 		defaultNextURL: defaultNextURL,
 	}
 }
