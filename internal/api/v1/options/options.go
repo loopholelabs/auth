@@ -35,7 +35,12 @@ type Options struct {
 	defaultNextURL string
 }
 
-func New(controller *controller.Controller, device *device.Device, github *github.Github, google *google.Google, magic *magic.Magic, endpoint string, tls bool, defaultNextURL string) *Options {
+func New(controller *controller.Controller, device *device.Device, github *github.Github, google *google.Google, magic *magic.Magic, endpoint string, tls bool, defaultNextURL string, logger *zerolog.Logger) *Options {
+	if endpoint == "" {
+		l := logger.With().Str("AUTH", "MAGIC-LINK-PROVIDER").Logger()
+		l.Error().Msg("Error: base endpoint is not set for Magic Link")
+	}
+
 	return &Options{
 		controller:     controller,
 		device:         device,

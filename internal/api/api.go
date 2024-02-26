@@ -119,7 +119,8 @@ func New(options *Options, storage storage.Storage, controller *controller.Contr
 		}, &l)
 	}
 
-	v1Opts := v1Options.New(controller, deviceProvider, githubProvider, googleProvider, magicProvider, options.Endpoint, options.TLS, options.DefaultNextURL)
+	v1Opts := v1Options.New(controller, deviceProvider, githubProvider, googleProvider, magicProvider, options.Endpoint, options.TLS, options.DefaultNextURL, logger)
+
 
 	return &API{
 		logger:         &l,
