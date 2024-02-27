@@ -22,6 +22,7 @@ import (
 	"github.com/loopholelabs/auth/pkg/flow/github"
 	"github.com/loopholelabs/auth/pkg/flow/google"
 	"github.com/loopholelabs/auth/pkg/flow/magic"
+	"github.com/rs/zerolog"
 )
 
 type Options struct {
