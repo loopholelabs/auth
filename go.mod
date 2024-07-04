@@ -17,8 +17,8 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.9.0
 	github.com/swaggo/swag v1.16.3
-	golang.org/x/crypto v0.17.0
-	golang.org/x/net v0.17.0
+	golang.org/x/crypto v0.21.0
+	golang.org/x/net v0.23.0
 	golang.org/x/oauth2 v0.10.0
 )
 
@@ -57,7 +57,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.24.0 // indirect
 	go.opentelemetry.io/otel/trace v1.24.0 // indirect
 	golang.org/x/sync v0.6.0 // indirect
-	golang.org/x/sys v0.17.0 // indirect
+	golang.org/x/sys v0.18.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/tools v0.8.1-0.20230428195545-5283a0178901 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
