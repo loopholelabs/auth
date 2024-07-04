@@ -13,7 +13,7 @@ require (
 	github.com/google/uuid v1.5.0
 	github.com/grokify/go-pkce v0.2.3
 	github.com/mattevans/postmark-go v0.1.6
-	github.com/rs/zerolog v1.29.1
+	github.com/rs/zerolog v1.33.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.4
 	github.com/swaggo/swag v1.16.1
