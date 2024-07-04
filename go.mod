@@ -10,7 +10,7 @@ require (
 	github.com/go-openapi/swag v0.22.4
 	github.com/go-openapi/validate v0.22.1
 	github.com/gofiber/fiber/v2 v2.52.5
-	github.com/google/uuid v1.5.0
+	github.com/google/uuid v1.6.0
 	github.com/grokify/go-pkce v0.2.3
 	github.com/mattevans/postmark-go v0.1.6
 	github.com/rs/zerolog v1.29.1
