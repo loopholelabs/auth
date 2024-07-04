@@ -7,7 +7,7 @@ require (
 	github.com/go-openapi/errors v0.20.4
 	github.com/go-openapi/runtime v0.26.0
 	github.com/go-openapi/strfmt v0.21.7
-	github.com/go-openapi/swag v0.22.4
+	github.com/go-openapi/swag v0.23.0
 	github.com/go-openapi/validate v0.22.1
 	github.com/gofiber/fiber/v2 v2.52.5
 	github.com/google/uuid v1.5.0
@@ -15,7 +15,7 @@ require (
 	github.com/mattevans/postmark-go v0.1.6
 	github.com/rs/zerolog v1.29.1
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.8.4
+	github.com/stretchr/testify v1.9.0
 	github.com/swaggo/swag v1.16.1
 	golang.org/x/crypto v0.14.0
 	golang.org/x/net v0.17.0
