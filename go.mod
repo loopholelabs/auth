@@ -3,7 +3,7 @@ module github.com/loopholelabs/auth
 go 1.20
 
 require (
-	github.com/AfterShip/email-verifier v1.3.3
+	github.com/AfterShip/email-verifier v1.4.0
 	github.com/go-openapi/errors v0.22.0
 	github.com/go-openapi/runtime v0.28.0
 	github.com/go-openapi/strfmt v0.23.0
