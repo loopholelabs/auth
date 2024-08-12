@@ -12,7 +12,7 @@ require (
 	github.com/gofiber/fiber/v2 v2.52.5
 	github.com/google/uuid v1.6.0
 	github.com/grokify/go-pkce v0.2.3
-	github.com/mattevans/postmark-go v0.1.6
+	github.com/mattevans/postmark-go v1.0.0
 	github.com/rs/zerolog v1.33.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.9.0
