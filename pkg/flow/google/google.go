@@ -24,7 +24,7 @@ import (
 	"github.com/grokify/go-pkce"
 	"github.com/loopholelabs/auth/pkg/flow"
 	"github.com/loopholelabs/auth/pkg/storage"
-	"github.com/rs/zerolog"
+	"github.com/loopholelabs/logging/types"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"io"
@@ -61,7 +61,7 @@ type Options struct {
 }
 
 type Google struct {
-	logger  *zerolog.Logger
+	logger  types.Logger
 	storage storage.Google
 	options *Options
 	conf    *oauth2.Config
@@ -70,12 +70,11 @@ type Google struct {
 	cancel  context.CancelFunc
 }
 
-func New(storage storage.Google, options *Options, logger *zerolog.Logger) *Google {
-	l := logger.With().Str("AUTH", "GOOGLE-OAUTH-PROVIDER").Logger()
+func New(storage storage.Google, options *Options, logger types.Logger) *Google {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &Google{
-		logger:  &l,
+		logger:  logger.SubLogger("GOOGLE-OAUTH-PROVIDER"),
 		storage: storage,
 		options: options,
 		ctx:     ctx,

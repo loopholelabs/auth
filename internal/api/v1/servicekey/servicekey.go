@@ -23,20 +23,19 @@ import (
 	"github.com/loopholelabs/auth/internal/controller"
 	"github.com/loopholelabs/auth/internal/utils"
 	"github.com/loopholelabs/auth/pkg/prefix"
-	"github.com/rs/zerolog"
+	"github.com/loopholelabs/logging/types"
 	"strings"
 )
 
 type ServiceKey struct {
-	logger  *zerolog.Logger
+	logger  types.Logger
 	app     *fiber.App
 	options *options.Options
 }
 
-func New(options *options.Options, logger *zerolog.Logger) *ServiceKey {
-	l := logger.With().Str("ROUTER", "SERVICEKEY").Logger()
+func New(options *options.Options, logger types.Logger) *ServiceKey {
 	i := &ServiceKey{
-		logger:  &l,
+		logger:  logger.SubLogger("SERVICEKEY"),
 		app:     utils.DefaultFiberApp(),
 		options: options,
 	}

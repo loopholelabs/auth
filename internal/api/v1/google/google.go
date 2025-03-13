@@ -22,19 +22,18 @@ import (
 	"github.com/loopholelabs/auth/internal/api/v1/options"
 	"github.com/loopholelabs/auth/internal/utils"
 	"github.com/loopholelabs/auth/pkg/storage"
-	"github.com/rs/zerolog"
+	"github.com/loopholelabs/logging/types"
 )
 
 type Google struct {
-	logger  *zerolog.Logger
+	logger  types.Logger
 	app     *fiber.App
 	options *options.Options
 }
 
-func New(options *options.Options, logger *zerolog.Logger) *Google {
-	l := logger.With().Str("ROUTER", "GOOGLE").Logger()
+func New(options *options.Options, logger types.Logger) *Google {
 	i := &Google{
-		logger:  &l,
+		logger:  logger.SubLogger("GOOGLE"),
 		app:     utils.DefaultFiberApp(),
 		options: options,
 	}

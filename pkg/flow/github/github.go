@@ -24,7 +24,7 @@ import (
 	"github.com/grokify/go-pkce"
 	"github.com/loopholelabs/auth/pkg/flow"
 	"github.com/loopholelabs/auth/pkg/storage"
-	"github.com/rs/zerolog"
+	"github.com/loopholelabs/logging/types"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/github"
 	"io"
@@ -63,7 +63,7 @@ type Options struct {
 }
 
 type Github struct {
-	logger  *zerolog.Logger
+	logger  types.Logger
 	storage storage.Github
 	options *Options
 	conf    *oauth2.Config
@@ -72,12 +72,11 @@ type Github struct {
 	cancel  context.CancelFunc
 }
 
-func New(storage storage.Github, options *Options, logger *zerolog.Logger) *Github {
-	l := logger.With().Str("AUTH", "GITHUB-OAUTH-PROVIDER").Logger()
+func New(storage storage.Github, options *Options, logger types.Logger) *Github {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &Github{
-		logger:  &l,
+		logger:  logger.SubLogger("GITHUB-OAUTH-PROVIDER"),
 		storage: storage,
 		options: options,
 		ctx:     ctx,

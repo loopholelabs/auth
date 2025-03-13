@@ -23,7 +23,7 @@ import (
 	"github.com/loopholelabs/auth/internal/utils"
 	"github.com/loopholelabs/auth/pkg/flow"
 	"github.com/loopholelabs/auth/pkg/storage"
-	"github.com/rs/zerolog"
+	"github.com/loopholelabs/logging/types"
 	"strings"
 	"sync"
 	"time"
@@ -38,19 +38,18 @@ const (
 )
 
 type Device struct {
-	logger  *zerolog.Logger
+	logger  types.Logger
 	storage storage.Device
 	wg      sync.WaitGroup
 	ctx     context.Context
 	cancel  context.CancelFunc
 }
 
-func New(storage storage.Device, logger *zerolog.Logger) *Device {
-	l := logger.With().Str("AUTH", "DEVICE-FLOW").Logger()
+func New(storage storage.Device, logger types.Logger) *Device {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &Device{
-		logger:  &l,
+		logger:  logger.SubLogger("DEVICE-PROVIDER"),
 		storage: storage,
 		ctx:     ctx,
 		cancel:  cancel,

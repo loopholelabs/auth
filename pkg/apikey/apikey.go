@@ -30,6 +30,6 @@ type APIKey struct {
 	// Creator is the creator's unique identifier
 	Creator string `json:"creator"`
 
-	// Organization is the organization that the Service Key is scoped to
+	// Organization is the organization that the API Key is scoped to
 	Organization string `json:"organization"`
 }
