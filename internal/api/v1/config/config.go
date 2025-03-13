@@ -21,19 +21,18 @@ import (
 	"github.com/loopholelabs/auth/internal/api/v1/models"
 	"github.com/loopholelabs/auth/internal/api/v1/options"
 	"github.com/loopholelabs/auth/internal/utils"
-	"github.com/rs/zerolog"
+	"github.com/loopholelabs/logging/types"
 )
 
 type Config struct {
-	logger  *zerolog.Logger
+	logger  types.Logger
 	app     *fiber.App
 	options *options.Options
 }
 
-func New(options *options.Options, logger *zerolog.Logger) *Config {
-	l := logger.With().Str("ROUTER", "CONFIG").Logger()
+func New(options *options.Options, logger types.Logger) *Config {
 	i := &Config{
-		logger:  &l,
+		logger:  logger.SubLogger("ROUTER"),
 		app:     utils.DefaultFiberApp(),
 		options: options,
 	}

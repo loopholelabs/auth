@@ -29,20 +29,19 @@ import (
 	"github.com/loopholelabs/auth/internal/api/v1/servicekey"
 	"github.com/loopholelabs/auth/internal/utils"
 	"github.com/loopholelabs/auth/pkg/helpers"
-	"github.com/rs/zerolog"
+	"github.com/loopholelabs/logging/types"
 )
 
 //go:generate swag init -g v1.go -o docs --parseDependency --instanceName authAPI -d ./
 type V1 struct {
-	logger  *zerolog.Logger
+	logger  types.Logger
 	app     *fiber.App
 	options *options.Options
 }
 
-func New(options *options.Options, logger *zerolog.Logger) *V1 {
-	l := logger.With().Str("VERSION", "v1").Logger()
+func New(options *options.Options, logger types.Logger) *V1 {
 	v := &V1{
-		logger:  &l,
+		logger:  logger.SubLogger("V1"),
 		app:     utils.DefaultFiberApp(),
 		options: options,
 	}

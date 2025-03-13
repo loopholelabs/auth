@@ -25,20 +25,19 @@ import (
 	"github.com/loopholelabs/auth/internal/utils"
 	"github.com/loopholelabs/auth/pkg/flow/magic"
 	"github.com/loopholelabs/auth/pkg/storage"
-	"github.com/rs/zerolog"
+	"github.com/loopholelabs/logging/types"
 )
 
 type Magic struct {
-	logger   *zerolog.Logger
+	logger   types.Logger
 	app      *fiber.App
 	options  *options.Options
 	verifier *emailverifier.Verifier
 }
 
-func New(options *options.Options, logger *zerolog.Logger) *Magic {
-	l := logger.With().Str("ROUTER", "MAGIC").Logger()
+func New(options *options.Options, logger types.Logger) *Magic {
 	i := &Magic{
-		logger:   &l,
+		logger:   logger.SubLogger("MAGIC"),
 		app:      utils.DefaultFiberApp(),
 		options:  options,
 		verifier: emailverifier.NewVerifier(),

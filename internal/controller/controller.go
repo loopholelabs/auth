@@ -36,7 +36,7 @@ import (
 	"github.com/loopholelabs/auth/pkg/servicesession"
 	"github.com/loopholelabs/auth/pkg/session"
 	"github.com/loopholelabs/auth/pkg/storage"
-	"github.com/rs/zerolog"
+	"github.com/loopholelabs/logging/types"
 	"golang.org/x/crypto/bcrypt"
 	"sync"
 	"time"
@@ -63,7 +63,7 @@ var (
 )
 
 type Controller struct {
-	logger            *zerolog.Logger
+	logger            types.Logger
 	storage           storage.Storage
 	sessionDomain     string
 	secureOnlyCookies bool
@@ -88,11 +88,10 @@ type Controller struct {
 	apikeysMu sync.RWMutex
 }
 
-func New(sessionDomain string, secureOnlyCookies bool, storage storage.Storage, logger *zerolog.Logger) *Controller {
-	l := logger.With().Str("AUTH", "SESSION-CONTROLLER").Logger()
+func New(sessionDomain string, secureOnlyCookies bool, storage storage.Storage, logger types.Logger) *Controller {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Controller{
-		logger:            &l,
+		logger:            logger.SubLogger("SESSION-CONTROLLER"),
 		storage:           storage,
 		sessionDomain:     sessionDomain,
 		secureOnlyCookies: secureOnlyCookies,

@@ -22,7 +22,7 @@ import (
 	"github.com/loopholelabs/auth/pkg/flow/github"
 	"github.com/loopholelabs/auth/pkg/flow/google"
 	"github.com/loopholelabs/auth/pkg/flow/magic"
-	"github.com/rs/zerolog"
+	"github.com/loopholelabs/logging/types"
 )
 
 type Options struct {
@@ -36,10 +36,10 @@ type Options struct {
 	defaultNextURL string
 }
 
-func New(controller *controller.Controller, device *device.Device, github *github.Github, google *google.Google, magic *magic.Magic, endpoint string, tls bool, defaultNextURL string, logger *zerolog.Logger) *Options {
+func New(controller *controller.Controller, device *device.Device, github *github.Github, google *google.Google, magic *magic.Magic, endpoint string, tls bool, defaultNextURL string, logger types.Logger) *Options {
 	if endpoint == "" {
-		l := logger.With().Str("AUTH", "MAGIC-LINK-PROVIDER").Logger()
-		l.Error().Msg("Error: base endpoint is not set for Magic Link")
+		l := logger.SubLogger("MAGIC-LINK-PROVIDER")
+		l.Error().Msg("base endpoint is not set for Magic Link")
 	}
 
 	return &Options{
@@ -49,6 +49,7 @@ func New(controller *controller.Controller, device *device.Device, github *githu
 		google:         google,
 		magic:          magic,
 		endpoint:       endpoint,
+		tls:            tls,
 		defaultNextURL: defaultNextURL,
 	}
 }

@@ -23,7 +23,7 @@ import (
 	"github.com/loopholelabs/auth/internal/api"
 	"github.com/loopholelabs/auth/internal/controller"
 	"github.com/loopholelabs/auth/pkg/storage"
-	"github.com/rs/zerolog"
+	"github.com/loopholelabs/logging/types"
 )
 
 var (
@@ -39,7 +39,7 @@ type Options struct {
 }
 
 type Auth struct {
-	logger  *zerolog.Logger
+	logger  types.Logger
 	options *Options
 	storage storage.Storage
 
@@ -50,17 +50,17 @@ type Auth struct {
 	cancel context.CancelFunc
 }
 
-func New(options *Options, storage storage.Storage, logger *zerolog.Logger) (*Auth, error) {
-	l := logger.With().Str(options.LogName, "AUTH").Logger()
+func New(options *Options, storage storage.Storage, logger types.Logger) (*Auth, error) {
+	l := logger.SubLogger(options.LogName)
 	if options.Disabled {
 		l.Warn().Msg("disabled")
 		return nil, ErrDisabled
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	c := controller.New(options.SessionDomain, options.TLS, storage, &l)
+	c := controller.New(options.SessionDomain, options.TLS, storage, l)
 	a := &Auth{
-		logger:     &l,
+		logger:     l,
 		options:    options,
 		storage:    storage,
 		controller: c,

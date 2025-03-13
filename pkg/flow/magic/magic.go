@@ -25,8 +25,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/loopholelabs/auth/pkg/flow"
 	"github.com/loopholelabs/auth/pkg/storage"
+	"github.com/loopholelabs/logging/types"
 	"github.com/mattevans/postmark-go"
-	"github.com/rs/zerolog"
 	"golang.org/x/crypto/bcrypt"
 	"net/http"
 	"sync"
@@ -60,7 +60,7 @@ type Options struct {
 }
 
 type Magic struct {
-	logger    *zerolog.Logger
+	logger    types.Logger
 	storage   storage.Magic
 	options   *Options
 	client    *postmark.Client
@@ -70,12 +70,11 @@ type Magic struct {
 	cancel    context.CancelFunc
 }
 
-func New(storage storage.Magic, options *Options, logger *zerolog.Logger) *Magic {
-	l := logger.With().Str("AUTH", "MAGIC-LINK-PROVIDER").Logger()
+func New(storage storage.Magic, options *Options, logger types.Logger) *Magic {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &Magic{
-		logger:  &l,
+		logger:  logger.SubLogger("MAGIC-LINK-PROVIDER"),
 		storage: storage,
 		options: options,
 		ctx:     ctx,

@@ -30,7 +30,7 @@ import (
 	"github.com/loopholelabs/auth/pkg/flow/google"
 	"github.com/loopholelabs/auth/pkg/flow/magic"
 	"github.com/loopholelabs/auth/pkg/storage"
-	"github.com/rs/zerolog"
+	"github.com/loopholelabs/logging/types"
 	"net"
 )
 
@@ -39,29 +39,35 @@ const (
 )
 
 type Options struct {
-	Disabled             bool
-	ListenAddress        string
-	Endpoint             string
-	TLS                  bool
-	DefaultNextURL       string
-	DeviceCodeEnabled    bool
-	GithubEnabled        bool
-	GithubClientID       string
-	GithubClientSecret   string
-	GoogleEnabled        bool
-	GoogleClientID       string
-	GoogleClientSecret   string
+	Disabled      bool
+	ListenAddress string
+	Endpoint      string
+	TLS           bool
+
+	DefaultNextURL string
+
+	DeviceCodeEnabled bool
+
+	GithubEnabled      bool
+	GithubClientID     string
+	GithubClientSecret string
+
+	GoogleEnabled      bool
+	GoogleClientID     string
+	GoogleClientSecret string
+
 	MagicLinkEnabled     bool
 	MagicLinkFrom        string
 	MagicLinkProjectName string
 	MagicLinkProjectURL  string
-	PostmarkAPIToken     string
-	PostmarkTemplateID   int
-	PostmarkTag          string
+
+	PostmarkAPIToken   string
+	PostmarkTemplateID int
+	PostmarkTag        string
 }
 
 type API struct {
-	logger  *zerolog.Logger
+	logger  types.Logger
 	options *Options
 	app     *fiber.App
 
@@ -76,8 +82,8 @@ type API struct {
 	v1Options *v1Options.Options
 }
 
-func New(options *Options, storage storage.Storage, controller *controller.Controller, logger *zerolog.Logger) *API {
-	l := logger.With().Str("AUTH", "API").Logger()
+func New(options *Options, storage storage.Storage, controller *controller.Controller, logger types.Logger) *API {
+	l := logger.SubLogger("API")
 
 	scheme := "http"
 	if options.TLS {
@@ -86,7 +92,7 @@ func New(options *Options, storage storage.Storage, controller *controller.Contr
 
 	var deviceProvider *device.Device
 	if options.DeviceCodeEnabled {
-		deviceProvider = device.New(storage, &l)
+		deviceProvider = device.New(storage, l)
 	}
 
 	var githubProvider *github.Github
@@ -95,7 +101,7 @@ func New(options *Options, storage storage.Storage, controller *controller.Contr
 			ClientID:     options.GithubClientID,
 			ClientSecret: options.GithubClientSecret,
 			Redirect:     fmt.Sprintf("%s://%s/v1/github/callback", scheme, options.Endpoint),
-		}, &l)
+		}, l)
 	}
 
 	var googleProvider *google.Google
@@ -104,7 +110,7 @@ func New(options *Options, storage storage.Storage, controller *controller.Contr
 			ClientID:     options.GoogleClientID,
 			ClientSecret: options.GoogleClientSecret,
 			Redirect:     fmt.Sprintf("%s://%s/v1/google/callback", scheme, options.Endpoint),
-		}, &l)
+		}, l)
 	}
 
 	var magicProvider *magic.Magic
@@ -116,14 +122,13 @@ func New(options *Options, storage storage.Storage, controller *controller.Contr
 			From:       options.MagicLinkFrom,
 			Project:    options.MagicLinkProjectName,
 			ProjectURL: options.MagicLinkProjectURL,
-		}, &l)
+		}, l)
 	}
 
 	v1Opts := v1Options.New(controller, deviceProvider, githubProvider, googleProvider, magicProvider, options.Endpoint, options.TLS, options.DefaultNextURL, logger)
 
-
 	return &API{
-		logger:         &l,
+		logger:         l,
 		options:        options,
 		app:            utils.DefaultFiberApp(),
 		controller:     controller,
