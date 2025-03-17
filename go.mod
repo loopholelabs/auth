@@ -15,7 +15,7 @@ require (
 	github.com/mattevans/postmark-go v1.0.0
 	github.com/rs/zerolog v1.33.0
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 	github.com/swaggo/swag v1.16.3
 	golang.org/x/crypto v0.29.0
 	golang.org/x/net v0.28.0
