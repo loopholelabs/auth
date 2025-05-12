@@ -1,6 +1,6 @@
 module github.com/loopholelabs/auth
 
-go 1.20
+go 1.23.0
 
 require (
 	github.com/AfterShip/email-verifier v1.4.0
@@ -19,7 +19,7 @@ require (
 	github.com/swaggo/swag v1.16.3
 	golang.org/x/crypto v0.29.0
 	golang.org/x/net v0.28.0
-	golang.org/x/oauth2 v0.22.0
+	golang.org/x/oauth2 v0.30.0
 )
 
 require (
