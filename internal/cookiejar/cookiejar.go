@@ -1,18 +1,4 @@
-/*
-	Copyright 2023 Loophole Labs
-
-	Licensed under the Apache License, Version 2.0 (the "License");
-	you may not use this file except in compliance with the License.
-	You may obtain a copy of the License at
-
-		   http://www.apache.org/licenses/LICENSE-2.0
-
-	Unless required by applicable law or agreed to in writing, software
-	distributed under the License is distributed on an "AS IS" BASIS,
-	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-	See the License for the specific language governing permissions and
-	limitations under the License.
-*/
+//SPDX-License-Identifier: Apache-2.0
 
 // Package cookiejar implements an in-memory RFC 6265-compliant http.CookieJar.
 package cookiejar
@@ -30,9 +16,13 @@ import (
 	"time"
 )
 
+var (
+	_ http.CookieJar = (*Jar)(nil)
+)
+
 // Jar implements the http.CookieJar interface from the net/http package.
 type Jar struct {
-	psList cookiejar.PublicSuffixList
+	publicSuffixList cookiejar.PublicSuffixList
 
 	// mu locks the remaining fields.
 	mu sync.Mutex
@@ -52,7 +42,7 @@ func New(o *cookiejar.Options) (*Jar, error) {
 		entries: make(map[string]map[string]entry),
 	}
 	if o != nil {
-		jar.psList = o.PublicSuffixList
+		jar.publicSuffixList = o.PublicSuffixList
 	}
 	return jar, nil
 }
@@ -139,7 +129,7 @@ func (j *Jar) cookies(u *url.URL, now time.Time) (cookies []*http.Cookie) {
 	if err != nil {
 		return cookies
 	}
-	key := jarKey(host, j.psList)
+	key := jarKey(host, j.publicSuffixList)
 
 	j.mu.Lock()
 	defer j.mu.Unlock()
@@ -227,7 +217,7 @@ func (j *Jar) setCookies(u *url.URL, cookies []*http.Cookie, now time.Time) {
 	if err != nil {
 		return
 	}
-	key := jarKey(host, j.psList)
+	key := jarKey(host, j.publicSuffixList)
 	defPath := defaultPath(u.Path)
 
 	j.mu.Lock()
@@ -494,8 +484,8 @@ func (j *Jar) domainAndType(host, domain string) (string, bool, error) {
 	}
 
 	// See RFC 6265 section 5.3 #5.
-	if j.psList != nil {
-		if ps := j.psList.PublicSuffix(domain); ps != "" && !hasDotSuffix(domain, ps) {
+	if j.publicSuffixList != nil {
+		if ps := j.publicSuffixList.PublicSuffix(domain); ps != "" && !hasDotSuffix(domain, ps) {
 			if host == domain {
 				// This is the one exception in which a cookie
 				// with a domain attribute is a host cookie.
