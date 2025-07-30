@@ -18,6 +18,7 @@ package storage
 
 import (
 	"errors"
+	"time"
 )
 
 var (
@@ -26,13 +27,18 @@ var (
 
 	// ErrAlreadyExists is returned when a key already exists.
 	ErrAlreadyExists = errors.New("key already exists")
-
-	// ErrNotFound is meant to be returned by an external storage implementation
-	_ = ErrNotFound
-
-	// ErrAlreadyExists is meant to be returned by an external storage implementation
-	_ = ErrAlreadyExists
 )
+
+type CommonImmutableData struct {
+	// Identifier is the Credential's unique identifier
+	Identifier string `json:"identifier"`
+
+	// Creation is the time at which this credential was created
+	Creation time.Time `json:"creation"`
+
+	// OrganizationIdentifier is the identifier of the organization that this credential is scoped to
+	OrganizationIdentifier string `json:"organization_identifier"`
+}
 
 // Storage is the interface that must be implemented by the application
 // using this auth library for authentication and session handling.
