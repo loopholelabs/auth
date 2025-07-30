@@ -29,15 +29,22 @@ var (
 	ErrAlreadyExists = errors.New("key already exists")
 )
 
+// CommonImmutableData is the common immutable data fields stored by Credentials
 type CommonImmutableData struct {
 	// Identifier is the Credential's unique identifier
 	Identifier string `json:"identifier"`
 
-	// Creation is the time at which this credential was created
+	// Creation is the time at which this Credential was created
 	Creation time.Time `json:"creation"`
 
-	// OrganizationIdentifier is the identifier of the organization that this credential is scoped to
+	// OrganizationIdentifier is the identifier of the Organization that this Credential is scoped to
 	OrganizationIdentifier string `json:"organization_identifier"`
+}
+
+// CommonMutableData is the common mutable data fields stored by Credentials
+type CommonMutableData struct {
+	// Role is the Credential's role in the Organization that this Credential is scoped to
+	Role string `json:"role"`
 }
 
 // Storage is the interface that must be implemented by the application
