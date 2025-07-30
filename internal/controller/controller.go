@@ -23,7 +23,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
+	"time"
+
 	"github.com/gofiber/fiber/v2"
+	"golang.org/x/crypto/bcrypt"
+
+	"github.com/loopholelabs/logging/types"
+
 	"github.com/loopholelabs/auth/internal/aes"
 	"github.com/loopholelabs/auth/internal/utils"
 	"github.com/loopholelabs/auth/pkg/apikey"
@@ -36,10 +43,6 @@ import (
 	"github.com/loopholelabs/auth/pkg/servicesession"
 	"github.com/loopholelabs/auth/pkg/session"
 	"github.com/loopholelabs/auth/pkg/storage"
-	"github.com/loopholelabs/logging/types"
-	"golang.org/x/crypto/bcrypt"
-	"sync"
-	"time"
 )
 
 var (
@@ -67,9 +70,10 @@ type Controller struct {
 	storage           storage.Storage
 	sessionDomain     string
 	secureOnlyCookies bool
-	wg                sync.WaitGroup
-	ctx               context.Context
-	cancel            context.CancelFunc
+
+	wg     sync.WaitGroup
+	ctx    context.Context
+	cancel context.CancelFunc
 
 	secretKey    [32]byte
 	oldSecretKey [32]byte
