@@ -360,3 +360,26 @@ The controller relies heavily on storage for:
 5. **Garbage Collection**: Cleaning up expired flows
 
 Any JWT-based rewrite must maintain these storage contracts or provide migration paths.
+
+## Code Style Guidelines
+
+- **Go Version**: 1.23+
+- **Linting**: Follow golangci-lint rules (50+ linters enabled)
+- **Imports**: Group by stdlib → external → external loophole labs packages → project local packages
+- **Error Handling**:
+   - Use package-level error variables (e.g., `ErrCreatingRouter`)
+   - Use `errors.Join()` for error wrapping
+- **Naming Conventions**:
+   - PascalCase for exported identifiers
+   - camelCase for private identifiers
+   - Descriptive error variable names
+- **Constructor Pattern**: `New()` functions taking `Config` struct and `logger`
+- **Thread Safety**:
+   - Use `sync.Mutex` for complex state
+   - Use `atomic.Bool` for simple boolean flags
+- **Context**: Pass context for cancellation patterns
+- **Logging**: Structured logging with contextual fields
+
+## Important Notes
+
+- All tests must pass before committing changes
