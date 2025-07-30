@@ -1,5 +1,6 @@
 //SPDX-License-Identifier: Apache-2.0
 
+// Package aes implements utility encryption and decryption functions
 package aes
 
 import (
