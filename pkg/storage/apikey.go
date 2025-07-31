@@ -20,7 +20,7 @@ type APIKeyImmutableData struct {
 	Hash []byte `json:"hash"`
 }
 
-// APIKeyMutableData is teh API Key's unique mutable data
+// APIKeyMutableData is the API Key's unique mutable data
 type APIKeyMutableData struct {
 	// Common Mutable Data
 	CommonMutableData
@@ -38,14 +38,14 @@ func NewAPIKey(immutableData APIKeyImmutableData, mutableData APIKeyMutableData)
 	}
 }
 
-// UniqueImmutableData returns the API Key's unique immutable data
+// UniqueImmutableData returns the API Key's unique immutable data (which includes the common immutable data)
 func (a *APIKey) UniqueImmutableData() APIKeyImmutableData {
 	return a.immutableData
 }
 
-// UniqueMutableData returns the API Key's unique mutable data
-func (a *APIKey) UniqueMutableData() APIKeyMutableData {
-	return a.mutableData
+// UniqueMutableData returns the API Key's unique mutable data (which includes the common mutable data)
+func (a *APIKey) UniqueMutableData(_ context.Context) (APIKeyMutableData, error) {
+	return a.mutableData, nil
 }
 
 // ImmutableData returns the API Key's common immutable data
@@ -54,8 +54,9 @@ func (a *APIKey) ImmutableData() CommonImmutableData {
 }
 
 // MutableData returns the API Key's common mutable data
-func (a *APIKey) MutableData() CommonMutableData {
-	return a.UniqueMutableData().CommonMutableData
+func (a *APIKey) MutableData(ctx context.Context) (CommonMutableData, error) {
+	md, err := a.UniqueMutableData(ctx)
+	return md.CommonMutableData, err
 }
 
 // APIKeyReadProvider is the read-only storage interface for API Keys
