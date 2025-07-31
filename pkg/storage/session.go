@@ -36,21 +36,29 @@ type SessionMutableData struct {
 	UserEmail string `json:"user_email"`
 }
 
-type Session struct {
+type ConstantSession struct {
 	immutableData SessionImmutableData
 	mutableData   SessionMutableData
+}
+
+// Session represents a Session Credential
+type Session struct {
+	internalSession InternalSession
 
 	// If readProvider is nil, assume the mutableData is up-to-date
 	readProvider SessionReadProvider
 
-	// invalidationChecker should never be nil
+	// If invalidationChecker is nil, assume the mutableData is up-to-date
 	invalidationChecker InvalidationChecker
 }
 
-func NewSession(immutableData SessionImmutableData, mutableData SessionMutableData, invalidationChecker InvalidationChecker) Session {
+func NewSession(immutableData SessionImmutableData, mutableData SessionMutableData, readProvider SessionReadProvider, invalidationChecker InvalidationChecker) Session {
 	return Session{
-		immutableData:       immutableData,
-		mutableData:         mutableData,
+		internalSession: InternalSession{
+			immutableData: immutableData,
+			mutableData:   mutableData,
+		},
+		readProvider:        readProvider,
 		invalidationChecker: invalidationChecker,
 	}
 }
@@ -60,10 +68,7 @@ func (a *Session) UniqueImmutableData() SessionImmutableData {
 }
 
 func (a *Session) UniqueMutableData(ctx context.Context) (SessionMutableData, error) {
-	if a.readProvider != nil {
-		if a.invalidationChecker == nil {
-			panic("invalidation checker is nil")
-		}
+	if a.readProvider != nil && a.invalidationChecker != nil {
 		if a.invalidationChecker.IsInvalid(a.UniqueImmutableData().Identifier, a.mutableData.Generation) {
 			session, err := a.readProvider.GetSession(ctx, a.UniqueImmutableData().UserIdentifier)
 			if err != nil {
@@ -82,6 +87,10 @@ func (a *Session) ImmutableData() CommonImmutableData {
 func (a *Session) MutableData(ctx context.Context) (CommonMutableData, error) {
 	md, err := a.UniqueMutableData(ctx)
 	return md.CommonMutableData, err
+}
+
+func (a *Session) CanAccess(_ context.Context, _ ResourceIdentifier) bool {
+	return true
 }
 
 // SessionReadProvider is the read-only storage interface for sessions
@@ -117,15 +126,15 @@ type SessionProvider interface {
 	// associated with the organization. If the session is associated with an organization
 	// and that organization is deleted, the session should also be deleted. If the session
 	// already exists, it ErrAlreadyExists is returned.
-	SetSession(ctx context.Context, session *Session) error
+	SetSession(ctx context.Context, session Session) error
 
 	// DeleteSession deletes the session for the given id. If
 	// there is an error while deleting the session, an error is returned.
 	// ErrNotFound is returned if the session does not exist.
-	DeleteSession(ctx context.Context, id string) error
+	DeleteSession(ctx context.Context, identifier string) error
 
 	// UpdateSessionExpiry updates the expiry of the session for the given id. If
 	// there is an error while updating the session, an error is returned. If the
 	// session does not exist, ErrNotFound is returned.
-	UpdateSessionExpiry(ctx context.Context, id string, expiry time.Time) error
+	UpdateSessionExpiry(ctx context.Context, identifier string, expiry time.Time) error
 }

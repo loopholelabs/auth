@@ -1,22 +1,9 @@
-/*
-	Copyright 2023 Loophole Labs
-
-	Licensed under the Apache License, Version 2.0 (the "License");
-	you may not use this file except in compliance with the License.
-	You may obtain a copy of the License at
-
-		   http://www.apache.org/licenses/LICENSE-2.0
-
-	Unless required by applicable law or agreed to in writing, software
-	distributed under the License is distributed on an "AS IS" BASIS,
-	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-	See the License for the specific language governing permissions and
-	limitations under the License.
-*/
+//SPDX-License-Identifier: Apache-2.0
 
 package storage
 
 import (
+	"context"
 	"errors"
 	"time"
 )
@@ -52,18 +39,39 @@ type CommonMutableData struct {
 	Role string `json:"role"`
 }
 
+// Credential is the common interface that can be used to interact with
+// the various Credential types
+type Credential interface {
+	ImmutableData() CommonImmutableData
+	MutableData(ctx context.Context) (CommonMutableData, error)
+	CanAccess(ctx context.Context, resourceIdentifier ResourceIdentifier) bool
+}
+
+// UnsafeCredential is the common unsafe interface that can be used to interact with
+// the various Credential types
+type UnsafeCredential interface {
+	ImmutableData() CommonImmutableData
+	MutableData() CommonMutableData
+}
+
+// InvalidationChecker checks whether a given Credential is invalid
+type InvalidationChecker interface {
+	// IsInvalid returns true if the given credential is invalid
+	IsInvalid(identifier string, generation uint64) bool
+}
+
 // Storage is the interface that must be implemented by the application
 // using this auth library for authentication and session handling.
 type Storage interface {
 	User
-	Registration
 	SecretKey
+	Flow
+	Health
+
 	Session
 	APIKey
 	ServiceKey
-	ServiceSession
-	Flow
-	Health
+	Configuration
 
 	Shutdown() error
 }

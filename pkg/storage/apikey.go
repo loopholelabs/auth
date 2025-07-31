@@ -6,6 +6,7 @@ import (
 	"context"
 )
 
+var _ UnsafeCredential = (*UnsafeAPIKey)(nil)
 var _ Credential = (*APIKey)(nil)
 
 // APIKeyImmutableData is the APIKey's unique immutable data
@@ -26,28 +27,63 @@ type APIKeyMutableData struct {
 	CommonMutableData
 }
 
-// APIKey represents an API Key Credential
-type APIKey struct {
+// UnsafeAPIKey represents an unsafe API Key Credential
+type UnsafeAPIKey struct {
+	// UnsafeAPIKey's immutable data
 	immutableData APIKeyImmutableData
-	mutableData   APIKeyMutableData
+
+	// UnsafeAPIKey's mutable data
+	mutableData APIKeyMutableData
 }
 
-// NewAPIKey returns a new APIKey
-func NewAPIKey(immutableData APIKeyImmutableData, mutableData APIKeyMutableData) APIKey {
-	return APIKey{
+// NewUnsafeAPIKey returns a new UnsafeAPIKey
+func NewUnsafeAPIKey(immutableData APIKeyImmutableData, mutableData APIKeyMutableData) UnsafeAPIKey {
+	return UnsafeAPIKey{
 		immutableData: immutableData,
 		mutableData:   mutableData,
 	}
 }
 
+// UniqueImmutableData returns the UnsafeAPIKey's unique immutable data (which includes the common immutable data)
+func (a *UnsafeAPIKey) UniqueImmutableData() APIKeyImmutableData {
+	return a.immutableData
+}
+
+// UniqueMutableData returns the UnsafeAPIKey's unique mutable data (which includes the common mutable data)
+func (a *UnsafeAPIKey) UniqueMutableData() APIKeyMutableData {
+	return a.mutableData
+}
+
+// ImmutableData returns the UnsafeAPIKey's common immutable data
+func (a *UnsafeAPIKey) ImmutableData() CommonImmutableData {
+	return a.UniqueImmutableData().CommonImmutableData
+}
+
+// MutableData returns the UnsafeAPIKey's common mutable data
+func (a *UnsafeAPIKey) MutableData() CommonMutableData {
+	return a.UniqueMutableData().CommonMutableData
+}
+
+// APIKey represents an API Key Credential
+type APIKey struct {
+	unsafe UnsafeAPIKey
+}
+
+// NewAPIKey returns a new APIKey
+func NewAPIKey(immutableData APIKeyImmutableData, mutableData APIKeyMutableData) APIKey {
+	return APIKey{
+		unsafe: NewUnsafeAPIKey(immutableData, mutableData),
+	}
+}
+
 // UniqueImmutableData returns the APIKey's unique immutable data (which includes the common immutable data)
 func (a *APIKey) UniqueImmutableData() APIKeyImmutableData {
-	return a.immutableData
+	return a.unsafe.UniqueImmutableData()
 }
 
 // UniqueMutableData returns the APIKey's unique mutable data (which includes the common mutable data)
 func (a *APIKey) UniqueMutableData(_ context.Context) (APIKeyMutableData, error) {
-	return a.mutableData, nil
+	return a.unsafe.UniqueMutableData(), nil
 }
 
 // ImmutableData returns the APIKey's common immutable data
@@ -64,6 +100,11 @@ func (a *APIKey) MutableData(ctx context.Context) (CommonMutableData, error) {
 // CanAccess returns whether the APIKey can access the given ResourceIdentifier
 func (a *APIKey) CanAccess(_ context.Context, _ ResourceIdentifier) bool {
 	return true
+}
+
+// Unsafe returns the Unsafe API Key representation
+func (a *APIKey) Unsafe() UnsafeAPIKey {
+	return a.unsafe
 }
 
 // APIKeyReadProvider is the read-only storage interface for APIKeys
