@@ -9,6 +9,7 @@ import "context"
 type Credential interface {
 	ImmutableData() CommonImmutableData
 	MutableData(ctx context.Context) (CommonMutableData, error)
+	CanAccess(ctx context.Context, resourceIdentifier ResourceIdentifier) bool
 }
 
 // InvalidationChecker checks whether a given Credential is invalid
