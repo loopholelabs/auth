@@ -27,6 +27,8 @@ var (
 
 	// ErrAlreadyExists is returned when a key already exists.
 	ErrAlreadyExists = errors.New("key already exists")
+
+	ErrRevalidationFailed = errors.New("revalidation failed")
 )
 
 // CommonImmutableData is the common immutable data fields stored by Credentials
@@ -43,6 +45,9 @@ type CommonImmutableData struct {
 
 // CommonMutableData is the common mutable data fields stored by Credentials
 type CommonMutableData struct {
+	// Generation is the Credential's monotonically increasing generation
+	Generation uint64 `json:"generation"`
+
 	// Role is the Credential's role in the Organization that this Credential is scoped to
 	Role string `json:"role"`
 }
