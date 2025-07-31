@@ -9,14 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type T struct {
-	s string
-}
-
-func (t *T) J() {
-	t.s = "TEST"
-}
-
 func TestAES(t *testing.T) {
 	key := [32]byte([]byte("0123456789abcdef0123456789abcdef"))
 	identifier := []byte("test")
