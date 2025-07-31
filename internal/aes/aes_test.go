@@ -9,6 +9,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type T struct {
+	s string
+}
+
+func (t *T) J() {
+	t.s = "TEST"
+}
+
 func TestAES(t *testing.T) {
 	key := [32]byte([]byte("0123456789abcdef0123456789abcdef"))
 	identifier := []byte("test")
@@ -81,9 +89,3 @@ func TestDecrypt_InvalidCiphertext(t *testing.T) {
 	_, err := Decrypt(key, identifier, invalidCiphertext)
 	require.ErrorIs(t, err, ErrInvalidContent)
 }
-
-// Note: The following error cases in Encrypt and Decrypt functions cannot be easily tested:
-// 1. aes.NewCipher error - only fails with invalid key sizes, but we use [32]byte which is always valid
-// 2. cipher.NewGCM error - rarely fails with valid cipher blocks
-// 3. io.ReadFull from rand.Reader error - extremely unlikely to fail
-// These represent ~16% of uncovered code but are essentially unreachable under normal conditions.
