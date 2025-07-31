@@ -1,34 +1,103 @@
-/*
- 	Copyright 2023 Loophole Labs
-
- 	Licensed under the Apache License, Version 2.0 (the "License");
- 	you may not use this file except in compliance with the License.
- 	You may obtain a copy of the License at
-
- 		   http://www.apache.org/licenses/LICENSE-2.0
-
- 	Unless required by applicable law or agreed to in writing, software
- 	distributed under the License is distributed on an "AS IS" BASIS,
- 	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- 	See the License for the specific language governing permissions and
- 	limitations under the License.
-*/
+//SPDX-License-Identifier: Apache-2.0
 
 package storage
 
 import (
 	"context"
-	"github.com/loopholelabs/auth/pkg/servicekey"
+	"time"
 )
 
-type ServiceKey interface {
-	// GetServiceKey returns the service key for the given identifier. If there is an error
-	// while getting the service key, an error is returned. If there is no error, the service key
-	// is returned. If the service key does not exist, ErrNotFound is returned.
-	GetServiceKey(ctx context.Context, identifier string) (*servicekey.ServiceKey, error)
+var _ Credential = (*ServiceKey)(nil)
 
-	// IncrementServiceKeyNumUsed increments the number of times the service key has been used by increment.
-	// If there is an error while incrementing the number of times the service key has been used,
-	// an error is returned. If the service key does not exist, ErrNotFound is returned.
-	IncrementServiceKeyNumUsed(ctx context.Context, identifier string, increment int64) error
+// ServiceKeyImmutableData is the ServiceKey's unique immutable data
+type ServiceKeyImmutableData struct {
+	// Common Immutable Data
+	CommonImmutableData
+
+	// Salt is the ServiceKey's salt
+	Salt []byte `json:"salt"`
+
+	// Hash is the hashed secret of the ServiceKey
+	Hash []byte `json:"hash"`
+
+	// Expiry is the time at which this ServiceKey will expire
+	Expiry time.Time `json:"expiry"`
+}
+
+// ServiceKeyMutableData is the ServiceKey's unique mutable data
+type ServiceKeyMutableData struct {
+	// Common Mutable Data
+	CommonMutableData
+
+	// ResourceIDs is the list of resources this ServiceKey can access
+	ResourceIDs []ResourceIdentifier `json:"resource_ids"`
+}
+
+// ServiceKey represents an Service Key Credential
+type ServiceKey struct {
+	immutableData ServiceKeyImmutableData
+	mutableData   ServiceKeyMutableData
+}
+
+// NewServiceKey returns a new ServiceKey
+func NewServiceKey(immutableData ServiceKeyImmutableData, mutableData ServiceKeyMutableData) ServiceKey {
+	return ServiceKey{
+		immutableData: immutableData,
+		mutableData:   mutableData,
+	}
+}
+
+// UniqueImmutableData returns the ServiceKey's unique immutable data (which includes the common immutable data)
+func (a *ServiceKey) UniqueImmutableData() ServiceKeyImmutableData {
+	return a.immutableData
+}
+
+// UniqueMutableData returns the ServiceKey's unique mutable data (which includes the common mutable data)
+func (a *ServiceKey) UniqueMutableData(_ context.Context) (ServiceKeyMutableData, error) {
+	return a.mutableData, nil
+}
+
+// ImmutableData returns the ServiceKey's common immutable data
+func (a *ServiceKey) ImmutableData() CommonImmutableData {
+	return a.UniqueImmutableData().CommonImmutableData
+}
+
+// MutableData returns the ServiceKey's common mutable data
+func (a *ServiceKey) MutableData(ctx context.Context) (CommonMutableData, error) {
+	md, err := a.UniqueMutableData(ctx)
+	return md.CommonMutableData, err
+}
+
+// CanAccess returns whether the ServiceKey can access the given ResourceIdentifier
+func (a *ServiceKey) CanAccess(ctx context.Context, resourceIdentifier ResourceIdentifier) bool {
+	md, err := a.UniqueMutableData(ctx)
+	if err != nil {
+		return false
+	}
+	for _, _resourceIdentifier := range md.ResourceIDs {
+		if _resourceIdentifier.Equals(resourceIdentifier) {
+			return true
+		}
+	}
+	return false
+}
+
+// ServiceKeyReadProvider is the read-only storage interface for ServiceKeys
+type ServiceKeyReadProvider interface {
+	// GetServiceKey returns the ServiceKey for the given identifier
+	//
+	// If the ServiceKey does not exist, ErrNotFound is returned
+	GetServiceKey(ctx context.Context, identifier string) (ServiceKey, error)
+
+	// ListServiceKeysByOrganization returns a list of all ServiceKeys for a given Organization Identifier
+	//
+	// If the Organization does not exist, ErrNotFound is returned
+	// If there are no ServiceKeys for the Organization, an empty list is returned
+	ListServiceKeysByOrganization(ctx context.Context, organizationIdentifier string) ([]ServiceKey, error)
+}
+
+// ServiceKeyProvider is the storage interface for ServiceKeys
+type ServiceKeyProvider interface {
+	// ServiceKeyReadProvider is the read-only storage interfaces for ServiceKeys
+	ServiceKeyReadProvider
 }

@@ -8,29 +8,31 @@ import (
 
 var _ Credential = (*APIKey)(nil)
 
-// APIKeyImmutableData is the API Key's unique immutable data
+// APIKeyImmutableData is the APIKey's unique immutable data
 type APIKeyImmutableData struct {
 	// Common Immutable Data
 	CommonImmutableData
 
-	// Salt is the API Key's salt
+	// Salt is the APIKey's salt
 	Salt []byte `json:"salt"`
 
-	// Hash is the hashed secret of the API Key
+	// Hash is the hashed secret of the APIKey
 	Hash []byte `json:"hash"`
 }
 
-// APIKeyMutableData is the API Key's unique mutable data
+// APIKeyMutableData is the APIKey's unique mutable data
 type APIKeyMutableData struct {
 	// Common Mutable Data
 	CommonMutableData
 }
 
+// APIKey represents an API Key Credential
 type APIKey struct {
 	immutableData APIKeyImmutableData
 	mutableData   APIKeyMutableData
 }
 
+// NewAPIKey returns a new APIKey
 func NewAPIKey(immutableData APIKeyImmutableData, mutableData APIKeyMutableData) APIKey {
 	return APIKey{
 		immutableData: immutableData,
@@ -38,43 +40,48 @@ func NewAPIKey(immutableData APIKeyImmutableData, mutableData APIKeyMutableData)
 	}
 }
 
-// UniqueImmutableData returns the API Key's unique immutable data (which includes the common immutable data)
+// UniqueImmutableData returns the APIKey's unique immutable data (which includes the common immutable data)
 func (a *APIKey) UniqueImmutableData() APIKeyImmutableData {
 	return a.immutableData
 }
 
-// UniqueMutableData returns the API Key's unique mutable data (which includes the common mutable data)
+// UniqueMutableData returns the APIKey's unique mutable data (which includes the common mutable data)
 func (a *APIKey) UniqueMutableData(_ context.Context) (APIKeyMutableData, error) {
 	return a.mutableData, nil
 }
 
-// ImmutableData returns the API Key's common immutable data
+// ImmutableData returns the APIKey's common immutable data
 func (a *APIKey) ImmutableData() CommonImmutableData {
 	return a.UniqueImmutableData().CommonImmutableData
 }
 
-// MutableData returns the API Key's common mutable data
+// MutableData returns the APIKey's common mutable data
 func (a *APIKey) MutableData(ctx context.Context) (CommonMutableData, error) {
 	md, err := a.UniqueMutableData(ctx)
 	return md.CommonMutableData, err
 }
 
-// APIKeyReadProvider is the read-only storage interface for API Keys
+// CanAccess returns whether the APIKey can access the given ResourceIdentifier
+func (a *APIKey) CanAccess(_ context.Context, _ ResourceIdentifier) bool {
+	return true
+}
+
+// APIKeyReadProvider is the read-only storage interface for APIKeys
 type APIKeyReadProvider interface {
-	// GetAPIKey returns the API key for the given identifier
+	// GetAPIKey returns the APIKey for the given identifier
 	//
-	// If the API key does not exist, ErrNotFound is returned
+	// If the APIKey does not exist, ErrNotFound is returned
 	GetAPIKey(ctx context.Context, identifier string) (APIKey, error)
 
-	// ListAPIKeysByOrganization returns a list of all API Keys for a given Organization Identifier
+	// ListAPIKeysByOrganization returns a list of all APIKeys for a given Organization Identifier
 	//
 	// If the Organization does not exist, ErrNotFound is returned
-	// If there are no API Keys for the Organization, an empty list is returned
+	// If there are no APIKeys for the Organization, an empty list is returned
 	ListAPIKeysByOrganization(ctx context.Context, organizationIdentifier string) ([]APIKey, error)
 }
 
-// APIKeyProvider is the storage interface for API Keys
+// APIKeyProvider is the storage interface for APIKeys
 type APIKeyProvider interface {
-	// APIKeyReadProvider is the read-only storage interfaces for API Keys
+	// APIKeyReadProvider is the read-only storage interfaces for APIKeys
 	APIKeyReadProvider
 }
