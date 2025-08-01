@@ -6,8 +6,8 @@ import (
 	"context"
 )
 
-var _ UnsafeCredential = (*UnsafeAPIKey)(nil)
-var _ Credential = (*APIKey)(nil)
+var _ UnsafeCredential[UnsafeAPIKey, APIKey, APIKeyImmutableData, APIKeyMutableData, APIKeyReadProvider] = (*UnsafeAPIKey)(nil)
+var _ Credential[UnsafeAPIKey, APIKeyImmutableData, APIKeyMutableData, APIKeyReadProvider] = (*APIKey)(nil)
 
 // APIKeyImmutableData is the APIKey's unique immutable data
 type APIKeyImmutableData struct {
@@ -44,6 +44,19 @@ func NewUnsafeAPIKey(immutableData APIKeyImmutableData, mutableData APIKeyMutabl
 	}
 }
 
+// Safe returns the Safe API Key representation
+func (a UnsafeAPIKey) Safe(_ APIKeyReadProvider, _ InvalidationChecker) APIKey {
+	return APIKey{
+		unsafe: a,
+	}
+}
+
+// SetMutableData sets the Mutable Data for the UnsafeAPIKey
+func (a UnsafeAPIKey) SetMutableData(uniqueMutableData APIKeyMutableData) UnsafeAPIKey {
+	a.mutableData = uniqueMutableData
+	return a
+}
+
 // UniqueImmutableData returns the UnsafeAPIKey's unique immutable data (which includes the common immutable data)
 func (a UnsafeAPIKey) UniqueImmutableData() APIKeyImmutableData {
 	return a.immutableData
@@ -62,11 +75,6 @@ func (a UnsafeAPIKey) ImmutableData() CommonImmutableData {
 // MutableData returns the UnsafeAPIKey's common mutable data
 func (a UnsafeAPIKey) MutableData() CommonMutableData {
 	return a.UniqueMutableData().CommonMutableData
-}
-
-func (a UnsafeAPIKey) SetMutableData(uniqueMutableData APIKeyMutableData) UnsafeAPIKey {
-	a.mutableData = uniqueMutableData
-	return a
 }
 
 // APIKey represents an API Key Credential
@@ -89,7 +97,7 @@ func (a *APIKey) Unsafe() UnsafeAPIKey {
 
 // SetUnsafeMutable sets the UnsafeAPIKey's APIKeyMutableData for an APIKey
 func (a *APIKey) SetUnsafeMutable(uniqueMutableData APIKeyMutableData) {
-	a.unsafe = a.unsafe.SetMutableData(uniqueMutableData)
+	a.unsafe = a.Unsafe().SetMutableData(uniqueMutableData)
 }
 
 // UniqueImmutableData returns the APIKey's unique immutable data (which includes the common immutable data)

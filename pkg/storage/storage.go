@@ -41,7 +41,11 @@ type CommonMutableData struct {
 
 // Credential is the common interface that can be used to interact with
 // the various Credential types
-type Credential interface {
+type Credential[UnsafeCredentialType any, ImmutableData any, MutableData any, ReadProvider any] interface {
+	Unsafe() UnsafeCredentialType
+	SetUnsafeMutable(mutableData MutableData)
+	UniqueImmutableData() ImmutableData
+	UniqueMutableData(ctx context.Context) (MutableData, error)
 	ImmutableData() CommonImmutableData
 	MutableData(ctx context.Context) (CommonMutableData, error)
 	CanAccess(ctx context.Context, resourceIdentifier ResourceIdentifier) bool
@@ -49,7 +53,11 @@ type Credential interface {
 
 // UnsafeCredential is the common unsafe interface that can be used to interact with
 // the various Credential types
-type UnsafeCredential interface {
+type UnsafeCredential[Self any, CredentialType any, ImmutableData any, MutableData any, ReadProvider any] interface {
+	Safe(readProvider ReadProvider, invalidationChecker InvalidationChecker) CredentialType
+	SetMutableData(mutableData MutableData) Self
+	UniqueImmutableData() ImmutableData
+	UniqueMutableData() MutableData
 	ImmutableData() CommonImmutableData
 	MutableData() CommonMutableData
 }
