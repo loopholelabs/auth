@@ -72,14 +72,13 @@ type InvalidationChecker interface {
 // using this auth library for authentication and session handling.
 type Storage interface {
 	User
-	SecretKey
-	Flow
-	Health
 
 	Session
 	APIKey
 	ServiceKey
 	Configuration
+	FlowProvider
+	SecretProvider
 
 	Shutdown() error
 }
