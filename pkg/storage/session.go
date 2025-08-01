@@ -156,7 +156,7 @@ func (a *Session) CanAccess(_ context.Context, _ ResourceIdentifier) bool {
 	return true
 }
 
-// SessionReadProvider is the read-only storage interface for sessions
+// SessionReadProvider is the read-only storage interface for Sessions
 type SessionReadProvider interface {
 	// GetSession gets the session for the given identifier.
 	//
@@ -177,27 +177,38 @@ type SessionReadProvider interface {
 	ListSessionsByUser(ctx context.Context, userIdentifier string) ([]Session, error)
 }
 
-// SessionProvider is the storage interface for sessions.
-type SessionProvider interface {
-	// SessionReadProvider is the read-only storage interfaces for sessions
-	SessionReadProvider
+// SessionWriteProvider is the write-only storage interface for Sessions
+type SessionWriteProvider interface {
+	// CreateSession creates the given Session.
+	//
+	// If the User or Organization does not exist, ErrNotFound is returned.
+	// If the Organization that is associated with the Session is deleted,
+	// the session should also be deleted.
+	// If the Session already exists, ErrAlreadyExists is returned.
+	CreateSession(ctx context.Context, session Session) error
 
-	// SetSession sets the session for the given session.ID. If there is an error
-	// while setting the session, an error is returned.
-	// If the user or organization does not exist, ErrNotFound is returned.
-	// If the organization associated with the session is not empty, the session is
-	// associated with the organization. If the session is associated with an organization
-	// and that organization is deleted, the session should also be deleted. If the session
-	// already exists, it ErrAlreadyExists is returned.
-	SetSession(ctx context.Context, session Session) error
-
-	// DeleteSession deletes the session for the given id. If
-	// there is an error while deleting the session, an error is returned.
-	// ErrNotFound is returned if the session does not exist.
+	// DeleteSession deletes the Session for the given identifier.
+	//
+	// If the Session does not exist, ErrNotFound is returned.
 	DeleteSession(ctx context.Context, identifier string) error
 
-	// UpdateSessionExpiry updates the expiry of the session for the given id. If
-	// there is an error while updating the session, an error is returned. If the
-	// session does not exist, ErrNotFound is returned.
+	// UpdateSession updates the mutable data of the Session for the given identifier.
+	//
+	// If the Session does not exist, ErrNotFound is returned.
+	UpdateSession(ctx context.Context, identifier string, mutableData SessionMutableData) error
+
+	// UpdateSessionExpiry updates the expiry of the Session for the given identifier.
+	// Normally the expiry of a Session is immutable.
+	//
+	// If the Session does not exist, ErrNotFound is returned.
 	UpdateSessionExpiry(ctx context.Context, identifier string, expiry time.Time) error
+}
+
+// SessionProvider is the storage interface for Sessions.
+type SessionProvider interface {
+	// SessionReadProvider is the read-only storage interfaces for Sessions
+	SessionReadProvider
+
+	// SessionWriteProvider is the write-only storage interfaces for Sessions
+	SessionWriteProvider
 }

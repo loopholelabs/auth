@@ -4,18 +4,21 @@ package storage
 
 import "context"
 
+// Configuration represents the Configuration for Authentication
 type Configuration struct {
 }
 
 // ConfigurationReadProvider is the read-only storage interface for Configurations
 type ConfigurationReadProvider interface {
 	// GetConfiguration returns the Configuration
+	//
+	// If the Configuration does not exist, ErrNotFound is returned.
 	GetConfiguration(ctx context.Context) (Configuration, error)
 }
 
 // ConfigurationWriteProvider is the write-only storage interface for Configurations
 type ConfigurationWriteProvider interface {
-	// SetConfiguration sets the Configuration
+	// SetConfiguration sets the Configuration.
 	SetConfiguration(ctx context.Context, configuration Configuration) error
 }
 

@@ -7,7 +7,8 @@ import (
 	"time"
 )
 
-var _ Credential = (*ServiceKey)(nil)
+var _ UnsafeCredential[UnsafeServiceKey, ServiceKey, ServiceKeyImmutableData, ServiceKeyMutableData, ServiceKeyReadProvider] = (*UnsafeServiceKey)(nil)
+var _ Credential[UnsafeServiceKey, ServiceKeyImmutableData, ServiceKeyMutableData, ServiceKeyReadProvider] = (*ServiceKey)(nil)
 
 // ServiceKeyImmutableData is the ServiceKey's unique immutable data
 type ServiceKeyImmutableData struct {
@@ -33,28 +34,87 @@ type ServiceKeyMutableData struct {
 	ResourceIDs []ResourceIdentifier `json:"resource_ids"`
 }
 
-// ServiceKey represents an Service Key Credential
-type ServiceKey struct {
+// UnsafeServiceKey represents an unsafe Service Key Credential
+type UnsafeServiceKey struct {
+	// UnsafeServiceKey's immutable data
 	immutableData ServiceKeyImmutableData
-	mutableData   ServiceKeyMutableData
+
+	// UnsafeServiceKey's mutable data
+	mutableData ServiceKeyMutableData
 }
 
-// NewServiceKey returns a new ServiceKey
-func NewServiceKey(immutableData ServiceKeyImmutableData, mutableData ServiceKeyMutableData) ServiceKey {
-	return ServiceKey{
+// NewUnsafeServiceKey returns a new UnsafeServiceKey
+func NewUnsafeServiceKey(immutableData ServiceKeyImmutableData, mutableData ServiceKeyMutableData) UnsafeServiceKey {
+	return UnsafeServiceKey{
 		immutableData: immutableData,
 		mutableData:   mutableData,
 	}
 }
 
+// Safe returns the Safe Service Key representation
+func (a UnsafeServiceKey) Safe(_ ServiceKeyReadProvider, _ InvalidationChecker) ServiceKey {
+	return ServiceKey{
+		unsafe: a,
+	}
+}
+
+// SetMutableData sets the Mutable Data for the UnsafeServiceKey
+func (a UnsafeServiceKey) SetMutableData(uniqueMutableData ServiceKeyMutableData) UnsafeServiceKey {
+	a.mutableData = uniqueMutableData
+	return a
+}
+
+// UniqueImmutableData returns the UnsafeServiceKey's unique immutable data (which includes the common immutable data)
+func (a UnsafeServiceKey) UniqueImmutableData() ServiceKeyImmutableData {
+	return a.immutableData
+}
+
+// UniqueMutableData returns the UnsafeServiceKey's unique mutable data (which includes the common mutable data)
+func (a UnsafeServiceKey) UniqueMutableData() ServiceKeyMutableData {
+	return a.mutableData
+}
+
+// ImmutableData returns the UnsafeServiceKey's common immutable data
+func (a UnsafeServiceKey) ImmutableData() CommonImmutableData {
+	return a.UniqueImmutableData().CommonImmutableData
+}
+
+// MutableData returns the UnsafeServiceKey's common mutable data
+func (a UnsafeServiceKey) MutableData() CommonMutableData {
+	return a.UniqueMutableData().CommonMutableData
+}
+
+// ServiceKey represents an Service Key Credential
+type ServiceKey struct {
+	// ServiceKey's unsafe data
+	unsafe UnsafeServiceKey
+}
+
+// NewServiceKey returns a new ServiceKey
+func NewServiceKey(immutableData ServiceKeyImmutableData, mutableData ServiceKeyMutableData) ServiceKey {
+	return ServiceKey{
+		unsafe: NewUnsafeServiceKey(immutableData, mutableData),
+	}
+}
+
+// Unsafe returns the Unsafe Service Key representation
+func (a *ServiceKey) Unsafe() UnsafeServiceKey {
+	return a.unsafe
+}
+
+// SetUnsafeMutable sets the UnsafeServiceKey's ServiceKeyMutableData for an ServiceKey
+func (a *ServiceKey) SetUnsafeMutable(uniqueMutableData ServiceKeyMutableData) {
+	a.unsafe = a.Unsafe().SetMutableData(uniqueMutableData)
+}
+
 // UniqueImmutableData returns the ServiceKey's unique immutable data (which includes the common immutable data)
 func (a *ServiceKey) UniqueImmutableData() ServiceKeyImmutableData {
-	return a.immutableData
+	return a.Unsafe().UniqueImmutableData()
 }
 
 // UniqueMutableData returns the ServiceKey's unique mutable data (which includes the common mutable data)
 func (a *ServiceKey) UniqueMutableData(_ context.Context) (ServiceKeyMutableData, error) {
-	return a.mutableData, nil
+	return a.Unsafe().UniqueMutableData(), nil
 }
 
 // ImmutableData returns the ServiceKey's common immutable data
