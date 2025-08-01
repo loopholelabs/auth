@@ -10,7 +10,8 @@ import (
 	"github.com/loopholelabs/auth/pkg/flow"
 )
 
-var _ Credential = (*Session)(nil)
+var _ UnsafeCredential[UnsafeSession, Session, SessionImmutableData, SessionMutableData, SessionReadProvider] = (*UnsafeSession)(nil)
+var _ Credential[UnsafeSession, SessionImmutableData, SessionMutableData, SessionReadProvider] = (*Session)(nil)
 
 // SessionImmutableData is the Session's unique immutable data
 type SessionImmutableData struct {
@@ -36,59 +37,121 @@ type SessionMutableData struct {
 	UserEmail string `json:"user_email"`
 }
 
-type ConstantSession struct {
+// UnsafeSession represents an unsafe Session Credential
+type UnsafeSession struct {
+	// UnsafeSession's immutable data
 	immutableData SessionImmutableData
-	mutableData   SessionMutableData
+
+	// UnsafeSession's mutable data
+	mutableData SessionMutableData
 }
 
-// Session represents a Session Credential
-type Session struct {
-	internalSession InternalSession
-
-	// If readProvider is nil, assume the mutableData is up-to-date
-	readProvider SessionReadProvider
-
-	// If invalidationChecker is nil, assume the mutableData is up-to-date
-	invalidationChecker InvalidationChecker
+// NewUnsafeSession returns a new UnsafeSession
+func NewUnsafeSession(immutableData SessionImmutableData, mutableData SessionMutableData) UnsafeSession {
+	return UnsafeSession{
+		immutableData: immutableData,
+		mutableData:   mutableData,
+	}
 }
 
-func NewSession(immutableData SessionImmutableData, mutableData SessionMutableData, readProvider SessionReadProvider, invalidationChecker InvalidationChecker) Session {
+// Safe returns the Safe Session representation
+func (a UnsafeSession) Safe(readProvider SessionReadProvider, invalidationChecker InvalidationChecker) Session {
 	return Session{
-		internalSession: InternalSession{
-			immutableData: immutableData,
-			mutableData:   mutableData,
-		},
+		unsafe:              a,
 		readProvider:        readProvider,
 		invalidationChecker: invalidationChecker,
 	}
 }
 
-func (a *Session) UniqueImmutableData() SessionImmutableData {
+// SetMutableData sets the Mutable Data for the UnsafeSession
+func (a UnsafeSession) SetMutableData(mutableData SessionMutableData) UnsafeSession {
+	a.mutableData = mutableData
+	return a
+}
+
+// UniqueImmutableData returns the UnsafeSession's unique immutable data (which includes the common immutable data)
+func (a UnsafeSession) UniqueImmutableData() SessionImmutableData {
 	return a.immutableData
 }
 
-func (a *Session) UniqueMutableData(ctx context.Context) (SessionMutableData, error) {
-	if a.readProvider != nil && a.invalidationChecker != nil {
-		if a.invalidationChecker.IsInvalid(a.UniqueImmutableData().Identifier, a.mutableData.Generation) {
-			session, err := a.readProvider.GetSession(ctx, a.UniqueImmutableData().UserIdentifier)
-			if err != nil {
-				return SessionMutableData{}, errors.Join(ErrRevalidationFailed, err)
-			}
-			a.mutableData = session.mutableData
-		}
-	}
-	return a.mutableData, nil
+// UniqueMutableData returns the UnsafeSession's unique mutable data (which includes the common mutable data)
+func (a UnsafeSession) UniqueMutableData() SessionMutableData {
+	return a.mutableData
 }
 
+// ImmutableData returns the UnsafeSession's common immutable data
+func (a UnsafeSession) ImmutableData() CommonImmutableData {
+	return a.UniqueImmutableData().CommonImmutableData
+}
+
+// MutableData returns the UnsafeSession's common mutable data
+func (a UnsafeSession) MutableData() CommonMutableData {
+	return a.UniqueMutableData().CommonMutableData
+}
+
+// Session represents a Session Credential
+type Session struct {
+	// Session's unsafe data
+	unsafe UnsafeSession
+
+	// Session's SessionReadProvider
+	readProvider SessionReadProvider
+
+	// Session's InvalidationChecker
+	invalidationChecker InvalidationChecker
+}
+
+// NewSession returns a new Session
+func NewSession(immutableData SessionImmutableData, mutableData SessionMutableData, readProvider SessionReadProvider, invalidationChecker InvalidationChecker) Session {
+	if readProvider == nil || invalidationChecker == nil {
+		panic("ReadProvider and InvalidationChecker must not be nil")
+	}
+	return Session{
+		unsafe:              NewUnsafeSession(immutableData, mutableData),
+		readProvider:        readProvider,
+		invalidationChecker: invalidationChecker,
+	}
+}
+
+// Unsafe returns the Unsafe Session representation
+func (a *Session) Unsafe() UnsafeSession {
+	return a.unsafe
+}
+
+// SetUnsafeMutable sets the UnsafeSession's SessionMutableData for a Session
+func (a *Session) SetUnsafeMutable(mutableData SessionMutableData) {
+	a.unsafe = a.Unsafe().SetMutableData(mutableData)
+}
+
+// UniqueImmutableData returns the Session's unique immutable data (which includes the common immutable data)
+func (a *Session) UniqueImmutableData() SessionImmutableData {
+	return a.Unsafe().UniqueImmutableData()
+}
+
+// UniqueMutableData returns the Session's unique mutable data (which includes the common mutable data)
+func (a *Session) UniqueMutableData(ctx context.Context) (SessionMutableData, error) {
+	if a.invalidationChecker.IsInvalid(a.UniqueImmutableData().Identifier, a.Unsafe().MutableData().Generation) {
+		session, err := a.readProvider.GetSession(ctx, a.UniqueImmutableData().UserIdentifier)
+		if err != nil {
+			return SessionMutableData{}, errors.Join(ErrRevalidationFailed, err)
+		}
+		a.SetUnsafeMutable(session.Unsafe().UniqueMutableData())
+	}
+	return a.Unsafe().UniqueMutableData(), nil
+}
+
+// ImmutableData returns the Session's common immutable data
 func (a *Session) ImmutableData() CommonImmutableData {
 	return a.UniqueImmutableData().CommonImmutableData
 }
 
+// MutableData returns the Session's common mutable data
 func (a *Session) MutableData(ctx context.Context) (CommonMutableData, error) {
 	md, err := a.UniqueMutableData(ctx)
 	return md.CommonMutableData, err
 }
 
+// CanAccess returns whether the Session can access the given ResourceIdentifier
 func (a *Session) CanAccess(_ context.Context, _ ResourceIdentifier) bool {
 	return true
 }
