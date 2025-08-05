@@ -41,14 +41,21 @@ libraries, ensuring no service directly accesses the authentication database.
 - **No Migration**: Credentials cannot be moved between organizations or users
 - **Revalidation over Mutation**: Changes trigger revalidation (new token generation) rather than modification
 
-#### 1.2.4 Security First
+#### 1.2.4 Efficient Validation Through Caching
+
+- **In-Memory Lookups**: Validators cache revocation and revalidation data locally
+- **Periodic Polling**: Configurable refresh cycle balances freshness with database load
+- **Silent Rotation**: Generation mismatches trigger automatic token refresh without failing requests
+- **Zero-Downtime Updates**: Role changes and permission updates apply within a configurable amount of time
+
+#### 1.2.5 Security First
 
 - **UUID Identifiers**: All primary keys use UUIDs to prevent enumeration attacks
 - **Bcrypt Hashing**: All secrets use bcrypt with appropriate salt rounds
 - **Short TTLs**: Session tokens expire in a configurable amount of time, requiring regular refresh
 - **Explicit Revocation**: Support for immediate credential invalidation
 
-#### 1.2.5 Explicit State Management
+#### 1.2.6 Explicit State Management
 
 - **No Automatic Linking**: Email addresses never automatically link accounts
 - **No Soft Deletes**: Deleted records are removed, not marked inactive
@@ -241,7 +248,9 @@ Three tables with identical structure:
 **Business Rules**:
 
 - Presence in this table = session is revoked (401 response)
-- Validators must check this table before accepting JWT
+- Validators poll this table every `revocation_poll_seconds` (typically 60 seconds)
+- Revoked session IDs are cached in-memory by validators for fast lookup
+- When validator's in-memory cache contains a session ID, return 401 immediately
 - Records can be deleted after session natural expiration
 - Expiry computed as: related session's `expires_at` + 24 hours (grace period)
 
@@ -259,9 +268,13 @@ Three tables with identical structure:
 
 **Business Rules**:
 
-- When validator sees older generation in JWT, returns 401 with refresh instruction
-- Client exchanges old JWT for new one with updated generation
-- Allows forcing token refresh without full revocation
+- Validators poll this table every `revalidation_poll_seconds` (typically 60 seconds)
+- Validator caches `session_identifier -> latest_generation` mapping in memory
+- When validator detects generation mismatch (JWT generation < cached generation):
+    - Silently calls `/v1/sessions/refresh` on behalf of the user
+    - Returns new JWT to the client in a special header
+    - Proceeds with the API call using the new session context (updated role, permissions)
+- Client libraries should transparently handle session rotation
 - Records expire when related session expires
 - Multiple generations can be revalidated concurrently
 
@@ -377,7 +390,7 @@ Three tables with identical structure:
 - Token in email link is never stored (only hash)
 - Links expire after `created_at + 30 minutes`
 - IP address logged for abuse detection
-- One-time use (deleted after successful auth)
+- One-time use (deleted after successful authentication)
 
 ### 2.5 Configuration Entity
 
@@ -441,7 +454,7 @@ When a new user signs up, the service creates their identity ecosystem:
    INSERT INTO [provider]_identities (user_identifier, provider_identifier, verified_emails)
    VALUES (?user_identifier, ?provider_id, JSON_ARRAY(LOWER(?emails)));
    
-   -- Create owner membership in default org
+   -- Create owner membership in default organization
    INSERT INTO memberships (user_identifier, organization_identifier, role)
    VALUES (?user_identifier, ?organization_identifier, 'owner');
    
@@ -449,7 +462,7 @@ When a new user signs up, the service creates their identity ecosystem:
    ```
 
 4. **Session Creation**
-    - Issue JWT with `organization_identifier` = user's default org
+    - Issue JWT with `organization_identifier` = user's default organization
     - Record in sessions table with 60-minute expiry
 
 ### 3.2 Sign-In Flow (Existing User)
@@ -461,7 +474,7 @@ When a new user signs up, the service creates their identity ecosystem:
 2. **Identity Resolution**
    ```sql
    SELECT user_identifier FROM [provider]_identities 
-   WHERE provider_identifier = ?provider_id;
+   WHERE provider_identifier = ?provider_identifier;
    ```
 
 3. **Session Creation**
@@ -507,7 +520,7 @@ When a new user signs up, the service creates their identity ecosystem:
 
 1. **Request Magic Link**
    ```
-   POST /v1/auth/magic-link
+   POST /v1/authentication/magic-link
    {
      "email": "user@example.com"
    }
@@ -521,7 +534,7 @@ When a new user signs up, the service creates their identity ecosystem:
 
 3. **Redeem Magic Link**
    ```
-   POST /v1/auth/magic-link/redeem
+   POST /v1/authentication/magic-link/redeem
    {
      "flow_id": "...",
      "token": "..."
@@ -538,7 +551,7 @@ When a new user signs up, the service creates their identity ecosystem:
 
 1. **Initiate Device Flow**
    ```
-   POST /v1/auth/device
+   POST /v1/authentication/device
    ```
    Response:
    ```json
@@ -558,7 +571,7 @@ When a new user signs up, the service creates their identity ecosystem:
 
 3. **Device Polling**
    ```
-   POST /v1/auth/device/poll
+   POST /v1/authentication/device/poll
    {
      "poll_token": "uuid-for-polling"
    }
@@ -577,7 +590,7 @@ Authorization: Bearer [session_jwt]
 ```
 
 1. Initiate OAuth flow with special flag
-2. After provider auth, check if `provider_identifier` already exists
+2. After provider authentication, check if `provider_identifier` already exists
 3. If exists: error (already linked to another user)
 4. If not: add to current user's identities
 5. Update `verified_emails` in identity record
@@ -700,7 +713,7 @@ Authorization: Bearer [session_jwt]
 - 'owner' can remove anyone except last owner
 - 'admin' can remove 'member' role only
 - Members can remove themselves
-- Removal cascades to revoke all sessions for that user-org
+- Removal cascades to revoke all sessions for that user-organization
 
 ### 4.4 Organization Deletion
 
@@ -734,7 +747,7 @@ Sessions are created during sign-in or organization switching:
 // JWT Payload Structure
 {
   "sub": "user_identifier",
-  "org": "organization_identifier",
+  "organization": "organization_identifier",
   "sid": "session_identifier",
   "gen": 1,
   // generation number
@@ -747,7 +760,9 @@ Sessions are created during sign-in or organization switching:
 
 #### 5.1.2 Session Refresh
 
-When generation doesn't match `last_generation`:
+Sessions are refreshed in two scenarios:
+
+**Manual Refresh** (user-initiated):
 
 ```
 POST /v1/sessions/refresh
@@ -755,6 +770,22 @@ Authorization: Bearer [old_jwt]
 ```
 
 Returns new JWT with updated generation and fresh expiry.
+
+**Silent Rotation** (validator-initiated):
+When a validator detects a generation mismatch:
+
+1. Validator has cached that session needs generation 2
+2. User presents JWT with generation 1
+3. Validator automatically calls `/v1/sessions/refresh` on user's behalf
+4. Validator returns new JWT in `X-Refreshed-Token` header
+5. Validator proceeds with the original API call using the new session context
+6. Client library updates stored token for future requests
+
+This ensures:
+
+- Users get updated roles/permissions immediately
+- No failed requests due to generation mismatches
+- Transparent session rotation without user intervention
 
 #### 5.1.3 Session Revocation
 
@@ -794,7 +825,7 @@ Authorization: Bearer [session_jwt]
 ```json5
 {
   "key_id": "uuid",
-  "secret": "org_uuid_randomsecret",
+  "secret": "organization_uuid_randomsecret",
   // Only shown once
   "role": "readonly",
   "created_at": "2025-01-01T00:00:00Z"
@@ -845,7 +876,7 @@ Authorization: Bearer [session_jwt]
 ```json5
 {
   "key_id": "uuid",
-  "secret": "svc_uuid_randomsecret",
+  "secret": "service_uuid_randomsecret",
   // Only shown once
   "role": "service",
   "resource_ids": [
@@ -871,17 +902,34 @@ Returns short-lived JWT (15 minutes) with embedded resource constraints.
 #### 5.4.1 Validator Library Algorithm
 
 ```python
-def validate_token(token):
+def validate_token(token, validator_cache):
     if token.startswith("ey"):  # JWT
-        # Verify ES256 signature with cached public key
+        claims = verify_es256_signature(token, validator_cache.public_key)
+        
+        # Check revocation from in-memory cache
+        if claims['sid'] in validator_cache.revoked_sessions:
+            return Error(401, "Session revoked")
+        
+        # Check generation from in-memory cache
+        latest_gen = validator_cache.session_generations.get(claims['sid'])
+        if latest_gen and claims['gen'] < latest_gen:
+            # Silent rotation: get new token on user's behalf
+            new_token = call_api("/v1/sessions/refresh", token)
+            new_claims = decode_jwt(new_token)
+            # Return both new token and claims for this request
+            return Success(claims=new_claims, new_token=new_token)
+        
         # Check expiry
-        # Check session_identifier not in revocations
-        # Check generation matches last_generation
-        # Return claims or trigger refresh
+        if claims['exp'] < time.now():
+            return Error(401, "Token expired")
+            
+        return Success(claims=claims)
+        
     elif token.startswith("org_"):  # API Key
         # Extract key_id from token
         # Bcrypt compare with stored hash
         # Return bound organization and role
+        
     elif token.startswith("svc_"):  # Service Key
         # Extract key_id from token
         # Bcrypt compare with stored hash
@@ -889,13 +937,64 @@ def validate_token(token):
         # Return organization, user, role, resources
 ```
 
-#### 5.4.2 Revocation Checking
+#### 5.4.2 Validator Cache Management
 
-Validators maintain local caches updated every 60 seconds:
+The validator maintains an in-memory cache that is refreshed periodically:
 
-- Revoked session IDs
-- Sessions needing revalidation (generation mismatch)
-- Current JWKS for signature verification
+```python
+class ValidatorCache:
+    def __init__(self):
+        self.revoked_sessions = set()  # Set of revoked session IDs
+        self.session_generations = {}  # Map of session_id -> latest_generation
+        self.public_key = None         # Current ES256 public key
+        self.config_version = 0        # Current configuration version
+    
+    def refresh_cache(self):
+        """Called every revocation_poll_seconds (60 seconds)"""
+        # Fetch all revoked sessions
+        self.revoked_sessions = fetch_revoked_session_ids()
+        
+        # Fetch all sessions needing revalidation
+        self.session_generations = fetch_session_latest_generations()
+        
+        # Check configuration version
+        new_version = fetch_config_version()
+        if new_version > self.config_version:
+            self.public_key = fetch_current_public_key()
+            self.config_version = new_version
+```
+
+#### 5.4.3 Client Library Session Rotation
+
+When the validator returns a new token, client libraries handle it transparently:
+
+```python
+def make_api_call(endpoint, token):
+    response = http_client.get(
+        endpoint,
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    
+    # Check for rotated session in response header
+    if "X-Refreshed-Token" in response.headers:
+        new_token = response.headers["X-Refreshed-Token"]
+        # Store new token for future requests
+        token_store.update(new_token)
+        # Current request already used new token context
+    
+    return response
+```
+
+#### 5.4.4 Polling Intervals
+
+Validators use two different polling intervals:
+
+- **Revocation/Revalidation Poll**: Every <configurable> seconds (high priority)
+    - Fetches revoked session IDs
+    - Fetches session generation updates
+- **Configuration Poll**: Every <configurable> seconds (low priority)
+    - Checks for configuration version changes
+    - Updates JWKS if needed
 
 ### 5.5 Key Rotation
 
@@ -942,9 +1041,9 @@ Authorization: Bearer [admin_session]
 
 #### 6.2.1 Authentication Endpoints
 
-- `/v1/auth/*`: 5 attempts per email per minute
+- `/v1/authentication/*`: 5 attempts per email per minute
 - `/v1/sessions/api`: 10 requests per API key per minute
-- `/v1/auth/device/poll`: 1 request per 5 seconds per device
+- `/v1/authentication/device/poll`: 1 request per 5 seconds per device
 
 #### 6.2.2 Administrative Endpoints
 
@@ -1009,7 +1108,7 @@ Content-Security-Policy: default-src 'self';
 
 ### 7.1 Base Configuration
 
-- Base URL: `https://auth.example.com/v1`
+- Base URL: `https://authentication.example.com/v1`
 - Content-Type: `application/json`
 - Authentication: Bearer token (JWT or API key)
 - Error format: RFC 9457 (Problem Details)
@@ -1031,13 +1130,22 @@ X-Request-ID: [uuid]  // Echoed or generated
 X-RateLimit-Limit: 100
 X-RateLimit-Remaining: 99
 X-RateLimit-Reset: 1234567890
+X-Refreshed-Token: [new_jwt]  // Present when session was silently rotated
 ```
+
+**Session Rotation Header**:
+When a session's generation is outdated, validators perform silent rotation and return the new token in
+`X-Refreshed-Token`. Client libraries should:
+
+1. Extract and store the new token
+2. Use it for all future requests
+3. Note that the current request was already processed with the new token's context (updated roles/permissions)
 
 ### 7.3 Error Response Format
 
 ```json
 {
-  "type": "https://auth.example.com/errors/unauthorized",
+  "type": "https://authentication.example.com/errors/unauthorized",
   "title": "Authentication required",
   "status": 401,
   "detail": "The provided token has expired",
@@ -1049,88 +1157,88 @@ X-RateLimit-Reset: 1234567890
 
 #### 7.4.1 Authentication & Sessions
 
-| Method | Path                         | Auth        | Description           |
-|--------|------------------------------|-------------|-----------------------|
-| POST   | `/v1/auth/device`            | None        | Initiate device flow  |
-| POST   | `/v1/auth/device/poll`       | None        | Poll for device auth  |
-| POST   | `/v1/auth/magic-link`        | None        | Request magic link    |
-| POST   | `/v1/auth/magic-link/redeem` | None        | Redeem magic link     |
-| POST   | `/v1/oauth/google/authorize` | None        | Start Google OAuth    |
-| GET    | `/v1/oauth/google/callback`  | None        | Google OAuth callback |
-| POST   | `/v1/oauth/github/authorize` | None        | Start GitHub OAuth    |
-| GET    | `/v1/oauth/github/callback`  | None        | GitHub OAuth callback |
-| POST   | `/v1/sessions/refresh`       | JWT         | Refresh session token |
-| POST   | `/v1/sessions/switch`        | JWT         | Switch organization   |
-| POST   | `/v1/sessions/api`           | API Key     | Get API session       |
-| POST   | `/v1/sessions/service`       | Service Key | Get service session   |
-| DELETE | `/v1/sessions/{id}`          | JWT         | Revoke session        |
+| Method | Path                                   | Authentication | Description                    |
+|--------|----------------------------------------|----------------|--------------------------------|
+| POST   | `/v1/authentication/device`            | None           | Initiate device flow           |
+| POST   | `/v1/authentication/device/poll`       | None           | Poll for device authentication |
+| POST   | `/v1/authentication/magic-link`        | None           | Request magic link             |
+| POST   | `/v1/authentication/magic-link/redeem` | None           | Redeem magic link              |
+| POST   | `/v1/oauth/google/authorize`           | None           | Start Google OAuth             |
+| GET    | `/v1/oauth/google/callback`            | None           | Google OAuth callback          |
+| POST   | `/v1/oauth/github/authorize`           | None           | Start GitHub OAuth             |
+| GET    | `/v1/oauth/github/callback`            | None           | GitHub OAuth callback          |
+| POST   | `/v1/sessions/refresh`                 | JWT            | Refresh session token          |
+| POST   | `/v1/sessions/switch`                  | JWT            | Switch organization            |
+| POST   | `/v1/sessions/api`                     | API Key        | Get API session                |
+| POST   | `/v1/sessions/service`                 | Service Key    | Get service session            |
+| DELETE | `/v1/sessions/{identifier}`            | JWT            | Revoke session                 |
 
 #### 7.4.2 Account Management
 
-| Method | Path                               | Authentication | Description      |
-|--------|------------------------------------|----------------|------------------|
-| GET    | `/v1/account`                      | JWT            | Get current user |
-| PATCH  | `/v1/account`                      | JWT            | Update user      |
-| DELETE | `/v1/account`                      | JWT            | Delete user      |
-| POST   | `/v1/account/link/google`          | JWT            | Link Google      |
-| POST   | `/v1/account/link/github`          | JWT            | Link GitHub      |
-| POST   | `/v1/account/link/magic`           | JWT            | Link email       |
-| DELETE | `/v1/account/link/{provider}/{id}` | JWT            | Unlink identity  |
+| Method | Path                                       | Authentication | Description      |
+|--------|--------------------------------------------|----------------|------------------|
+| GET    | `/v1/account`                              | JWT            | Get current user |
+| PATCH  | `/v1/account`                              | JWT            | Update user      |
+| DELETE | `/v1/account`                              | JWT            | Delete user      |
+| POST   | `/v1/account/link/google`                  | JWT            | Link Google      |
+| POST   | `/v1/account/link/github`                  | JWT            | Link GitHub      |
+| POST   | `/v1/account/link/magic`                   | JWT            | Link email       |
+| DELETE | `/v1/account/link/{provider}/{identifier}` | JWT            | Unlink identity  |
 
 #### 7.4.3 Organization Management
 
-| Method | Path                     | Auth      | Description               |
-|--------|--------------------------|-----------|---------------------------|
-| GET    | `/v1/organizations`      | JWT       | List user's organizations |
-| POST   | `/v1/organizations`      | JWT       | Create organization       |
-| GET    | `/v1/organizations/{id}` | JWT       | Get organization details  |
-| PATCH  | `/v1/organizations/{id}` | JWT/Owner | Update organization       |
-| DELETE | `/v1/organizations/{id}` | JWT/Owner | Delete organization       |
+| Method | Path                             | Authentication | Description               |
+|--------|----------------------------------|----------------|---------------------------|
+| GET    | `/v1/organizations`              | JWT            | List user's organizations |
+| POST   | `/v1/organizations`              | JWT            | Create organization       |
+| GET    | `/v1/organizations/{identifier}` | JWT            | Get organization details  |
+| PATCH  | `/v1/organizations/{identifier}` | JWT/Owner      | Update organization       |
+| DELETE | `/v1/organizations/{identifier}` | JWT/Owner      | Delete organization       |
 
 #### 7.4.4 Membership Management
 
-| Method | Path                                    | Auth      | Description   |
-|--------|-----------------------------------------|-----------|---------------|
-| GET    | `/v1/organizations/{id}/members`        | JWT       | List members  |
-| PATCH  | `/v1/organizations/{id}/members/{user}` | JWT/Admin | Update role   |
-| DELETE | `/v1/organizations/{id}/members/{user}` | JWT/Admin | Remove member |
+| Method | Path                                            | Authentication | Description   |
+|--------|-------------------------------------------------|----------------|---------------|
+| GET    | `/v1/organizations/{identifier}/members`        | JWT            | List members  |
+| PATCH  | `/v1/organizations/{identifier}/members/{user}` | JWT/Admin      | Update role   |
+| DELETE | `/v1/organizations/{identifier}/members/{user}` | JWT/Admin      | Remove member |
 
 #### 7.4.5 Invitation Management
 
-| Method | Path                                               | Auth      | Description        |
-|--------|----------------------------------------------------|-----------|--------------------|
-| GET    | `/v1/organizations/{id}/invitations`               | JWT/Admin | List invitations   |
-| POST   | `/v1/organizations/{id}/invitations`               | JWT/Admin | Create invitation  |
-| POST   | `/v1/invitations/accept`                           | None      | Accept invitation  |
-| POST   | `/v1/organizations/{id}/invitations/{inv}/approve` | JWT/Admin | Approve acceptance |
-| DELETE | `/v1/organizations/{id}/invitations/{inv}`         | JWT/Admin | Cancel invitation  |
+| Method | Path                                                       | Authentication | Description        |
+|--------|------------------------------------------------------------|----------------|--------------------|
+| GET    | `/v1/organizations/{identifier}/invitations`               | JWT/Admin      | List invitations   |
+| POST   | `/v1/organizations/{identifier}/invitations`               | JWT/Admin      | Create invitation  |
+| POST   | `/v1/invitations/accept`                                   | None           | Accept invitation  |
+| POST   | `/v1/organizations/{identifier}/invitations/{inv}/approve` | JWT/Admin      | Approve acceptance |
+| DELETE | `/v1/organizations/{identifier}/invitations/{inv}`         | JWT/Admin      | Cancel invitation  |
 
 #### 7.4.6 Credential Management
 
-| Method | Path                                        | Auth      | Description        |
-|--------|---------------------------------------------|-----------|--------------------|
-| GET    | `/v1/organizations/{id}/api-keys`           | JWT/Admin | List API keys      |
-| POST   | `/v1/organizations/{id}/api-keys`           | JWT/Admin | Create API key     |
-| DELETE | `/v1/organizations/{id}/api-keys/{key}`     | JWT/Admin | Revoke API key     |
-| GET    | `/v1/organizations/{id}/service-keys`       | JWT/Admin | List service keys  |
-| POST   | `/v1/organizations/{id}/service-keys`       | JWT/Admin | Create service key |
-| DELETE | `/v1/organizations/{id}/service-keys/{key}` | JWT/Admin | Revoke service key |
+| Method | Path                                                | Authentication | Description        |
+|--------|-----------------------------------------------------|----------------|--------------------|
+| GET    | `/v1/organizations/{identifier}/api-keys`           | JWT/Admin      | List API keys      |
+| POST   | `/v1/organizations/{identifier}/api-keys`           | JWT/Admin      | Create API key     |
+| DELETE | `/v1/organizations/{identifier}/api-keys/{key}`     | JWT/Admin      | Revoke API key     |
+| GET    | `/v1/organizations/{identifier}/service-keys`       | JWT/Admin      | List service keys  |
+| POST   | `/v1/organizations/{identifier}/service-keys`       | JWT/Admin      | Create service key |
+| DELETE | `/v1/organizations/{identifier}/service-keys/{key}` | JWT/Admin      | Revoke service key |
 
 #### 7.4.7 System Endpoints
 
-| Method | Path                        | Auth       | Description         |
-|--------|-----------------------------|------------|---------------------|
-| GET    | `/v1/.well-known/jwks.json` | None       | Public key set      |
-| GET    | `/v1/health`                | None       | Health check        |
-| GET    | `/v1/metrics`               | Internal   | Prometheus metrics  |
-| POST   | `/v1/admin/keys/rotate`     | JWT/System | Rotate signing keys |
+| Method | Path                        | Authentication | Description         |
+|--------|-----------------------------|----------------|---------------------|
+| GET    | `/v1/.well-known/jwks.json` | None           | Public key set      |
+| GET    | `/v1/health`                | None           | Health check        |
+| GET    | `/v1/metrics`               | Internal       | Prometheus metrics  |
+| POST   | `/v1/admin/keys/rotate`     | JWT/System     | Rotate signing keys |
 
 ### 7.5 Pagination
 
 List endpoints support pagination:
 
 ```
-GET /v1/organizations/{id}/members?limit=20&cursor=eyJpZCI6MTIzfQ
+GET /v1/organizations/{identifier}/members?limit=20&cursor=eyJpZCI6MTIzfQ
 ```
 
 Response:
@@ -1200,7 +1308,9 @@ Monitor and rebuild fragmented indexes monthly:
 
 - **Authentication Rate**: Successful/failed sign-ins per minute
 - **Session Creation Rate**: New sessions per minute
+- **Silent Rotation Rate**: Sessions auto-refreshed per minute
 - **Token Validation Latency**: P50/P95/P99
+- **Cache Hit Rate**: Percentage of validations using cached data
 - **Database Connection Pool**: Active/idle/waiting
 - **API Endpoint Latency**: Per endpoint P95
 - **Error Rates**: 4xx/5xx per endpoint
@@ -1234,9 +1344,21 @@ Monitor and rebuild fragmented indexes monthly:
 #### 8.4.1 Caching Strategy
 
 - **JWKS**: Cache for 1 hour in CDN
-- **Revocation List**: Redis with 60-second refresh
+- **Revocation List**: In-memory set refreshed every <configurable time> seconds
+    - Critical for performance (avoiding DB lookups on every request)
+    - Maximum staleness: <configurable time> seconds
+- **Session Generations**: In-memory map refreshed every <configurable time> seconds
+    - Maps session_identifier to latest generation
+    - Enables silent token rotation
 - **Session Data**: Optional Redis cache for hot sessions
 - **Configuration**: In-memory with 5-minute refresh
+
+**Cache Synchronization**:
+
+- All validator instances poll the same tables
+- <configurable time>-second refresh ensures consistency within 1 minute
+- Silent rotation prevents request failures during the sync window
+- New validators must populate cache before accepting traffic
 
 #### 8.4.2 Query Optimization
 
@@ -1321,19 +1443,74 @@ Control rollout of new features:
 - API versioning
 - Rate limit adjustments
 
-### 9.3 Client Library Updates
+### 9.4 Validator Library Deployment
 
-#### 9.3.1 Validator Library Compatibility
+#### 9.4.1 Embedded Validator Model
 
-- Support N-1 version for graceful upgrades
-- Version negotiation in JWT claims
-- Automatic update notifications
+The validator is not a separate service but a library embedded in each backend service:
 
-#### 9.3.2 SDK Versioning
+```
+┌──────────────────┐     ┌──────────────────┐
+│  API Service     │     │  Worker Service  │
+│  ┌────────────┐  │     │  ┌────────────┐  │
+│  │ Validator  │  │     │  │ Validator  │  │
+│  │  Library   │  │     │  │  Library   │  │
+│  │ (In-Memory │  │     │  │ (In-Memory │  │
+│  │   Cache)   │  │     │  │   Cache)   │  │
+│  └──────┬─────┘  │     │  └──────┬─────┘  │
+└─────────┼────────┘     └─────────┼────────┘
+          │                        │
+          └────────┬───────────────┘
+                   │
+                   ▼ Polls every 60s
+         ┌─────────────────┐
+         │   Authentication Service  │
+         │   Database      │
+         └─────────────────┘
+```
 
-- Semantic versioning for all client libraries
-- Deprecation notices 30 days before removal
-- Compatibility matrix in documentation
+#### 9.4.2 Validator Initialization
+
+```python
+# Each service initializes its own validator instance
+validator = AuthValidator(
+    auth_service_url="https://authentication.internal",
+    poll_interval=60,  # seconds
+    config_poll_interval=300,  # seconds
+    cache_implementation=InMemoryCache()  # or RedisCache() for shared cache
+)
+
+# Start background polling
+validator.start_polling()
+
+# Use in request handler
+def handle_request(request):
+    result = validator.validate(request.headers["Authorization"])
+    if result.error:
+        return 401
+    if result.new_token:
+        # Silent rotation occurred
+        response.headers["X-Refreshed-Token"] = result.new_token
+    # Process request with result.claims
+```
+
+#### 9.4.3 Cache Warming
+
+New validator instances must warm their cache before accepting traffic:
+
+1. Fetch all revoked sessions
+2. Fetch all session generations
+3. Fetch current JWKS
+4. Mark instance as healthy only after cache populated
+
+#### 9.4.4 Graceful Shutdown
+
+On shutdown, validators should:
+
+1. Stop accepting new requests
+2. Complete in-flight validations
+3. Stop polling threads
+4. Clear sensitive data from memory
 
 ---
 
@@ -1343,7 +1520,7 @@ Control rollout of new features:
 
 Standard roles (stored lowercase):
 
-- **owner**: Full control, can delete org
+- **owner**: Full control, can delete organization
 - **admin**: Manage members and settings
 - **member**: Basic access
 - **readonly**: View-only access
@@ -1364,7 +1541,7 @@ Header:
 Payload:
 {
   "sub": "user_identifier",
-  "org": "organization_identifier", 
+  "organization": "organization_identifier", 
   "sid": "session_identifier",
   "gen": 1,
   "role": "member",
