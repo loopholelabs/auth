@@ -19,13 +19,13 @@ libraries, ensuring no service directly accesses the authentication database.
 #### 1.2.1 Data Isolation
 
 - **Ownership Boundary**: The authentication service owns all identity, credential, and membership data
-- **Internal Referential Integrity**: The auth database uses foreign key constraints extensively to maintain data
-  consistency (CASCADE deletes, RESTRICT on user default_organization, etc.)
+- **Internal Referential Integrity**: The authentication database uses foreign key constraints extensively to maintain
+  data consistency (`CASCADE` deletes, `RESTRICT` on `user.default_organization`, etc.)
 - **External Isolation**: Business services store `organization_identifier` and `user_identifier` values but have no
-  foreign key constraints to auth tables - they trust the JWT claims
-- **Trust Model**: Services validate JWTs through the validator library; they never query auth tables directly
+  foreign key constraints to authentication tables - they trust the JWT claims
+- **Trust Model**: Services validate JWTs through the validator library; they never query authentication tables directly
 
-#### 1.2.2 Referential Integrity Within Auth Service
+#### 1.2.2 Referential Integrity Within Authentication Service
 
 - **Cascade Deletes**: Most foreign keys use `ON DELETE CASCADE` to cleanly remove related data
 - **Prevent Orphaning**: `users.default_organization` uses `ON DELETE RESTRICT` to prevent accidental organization
@@ -45,7 +45,7 @@ libraries, ensuring no service directly accesses the authentication database.
 
 - **UUID Identifiers**: All primary keys use UUIDs to prevent enumeration attacks
 - **Bcrypt Hashing**: All secrets use bcrypt with appropriate salt rounds
-- **Short TTLs**: Session tokens expire in ~60 minutes, requiring regular refresh
+- **Short TTLs**: Session tokens expire in a configurable amount of time, requiring regular refresh
 - **Explicit Revocation**: Support for immediate credential invalidation
 
 #### 1.2.5 Explicit State Management
@@ -56,7 +56,7 @@ libraries, ensuring no service directly accesses the authentication database.
 
 ### 1.3 System Boundaries
 
-#### 1.3.1 What the Auth Service Owns
+#### 1.3.1 What the Authentication Service Owns
 
 - User identity and authentication flows
 - Organization membership and roles
@@ -64,11 +64,11 @@ libraries, ensuring no service directly accesses the authentication database.
 - Session management and refresh
 - JWKS and key rotation
 
-#### 1.3.2 What the Auth Service Does NOT Own
+#### 1.3.2 What the Authentication Service Does NOT Own
 
 - Business logic or domain models
 - User profiles beyond authentication needs
-- Application-specific permissions (beyond org-level roles)
+- Application-specific permissions (beyond organization-level roles)
 - Resource-level access control
 - Audit logs for business operations
 
@@ -102,7 +102,7 @@ that is created when they sign up.
 **Business Rules**:
 
 - Organization names must be globally unique (case-insensitive, stored lowercase)
-- Each user has exactly one organization with `is_default = TRUE` (their personal org)
+- Each user has exactly one organization with `is_default = TRUE` (their personal organization)
 - Default organizations are created automatically during user signup
 - Organizations cannot be renamed once created (to prevent confusion in audit trails)
 - Default organizations cannot be deleted while user exists (enforced by FK RESTRICT)
@@ -123,7 +123,7 @@ that is created when they sign up.
 **Business Rules**:
 
 - `primary_email` is normalized to lowercase before storage
-- `primary_email` is immutable after creation (email changes require support intervention)
+- `primary_email` is mutable after creation (email can be selected from the verified emails stored by identities)
 - `default_organization` points to user's personal organization (1:1 relationship)
 - User deletion cascades to all identities, memberships, and sessions
 - `last_seen` updates automatically via `ON UPDATE CURRENT_TIMESTAMP`
@@ -155,7 +155,7 @@ Three tables with identical structure:
 - `verified_emails` stores only emails the provider has confirmed, normalized to lowercase
 - No automatic account linking based on email matches
 - For magic links, `provider_identifier` is the lowercase email address
-- Expiry for temporary auth flows computed as `created_at + 10 minutes`
+- Expiry for temporary authentication flows computed as `created_at + <configurable duration>`
 
 ### 2.2 Access Control Entities
 
@@ -347,7 +347,7 @@ Three tables with identical structure:
 - `device_identifier` (CHAR(36) FK, nullable): Links to device flow if applicable
 - `verifier` (VARCHAR(255)): PKCE code verifier
 - `challenge` (VARCHAR(255)): PKCE code challenge
-- `next_url` (VARCHAR(1024), nullable): Post-auth redirect
+- `next_url` (VARCHAR(1024), nullable): Post-authentication redirect
 - `created_at` (DATETIME): Flow start time
 
 **Business Rules**:
@@ -1067,15 +1067,15 @@ X-RateLimit-Reset: 1234567890
 
 #### 7.4.2 Account Management
 
-| Method | Path                               | Auth | Description      |
-|--------|------------------------------------|------|------------------|
-| GET    | `/v1/account`                      | JWT  | Get current user |
-| PATCH  | `/v1/account`                      | JWT  | Update user      |
-| DELETE | `/v1/account`                      | JWT  | Delete user      |
-| POST   | `/v1/account/link/google`          | JWT  | Link Google      |
-| POST   | `/v1/account/link/github`          | JWT  | Link GitHub      |
-| POST   | `/v1/account/link/magic`           | JWT  | Link email       |
-| DELETE | `/v1/account/link/{provider}/{id}` | JWT  | Unlink identity  |
+| Method | Path                               | Authentication | Description      |
+|--------|------------------------------------|----------------|------------------|
+| GET    | `/v1/account`                      | JWT            | Get current user |
+| PATCH  | `/v1/account`                      | JWT            | Update user      |
+| DELETE | `/v1/account`                      | JWT            | Delete user      |
+| POST   | `/v1/account/link/google`          | JWT            | Link Google      |
+| POST   | `/v1/account/link/github`          | JWT            | Link GitHub      |
+| POST   | `/v1/account/link/magic`           | JWT            | Link email       |
+| DELETE | `/v1/account/link/{provider}/{id}` | JWT            | Unlink identity  |
 
 #### 7.4.3 Organization Management
 
@@ -1405,7 +1405,7 @@ Options:
 
 - Right to erasure: User deletion cascades all data
 - Data portability: Export user's identities and memberships
-- Data minimization: Only store necessary auth data
+- Data minimization: Only store necessary authentication data
 - Consent: Explicit acceptance of invitations
 
 #### 10.4.2 SOC2 Requirements
