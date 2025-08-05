@@ -5,14 +5,187 @@
 package db
 
 import (
+	"database/sql"
+	"database/sql/driver"
+	"encoding/json"
+	"fmt"
 	"time"
 )
+
+type InvitationsStatus string
+
+const (
+	InvitationsStatusPending  InvitationsStatus = "pending"
+	InvitationsStatusAccepted InvitationsStatus = "accepted"
+)
+
+func (e *InvitationsStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = InvitationsStatus(s)
+	case string:
+		*e = InvitationsStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for InvitationsStatus: %T", src)
+	}
+	return nil
+}
+
+type NullInvitationsStatus struct {
+	InvitationsStatus InvitationsStatus
+	Valid             bool // Valid is true if InvitationsStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullInvitationsStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.InvitationsStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.InvitationsStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullInvitationsStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.InvitationsStatus), nil
+}
+
+type ApiKey struct {
+	Identifier             string
+	Salt                   string
+	SecretHash             string
+	OrganizationIdentifier string
+	Role                   string
+	CreatedAt              time.Time
+}
+
+type Configuration struct {
+	Identifier     uint32
+	Secret         []byte
+	PreviousSecret sql.NullString
+}
+
+type DeviceCodeFlow struct {
+	Identifier        string
+	SessionIdentifier sql.NullString
+	Code              string
+	Poll              string
+	LastPoll          time.Time
+	CreatedAt         time.Time
+}
+
+type GithubOauthFlow struct {
+	Identifier       string
+	DeviceIdentifier sql.NullString
+	Verifier         string
+	Challenge        string
+	NextUrl          sql.NullString
+	CreatedAt        time.Time
+}
+
+type GithubOauthIdentity struct {
+	Identifier         uint32
+	UserIdentifier     string
+	ProviderIdentifier string
+	VerifiedEmails     json.RawMessage
+	CreatedAt          time.Time
+}
+
+type GoogleOauthFlow struct {
+	Identifier       string
+	DeviceIdentifier sql.NullString
+	Verifier         string
+	Challenge        string
+	NextUrl          sql.NullString
+	CreatedAt        time.Time
+}
+
+type GoogleOauthIdentity struct {
+	Identifier         uint32
+	UserIdentifier     string
+	ProviderIdentifier string
+	VerifiedEmails     json.RawMessage
+	CreatedAt          time.Time
+}
+
+type Invitation struct {
+	Identifier             uint32
+	OrganizationIdentifier string
+	InviterUserIdentifier  string
+	Role                   string
+	InviteHash             string
+	Status                 InvitationsStatus
+	ExpiresAt              time.Time
+	CreatedAt              time.Time
+}
+
+type MagicLinkFlow struct {
+	Identifier       string
+	DeviceIdentifier sql.NullString
+	Salt             string
+	Hash             string
+	EmailAddress     string
+	IpAddress        string
+	CreatedAt        time.Time
+}
+
+type MagicLinkIdentity struct {
+	Identifier         uint32
+	UserIdentifier     string
+	ProviderIdentifier string
+	VerifiedEmails     json.RawMessage
+	CreatedAt          time.Time
+}
+
+type Membership struct {
+	Identifier             uint32
+	UserIdentifier         string
+	OrganizationIdentifier string
+	Role                   string
+	CreatedAt              time.Time
+}
 
 type Organization struct {
 	Identifier string
 	Name       string
 	IsDefault  bool
 	CreatedAt  time.Time
+}
+
+type ServiceKey struct {
+	Identifier             string
+	Salt                   string
+	SecretHash             string
+	OrganizationIdentifier string
+	UserIdentifier         string
+	Role                   string
+	ResourceIds            json.RawMessage
+	ExpiresAt              time.Time
+	CreatedAt              time.Time
+}
+
+type Session struct {
+	Identifier             string
+	OrganizationIdentifier string
+	UserIdentifier         string
+	LastGeneration         int32
+	ExpiresAt              time.Time
+	CreatedAt              time.Time
+}
+
+type SessionRevalidation struct {
+	SessionIdentifier sql.NullString
+	Generation        int32
+	CreatedAt         time.Time
+}
+
+type SessionRevocation struct {
+	SessionIdentifier string
+	CreatedAt         time.Time
 }
 
 type User struct {
