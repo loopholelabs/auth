@@ -1,14 +1,15 @@
 //SPDX-License-Identifier: Apache-2.0
 
-package utils
+package utils //nolint:revive
 
 import (
 	"crypto/rand"
 	"encoding/json"
-	"github.com/gofiber/fiber/v2"
 	"math/big"
 	"time"
 	"unsafe"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 const (

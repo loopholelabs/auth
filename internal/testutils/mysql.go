@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/go-sql-driver/mysql" // MySQL Driver
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -68,7 +68,7 @@ func SetupMySQLContainer(t testing.TB) *MySQLContainer {
 	for i := 0; i < maxRetries; i++ {
 		db, err := sql.Open("mysql", url)
 		if err == nil {
-			lastErr = db.Ping()
+			lastErr = db.PingContext(t.Context())
 			_ = db.Close()
 			if lastErr == nil {
 				break
@@ -77,7 +77,7 @@ func SetupMySQLContainer(t testing.TB) *MySQLContainer {
 			lastErr = err
 		}
 		if i == maxRetries-1 {
-			require.NoError(t, lastErr, fmt.Sprintf("MySQL container not ready after %d retries", maxRetries))
+			require.NoError(t, lastErr, "MySQL container not ready after %d retries", maxRetries)
 		}
 		time.Sleep(1 * time.Second)
 	}

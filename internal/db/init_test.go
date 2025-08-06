@@ -5,9 +5,11 @@ package db
 import (
 	"testing"
 
-	"github.com/loopholelabs/auth/internal/testutils"
-	"github.com/loopholelabs/logging"
 	"github.com/stretchr/testify/require"
+
+	"github.com/loopholelabs/logging"
+
+	"github.com/loopholelabs/auth/internal/testutils"
 )
 
 func TestInitialize(t *testing.T) {
@@ -130,7 +132,7 @@ func TestMigrations(t *testing.T) {
 		var version int64
 		err = db.DB.QueryRow("SELECT MAX(version_id) FROM goose_db_version").Scan(&version)
 		require.NoError(t, err)
-		require.Greater(t, version, int64(0))
+		require.Positive(t, version)
 
 		// Clean up
 		err = db.Close()

@@ -58,7 +58,7 @@ type entry struct {
 	Path       string
 	SameSite   string
 	Secure     bool
-	HttpOnly   bool
+	HTTPOnly   bool
 	Persistent bool
 	HostOnly   bool
 	Expires    time.Time
@@ -116,18 +116,18 @@ func hasDotSuffix(s, suffix string) bool {
 // Cookies implements the Cookies method of the http.CookieJar interface.
 //
 // It returns an empty slice if the URL's scheme is not HTTP or HTTPS.
-func (j *Jar) Cookies(u *url.URL) (cookies []*http.Cookie) {
+func (j *Jar) Cookies(u *url.URL) []*http.Cookie {
 	return j.cookies(u, time.Now())
 }
 
 // cookies is like Cookies but takes the current time as a parameter.
-func (j *Jar) cookies(u *url.URL, now time.Time) (cookies []*http.Cookie) {
-	if u.Scheme != "http" && u.Scheme != "https" {
-		return cookies
+func (j *Jar) cookies(u *url.URL, now time.Time) []*http.Cookie {
+	if u.Scheme != "http" && u.Scheme != "https" { //nolint:goconst
+		return nil
 	}
 	host, err := canonicalHost(u.Host)
 	if err != nil {
-		return cookies
+		return nil
 	}
 	key := jarKey(host, j.publicSuffixList)
 
@@ -136,7 +136,7 @@ func (j *Jar) cookies(u *url.URL, now time.Time) (cookies []*http.Cookie) {
 
 	submap := j.entries[key]
 	if submap == nil {
-		return cookies
+		return nil
 	}
 
 	https := u.Scheme == "https"
@@ -183,6 +183,7 @@ func (j *Jar) cookies(u *url.URL, now time.Time) (cookies []*http.Cookie) {
 		}
 		return s[i].seqNum < s[j].seqNum
 	})
+	var cookies []*http.Cookie
 	for _, e := range selected {
 		cookies = append(cookies, &http.Cookie{
 			Name:     e.Name,
@@ -191,7 +192,7 @@ func (j *Jar) cookies(u *url.URL, now time.Time) (cookies []*http.Cookie) {
 			Domain:   e.Domain,
 			Expires:  e.Expires,
 			Secure:   e.Secure,
-			HttpOnly: e.HttpOnly,
+			HttpOnly: e.HTTPOnly,
 		})
 	}
 
@@ -278,7 +279,7 @@ func canonicalHost(host string) (string, error) {
 			return "", err
 		}
 	}
-	if strings.HasSuffix(host, ".") {
+	if strings.HasSuffix(host, ".") { //nolint:staticcheck
 		// Strip trailing dot from fully qualified domain names.
 		host = host[:len(host)-1]
 	}
@@ -357,7 +358,8 @@ func defaultPath(path string) string {
 // be valid to call e.id (which depends on e's Name, Domain and Source).
 //
 // A malformed c.Domain will result in an error.
-func (j *Jar) newEntry(c *http.Cookie, now time.Time, defPath, host string) (e entry, remove bool, err error) {
+func (j *Jar) newEntry(c *http.Cookie, now time.Time, defPath, host string) (entry, bool, error) {
+	var e entry
 	e.Name = c.Name
 
 	if c.Path == "" || c.Path[0] != '/' {
@@ -366,13 +368,14 @@ func (j *Jar) newEntry(c *http.Cookie, now time.Time, defPath, host string) (e e
 		e.Path = c.Path
 	}
 
+	var err error
 	e.Domain, e.HostOnly, err = j.domainAndType(host, c.Domain)
 	if err != nil {
 		return e, false, err
 	}
 
 	// MaxAge takes precedence over Expires.
-	if c.MaxAge < 0 {
+	if c.MaxAge < 0 { //nolint:gocritic
 		return e, true, nil
 	} else if c.MaxAge > 0 {
 		e.Expires = now.Add(time.Duration(c.MaxAge) * time.Second)
@@ -392,7 +395,7 @@ func (j *Jar) newEntry(c *http.Cookie, now time.Time, defPath, host string) (e e
 
 	e.Value = c.Value
 	e.Secure = c.Secure
-	e.HttpOnly = c.HttpOnly
+	e.HTTPOnly = c.HttpOnly
 
 	switch c.SameSite {
 	case http.SameSiteDefaultMode:
@@ -401,6 +404,8 @@ func (j *Jar) newEntry(c *http.Cookie, now time.Time, defPath, host string) (e e
 		e.SameSite = "SameSite=Strict"
 	case http.SameSiteLaxMode:
 		e.SameSite = "SameSite=Lax"
+	default:
+		panic("unhandled default case")
 	}
 
 	return e, false, nil
@@ -409,7 +414,6 @@ func (j *Jar) newEntry(c *http.Cookie, now time.Time, defPath, host string) (e e
 var (
 	errIllegalDomain   = errors.New("cookiejar: illegal cookie domain attribute")
 	errMalformedDomain = errors.New("cookiejar: malformed cookie domain attribute")
-	errNoHostname      = errors.New("cookiejar: no host name available (IP only)")
 )
 
 // endOfTime is the time when session (non-persistent) cookies expire.
