@@ -17,6 +17,7 @@ CREATE TABLE organizations
 CREATE TABLE users
 (
     identifier           CHAR(36)     NOT NULL PRIMARY KEY DEFAULT (uuid()),
+    name                 VARCHAR(255),
     primary_email        VARCHAR(255) NOT NULL UNIQUE,
     default_organization CHAR(36)     NOT NULL,
     last_seen            DATETIME     NOT NULL             DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -251,9 +252,10 @@ CREATE TABLE device_code_flows
 CREATE TABLE google_oauth_flows
 (
     identifier        CHAR(36) PRIMARY KEY  DEFAULT (uuid()),
-    device_identifier CHAR(36),
     verifier          VARCHAR(255) NOT NULL,
     challenge         VARCHAR(255) NOT NULL,
+    device_identifier CHAR(36),
+    user_identifier   char(36),
     next_url          VARCHAR(1024),
     created_at        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -261,15 +263,22 @@ CREATE TABLE google_oauth_flows
         FOREIGN KEY (device_identifier)
             REFERENCES device_code_flows (identifier)
             ON DELETE CASCADE
+            ON UPDATE CASCADE,
+
+    CONSTRAINT fk_google_oauth_flows_user_identifier_users
+        FOREIGN KEY (user_identifier)
+            REFERENCES users (identifier)
+            ON DELETE CASCADE
             ON UPDATE CASCADE
 );
 
 CREATE TABLE github_oauth_flows
 (
     identifier        CHAR(36) PRIMARY KEY  DEFAULT (uuid()),
-    device_identifier CHAR(36),
     verifier          VARCHAR(255) NOT NULL,
     challenge         VARCHAR(255) NOT NULL,
+    device_identifier CHAR(36),
+    user_identifier   char(36),
     next_url          VARCHAR(1024),
     created_at        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -277,22 +286,36 @@ CREATE TABLE github_oauth_flows
         FOREIGN KEY (device_identifier)
             REFERENCES device_code_flows (identifier)
             ON DELETE CASCADE
+            ON UPDATE CASCADE,
+
+    CONSTRAINT fk_github_oauth_flows_user_identifier_users
+        FOREIGN KEY (user_identifier)
+            REFERENCES users (identifier)
+            ON DELETE CASCADE
             ON UPDATE CASCADE
 );
 
 CREATE TABLE magic_link_flows
 (
     identifier        CHAR(36) PRIMARY KEY  DEFAULT (uuid()),
-    device_identifier CHAR(36),
     salt              CHAR(32)     NOT NULL,
     hash              CHAR(60)     NOT NULL,
     email_address     VARCHAR(320) NOT NULL,
     ip_address        VARCHAR(64)  NOT NULL,
+    device_identifier CHAR(36),
+    user_identifier   CHAR(36),
+    next_url          VARCHAR(1024),
     created_at        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_magic_link_flows_device_identifier_device_code_flows
         FOREIGN KEY (device_identifier)
             REFERENCES device_code_flows (identifier)
+            ON DELETE CASCADE
+            ON UPDATE CASCADE,
+
+    CONSTRAINT fk_magic_link_flows_user_identifier_users
+        FOREIGN KEY (user_identifier)
+            REFERENCES users (identifier)
             ON DELETE CASCADE
             ON UPDATE CASCADE
 );

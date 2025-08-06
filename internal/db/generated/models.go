@@ -80,9 +80,10 @@ type DeviceCodeFlow struct {
 
 type GithubOauthFlow struct {
 	Identifier       string
-	DeviceIdentifier sql.NullString
 	Verifier         string
 	Challenge        string
+	DeviceIdentifier sql.NullString
+	UserIdentifier   sql.NullString
 	NextUrl          sql.NullString
 	CreatedAt        time.Time
 }
@@ -97,9 +98,10 @@ type GithubOauthIdentity struct {
 
 type GoogleOauthFlow struct {
 	Identifier       string
-	DeviceIdentifier sql.NullString
 	Verifier         string
 	Challenge        string
+	DeviceIdentifier sql.NullString
+	UserIdentifier   sql.NullString
 	NextUrl          sql.NullString
 	CreatedAt        time.Time
 }
@@ -125,11 +127,13 @@ type Invitation struct {
 
 type MagicLinkFlow struct {
 	Identifier       string
-	DeviceIdentifier sql.NullString
 	Salt             string
 	Hash             string
 	EmailAddress     string
 	IpAddress        string
+	DeviceIdentifier sql.NullString
+	UserIdentifier   sql.NullString
+	NextUrl          sql.NullString
 	CreatedAt        time.Time
 }
 
