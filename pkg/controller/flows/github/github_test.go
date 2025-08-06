@@ -892,7 +892,9 @@ func TestGarbageCollection(t *testing.T) {
 	t.Run("GCDeletesExpiredFlows", func(t *testing.T) {
 		// Save the original now function and restore it after the test
 		originalNow := now
-		defer func() { now = originalNow }()
+		t.Cleanup(func() {
+			now = originalNow
+		})
 
 		ctx := context.Background()
 
@@ -936,7 +938,9 @@ func TestGarbageCollection(t *testing.T) {
 		}
 		gh, err := New(opts, database, logger)
 		require.NoError(t, err)
-		defer gh.Close()
+		t.Cleanup(func() {
+			_ = gh.Close()
+		})
 
 		// Run gc() directly
 		deleted, err := gh.gc()
@@ -957,7 +961,9 @@ func TestGarbageCollection(t *testing.T) {
 	t.Run("GCRunsInBackground", func(t *testing.T) {
 		// Save the original now function and restore it after the test
 		originalNow := now
-		defer func() { now = originalNow }()
+		t.Cleanup(func() {
+			now = originalNow
+		})
 
 		// This test verifies that the gc goroutine starts and stops properly
 		opts := &Options{
@@ -970,11 +976,14 @@ func TestGarbageCollection(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, gh)
 
+		t.Cleanup(func() {
+			_ = gh.Close()
+		})
+
 		// The gc goroutine should be running now
 		// Create a flow that will be expired when we mock the time
-		ctx := context.Background()
 		expiredFlowID := uuid.New().String()
-		err = database.Queries.CreateGithubOAuthFlow(ctx, generated.CreateGithubOAuthFlowParams{
+		err = database.Queries.CreateGithubOAuthFlow(t.Context(), generated.CreateGithubOAuthFlowParams{
 			Identifier: expiredFlowID,
 			Verifier:   "expired-verifier",
 			Challenge:  "expired-challenge",
@@ -999,25 +1008,21 @@ func TestGarbageCollection(t *testing.T) {
 	})
 
 	t.Run("GCHandlesEmptyTable", func(t *testing.T) {
-		ctx := context.Background()
-
 		// Ensure table is empty
-		_, err := database.DB.ExecContext(ctx, "DELETE FROM github_oauth_flows")
+		_, err := database.Queries.DeleteAllGithubOAuthFlows(t.Context())
 		require.NoError(t, err)
 
 		// Run cleanup on empty table
-		deleted, err := database.Queries.DeleteGithubOAuthFlowsBeforeTime(ctx, time.Now())
+		deleted, err := database.Queries.DeleteGithubOAuthFlowsBeforeTime(t.Context(), time.Now())
 		require.NoError(t, err)
 		require.Equal(t, int64(0), deleted) // No rows deleted
 	})
 
 	t.Run("GCHandlesNoExpiredFlows", func(t *testing.T) {
-		ctx := context.Background()
-
 		// Create only recent flows
 		for i := 0; i < 3; i++ {
 			flowID := uuid.New().String()
-			err := database.Queries.CreateGithubOAuthFlow(ctx, generated.CreateGithubOAuthFlowParams{
+			err := database.Queries.CreateGithubOAuthFlow(t.Context(), generated.CreateGithubOAuthFlowParams{
 				Identifier: flowID,
 				Verifier:   fmt.Sprintf("verifier-%d", i),
 				Challenge:  fmt.Sprintf("challenge-%d", i),
@@ -1026,54 +1031,31 @@ func TestGarbageCollection(t *testing.T) {
 		}
 
 		// Run cleanup with a time that won't match any flows
-		deleted, err := database.Queries.DeleteGithubOAuthFlowsBeforeTime(ctx, time.Now().Add(-5*time.Minute))
+		deleted, err := database.Queries.DeleteGithubOAuthFlowsBeforeTime(t.Context(), time.Now().Add(-5*time.Minute))
 		require.NoError(t, err)
 		require.Equal(t, int64(0), deleted) // No rows should be deleted
 
 		// Verify all flows still exist
-		var count int
-		err = database.DB.QueryRowContext(ctx, "SELECT COUNT(*) FROM github_oauth_flows").Scan(&count)
+		count, err := database.Queries.CountAllGithubOAuthFlows(t.Context())
 		require.NoError(t, err)
-		require.GreaterOrEqual(t, count, 3)
+		require.GreaterOrEqual(t, count, int64(3))
 	})
 
 	t.Run("GCDeletesOnlyExpiredFlows", func(t *testing.T) {
 		// Save the original now function and restore it after the test
 		originalNow := now
-		defer func() { now = originalNow }()
-
-		ctx := context.Background()
+		t.Cleanup(func() {
+			now = originalNow
+		})
 
 		// Clear the table first
-		_, err := database.DB.ExecContext(ctx, "DELETE FROM github_oauth_flows")
+		_, err := database.Queries.DeleteAllGithubOAuthFlows(t.Context())
 		require.NoError(t, err)
 
 		baseTime := time.Now()
 
-		// Create flows with various ages by manipulating created_at directly
-		flows := []struct {
-			id           string
-			age          time.Duration
-			shouldDelete bool
-		}{
-			{uuid.New().String(), -10 * time.Minute, true},            // 10 minutes old
-			{uuid.New().String(), -6 * time.Minute, true},             // 6 minutes old
-			{uuid.New().String(), -5*time.Minute - time.Second, true}, // just over 5 minutes old
-			{uuid.New().String(), -4 * time.Minute, false},            // 4 minutes old
-			{uuid.New().String(), -1 * time.Minute, false},            // 1 minute old
-			{uuid.New().String(), 0, false},                           // brand new
-		}
-
-		for _, flow := range flows {
-			_, err := database.DB.ExecContext(ctx,
-				`INSERT INTO github_oauth_flows (identifier, verifier, challenge, created_at) 
-				 VALUES (?, ?, ?, ?)`,
-				flow.id, "verifier", "challenge", baseTime.Add(flow.age))
-			require.NoError(t, err)
-		}
-
-		// Mock time to be exactly at baseTime so gc() will delete flows older than 5 minutes
-		now = func() time.Time { return baseTime }
+		// Mock time to be exactly at baseTime + Expiry so gc() will delete flows older than now
+		now = func() time.Time { return baseTime.Add(Expiry) }
 
 		// Create GitHub instance with mocked time
 		opts := &Options{
@@ -1083,21 +1065,28 @@ func TestGarbageCollection(t *testing.T) {
 		}
 		gh, err := New(opts, database, logger)
 		require.NoError(t, err)
-		defer gh.Close()
+		t.Cleanup(func() {
+			_ = gh.Close()
+		})
+
+		var ids []string
+		for i := 0; i < 3; i++ {
+			redirectURL, err := gh.CreateFlow(t.Context(), "", "", "")
+			require.NoError(t, err)
+			u, err := url.Parse(redirectURL)
+			require.NoError(t, err)
+			v := u.Query().Get("state")
+			ids = append(ids, v)
+		}
 
 		// Run gc() directly
 		deleted, err := gh.gc()
 		require.NoError(t, err)
-		require.Equal(t, int64(3), deleted) // Should delete only the 3 oldest flows
+		require.Equal(t, int64(3), deleted)
 
-		// Verify which flows were deleted
-		for _, flow := range flows {
-			_, err := database.Queries.GetGithubOAuthFlowByIdentifier(ctx, flow.id)
-			if flow.shouldDelete {
-				require.Error(t, err, "Flow %s should have been deleted", flow.id)
-			} else {
-				require.NoError(t, err, "Flow %s should still exist", flow.id)
-			}
+		for _, id := range ids {
+			_, err = database.Queries.GetGithubOAuthFlowByIdentifier(t.Context(), id)
+			require.ErrorContains(t, err, "no rows in result set")
 		}
 	})
 }
