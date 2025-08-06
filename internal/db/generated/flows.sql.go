@@ -11,6 +11,18 @@ import (
 	"time"
 )
 
+const countAllGithubOAuthFlows = `-- name: CountAllGithubOAuthFlows :one
+SELECT COUNT(*)
+FROM github_oauth_flows
+`
+
+func (q *Queries) CountAllGithubOAuthFlows(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countAllGithubOAuthFlows)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createGithubOAuthFlow = `-- name: CreateGithubOAuthFlow :exec
 INSERT INTO github_oauth_flows (identifier, device_identifier, user_identifier, verifier, challenge, next_url,
                                 created_at)
@@ -37,6 +49,19 @@ func (q *Queries) CreateGithubOAuthFlow(ctx context.Context, arg CreateGithubOAu
 		arg.NextUrl,
 	)
 	return err
+}
+
+const deleteAllGithubOAuthFlows = `-- name: DeleteAllGithubOAuthFlows :execrows
+DELETE
+FROM github_oauth_flows
+`
+
+func (q *Queries) DeleteAllGithubOAuthFlows(ctx context.Context) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteAllGithubOAuthFlows)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const deleteGithubOAuthFlowByIdentifier = `-- name: DeleteGithubOAuthFlowByIdentifier :exec

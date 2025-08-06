@@ -18,3 +18,11 @@ WHERE identifier = ?;
 DELETE
 FROM github_oauth_flows
 WHERE created_at < ?;
+
+-- name: DeleteAllGithubOAuthFlows :execrows
+DELETE
+FROM github_oauth_flows;
+
+-- name: CountAllGithubOAuthFlows :one
+SELECT COUNT(*)
+FROM github_oauth_flows;
