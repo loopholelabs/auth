@@ -15,57 +15,60 @@ func TestInitialize(t *testing.T) {
 	logger := logging.Test(t, logging.Zerolog, "test")
 
 	t.Run("SuccessfulInitialization", func(t *testing.T) {
-		err := Initialize(container.URL, logger)
+		db, err := New(container.URL, logger)
 		require.NoError(t, err)
-		require.NotNil(t, Pool)
+		require.NotNil(t, db)
 
 		// Verify connection pool settings
-		stats := Pool.Stats()
+		stats := db.DB.Stats()
 		require.Equal(t, 25, stats.MaxOpenConnections)
 
 		// Verify we can query the database
 		var result int
-		err = Pool.QueryRow("SELECT 1").Scan(&result)
+		err = db.DB.QueryRow("SELECT 1").Scan(&result)
 		require.NoError(t, err)
 		require.Equal(t, 1, result)
 
 		// Clean up for next test
-		Close()
-		Pool = nil
+		err = db.Close()
+		require.NoError(t, err)
 	})
 
 	t.Run("MissingParseTimeOption", func(t *testing.T) {
-		invalidURL := "root:testpassword@tcp(localhost:3306)/testdb?multiStatements=true"
-		err := Initialize(invalidURL, logger)
+		invalidURL := "root:testpassword@tcp(localhost:3306)/testdb?multiStatements=true&loc=UTC"
+		db, err := New(invalidURL, logger)
 		require.ErrorIs(t, err, ErrMissingParseTimeOption)
-		require.Nil(t, Pool)
+		require.Nil(t, db)
 	})
 
 	t.Run("MissingMultiStatementsOption", func(t *testing.T) {
-		invalidURL := "root:testpassword@tcp(localhost:3306)/testdb?parseTime=true"
-		err := Initialize(invalidURL, logger)
+		invalidURL := "root:testpassword@tcp(localhost:3306)/testdb?parseTime=true&loc=UTC"
+		db, err := New(invalidURL, logger)
 		require.ErrorIs(t, err, ErrMissingMultiStatementsOption)
-		require.Nil(t, Pool)
+		require.Nil(t, db)
+	})
+
+	t.Run("MissingLocationOption", func(t *testing.T) {
+		invalidURL := "root:testpassword@tcp(localhost:3306)/testdb?parseTime=true&multiStatements=true"
+		db, err := New(invalidURL, logger)
+		require.ErrorIs(t, err, ErrMissingLocationOption)
+		require.Nil(t, db)
 	})
 
 	t.Run("InvalidDatabaseURL", func(t *testing.T) {
 		invalidURL := "invalid://url?parseTime=true&multiStatements=true&loc=UTC"
-		err := Initialize(invalidURL, logger)
+		db, err := New(invalidURL, logger)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to connect to database")
-		require.Nil(t, Pool)
+		require.Nil(t, db)
 	})
 
 	t.Run("UnreachableDatabase", func(t *testing.T) {
 		unreachableURL := "root:wrongpassword@tcp(localhost:9999)/testdb?parseTime=true&multiStatements=true&loc=UTC"
-		err := Initialize(unreachableURL, logger)
+		db, err := New(unreachableURL, logger)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to ping database")
-		// Pool may be set but unusable - clean up
-		if Pool != nil {
-			Pool.Close()
-			Pool = nil
-		}
+		require.Nil(t, db)
 	})
 }
 
@@ -74,47 +77,37 @@ func TestClose(t *testing.T) {
 	logger := logging.Test(t, logging.Zerolog, "test")
 
 	t.Run("CloseValidConnection", func(t *testing.T) {
-		err := Initialize(container.URL, logger)
+		db, err := New(container.URL, logger)
 		require.NoError(t, err)
-		require.NotNil(t, Pool)
+		require.NotNil(t, db)
 
 		// Close should not panic
 		require.NotPanics(t, func() {
-			Close()
+			err = db.Close()
+			require.NoError(t, err)
 		})
 
 		// Verify connection is closed
-		err = Pool.Ping()
+		err = db.DB.Ping()
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "sql: database is closed")
-
-		// Clean up
-		Pool = nil
-	})
-
-	t.Run("CloseWithNilPool", func(t *testing.T) {
-		Pool = nil
-
-		// Should not panic when Pool is nil
-		require.NotPanics(t, func() {
-			Close()
-		})
 	})
 
 	t.Run("CloseMultipleTimes", func(t *testing.T) {
-		err := Initialize(container.URL, logger)
+		db, err := New(container.URL, logger)
 		require.NoError(t, err)
-		require.NotNil(t, Pool)
+		require.NotNil(t, db)
 
-		// Closing multiple times should not panic
+		// First close should work
+		err = db.Close()
+		require.NoError(t, err)
+
+		// Closing again should still work (sql.DB.Close is idempotent)
 		require.NotPanics(t, func() {
-			Close()
-			Close()
-			Close()
+			err = db.Close()
+			// sql.DB.Close returns nil even when already closed
+			require.NoError(t, err)
 		})
-
-		// Clean up
-		Pool = nil
 	})
 }
 
@@ -123,53 +116,53 @@ func TestMigrations(t *testing.T) {
 	logger := logging.Test(t, logging.Zerolog, "test")
 
 	t.Run("MigrationsAppliedSuccessfully", func(t *testing.T) {
-		err := Initialize(container.URL, logger)
+		db, err := New(container.URL, logger)
 		require.NoError(t, err)
-		require.NotNil(t, Pool)
+		require.NotNil(t, db)
 
 		// Check that goose_db_version table exists
 		var tableName string
-		err = Pool.QueryRow("SELECT table_name FROM information_schema.tables WHERE table_schema = 'testdb' AND table_name = 'goose_db_version'").Scan(&tableName)
+		err = db.DB.QueryRow("SELECT table_name FROM information_schema.tables WHERE table_schema = 'testdb' AND table_name = 'goose_db_version'").Scan(&tableName)
 		require.NoError(t, err)
 		require.Equal(t, "goose_db_version", tableName)
 
 		// Check that migrations were applied
 		var version int64
-		err = Pool.QueryRow("SELECT MAX(version_id) FROM goose_db_version").Scan(&version)
+		err = db.DB.QueryRow("SELECT MAX(version_id) FROM goose_db_version").Scan(&version)
 		require.NoError(t, err)
 		require.Greater(t, version, int64(0))
 
 		// Clean up
-		Close()
-		Pool = nil
+		err = db.Close()
+		require.NoError(t, err)
 	})
 
 	t.Run("IdempotentMigrations", func(t *testing.T) {
 		// First initialization
-		err := Initialize(container.URL, logger)
+		db1, err := New(container.URL, logger)
 		require.NoError(t, err)
-		require.NotNil(t, Pool)
+		require.NotNil(t, db1)
 
 		var firstVersion int64
-		err = Pool.QueryRow("SELECT MAX(version_id) FROM goose_db_version").Scan(&firstVersion)
+		err = db1.DB.QueryRow("SELECT MAX(version_id) FROM goose_db_version").Scan(&firstVersion)
 		require.NoError(t, err)
 
-		Close()
-		Pool = nil
+		err = db1.Close()
+		require.NoError(t, err)
 
 		// Second initialization - migrations should be idempotent
-		err = Initialize(container.URL, logger)
+		db2, err := New(container.URL, logger)
 		require.NoError(t, err)
-		require.NotNil(t, Pool)
+		require.NotNil(t, db2)
 
 		var secondVersion int64
-		err = Pool.QueryRow("SELECT MAX(version_id) FROM goose_db_version").Scan(&secondVersion)
+		err = db2.DB.QueryRow("SELECT MAX(version_id) FROM goose_db_version").Scan(&secondVersion)
 		require.NoError(t, err)
 		require.Equal(t, firstVersion, secondVersion)
 
 		// Clean up
-		Close()
-		Pool = nil
+		err = db2.Close()
+		require.NoError(t, err)
 	})
 }
 
@@ -177,17 +170,17 @@ func TestConnectionPoolSettings(t *testing.T) {
 	container := testutils.SetupMySQLContainer(t)
 	logger := logging.Test(t, logging.Zerolog, "test")
 
-	err := Initialize(container.URL, logger)
+	db, err := New(container.URL, logger)
 	require.NoError(t, err)
-	require.NotNil(t, Pool)
+	require.NotNil(t, db)
 
-	stats := Pool.Stats()
+	stats := db.DB.Stats()
 	require.Equal(t, 25, stats.MaxOpenConnections)
 
 	// Note: MaxIdleConns is not directly accessible via Stats(), but we can verify it was set
 	// by checking that the pool doesn't error when we try to use it
 
 	// Clean up
-	Close()
-	Pool = nil
+	err = db.Close()
+	require.NoError(t, err)
 }
