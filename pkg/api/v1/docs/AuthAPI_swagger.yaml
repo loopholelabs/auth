@@ -1,0 +1,98 @@
+basePath: /v1
+host: localhost:8080
+info:
+  contact:
+    email: admin@loopholelabs.io
+    name: API Support
+  description: Auth API, v1
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: https://loopholelabs.io/privacy
+  title: Auth API v1
+  version: "1.0"
+paths:
+  /github/login:
+    get:
+      consumes:
+      - application/json
+      description: Login logs in a user with Github
+      parameters:
+      - description: Device Flow Identifier
+        in: query
+        name: device
+        type: string
+      - description: Next Redirect URL
+        in: query
+        name: next
+        type: string
+      produces:
+      - application/json
+      responses:
+        "307":
+          description: Temporary Redirect
+          headers:
+            location:
+              description: Redirects to Github
+              type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Login logs in a user with Github
+      tags:
+      - github
+      - login
+  /health:
+    get:
+      consumes:
+      - application/json
+      description: Health returns the health check status
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Health returns the health check status
+      tags:
+      - health
+  /logout:
+    post:
+      consumes:
+      - application/json
+      description: Logout logs out a user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Logout logs out a user
+      tags:
+      - logout
+schemes:
+- https
+swagger: "2.0"
