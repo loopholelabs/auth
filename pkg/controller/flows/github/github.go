@@ -35,9 +35,14 @@ var (
 	ErrNoVerifiedEmails = errors.New("no verified emails")
 )
 
+var (
+	now = time.Now
+)
+
 const (
 	GCInterval = time.Minute
 	Expiry     = time.Minute * 5
+	Timeout    = time.Second * 30
 )
 
 var (
@@ -108,7 +113,7 @@ func New(options *Options, db *db.DB, logger types.Logger) (*Github, error) {
 	}
 
 	g.wg.Add(1)
-	go g.gc()
+	go g.doGC()
 
 	return g, nil
 }
@@ -259,7 +264,13 @@ func (c *Github) CompleteFlow(ctx context.Context, identifier string, code strin
 	return f, nil
 }
 
-func (c *Github) gc() {
+func (c *Github) gc() (int64, error) {
+	ctx, cancel := context.WithTimeout(c.ctx, Timeout)
+	defer cancel()
+	return c.db.Queries.DeleteGithubOAuthFlowsBeforeTime(ctx, now().Add(-Expiry))
+}
+
+func (c *Github) doGC() {
 	defer c.wg.Done()
 	for {
 		select {
@@ -267,7 +278,7 @@ func (c *Github) gc() {
 			c.logger.Info().Msg("GC Stopped")
 			return
 		case <-time.After(GCInterval):
-			deleted, err := c.db.Queries.DeleteGithubOAuthFlowsBeforeTime(c.ctx, time.Now().Add(-Expiry))
+			deleted, err := c.gc()
 			if err != nil {
 				c.logger.Error().Err(err).Msg("failed to garbage collect expired flows")
 			} else {

@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -875,5 +876,228 @@ func TestErrorHandling(t *testing.T) {
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrInvalidResponse)
 		require.Nil(t, flow)
+	})
+}
+
+func TestGarbageCollection(t *testing.T) {
+	container := testutils.SetupMySQLContainer(t)
+	logger := logging.Test(t, logging.Zerolog, "test")
+	database, err := db.New(container.URL, logger)
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		require.NoError(t, database.Close())
+	})
+
+	t.Run("GCDeletesExpiredFlows", func(t *testing.T) {
+		// Save the original now function and restore it after the test
+		originalNow := now
+		defer func() { now = originalNow }()
+
+		ctx := context.Background()
+
+		// Create flows that will be created at the current time
+		expiredFlowID := uuid.New().String()
+		err = database.Queries.CreateGithubOAuthFlow(ctx, generated.CreateGithubOAuthFlowParams{
+			Identifier: expiredFlowID,
+			Verifier:   "expired-verifier",
+			Challenge:  "expired-challenge",
+		})
+		require.NoError(t, err)
+
+		// Create a recent flow
+		recentFlowID := uuid.New().String()
+		err = database.Queries.CreateGithubOAuthFlow(ctx, generated.CreateGithubOAuthFlowParams{
+			Identifier: recentFlowID,
+			Verifier:   "recent-verifier",
+			Challenge:  "recent-challenge",
+		})
+		require.NoError(t, err)
+
+		// Create another expired flow
+		expiredFlowID2 := uuid.New().String()
+		err = database.Queries.CreateGithubOAuthFlow(ctx, generated.CreateGithubOAuthFlowParams{
+			Identifier: expiredFlowID2,
+			Verifier:   "expired-verifier-2",
+			Challenge:  "expired-challenge-2",
+		})
+		require.NoError(t, err)
+
+		// Mock time.Now to return a time that's Expiry ahead in the future
+		// This makes the first two flows appear expired when gc() subtracts Expiry
+		futureTime := time.Now().Add(Expiry + 10*time.Minute)
+		now = func() time.Time { return futureTime }
+
+		// Create GitHub instance with mocked time
+		opts := &Options{
+			RedirectURL:  "http://localhost:8080/callback",
+			ClientID:     "test-client-id",
+			ClientSecret: "test-client-secret",
+		}
+		gh, err := New(opts, database, logger)
+		require.NoError(t, err)
+		defer gh.Close()
+
+		// Run gc() directly
+		deleted, err := gh.gc()
+		require.NoError(t, err)
+		require.Equal(t, int64(3), deleted) // Should delete all 3 flows since they're now "expired"
+
+		// Verify all flows are deleted
+		_, err = database.Queries.GetGithubOAuthFlowByIdentifier(ctx, expiredFlowID)
+		require.Error(t, err) // Should not exist
+
+		_, err = database.Queries.GetGithubOAuthFlowByIdentifier(ctx, expiredFlowID2)
+		require.Error(t, err) // Should not exist
+
+		_, err = database.Queries.GetGithubOAuthFlowByIdentifier(ctx, recentFlowID)
+		require.Error(t, err) // Should not exist since with mocked time it's also expired
+	})
+
+	t.Run("GCRunsInBackground", func(t *testing.T) {
+		// Save the original now function and restore it after the test
+		originalNow := now
+		defer func() { now = originalNow }()
+
+		// This test verifies that the gc goroutine starts and stops properly
+		opts := &Options{
+			RedirectURL:  "http://localhost:8080/callback",
+			ClientID:     "test-client-id",
+			ClientSecret: "test-client-secret",
+		}
+
+		gh, err := New(opts, database, logger)
+		require.NoError(t, err)
+		require.NotNil(t, gh)
+
+		// The gc goroutine should be running now
+		// Create a flow that will be expired when we mock the time
+		ctx := context.Background()
+		expiredFlowID := uuid.New().String()
+		err = database.Queries.CreateGithubOAuthFlow(ctx, generated.CreateGithubOAuthFlowParams{
+			Identifier: expiredFlowID,
+			Verifier:   "expired-verifier",
+			Challenge:  "expired-challenge",
+		})
+		require.NoError(t, err)
+
+		// Mock time to make the flow appear expired
+		futureTime := time.Now().Add(Expiry + 10*time.Minute)
+		now = func() time.Time { return futureTime }
+
+		// Manually trigger gc to verify it works
+		deleted, err := gh.gc()
+		require.NoError(t, err)
+		require.Equal(t, int64(1), deleted)
+
+		// Close should stop the gc goroutine gracefully
+		err = gh.Close()
+		require.NoError(t, err)
+
+		// After close, the goroutine should have stopped
+		// We can't easily test the goroutine is stopped, but Close() should return without hanging
+	})
+
+	t.Run("GCHandlesEmptyTable", func(t *testing.T) {
+		ctx := context.Background()
+
+		// Ensure table is empty
+		_, err := database.DB.ExecContext(ctx, "DELETE FROM github_oauth_flows")
+		require.NoError(t, err)
+
+		// Run cleanup on empty table
+		deleted, err := database.Queries.DeleteGithubOAuthFlowsBeforeTime(ctx, time.Now())
+		require.NoError(t, err)
+		require.Equal(t, int64(0), deleted) // No rows deleted
+	})
+
+	t.Run("GCHandlesNoExpiredFlows", func(t *testing.T) {
+		ctx := context.Background()
+
+		// Create only recent flows
+		for i := 0; i < 3; i++ {
+			flowID := uuid.New().String()
+			err := database.Queries.CreateGithubOAuthFlow(ctx, generated.CreateGithubOAuthFlowParams{
+				Identifier: flowID,
+				Verifier:   fmt.Sprintf("verifier-%d", i),
+				Challenge:  fmt.Sprintf("challenge-%d", i),
+			})
+			require.NoError(t, err)
+		}
+
+		// Run cleanup with a time that won't match any flows
+		deleted, err := database.Queries.DeleteGithubOAuthFlowsBeforeTime(ctx, time.Now().Add(-5*time.Minute))
+		require.NoError(t, err)
+		require.Equal(t, int64(0), deleted) // No rows should be deleted
+
+		// Verify all flows still exist
+		var count int
+		err = database.DB.QueryRowContext(ctx, "SELECT COUNT(*) FROM github_oauth_flows").Scan(&count)
+		require.NoError(t, err)
+		require.GreaterOrEqual(t, count, 3)
+	})
+
+	t.Run("GCDeletesOnlyExpiredFlows", func(t *testing.T) {
+		// Save the original now function and restore it after the test
+		originalNow := now
+		defer func() { now = originalNow }()
+
+		ctx := context.Background()
+
+		// Clear the table first
+		_, err := database.DB.ExecContext(ctx, "DELETE FROM github_oauth_flows")
+		require.NoError(t, err)
+
+		baseTime := time.Now()
+
+		// Create flows with various ages by manipulating created_at directly
+		flows := []struct {
+			id           string
+			age          time.Duration
+			shouldDelete bool
+		}{
+			{uuid.New().String(), -10 * time.Minute, true},            // 10 minutes old
+			{uuid.New().String(), -6 * time.Minute, true},             // 6 minutes old
+			{uuid.New().String(), -5*time.Minute - time.Second, true}, // just over 5 minutes old
+			{uuid.New().String(), -4 * time.Minute, false},            // 4 minutes old
+			{uuid.New().String(), -1 * time.Minute, false},            // 1 minute old
+			{uuid.New().String(), 0, false},                           // brand new
+		}
+
+		for _, flow := range flows {
+			_, err := database.DB.ExecContext(ctx,
+				`INSERT INTO github_oauth_flows (identifier, verifier, challenge, created_at) 
+				 VALUES (?, ?, ?, ?)`,
+				flow.id, "verifier", "challenge", baseTime.Add(flow.age))
+			require.NoError(t, err)
+		}
+
+		// Mock time to be exactly at baseTime so gc() will delete flows older than 5 minutes
+		now = func() time.Time { return baseTime }
+
+		// Create GitHub instance with mocked time
+		opts := &Options{
+			RedirectURL:  "http://localhost:8080/callback",
+			ClientID:     "test-client-id",
+			ClientSecret: "test-client-secret",
+		}
+		gh, err := New(opts, database, logger)
+		require.NoError(t, err)
+		defer gh.Close()
+
+		// Run gc() directly
+		deleted, err := gh.gc()
+		require.NoError(t, err)
+		require.Equal(t, int64(3), deleted) // Should delete only the 3 oldest flows
+
+		// Verify which flows were deleted
+		for _, flow := range flows {
+			_, err := database.Queries.GetGithubOAuthFlowByIdentifier(ctx, flow.id)
+			if flow.shouldDelete {
+				require.Error(t, err, "Flow %s should have been deleted", flow.id)
+			} else {
+				require.NoError(t, err, "Flow %s should still exist", flow.id)
+			}
+		}
 	})
 }
