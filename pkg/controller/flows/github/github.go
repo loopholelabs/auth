@@ -11,6 +11,8 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/grokify/go-pkce"
@@ -33,15 +35,18 @@ var (
 	ErrNoVerifiedEmails = errors.New("no verified emails")
 )
 
+const (
+	GCInterval = time.Minute
+	Expiry     = time.Minute * 5
+)
+
 var (
 	defaultScopes = []string{"user:email"}
 )
 
 type user struct {
-	ID    int64  `json:"id"`
-	Login string `json:"login"`
-	Email string `json:"email"`
-	Name  string `json:"name"`
+	ID   int64  `json:"id"`
+	Name string `json:"name"`
 }
 
 type email struct {
@@ -54,12 +59,18 @@ type Options struct {
 	RedirectURL  string
 	ClientID     string
 	ClientSecret string
+	HTTPClient   *http.Client // Optional: custom HTTP client for testing
 }
 
 type Github struct {
-	logger types.Logger
-	db     *db.DB
-	config *oauth2.Config
+	logger     types.Logger
+	db         *db.DB
+	config     *oauth2.Config
+	httpClient *http.Client
+
+	wg     sync.WaitGroup
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 func New(options *Options, db *db.DB, logger types.Logger) (*Github, error) {
@@ -75,9 +86,15 @@ func New(options *Options, db *db.DB, logger types.Logger) (*Github, error) {
 		return nil, ErrDBIsRequired
 	}
 
+	httpClient := options.HTTPClient
+	if httpClient == nil {
+		httpClient = http.DefaultClient
+	}
+
 	return &Github{
-		logger: logger.SubLogger("GITHUB"),
-		db:     db,
+		logger:     logger.SubLogger("GITHUB"),
+		db:         db,
+		httpClient: httpClient,
 		config: &oauth2.Config{
 			ClientID:     options.ClientID,
 			ClientSecret: options.ClientSecret,
@@ -100,15 +117,15 @@ func (c *Github) CreateFlow(ctx context.Context, deviceIdentifier string, userId
 		Challenge:  pkce.CodeChallengeS256(verifier),
 		DeviceIdentifier: sql.NullString{
 			String: deviceIdentifier,
-			Valid:  deviceIdentifier == "",
+			Valid:  deviceIdentifier != "",
 		},
 		UserIdentifier: sql.NullString{
 			String: userIdentifier,
-			Valid:  userIdentifier == "",
+			Valid:  userIdentifier != "",
 		},
 		NextUrl: sql.NullString{
 			String: nextURL,
-			Valid:  nextURL == "",
+			Valid:  nextURL != "",
 		},
 	}
 
@@ -133,7 +150,13 @@ func (c *Github) CompleteFlow(ctx context.Context, identifier string, code strin
 		return nil, errors.Join(ErrCompletingFlow, err)
 	}
 
-	token, err := c.config.Exchange(ctx, code, oauth2.SetAuthURLParam(pkce.ParamCodeVerifier, flow.Verifier))
+	// Use context with custom HTTP client for OAuth2 token exchange
+	oauth2Ctx := ctx
+	if c.httpClient != nil {
+		oauth2Ctx = context.WithValue(ctx, oauth2.HTTPClient, c.httpClient)
+	}
+
+	token, err := c.config.Exchange(oauth2Ctx, code, oauth2.SetAuthURLParam(pkce.ParamCodeVerifier, flow.Verifier))
 	if err != nil {
 		return nil, errors.Join(ErrCompletingFlow, err)
 	}
@@ -147,7 +170,7 @@ func (c *Github) CompleteFlow(ctx context.Context, identifier string, code strin
 
 	req.Header.Set("Authorization", fmt.Sprintf("token %s", token.AccessToken))
 
-	res, err := http.DefaultClient.Do(req)
+	res, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, errors.Join(ErrCompletingFlow, err)
 	}
@@ -172,6 +195,7 @@ func (c *Github) CompleteFlow(ctx context.Context, identifier string, code strin
 
 	f := &flows.Flow{
 		Identifier:       strconv.FormatInt(u.ID, 10),
+		Name:             u.Name,
 		NextURL:          flow.NextUrl.String,
 		DeviceIdentifier: flow.DeviceIdentifier.String,
 		UserIdentifier:   flow.UserIdentifier.String,
@@ -184,7 +208,7 @@ func (c *Github) CompleteFlow(ctx context.Context, identifier string, code strin
 
 	req.Header.Set("Authorization", fmt.Sprintf("token %s", token.AccessToken))
 
-	res, err = http.DefaultClient.Do(req)
+	res, err = c.httpClient.Do(req)
 	if err != nil {
 		return nil, errors.Join(ErrCompletingFlow, err)
 	}
@@ -220,3 +244,21 @@ func (c *Github) CompleteFlow(ctx context.Context, identifier string, code strin
 
 	return f, nil
 }
+
+//func (g *Github) gc() {
+//	defer g.wg.Done()
+//	for {
+//		select {
+//		case <-g.ctx.Done():
+//			g.logger.Info().Msg("GC Stopped")
+//			return
+//		case <-time.After(GCInterval):
+//			deleted, err := g.storage.GCGithubFlow(g.ctx, Expiry)
+//			if err != nil {
+//				g.logger.Error().Err(err).Msg("failed to garbage collect expired github flows")
+//			} else {
+//				g.logger.Debug().Msgf("garbage collected %d expired github flows", deleted)
+//			}
+//		}
+//	}
+//}
