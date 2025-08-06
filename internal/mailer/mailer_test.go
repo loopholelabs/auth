@@ -4,16 +4,27 @@ package mailer
 
 import (
 	"context"
-	"fmt"
 	"html/template"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 )
+
+var _ Mailer = (*mockMailer)(nil)
+
+// mockMailer is a mock implementation for testing
+type mockMailer struct{}
+
+func (m *mockMailer) SendMagicLink(_ context.Context, _ Email, _ string, _ time.Duration) error {
+	return nil
+}
+
+func (m *mockMailer) TestConnection(_ context.Context) error {
+	return nil
+}
 
 func TestFormatDuration(t *testing.T) {
 	tests := []struct {
@@ -309,11 +320,11 @@ func TestGeneratePlainText(t *testing.T) {
 	plainText := generatePlainText(data)
 
 	// Check that all required information is present
-	require.True(t, strings.Contains(plainText, "Sign in to TestApp"))
-	require.True(t, strings.Contains(plainText, "user@example.com"))
-	require.True(t, strings.Contains(plainText, "https://app.com/auth/verify?token=abc123"))
-	require.True(t, strings.Contains(plainText, "30 minutes"))
-	require.True(t, strings.Contains(plainText, "ignore this email"))
+	require.Contains(t, plainText, "Sign in to TestApp")
+	require.Contains(t, plainText, "user@example.com")
+	require.Contains(t, plainText, "https://app.com/auth/verify?token=abc123")
+	require.Contains(t, plainText, "30 minutes")
+	require.Contains(t, plainText, "ignore this email")
 }
 
 func TestSendMagicLink(t *testing.T) {
@@ -356,7 +367,7 @@ func TestSendMagicLink(t *testing.T) {
 			To: "notanemail",
 		}
 
-		err := client.SendMagicLink(email, "https://app.com/magic", 30*time.Minute)
+		err := client.SendMagicLink(t.Context(), email, "https://app.com/magic", 30*time.Minute)
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrInvalidEmail)
 	})
@@ -367,7 +378,7 @@ func TestSendMagicLink(t *testing.T) {
 			CC: []string{"invalid-cc"},
 		}
 
-		err := client.SendMagicLink(email, "https://app.com/magic", 30*time.Minute)
+		err := client.SendMagicLink(t.Context(), email, "https://app.com/magic", 30*time.Minute)
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrInvalidEmail)
 		require.Contains(t, err.Error(), "invalid CC email")
@@ -379,7 +390,7 @@ func TestSendMagicLink(t *testing.T) {
 			BCC: []string{"invalid-bcc"},
 		}
 
-		err := client.SendMagicLink(email, "https://app.com/magic", 30*time.Minute)
+		err := client.SendMagicLink(t.Context(), email, "https://app.com/magic", 30*time.Minute)
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrInvalidEmail)
 		require.Contains(t, err.Error(), "invalid BCC email")
@@ -390,15 +401,11 @@ func TestSendMagicLink(t *testing.T) {
 			To:  "user@example.com",
 			CC:  []string{"cc@example.com"},
 			BCC: []string{"bcc@example.com"},
-			Headers: map[string]string{
-				"X-Request-ID": "req-123",
-				"X-User-ID":    "user-456",
-			},
 		}
 
 		// This will fail to send due to invalid SMTP settings, but we're testing
 		// the email validation and structure, not actual sending
-		err := client.SendMagicLink(email, "https://app.com/magic", 30*time.Minute)
+		err := client.SendMagicLink(t.Context(), email, "https://app.com/magic", 30*time.Minute)
 		// We expect a send error, not a validation error
 		if err != nil {
 			require.ErrorIs(t, err, ErrSendFailed)
@@ -437,9 +444,9 @@ func TestSendMagicLinkWithContext(t *testing.T) {
 			To: "user@example.com",
 		}
 
-		err := client.SendMagicLinkWithContext(ctx, email, "https://app.com/magic", 30*time.Minute)
+		err := client.SendMagicLink(ctx, email, "https://app.com/magic", 30*time.Minute)
 		require.Error(t, err)
-		require.Equal(t, context.Canceled, err)
+		require.ErrorIs(t, err, context.Canceled)
 	})
 
 	t.Run("Context timeout", func(t *testing.T) {
@@ -453,29 +460,10 @@ func TestSendMagicLinkWithContext(t *testing.T) {
 			To: "user@example.com",
 		}
 
-		err := client.SendMagicLinkWithContext(ctx, email, "https://app.com/magic", 30*time.Minute)
+		err := client.SendMagicLink(ctx, email, "https://app.com/magic", 30*time.Minute)
 		require.Error(t, err)
-		require.Equal(t, context.DeadlineExceeded, err)
+		require.ErrorIs(t, err, context.DeadlineExceeded)
 	})
-}
-
-// mockMailer is a mock implementation for testing
-type mockMailer struct{}
-
-func (m *mockMailer) SendMagicLink(email Email, magicLinkURL string, expiresIn time.Duration) error {
-	return nil
-}
-
-func (m *mockMailer) TestConnection() error {
-	return nil
-}
-
-func TestInterfaceCompliance(t *testing.T) {
-	// This test ensures that Client implements the Mailer interface
-	var _ Mailer = (*Client)(nil)
-
-	// Ensure mock also implements the interface
-	var _ Mailer = (*mockMailer)(nil)
 }
 
 func TestRealTemplateExample(t *testing.T) {
@@ -550,41 +538,5 @@ func BenchmarkGeneratePlainText(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		generatePlainText(data)
-	}
-}
-
-// Example test to demonstrate usage
-func ExampleClient_SendMagicLink() {
-	// This is an example of how to use the mailer client
-	cfg := Config{
-		SMTPHost:              "smtp.gmail.com",
-		SMTPPort:              587,
-		SMTPUsername:          "your-email@gmail.com",
-		SMTPPassword:          "your-app-password",
-		FromEmail:             "noreply@yourapp.com",
-		FromName:              "YourApp",
-		AppName:               "YourApp",
-		MagicLinkTemplatePath: "./templates/magic-link.html",
-	}
-
-	client, err := New(cfg)
-	if err != nil {
-		// Handle error
-		fmt.Printf("Failed to create mailer client: %v\n", err)
-		return
-	}
-
-	email := Email{
-		To: "user@example.com",
-		Headers: map[string]string{
-			"X-Request-ID": "req-123",
-		},
-	}
-
-	magicLinkURL := "https://yourapp.com/auth/verify?token=abc123"
-	expiresIn := 30 * time.Minute
-
-	if err := client.SendMagicLink(email, magicLinkURL, expiresIn); err != nil {
-		fmt.Printf("Failed to send magic link: %v\n", err)
 	}
 }

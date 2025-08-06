@@ -5,7 +5,6 @@ package mailer
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"html/template"
@@ -13,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/gomail.v2"
+	"github.com/wneessen/go-mail"
 )
 
 var _ Mailer = (*Client)(nil)
@@ -29,8 +28,8 @@ var (
 )
 
 type Mailer interface {
-	SendMagicLink(email Email, magicLinkURL string, expiresIn time.Duration) error
-	TestConnection() error
+	SendMagicLink(ctx context.Context, email Email, magicLinkURL string, expiresIn time.Duration) error
+	TestConnection(ctx context.Context) error
 }
 
 // Config holds the configuration for the mailer client
@@ -54,18 +53,17 @@ type Config struct {
 
 // Email represents an email to be sent
 type Email struct {
-	To      string            // Recipient email address
-	CC      []string          // CC recipients
-	BCC     []string          // BCC recipients
-	Headers map[string]string // Custom headers (e.g. tracking IDs)
+	To  string   // Recipient email address
+	CC  []string // CC recipients
+	BCC []string // BCC recipients
 }
 
 // Client is the mailer client
 type Client struct {
-	smtpDialer *gomail.Dialer
-	fromEmail  string
-	fromName   string
-	appName    string
+	client    *mail.Client
+	fromEmail string
+	fromName  string
+	appName   string
 
 	magicLinkTemplate *template.Template
 }
@@ -93,12 +91,13 @@ func New(config Config) (*Client, error) {
 		return nil, err
 	}
 
-	// Create SMTP dialer
-	dialer := gomail.NewDialer(config.SMTPHost, config.SMTPPort, config.SMTPUsername, config.SMTPPassword)
-	dialer.TLSConfig = &tls.Config{ServerName: config.SMTPHost}
+	c, err := mail.NewClient(config.SMTPHost, mail.WithPort(config.SMTPPort), mail.WithUsername(config.SMTPUsername), mail.WithPassword(config.SMTPPassword), mail.WithSMTPAuth(mail.SMTPAuthPlain), mail.WithTLSPolicy(mail.TLSOpportunistic))
+	if err != nil {
+		return nil, err
+	}
 
 	client := &Client{
-		smtpDialer:        dialer,
+		client:            c,
 		fromEmail:         config.FromEmail,
 		fromName:          config.FromName,
 		appName:           config.AppName,
@@ -109,7 +108,7 @@ func New(config Config) (*Client, error) {
 }
 
 // SendMagicLink sends a magic link email to the specified recipient
-func (c *Client) SendMagicLink(email Email, magicLinkURL string, expiresIn time.Duration) error {
+func (c *Client) SendMagicLink(ctx context.Context, email Email, magicLinkURL string, expiresIn time.Duration) error {
 	// Validate recipient email
 	if err := ValidateEmail(email.To); err != nil {
 		return err
@@ -158,62 +157,48 @@ func (c *Client) SendMagicLink(email Email, magicLinkURL string, expiresIn time.
 	plainText := generatePlainText(data)
 
 	// Create email message
-	m := gomail.NewMessage()
-	m.SetAddressHeader("From", c.fromEmail, c.fromName)
-	m.SetHeader("To", email.To)
+	m := mail.NewMsg()
+	err := m.To(email.To)
+	if err != nil {
+		return errors.Join(ErrSendFailed, fmt.Errorf("failed to set `to` field: %w", err))
+	}
+	err = m.FromFormat(c.fromName, c.fromEmail)
+	if err != nil {
+		return errors.Join(ErrSendFailed, fmt.Errorf("failed to set `from` field: %w", err))
+	}
 
 	// Add CC recipients if provided
 	if len(email.CC) > 0 {
-		m.SetHeader("Cc", email.CC...)
+		err = m.Cc(email.CC...)
+		if err != nil {
+			return errors.Join(ErrSendFailed, fmt.Errorf("failed to set `cc` field: %w", err))
+		}
 	}
 
 	// Add BCC recipients if provided
 	if len(email.BCC) > 0 {
-		m.SetHeader("Bcc", email.BCC...)
+		err = m.Bcc(email.BCC...)
+		if err != nil {
+			return errors.Join(ErrSendFailed, fmt.Errorf("failed to set `bcc` field: %w", err))
+		}
 	}
 
-	// Add custom headers if provided
-	for key, value := range email.Headers {
-		m.SetHeader(key, value)
-	}
+	m.Subject(fmt.Sprintf("Sign in to %s", c.appName))
+	m.SetBodyString("text/html", htmlBuf.String())
+	m.AddAlternativeString("text/plain", plainText)
 
-	m.SetHeader("Subject", fmt.Sprintf("Sign in to %s", c.appName))
-	m.SetBody("text/plain", plainText)
-	m.AddAlternative("text/html", htmlBuf.String())
-
-	// Send email
-	if err := c.smtpDialer.DialAndSend(m); err != nil {
+	err = c.client.DialAndSendWithContext(ctx, m)
+	if err != nil {
 		return errors.Join(ErrSendFailed, err)
 	}
 
 	return nil
 }
 
-// SendMagicLinkWithContext sends a magic link email with context support for cancellation
-func (c *Client) SendMagicLinkWithContext(ctx context.Context, email Email, magicLinkURL string, expiresIn time.Duration) error {
-	// Create a channel to signal completion
-	done := make(chan error, 1)
-
-	go func() {
-		done <- c.SendMagicLink(email, magicLinkURL, expiresIn)
-	}()
-
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case err := <-done:
-		return err
-	}
-}
-
 // TestConnection tests the SMTP connection
-func (c *Client) TestConnection() error {
-	closer, err := c.smtpDialer.Dial()
+func (c *Client) TestConnection(ctx context.Context) error {
+	err := c.client.DialWithContext(ctx)
 	if err != nil {
-		return errors.Join(ErrSMTPConnectionFailed, err)
-	}
-
-	if err := closer.Close(); err != nil {
 		return errors.Join(ErrSMTPConnectionFailed, err)
 	}
 

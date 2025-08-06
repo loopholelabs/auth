@@ -35,6 +35,18 @@ func (q *Queries) CountAllGoogleOAuthFlows(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const countAllMagicLinkFlows = `-- name: CountAllMagicLinkFlows :one
+SELECT COUNT(*)
+FROM magic_link_flows
+`
+
+func (q *Queries) CountAllMagicLinkFlows(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countAllMagicLinkFlows)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createGithubOAuthFlow = `-- name: CreateGithubOAuthFlow :exec
 INSERT INTO github_oauth_flows (identifier, device_identifier, user_identifier, verifier, challenge, next_url,
                                 created_at)
@@ -91,6 +103,36 @@ func (q *Queries) CreateGoogleOAuthFlow(ctx context.Context, arg CreateGoogleOAu
 	return err
 }
 
+const createMagicLinkFlow = `-- name: CreateMagicLinkFlow :exec
+INSERT INTO magic_link_flows (identifier, device_identifier, user_identifier, next_url, salt, hash, email_address,
+                              created_at)
+VALUES (?, ?, ?, ?,
+        ?, ?, ?, CURRENT_TIMESTAMP)
+`
+
+type CreateMagicLinkFlowParams struct {
+	Identifier       string
+	DeviceIdentifier sql.NullString
+	UserIdentifier   sql.NullString
+	NextUrl          sql.NullString
+	Salt             string
+	Hash             []byte
+	EmailAddress     string
+}
+
+func (q *Queries) CreateMagicLinkFlow(ctx context.Context, arg CreateMagicLinkFlowParams) error {
+	_, err := q.db.ExecContext(ctx, createMagicLinkFlow,
+		arg.Identifier,
+		arg.DeviceIdentifier,
+		arg.UserIdentifier,
+		arg.NextUrl,
+		arg.Salt,
+		arg.Hash,
+		arg.EmailAddress,
+	)
+	return err
+}
+
 const deleteAllGithubOAuthFlows = `-- name: DeleteAllGithubOAuthFlows :execrows
 DELETE
 FROM github_oauth_flows
@@ -111,6 +153,19 @@ FROM google_oauth_flows
 
 func (q *Queries) DeleteAllGoogleOAuthFlows(ctx context.Context) (int64, error) {
 	result, err := q.db.ExecContext(ctx, deleteAllGoogleOAuthFlows)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const deleteAllMagicLinkFlows = `-- name: DeleteAllMagicLinkFlows :execrows
+DELETE
+FROM magic_link_flows
+`
+
+func (q *Queries) DeleteAllMagicLinkFlows(ctx context.Context) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteAllMagicLinkFlows)
 	if err != nil {
 		return 0, err
 	}
@@ -167,6 +222,31 @@ func (q *Queries) DeleteGoogleOAuthFlowsBeforeTime(ctx context.Context, createdA
 	return result.RowsAffected()
 }
 
+const deleteMagicLinkFlowByIdentifier = `-- name: DeleteMagicLinkFlowByIdentifier :exec
+DELETE
+FROM magic_link_flows
+WHERE identifier = ?
+`
+
+func (q *Queries) DeleteMagicLinkFlowByIdentifier(ctx context.Context, identifier string) error {
+	_, err := q.db.ExecContext(ctx, deleteMagicLinkFlowByIdentifier, identifier)
+	return err
+}
+
+const deleteMagicLinkFlowsBeforeTime = `-- name: DeleteMagicLinkFlowsBeforeTime :execrows
+DELETE
+FROM magic_link_flows
+WHERE created_at < ?
+`
+
+func (q *Queries) DeleteMagicLinkFlowsBeforeTime(ctx context.Context, createdAt time.Time) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteMagicLinkFlowsBeforeTime, createdAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const getGithubOAuthFlowByIdentifier = `-- name: GetGithubOAuthFlowByIdentifier :one
 SELECT identifier, verifier, challenge, device_identifier, user_identifier, next_url, created_at
 FROM github_oauth_flows
@@ -201,6 +281,28 @@ func (q *Queries) GetGoogleOAuthFlowByIdentifier(ctx context.Context, identifier
 		&i.Identifier,
 		&i.Verifier,
 		&i.Challenge,
+		&i.DeviceIdentifier,
+		&i.UserIdentifier,
+		&i.NextUrl,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getMagicLinkFlowByIdentifier = `-- name: GetMagicLinkFlowByIdentifier :one
+SELECT identifier, salt, hash, email_address, device_identifier, user_identifier, next_url, created_at
+FROM magic_link_flows
+WHERE identifier = ? LIMIT 1
+`
+
+func (q *Queries) GetMagicLinkFlowByIdentifier(ctx context.Context, identifier string) (MagicLinkFlow, error) {
+	row := q.db.QueryRowContext(ctx, getMagicLinkFlowByIdentifier, identifier)
+	var i MagicLinkFlow
+	err := row.Scan(
+		&i.Identifier,
+		&i.Salt,
+		&i.Hash,
+		&i.EmailAddress,
 		&i.DeviceIdentifier,
 		&i.UserIdentifier,
 		&i.NextUrl,
