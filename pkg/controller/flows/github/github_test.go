@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -26,7 +27,7 @@ import (
 )
 
 // Helper function to create OAuth2 token response
-func mockOAuth2TokenResponse(accessToken string) testutils.MockResponse {
+func mockOAuth2TokenResponse(accessToken string) testutils.MockResponse { //nolint:unparam
 	return testutils.MockResponse{
 		StatusCode: http.StatusOK,
 		Body: map[string]interface{}{
@@ -39,7 +40,7 @@ func mockOAuth2TokenResponse(accessToken string) testutils.MockResponse {
 }
 
 // Helper function to create GitHub user response
-func mockGitHubUserResponse(id int64, name string) testutils.MockResponse {
+func mockGitHubUserResponse(id int64, name string) testutils.MockResponse { //nolint:unparam
 	return testutils.MockResponse{
 		StatusCode: http.StatusOK,
 		Body: map[string]interface{}{
@@ -823,7 +824,7 @@ func TestErrorHandling(t *testing.T) {
 
 		// oauth2 package wraps the error
 		var oauth2Err *oauth2.RetrieveError
-		require.True(t, errors.As(err, &oauth2Err))
+		require.ErrorAs(t, err, &oauth2Err)
 		require.Nil(t, flow)
 	})
 
@@ -841,7 +842,7 @@ func TestErrorHandling(t *testing.T) {
 				StatusCode: http.StatusForbidden,
 				Headers: map[string]string{
 					"X-RateLimit-Remaining": "0",
-					"X-RateLimit-Reset":     fmt.Sprintf("%d", 1234567890),
+					"X-RateLimit-Reset":     strconv.Itoa(1234567890),
 				},
 				Body: map[string]interface{}{
 					"message": "API rate limit exceeded",
