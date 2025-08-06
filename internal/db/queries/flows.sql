@@ -55,3 +55,32 @@ FROM google_oauth_flows;
 -- name: CountAllGoogleOAuthFlows :one
 SELECT COUNT(*)
 FROM google_oauth_flows;
+
+-- name: CreateMagicLinkFlow :exec
+INSERT INTO magic_link_flows (identifier, device_identifier, user_identifier, next_url, salt, hash, email_address,
+                              created_at)
+VALUES (sqlc.arg(identifier), sqlc.arg(device_identifier), sqlc.arg(user_identifier), sqlc.arg(next_url),
+        sqlc.arg(salt), sqlc.arg(hash), sqlc.arg(email_address), CURRENT_TIMESTAMP);
+
+-- name: GetMagicLinkFlowByIdentifier :one
+SELECT *
+FROM magic_link_flows
+WHERE identifier = sqlc.arg(identifier) LIMIT 1;
+
+-- name: DeleteMagicLinkFlowByIdentifier :exec
+DELETE
+FROM magic_link_flows
+WHERE identifier = ?;
+
+-- name: DeleteMagicLinkFlowsBeforeTime :execrows
+DELETE
+FROM magic_link_flows
+WHERE created_at < ?;
+
+-- name: DeleteAllMagicLinkFlows :execrows
+DELETE
+FROM magic_link_flows;
+
+-- name: CountAllMagicLinkFlows :one
+SELECT COUNT(*)
+FROM magic_link_flows;

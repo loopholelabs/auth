@@ -113,7 +113,7 @@ CREATE TABLE invitations
     organization_identifier CHAR(36)    NOT NULL,
     inviter_user_identifier CHAR(36)    NOT NULL,
     role                    VARCHAR(64) NOT NULL,
-    hash                    CHAR(60)    NOT NULL,
+    hash                    BINARY(60)    NOT NULL,
     status                  ENUM('pending', 'accepted') NOT NULL DEFAULT 'pending',
     expires_at              DATETIME    NOT NULL,
     created_at              DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -190,7 +190,7 @@ CREATE TABLE api_keys
 (
     identifier              CHAR(36) PRIMARY KEY DEFAULT (uuid()),
     salt                    CHAR(36)    NOT NULL,
-    hash                    CHAR(60)    NOT NULL,
+    hash                    BINARY(60)    NOT NULL,
     organization_identifier CHAR(36)    NOT NULL,
     role                    VARCHAR(64) NOT NULL,
     created_at              DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -209,7 +209,7 @@ CREATE TABLE service_keys
 (
     identifier              CHAR(36) PRIMARY KEY DEFAULT (uuid()),
     salt                    CHAR(36)    NOT NULL,
-    hash                    CHAR(60)    NOT NULL,
+    hash                    BINARY(60)    NOT NULL,
     organization_identifier CHAR(36)    NOT NULL,
     user_identifier         CHAR(36)    NOT NULL,
     role                    VARCHAR(64) NOT NULL,
@@ -299,9 +299,8 @@ CREATE TABLE magic_link_flows
 (
     identifier        CHAR(36) PRIMARY KEY  DEFAULT (uuid()),
     salt              CHAR(36)     NOT NULL,
-    hash              CHAR(60)     NOT NULL,
+    hash              BINARY(60)     NOT NULL,
     email_address     VARCHAR(320) NOT NULL,
-    ip_address        VARCHAR(64)  NOT NULL,
     device_identifier CHAR(36),
     user_identifier   CHAR(36),
     next_url          VARCHAR(1024),
