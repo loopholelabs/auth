@@ -5,6 +5,6 @@ sql:
     schema: "migrations"
     gen:
       go:
-        package: "db"
-        out: "."
+        package: "generated"
+        out: "generated"
         sql_package: "database/sql"

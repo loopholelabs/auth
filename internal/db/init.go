@@ -14,6 +14,8 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/loopholelabs/logging/types"
 	"github.com/pressly/goose/v3"
+
+	"github.com/loopholelabs/auth/internal/db/generated"
 )
 
 //go:generate go tool github.com/sqlc-dev/sqlc/cmd/sqlc generate --file sqlc.yaml
@@ -33,7 +35,11 @@ const (
 	locationOption        = "loc=UTC"
 )
 
-var Pool *sql.DB
+type DB struct {
+	logger  types.Logger
+	Queries *generated.Queries
+	DB      *sql.DB
+}
 
 type gooseLogger struct {
 	logger types.Logger
@@ -47,63 +53,59 @@ func (l *gooseLogger) Printf(format string, v ...any) {
 	l.logger.Info().Msgf(strings.TrimSpace(format), v...)
 }
 
-func Initialize(url string, logger types.Logger) error {
-
-	l := logger.SubLogger("DATABASE")
-
-	var err error
-
+func New(url string, logger types.Logger) (*DB, error) {
 	if !strings.Contains(url, parseTimeOption) {
-		return fmt.Errorf("invalid database url: %w", ErrMissingParseTimeOption)
+		return nil, fmt.Errorf("invalid database url: %w", ErrMissingParseTimeOption)
 	}
 
 	if !strings.Contains(url, multiStatementsOption) {
-		return fmt.Errorf("invalid database url: %w", ErrMissingMultiStatementsOption)
+		return nil, fmt.Errorf("invalid database url: %w", ErrMissingMultiStatementsOption)
 	}
 
 	if !strings.Contains(url, locationOption) {
-		return fmt.Errorf("invalid database url: %w", ErrMissingLocationOption)
+		return nil, fmt.Errorf("invalid database url: %w", ErrMissingLocationOption)
 	}
 
-	Pool, err = sql.Open("mysql", url)
+	db, err := sql.Open("mysql", url)
 	if err != nil {
-		return fmt.Errorf("failed to connect to database: %w", err)
+		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	Pool.SetMaxOpenConns(25)
-	Pool.SetMaxIdleConns(25)
-	Pool.SetConnMaxLifetime(3 * time.Minute)
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(25)
+	db.SetConnMaxLifetime(3 * time.Minute)
 
-	err = Pool.Ping()
+	err = db.Ping()
 	if err != nil {
-		Pool.Close()
-		Pool = nil
-		return fmt.Errorf("failed to ping database: %w", err)
+		_ = db.Close()
+		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
+
+	l := logger.SubLogger("DATABASE")
 
 	// Run database migrations.
 	goose.SetBaseFS(Migrations)
-	goose.SetLogger(&gooseLogger{logger: l})
+	goose.SetLogger(&gooseLogger{logger: l.SubLogger("GOOSE")})
 
 	err = goose.SetDialect("mysql")
 	if err != nil {
-		Pool.Close()
-		Pool = nil
-		return fmt.Errorf("failed to set database dialect: %w", err)
+		_ = db.Close()
+		return nil, fmt.Errorf("failed to set database dialect: %w", err)
 	}
 
-	err = goose.Up(Pool, "migrations")
+	err = goose.Up(db, "migrations")
 	if err != nil {
-		Pool.Close()
-		Pool = nil
-		return fmt.Errorf("failed apply database migrations: %w", err)
+		_ = db.Close()
+		return nil, fmt.Errorf("failed apply database migrations: %w", err)
 	}
 
-	return nil
+	return &DB{
+		logger:  l,
+		Queries: generated.New(db),
+		DB:      db,
+	}, nil
 }
 
-func Close() {
-	if Pool != nil {
-		_ = Pool.Close()
-	}
+func (db *DB) Close() error {
+	return db.DB.Close()
 }
