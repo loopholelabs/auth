@@ -57,7 +57,7 @@ func (ns NullInvitationsStatus) Value() (driver.Value, error) {
 type ApiKey struct {
 	Identifier             string
 	Salt                   string
-	SecretHash             string
+	Hash                   string
 	OrganizationIdentifier string
 	Role                   string
 	CreatedAt              time.Time
@@ -119,7 +119,7 @@ type Invitation struct {
 	OrganizationIdentifier string
 	InviterUserIdentifier  string
 	Role                   string
-	InviteHash             string
+	Hash                   string
 	Status                 InvitationsStatus
 	ExpiresAt              time.Time
 	CreatedAt              time.Time
@@ -163,7 +163,7 @@ type Organization struct {
 type ServiceKey struct {
 	Identifier             string
 	Salt                   string
-	SecretHash             string
+	Hash                   string
 	OrganizationIdentifier string
 	UserIdentifier         string
 	Role                   string

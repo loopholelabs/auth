@@ -113,7 +113,7 @@ CREATE TABLE invitations
     organization_identifier CHAR(36)    NOT NULL,
     inviter_user_identifier CHAR(36)    NOT NULL,
     role                    VARCHAR(64) NOT NULL,
-    invite_hash             CHAR(60)    NOT NULL,
+    hash                    CHAR(60)    NOT NULL,
     status                  ENUM('pending', 'accepted') NOT NULL DEFAULT 'pending',
     expires_at              DATETIME    NOT NULL,
     created_at              DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -189,8 +189,8 @@ CREATE TABLE session_revalidations
 CREATE TABLE api_keys
 (
     identifier              CHAR(36) PRIMARY KEY DEFAULT (uuid()),
-    salt                    CHAR(32)    NOT NULL,
-    secret_hash             CHAR(60)    NOT NULL,
+    salt                    CHAR(36)    NOT NULL,
+    hash                    CHAR(60)    NOT NULL,
     organization_identifier CHAR(36)    NOT NULL,
     role                    VARCHAR(64) NOT NULL,
     created_at              DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -208,8 +208,8 @@ CREATE TABLE api_keys
 CREATE TABLE service_keys
 (
     identifier              CHAR(36) PRIMARY KEY DEFAULT (uuid()),
-    salt                    CHAR(32)    NOT NULL,
-    secret_hash             CHAR(60)    NOT NULL,
+    salt                    CHAR(36)    NOT NULL,
+    hash                    CHAR(60)    NOT NULL,
     organization_identifier CHAR(36)    NOT NULL,
     user_identifier         CHAR(36)    NOT NULL,
     role                    VARCHAR(64) NOT NULL,
@@ -298,7 +298,7 @@ CREATE TABLE github_oauth_flows
 CREATE TABLE magic_link_flows
 (
     identifier        CHAR(36) PRIMARY KEY  DEFAULT (uuid()),
-    salt              CHAR(32)     NOT NULL,
+    salt              CHAR(36)     NOT NULL,
     hash              CHAR(60)     NOT NULL,
     email_address     VARCHAR(320) NOT NULL,
     ip_address        VARCHAR(64)  NOT NULL,
