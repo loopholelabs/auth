@@ -204,8 +204,6 @@ func (c *Github) CompleteFlow(ctx context.Context, identifier string, code strin
 		return nil, errors.Join(ErrCompletingFlow, err)
 	}
 
-	// Get User Emails
-
 	var u user
 	err = json.Unmarshal(body, &u)
 	if err != nil {
@@ -219,6 +217,8 @@ func (c *Github) CompleteFlow(ctx context.Context, identifier string, code strin
 		DeviceIdentifier: flow.DeviceIdentifier.String,
 		UserIdentifier:   flow.UserIdentifier.String,
 	}
+
+	// Get User Emails
 
 	req, err = http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/user/emails", nil)
 	if err != nil {

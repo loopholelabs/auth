@@ -23,6 +23,18 @@ func (q *Queries) CountAllGithubOAuthFlows(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const countAllGoogleOAuthFlows = `-- name: CountAllGoogleOAuthFlows :one
+SELECT COUNT(*)
+FROM google_oauth_flows
+`
+
+func (q *Queries) CountAllGoogleOAuthFlows(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countAllGoogleOAuthFlows)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createGithubOAuthFlow = `-- name: CreateGithubOAuthFlow :exec
 INSERT INTO github_oauth_flows (identifier, device_identifier, user_identifier, verifier, challenge, next_url,
                                 created_at)
@@ -51,6 +63,34 @@ func (q *Queries) CreateGithubOAuthFlow(ctx context.Context, arg CreateGithubOAu
 	return err
 }
 
+const createGoogleOAuthFlow = `-- name: CreateGoogleOAuthFlow :exec
+INSERT INTO google_oauth_flows (identifier, device_identifier, user_identifier, verifier, challenge, next_url,
+                                created_at)
+VALUES (?, ?, ?, ?,
+        ?, ?, CURRENT_TIMESTAMP)
+`
+
+type CreateGoogleOAuthFlowParams struct {
+	Identifier       string
+	DeviceIdentifier sql.NullString
+	UserIdentifier   sql.NullString
+	Verifier         string
+	Challenge        string
+	NextUrl          sql.NullString
+}
+
+func (q *Queries) CreateGoogleOAuthFlow(ctx context.Context, arg CreateGoogleOAuthFlowParams) error {
+	_, err := q.db.ExecContext(ctx, createGoogleOAuthFlow,
+		arg.Identifier,
+		arg.DeviceIdentifier,
+		arg.UserIdentifier,
+		arg.Verifier,
+		arg.Challenge,
+		arg.NextUrl,
+	)
+	return err
+}
+
 const deleteAllGithubOAuthFlows = `-- name: DeleteAllGithubOAuthFlows :execrows
 DELETE
 FROM github_oauth_flows
@@ -58,6 +98,19 @@ FROM github_oauth_flows
 
 func (q *Queries) DeleteAllGithubOAuthFlows(ctx context.Context) (int64, error) {
 	result, err := q.db.ExecContext(ctx, deleteAllGithubOAuthFlows)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const deleteAllGoogleOAuthFlows = `-- name: DeleteAllGoogleOAuthFlows :execrows
+DELETE
+FROM google_oauth_flows
+`
+
+func (q *Queries) DeleteAllGoogleOAuthFlows(ctx context.Context) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteAllGoogleOAuthFlows)
 	if err != nil {
 		return 0, err
 	}
@@ -89,6 +142,31 @@ func (q *Queries) DeleteGithubOAuthFlowsBeforeTime(ctx context.Context, createdA
 	return result.RowsAffected()
 }
 
+const deleteGoogleOAuthFlowByIdentifier = `-- name: DeleteGoogleOAuthFlowByIdentifier :exec
+DELETE
+FROM google_oauth_flows
+WHERE identifier = ?
+`
+
+func (q *Queries) DeleteGoogleOAuthFlowByIdentifier(ctx context.Context, identifier string) error {
+	_, err := q.db.ExecContext(ctx, deleteGoogleOAuthFlowByIdentifier, identifier)
+	return err
+}
+
+const deleteGoogleOAuthFlowsBeforeTime = `-- name: DeleteGoogleOAuthFlowsBeforeTime :execrows
+DELETE
+FROM google_oauth_flows
+WHERE created_at < ?
+`
+
+func (q *Queries) DeleteGoogleOAuthFlowsBeforeTime(ctx context.Context, createdAt time.Time) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteGoogleOAuthFlowsBeforeTime, createdAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const getGithubOAuthFlowByIdentifier = `-- name: GetGithubOAuthFlowByIdentifier :one
 SELECT identifier, verifier, challenge, device_identifier, user_identifier, next_url, created_at
 FROM github_oauth_flows
@@ -98,6 +176,27 @@ WHERE identifier = ? LIMIT 1
 func (q *Queries) GetGithubOAuthFlowByIdentifier(ctx context.Context, identifier string) (GithubOauthFlow, error) {
 	row := q.db.QueryRowContext(ctx, getGithubOAuthFlowByIdentifier, identifier)
 	var i GithubOauthFlow
+	err := row.Scan(
+		&i.Identifier,
+		&i.Verifier,
+		&i.Challenge,
+		&i.DeviceIdentifier,
+		&i.UserIdentifier,
+		&i.NextUrl,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getGoogleOAuthFlowByIdentifier = `-- name: GetGoogleOAuthFlowByIdentifier :one
+SELECT identifier, verifier, challenge, device_identifier, user_identifier, next_url, created_at
+FROM google_oauth_flows
+WHERE identifier = ? LIMIT 1
+`
+
+func (q *Queries) GetGoogleOAuthFlowByIdentifier(ctx context.Context, identifier string) (GoogleOauthFlow, error) {
+	row := q.db.QueryRowContext(ctx, getGoogleOAuthFlowByIdentifier, identifier)
+	var i GoogleOauthFlow
 	err := row.Scan(
 		&i.Identifier,
 		&i.Verifier,
