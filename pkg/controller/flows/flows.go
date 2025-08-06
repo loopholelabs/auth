@@ -4,6 +4,7 @@ package flows
 
 type Flow struct {
 	Identifier       string
+	Name             string
 	PrimaryEmail     string
 	VerifiedEmails   []string
 	NextURL          string
