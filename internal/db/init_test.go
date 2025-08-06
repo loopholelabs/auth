@@ -49,7 +49,7 @@ func TestInitialize(t *testing.T) {
 	})
 
 	t.Run("InvalidDatabaseURL", func(t *testing.T) {
-		invalidURL := "invalid://url?parseTime=true&multiStatements=true"
+		invalidURL := "invalid://url?parseTime=true&multiStatements=true&loc=UTC"
 		err := Initialize(invalidURL, logger)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to connect to database")
@@ -57,7 +57,7 @@ func TestInitialize(t *testing.T) {
 	})
 
 	t.Run("UnreachableDatabase", func(t *testing.T) {
-		unreachableURL := "root:wrongpassword@tcp(localhost:9999)/testdb?parseTime=true&multiStatements=true"
+		unreachableURL := "root:wrongpassword@tcp(localhost:9999)/testdb?parseTime=true&multiStatements=true&loc=UTC"
 		err := Initialize(unreachableURL, logger)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to ping database")

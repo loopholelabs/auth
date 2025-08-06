@@ -49,7 +49,7 @@ func SetupMySQLContainer(t testing.TB) *MySQLContainer {
 	port, err := container.MappedPort(ctx, "3306")
 	require.NoError(t, err, "failed to get container port")
 
-	url := fmt.Sprintf("root:testpassword@tcp(%s:%s)/testdb?parseTime=true&multiStatements=true", host, port.Port())
+	url := fmt.Sprintf("root:testpassword@tcp(%s:%s)/testdb?parseTime=true&multiStatements=true&loc=UTC", host, port.Port())
 
 	mysqlContainer := &MySQLContainer{
 		container: container,
