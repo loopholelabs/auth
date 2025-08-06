@@ -91,7 +91,8 @@ func New(options *Options, db *db.DB, logger types.Logger) (*Github, error) {
 		httpClient = http.DefaultClient
 	}
 
-	return &Github{
+	ctx, cancel := context.WithCancel(context.Background())
+	g := &Github{
 		logger:     logger.SubLogger("GITHUB"),
 		db:         db,
 		httpClient: httpClient,
@@ -102,7 +103,20 @@ func New(options *Options, db *db.DB, logger types.Logger) (*Github, error) {
 			RedirectURL:  options.RedirectURL,
 			Scopes:       defaultScopes,
 		},
-	}, nil
+		ctx:    ctx,
+		cancel: cancel,
+	}
+
+	g.wg.Add(1)
+	go g.gc()
+
+	return g, nil
+}
+
+func (c *Github) Close() error {
+	c.cancel()
+	c.wg.Wait()
+	return nil
 }
 
 func (c *Github) CreateFlow(ctx context.Context, deviceIdentifier string, userIdentifier string, nextURL string) (string, error) {
@@ -245,20 +259,20 @@ func (c *Github) CompleteFlow(ctx context.Context, identifier string, code strin
 	return f, nil
 }
 
-//func (g *Github) gc() {
-//	defer g.wg.Done()
-//	for {
-//		select {
-//		case <-g.ctx.Done():
-//			g.logger.Info().Msg("GC Stopped")
-//			return
-//		case <-time.After(GCInterval):
-//			deleted, err := g.storage.GCGithubFlow(g.ctx, Expiry)
-//			if err != nil {
-//				g.logger.Error().Err(err).Msg("failed to garbage collect expired github flows")
-//			} else {
-//				g.logger.Debug().Msgf("garbage collected %d expired github flows", deleted)
-//			}
-//		}
-//	}
-//}
+func (c *Github) gc() {
+	defer c.wg.Done()
+	for {
+		select {
+		case <-c.ctx.Done():
+			c.logger.Info().Msg("GC Stopped")
+			return
+		case <-time.After(GCInterval):
+			deleted, err := c.db.Queries.DeleteGithubOAuthFlowsBeforeTime(c.ctx, time.Now().Add(-Expiry))
+			if err != nil {
+				c.logger.Error().Err(err).Msg("failed to garbage collect expired flows")
+			} else {
+				c.logger.Debug().Msgf("garbage collected %d expired flows", deleted)
+			}
+		}
+	}
+}

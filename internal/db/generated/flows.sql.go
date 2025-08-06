@@ -8,6 +8,7 @@ package generated
 import (
 	"context"
 	"database/sql"
+	"time"
 )
 
 const createGithubOAuthFlow = `-- name: CreateGithubOAuthFlow :exec
@@ -47,6 +48,20 @@ WHERE identifier = ?
 func (q *Queries) DeleteGithubOAuthFlowByIdentifier(ctx context.Context, identifier string) error {
 	_, err := q.db.ExecContext(ctx, deleteGithubOAuthFlowByIdentifier, identifier)
 	return err
+}
+
+const deleteGithubOAuthFlowsBeforeTime = `-- name: DeleteGithubOAuthFlowsBeforeTime :execrows
+DELETE
+FROM github_oauth_flows
+WHERE created_at < ?
+`
+
+func (q *Queries) DeleteGithubOAuthFlowsBeforeTime(ctx context.Context, createdAt time.Time) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteGithubOAuthFlowsBeforeTime, createdAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const getGithubOAuthFlowByIdentifier = `-- name: GetGithubOAuthFlowByIdentifier :one

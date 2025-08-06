@@ -405,7 +405,6 @@ func (j *Jar) newEntry(c *http.Cookie, now time.Time, defPath, host string) (ent
 	case http.SameSiteLaxMode:
 		e.SameSite = "SameSite=Lax"
 	default:
-		panic("unhandled default case")
 	}
 
 	return e, false, nil
