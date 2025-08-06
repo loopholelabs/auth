@@ -3,17 +3,18 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"embed"
-	_ "embed"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql"
-	"github.com/loopholelabs/logging/types"
+	_ "github.com/go-sql-driver/mysql" // MySQL Driver
 	"github.com/pressly/goose/v3"
+
+	"github.com/loopholelabs/logging/types"
 
 	"github.com/loopholelabs/auth/internal/db/generated"
 )
@@ -75,7 +76,10 @@ func New(url string, logger types.Logger) (*DB, error) {
 	db.SetMaxIdleConns(25)
 	db.SetConnMaxLifetime(3 * time.Minute)
 
-	err = db.Ping()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	err = db.PingContext(ctx)
 	if err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("failed to ping database: %w", err)
