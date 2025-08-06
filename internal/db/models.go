@@ -64,9 +64,9 @@ type ApiKey struct {
 }
 
 type Configuration struct {
-	Identifier     uint32
-	Secret         []byte
-	PreviousSecret sql.NullString
+	ConfigKey   string
+	ConfigValue string
+	UpdatedAt   time.Time
 }
 
 type DeviceCodeFlow struct {
