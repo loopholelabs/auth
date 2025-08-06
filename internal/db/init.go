@@ -21,6 +21,7 @@ import (
 var (
 	ErrMissingParseTimeOption       = errors.New("missing parse time option")
 	ErrMissingMultiStatementsOption = errors.New("missing multi statements option")
+	ErrMissingLocationOption        = errors.New("missing location option")
 )
 
 //go:embed migrations/*.sql
@@ -29,6 +30,7 @@ var Migrations embed.FS
 const (
 	parseTimeOption       = "parseTime=true"
 	multiStatementsOption = "multiStatements=true"
+	locationOption        = "loc=UTC"
 )
 
 var Pool *sql.DB
@@ -57,6 +59,10 @@ func Initialize(url string, logger types.Logger) error {
 
 	if !strings.Contains(url, multiStatementsOption) {
 		return fmt.Errorf("invalid database url: %w", ErrMissingMultiStatementsOption)
+	}
+
+	if !strings.Contains(url, locationOption) {
+		return fmt.Errorf("invalid database url: %w", ErrMissingLocationOption)
 	}
 
 	Pool, err = sql.Open("mysql", url)
