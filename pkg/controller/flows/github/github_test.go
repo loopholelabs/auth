@@ -62,6 +62,10 @@ func TestNew(t *testing.T) {
 	database, err := db.New(container.URL, logger)
 	require.NoError(t, err)
 
+	t.Cleanup(func() {
+		require.NoError(t, database.Close())
+	})
+
 	t.Run("ValidOptions", func(t *testing.T) {
 		opts := &Options{
 			RedirectURL:  "http://localhost:8080/callback",
@@ -73,6 +77,10 @@ func TestNew(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, gh)
 		require.Equal(t, http.DefaultClient, gh.httpClient)
+
+		t.Cleanup(func() {
+			require.NoError(t, gh.Close())
+		})
 	})
 
 	t.Run("ValidOptionsWithCustomClient", func(t *testing.T) {
@@ -88,6 +96,10 @@ func TestNew(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, gh)
 		require.Equal(t, mockClient.HTTPClient, gh.httpClient)
+
+		t.Cleanup(func() {
+			require.NoError(t, gh.Close())
+		})
 	})
 
 	t.Run("NilOptions", func(t *testing.T) {
@@ -148,6 +160,10 @@ func TestCreateFlow(t *testing.T) {
 	database, err := db.New(container.URL, logger)
 	require.NoError(t, err)
 
+	t.Cleanup(func() {
+		require.NoError(t, database.Close())
+	})
+
 	opts := &Options{
 		RedirectURL:  "http://localhost:8080/callback",
 		ClientID:     "test-client-id",
@@ -156,6 +172,10 @@ func TestCreateFlow(t *testing.T) {
 
 	gh, err := New(opts, database, logger)
 	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		require.NoError(t, gh.Close())
+	})
 
 	t.Run("CreateFlowSuccess", func(t *testing.T) {
 		ctx := context.Background()
@@ -237,6 +257,10 @@ func TestCompleteFlow(t *testing.T) {
 	database, err := db.New(container.URL, logger)
 	require.NoError(t, err)
 
+	t.Cleanup(func() {
+		require.NoError(t, database.Close())
+	})
+
 	t.Run("CompleteFlowSuccess", func(t *testing.T) {
 		ctx := context.Background()
 		mockClient := testutils.SetupMockHTTPClient(t)
@@ -271,6 +295,10 @@ func TestCompleteFlow(t *testing.T) {
 
 		gh, err := New(opts, database, logger)
 		require.NoError(t, err)
+
+		t.Cleanup(func() {
+			require.NoError(t, gh.Close())
+		})
 
 		// Create a flow first
 		flowID := uuid.New().String()
@@ -343,6 +371,10 @@ func TestCompleteFlow(t *testing.T) {
 		gh, err := New(opts, database, logger)
 		require.NoError(t, err)
 
+		t.Cleanup(func() {
+			require.NoError(t, gh.Close())
+		})
+
 		// Create a flow
 		flowID := uuid.New().String()
 		err = database.Queries.CreateGithubOAuthFlow(ctx, generated.CreateGithubOAuthFlowParams{
@@ -382,6 +414,10 @@ func TestCompleteFlow(t *testing.T) {
 
 		gh, err := New(opts, database, logger)
 		require.NoError(t, err)
+
+		t.Cleanup(func() {
+			require.NoError(t, gh.Close())
+		})
 
 		// Create a flow
 		flowID := uuid.New().String()
@@ -423,6 +459,10 @@ func TestCompleteFlow(t *testing.T) {
 
 		gh, err := New(opts, database, logger)
 		require.NoError(t, err)
+
+		t.Cleanup(func() {
+			require.NoError(t, gh.Close())
+		})
 
 		// Create a flow
 		flowID := uuid.New().String()
@@ -467,6 +507,10 @@ func TestCompleteFlow(t *testing.T) {
 		gh, err := New(opts, database, logger)
 		require.NoError(t, err)
 
+		t.Cleanup(func() {
+			require.NoError(t, gh.Close())
+		})
+
 		// Create a flow
 		flowID := uuid.New().String()
 		err = database.Queries.CreateGithubOAuthFlow(ctx, generated.CreateGithubOAuthFlowParams{
@@ -497,6 +541,10 @@ func TestCompleteFlow(t *testing.T) {
 
 		gh, err := New(opts, database, logger)
 		require.NoError(t, err)
+
+		t.Cleanup(func() {
+			require.NoError(t, gh.Close())
+		})
 
 		// Try to complete a non-existent flow
 		flow, err := gh.CompleteFlow(ctx, "nonexistent-flow-id", "test-auth-code")
@@ -533,6 +581,10 @@ func TestCompleteFlow(t *testing.T) {
 		gh, err := New(opts, database, logger)
 		require.NoError(t, err)
 
+		t.Cleanup(func() {
+			require.NoError(t, gh.Close())
+		})
+
 		// Create a flow
 		flowID := uuid.New().String()
 		err = database.Queries.CreateGithubOAuthFlow(ctx, generated.CreateGithubOAuthFlowParams{
@@ -560,6 +612,10 @@ func TestAuthURLGeneration(t *testing.T) {
 	database, err := db.New(container.URL, logger)
 	require.NoError(t, err)
 
+	t.Cleanup(func() {
+		require.NoError(t, database.Close())
+	})
+
 	opts := &Options{
 		RedirectURL:  "http://localhost:8080/callback",
 		ClientID:     "test-client-id",
@@ -568,6 +624,10 @@ func TestAuthURLGeneration(t *testing.T) {
 
 	gh, err := New(opts, database, logger)
 	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		require.NoError(t, gh.Close())
+	})
 
 	t.Run("ValidateAuthURLParameters", func(t *testing.T) {
 		ctx := context.Background()
@@ -614,6 +674,10 @@ func TestOAuth2Integration(t *testing.T) {
 	database, err := db.New(container.URL, logger)
 	require.NoError(t, err)
 
+	t.Cleanup(func() {
+		require.NoError(t, database.Close())
+	})
+
 	t.Run("OAuth2ConfigSetup", func(t *testing.T) {
 		opts := &Options{
 			RedirectURL:  "http://localhost:8080/callback",
@@ -623,6 +687,10 @@ func TestOAuth2Integration(t *testing.T) {
 
 		gh, err := New(opts, database, logger)
 		require.NoError(t, err)
+
+		t.Cleanup(func() {
+			require.NoError(t, gh.Close())
+		})
 
 		// Validate OAuth2 config
 		require.NotNil(t, gh.config)
@@ -666,6 +734,10 @@ func TestOAuth2Integration(t *testing.T) {
 		gh, err := New(opts, database, logger)
 		require.NoError(t, err)
 
+		t.Cleanup(func() {
+			require.NoError(t, gh.Close())
+		})
+
 		// Create and complete a flow to verify custom client is used
 		ctx := context.Background()
 		flowID := uuid.New().String()
@@ -702,6 +774,10 @@ func TestErrorHandling(t *testing.T) {
 	database, err := db.New(container.URL, logger)
 	require.NoError(t, err)
 
+	t.Cleanup(func() {
+		require.NoError(t, database.Close())
+	})
+
 	t.Run("TokenExchangeError", func(t *testing.T) {
 		ctx := context.Background()
 		mockClient := testutils.SetupMockHTTPClient(t)
@@ -725,6 +801,10 @@ func TestErrorHandling(t *testing.T) {
 
 		gh, err := New(opts, database, logger)
 		require.NoError(t, err)
+
+		t.Cleanup(func() {
+			require.NoError(t, gh.Close())
+		})
 
 		// Create a flow
 		flowID := uuid.New().String()
@@ -776,6 +856,10 @@ func TestErrorHandling(t *testing.T) {
 
 		gh, err := New(opts, database, logger)
 		require.NoError(t, err)
+
+		t.Cleanup(func() {
+			require.NoError(t, gh.Close())
+		})
 
 		// Create a flow
 		flowID := uuid.New().String()

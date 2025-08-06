@@ -13,3 +13,8 @@ WHERE identifier = sqlc.arg(identifier) LIMIT 1;
 DELETE
 FROM github_oauth_flows
 WHERE identifier = ?;
+
+-- name: DeleteGithubOAuthFlowsBeforeTime :execrows
+DELETE
+FROM github_oauth_flows
+WHERE created_at < ?;
