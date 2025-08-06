@@ -7,6 +7,7 @@ import (
 
 	"github.com/loopholelabs/auth/internal/db"
 	"github.com/loopholelabs/auth/pkg/controller/flows/github"
+	"github.com/loopholelabs/auth/pkg/controller/flows/google"
 )
 
 type Controller struct {
@@ -14,6 +15,7 @@ type Controller struct {
 	db     *db.DB
 
 	github *github.Github
+	google *google.Google
 }
 
 func New(db *db.DB, logger types.Logger) *Controller {

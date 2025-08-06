@@ -1,8 +1,6 @@
 module github.com/loopholelabs/auth
 
-go 1.23.0
-
-toolchain go1.24.1
+go 1.24.1
 
 tool (
 	github.com/pressly/goose/v3/cmd/goose
@@ -25,6 +23,7 @@ require (
 
 require (
 	cel.dev/expr v0.20.0 // indirect
+	cloud.google.com/go/compute/metadata v0.7.0 // indirect
 	dario.cat/mergo v1.0.1 // indirect
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
