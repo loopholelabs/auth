@@ -139,7 +139,10 @@ func (c *Magic) CompleteFlow(ctx context.Context, token string) (*flow.Data, err
 	}
 
 	defer func() {
-		_ = tx.Rollback()
+		err := tx.Rollback()
+		if err != nil {
+			c.logger.Error().Err(err).Msg("failed to rollback transaction")
+		}
 	}()
 
 	qtx := c.db.Queries.WithTx(tx)
@@ -165,7 +168,7 @@ func (c *Magic) CompleteFlow(ctx context.Context, token string) (*flow.Data, err
 
 	return &flow.Data{
 		ProviderIdentifier: f.EmailAddress,
-		Name:               "",
+		UserName:           "",
 		NextURL:            f.NextUrl.String,
 		DeviceIdentifier:   f.DeviceIdentifier.String,
 		UserIdentifier:     f.UserIdentifier.String,

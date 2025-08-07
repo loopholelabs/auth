@@ -219,6 +219,7 @@ func TestCreateFlow(t *testing.T) {
 
 		err = database.Queries.CreateUser(t.Context(), generated.CreateUserParams{
 			Identifier:                    userID,
+			Name:                          "test",
 			PrimaryEmail:                  "test-" + uuid.New().String()[:8] + "@example.com", // Unique email
 			DefaultOrganizationIdentifier: orgID,
 		})
@@ -311,7 +312,7 @@ func TestCompleteFlow(t *testing.T) {
 
 		// Verify flow data
 		require.Equal(t, "12345", flow.ProviderIdentifier)
-		require.Equal(t, "Test User", flow.Name)
+		require.Equal(t, "Test User", flow.UserName)
 		require.Equal(t, "test@example.com", flow.PrimaryEmail)
 		require.Len(t, flow.VerifiedEmails, 2)
 		require.Contains(t, flow.VerifiedEmails, "test@example.com")

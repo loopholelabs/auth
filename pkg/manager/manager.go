@@ -178,6 +178,9 @@ func (m *Manager) Magic() *magic.Magic {
 }
 
 func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider flow.Provider) (*Session, error) {
+	if data.ProviderIdentifier == "" {
+		return nil, errors.Join(ErrCreatingSession, ErrInvalidFlowData)
+	}
 	if len(data.VerifiedEmails) < 1 {
 		return nil, errors.Join(ErrCreatingSession, ErrInvalidFlowData)
 	}
@@ -205,7 +208,10 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 	}
 
 	defer func() {
-		_ = tx.Rollback()
+		err := tx.Rollback()
+		if err != nil {
+			m.logger.Error().Err(err).Str("provider", provider.String()).Str("provider_identifier", data.ProviderIdentifier).Str("primary_email", data.PrimaryEmail).Msg("failed to rollback transaction")
+		}
 	}()
 
 	qtx := m.db.Queries.WithTx(tx)
@@ -219,8 +225,8 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 		if data.UserIdentifier == "" {
 			// This identity is for a new user that we must create
 			organizationName := fmt.Sprintf("%s Organization", utils.RandomString(16))
-			if data.Name != "" {
-				organizationName = fmt.Sprintf("%s's Organization", data.Name)
+			if data.UserName != "" {
+				organizationName = fmt.Sprintf("%s's Organization", data.UserName)
 			}
 			organizationIdentifier := uuid.New().String()
 			err = qtx.CreateOrganization(ctx, generated.CreateOrganizationParams{
@@ -234,6 +240,7 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 			userIdentifier := uuid.New().String()
 			err = qtx.CreateUser(ctx, generated.CreateUserParams{
 				Identifier:                    userIdentifier,
+				Name:                          data.UserName,
 				PrimaryEmail:                  data.PrimaryEmail,
 				DefaultOrganizationIdentifier: organizationIdentifier,
 			})
@@ -290,11 +297,11 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 		Identifier: sessionIdentifier,
 		OrganizationInfo: OrganizationInfo{
 			Identifier: session.OrganizationIdentifier,
-			Role:       role.OwnerRole,
+			Role:       role.OwnerRole.String(),
 		},
 		UserInfo: UserInfo{
 			Identifier: session.UserIdentifier,
-			Name:       user.Name.String,
+			Name:       user.Name,
 			Email:      user.PrimaryEmail,
 		},
 		Generation: session.LastGeneration,

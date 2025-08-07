@@ -161,7 +161,10 @@ func (c *Github) CompleteFlow(ctx context.Context, identifier string, code strin
 	}
 
 	defer func() {
-		_ = tx.Rollback()
+		err := tx.Rollback()
+		if err != nil {
+			c.logger.Error().Err(err).Msg("failed to rollback transaction")
+		}
 	}()
 
 	qtx := c.db.Queries.WithTx(tx)
@@ -224,7 +227,7 @@ func (c *Github) CompleteFlow(ctx context.Context, identifier string, code strin
 
 	data := &flow.Data{
 		ProviderIdentifier: strconv.FormatInt(u.ID, 10),
-		Name:               u.Name,
+		UserName:           u.Name,
 		NextURL:            f.NextUrl.String,
 		DeviceIdentifier:   f.DeviceIdentifier.String,
 		UserIdentifier:     f.UserIdentifier.String,

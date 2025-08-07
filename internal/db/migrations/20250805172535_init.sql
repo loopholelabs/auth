@@ -17,7 +17,7 @@ CREATE TABLE organizations
 CREATE TABLE users
 (
     identifier                      CHAR(36)     NOT NULL PRIMARY KEY DEFAULT (uuid()),
-    name                            VARCHAR(255),
+    name                            VARCHAR(255) NOT NULL,
     primary_email                   VARCHAR(255) NOT NULL UNIQUE,
     default_organization_identifier CHAR(36)     NOT NULL,
     last_seen                       DATETIME     NOT NULL             DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
