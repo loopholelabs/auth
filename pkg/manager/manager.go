@@ -18,7 +18,6 @@ import (
 	"github.com/loopholelabs/auth/internal/db"
 	"github.com/loopholelabs/auth/internal/db/generated"
 	"github.com/loopholelabs/auth/internal/mailer"
-	"github.com/loopholelabs/auth/internal/utils"
 	"github.com/loopholelabs/auth/pkg/manager/flow"
 	"github.com/loopholelabs/auth/pkg/manager/flow/github"
 	"github.com/loopholelabs/auth/pkg/manager/flow/google"
@@ -34,12 +33,14 @@ var (
 
 type GithubOptions struct {
 	Enabled      bool
+	RedirectURL  string
 	ClientID     string
 	ClientSecret string
 }
 
 type GoogleOptions struct {
 	Enabled      bool
+	RedirectURL  string
 	ClientID     string
 	ClientSecret string
 }
@@ -105,7 +106,7 @@ func New(options Options, db *db.DB, logger types.Logger) (*Manager, error) {
 	var gh *github.Github
 	if options.Github.Enabled {
 		gh, err = github.New(github.Options{
-			RedirectURL:  "",
+			RedirectURL:  options.Github.RedirectURL,
 			ClientID:     options.Github.ClientID,
 			ClientSecret: options.Github.ClientSecret,
 		}, db, logger)
@@ -117,7 +118,7 @@ func New(options Options, db *db.DB, logger types.Logger) (*Manager, error) {
 	var gg *google.Google
 	if options.Google.Enabled {
 		gg, err = google.New(google.Options{
-			RedirectURL:  "",
+			RedirectURL:  options.Google.RedirectURL,
 			ClientID:     options.Google.ClientID,
 			ClientSecret: options.Google.ClientSecret,
 		}, db, logger)
@@ -224,7 +225,7 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 		// This identity doesn't exist, we need to create it
 		if data.UserIdentifier == "" {
 			// This identity is for a new user that we must create
-			organizationName := fmt.Sprintf("%s Organization", utils.RandomString(16))
+			organizationName := "Personal Organization"
 			if data.UserName != "" {
 				organizationName = fmt.Sprintf("%s's Organization", data.UserName)
 			}

@@ -6,7 +6,7 @@
 CREATE TABLE organizations
 (
     identifier CHAR(36)     NOT NULL PRIMARY KEY DEFAULT (uuid()),
-    name       VARCHAR(255) NOT NULL UNIQUE,
+    name       VARCHAR(255) NOT NULL,
     is_default BOOLEAN      NOT NULL             DEFAULT TRUE,
     created_at DATETIME     NOT NULL             DEFAULT CURRENT_TIMESTAMP
 );

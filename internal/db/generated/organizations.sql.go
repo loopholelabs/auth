@@ -11,7 +11,7 @@ import (
 
 const createOrganization = `-- name: CreateOrganization :exec
 INSERT INTO organizations (identifier, name, is_default, created_at)
-VALUES (?, LOWER(?), ?, CURRENT_TIMESTAMP)
+VALUES (?, ?, ?, CURRENT_TIMESTAMP)
 `
 
 type CreateOrganizationParams struct {
