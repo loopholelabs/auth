@@ -140,7 +140,7 @@ func (c *Magic) CompleteFlow(ctx context.Context, token string) (*flow.Data, err
 
 	defer func() {
 		err := tx.Rollback()
-		if err != nil {
+		if err != nil && !errors.Is(err, sql.ErrTxDone) {
 			c.logger.Error().Err(err).Msg("failed to rollback transaction")
 		}
 	}()

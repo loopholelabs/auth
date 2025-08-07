@@ -162,7 +162,7 @@ func (c *Github) CompleteFlow(ctx context.Context, identifier string, code strin
 
 	defer func() {
 		err := tx.Rollback()
-		if err != nil {
+		if err != nil && !errors.Is(err, sql.ErrTxDone) {
 			c.logger.Error().Err(err).Msg("failed to rollback transaction")
 		}
 	}()
