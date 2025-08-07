@@ -5,7 +5,7 @@ package flow
 type Provider uint32
 
 const (
-	GithubProvider = iota
+	GithubProvider Provider = iota
 	GoogleProvider
 	MagicProvider
 )
@@ -25,7 +25,7 @@ func (p Provider) String() string {
 
 type Data struct {
 	ProviderIdentifier string
-	Name               string
+	UserName           string
 	PrimaryEmail       string
 	VerifiedEmails     []string
 	NextURL            string

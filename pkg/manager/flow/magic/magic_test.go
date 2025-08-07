@@ -147,6 +147,7 @@ func TestCreateFlow(t *testing.T) {
 
 		err = database.Queries.CreateUser(t.Context(), generated.CreateUserParams{
 			Identifier:                    userID,
+			Name:                          "test",
 			PrimaryEmail:                  "test-" + uuid.New().String()[:8] + "@example.com",
 			DefaultOrganizationIdentifier: orgID,
 		})
@@ -187,6 +188,7 @@ func TestCreateFlow(t *testing.T) {
 
 		err = database.Queries.CreateUser(t.Context(), generated.CreateUserParams{
 			Identifier:                    userID,
+			Name:                          "test",
 			PrimaryEmail:                  "test-" + uuid.New().String()[:8] + "@example.com",
 			DefaultOrganizationIdentifier: orgID,
 		})
@@ -294,7 +296,7 @@ func TestCompleteFlow(t *testing.T) {
 
 		// Verify flow data
 		require.Equal(t, "test@example.com", flow.ProviderIdentifier)
-		require.Empty(t, flow.Name) // Magic link doesn't have name
+		require.Empty(t, flow.UserName) // Magic link doesn't have name
 		require.Equal(t, "test@example.com", flow.PrimaryEmail)
 		require.Len(t, flow.VerifiedEmails, 1)
 		require.Contains(t, flow.VerifiedEmails, "test@example.com")
@@ -323,6 +325,7 @@ func TestCompleteFlow(t *testing.T) {
 
 		err = database.Queries.CreateUser(t.Context(), generated.CreateUserParams{
 			Identifier:                    userID,
+			Name:                          "test",
 			PrimaryEmail:                  "test-" + uuid.New().String()[:8] + "@example.com",
 			DefaultOrganizationIdentifier: orgID,
 		})
@@ -339,7 +342,7 @@ func TestCompleteFlow(t *testing.T) {
 
 		// Verify fields are returned
 		require.Equal(t, "complete@example.com", flow.ProviderIdentifier)
-		require.Empty(t, flow.Name)
+		require.Empty(t, flow.UserName)
 		require.Equal(t, "complete@example.com", flow.PrimaryEmail)
 		require.Contains(t, flow.VerifiedEmails, "complete@example.com")
 		require.Equal(t, "https://app.com/success", flow.NextURL)
@@ -1018,6 +1021,7 @@ func TestFlowLifecycle(t *testing.T) {
 
 		err = database.Queries.CreateUser(t.Context(), generated.CreateUserParams{
 			Identifier:                    userID,
+			Name:                          "test",
 			PrimaryEmail:                  "test-" + uuid.New().String()[:8] + "@example.com",
 			DefaultOrganizationIdentifier: orgID,
 		})
@@ -1174,6 +1178,7 @@ func TestNullableFields(t *testing.T) {
 
 					err = database.Queries.CreateUser(t.Context(), generated.CreateUserParams{
 						Identifier:                    tc.user,
+						Name:                          "test",
 						PrimaryEmail:                  "test-" + uuid.New().String()[:8] + "@example.com",
 						DefaultOrganizationIdentifier: orgID,
 					})

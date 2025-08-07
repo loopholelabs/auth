@@ -220,7 +220,7 @@ type SessionRevocation struct {
 
 type User struct {
 	Identifier                    string
-	Name                          sql.NullString
+	Name                          string
 	PrimaryEmail                  string
 	DefaultOrganizationIdentifier string
 	LastSeen                      time.Time

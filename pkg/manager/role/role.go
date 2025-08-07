@@ -5,7 +5,7 @@ package role
 type Role uint32
 
 const (
-	OwnerRole = iota
+	OwnerRole Role = iota
 )
 
 func (r Role) String() string {
