@@ -62,7 +62,7 @@ func TestNew(t *testing.T) {
 	})
 
 	t.Run("ValidOptions", func(t *testing.T) {
-		opts := &Options{
+		opts := Options{
 			RedirectURL:  "http://localhost:8080/callback",
 			ClientID:     "test-client-id",
 			ClientSecret: "test-client-secret",
@@ -80,7 +80,7 @@ func TestNew(t *testing.T) {
 
 	t.Run("ValidOptionsWithCustomClient", func(t *testing.T) {
 		mockClient := testutils.SetupMockHTTPClient(t)
-		opts := &Options{
+		opts := Options{
 			RedirectURL:  "http://localhost:8080/callback",
 			ClientID:     "test-client-id",
 			ClientSecret: "test-client-secret",
@@ -97,14 +97,8 @@ func TestNew(t *testing.T) {
 		})
 	})
 
-	t.Run("NilOptions", func(t *testing.T) {
-		g, err := New(nil, database, logger)
-		require.ErrorIs(t, err, ErrInvalidOptions)
-		require.Nil(t, g)
-	})
-
 	t.Run("MissingRedirectURL", func(t *testing.T) {
-		opts := &Options{
+		opts := Options{
 			ClientID:     "test-client-id",
 			ClientSecret: "test-client-secret",
 		}
@@ -115,7 +109,7 @@ func TestNew(t *testing.T) {
 	})
 
 	t.Run("MissingClientID", func(t *testing.T) {
-		opts := &Options{
+		opts := Options{
 			RedirectURL:  "http://localhost:8080/callback",
 			ClientSecret: "test-client-secret",
 		}
@@ -126,7 +120,7 @@ func TestNew(t *testing.T) {
 	})
 
 	t.Run("MissingClientSecret", func(t *testing.T) {
-		opts := &Options{
+		opts := Options{
 			RedirectURL: "http://localhost:8080/callback",
 			ClientID:    "test-client-id",
 		}
@@ -137,7 +131,7 @@ func TestNew(t *testing.T) {
 	})
 
 	t.Run("NilDatabase", func(t *testing.T) {
-		opts := &Options{
+		opts := Options{
 			RedirectURL:  "http://localhost:8080/callback",
 			ClientID:     "test-client-id",
 			ClientSecret: "test-client-secret",
@@ -159,7 +153,7 @@ func TestCreateFlow(t *testing.T) {
 		require.NoError(t, database.Close())
 	})
 
-	opts := &Options{
+	opts := Options{
 		RedirectURL:  "http://localhost:8080/callback",
 		ClientID:     "test-client-id",
 		ClientSecret: "test-client-secret",
@@ -263,7 +257,7 @@ func TestCompleteFlow(t *testing.T) {
 		mockClient.SetResponse("https://www.googleapis.com/oauth2/v3/userinfo",
 			mockGoogleUserResponse(12345, "Test User", "test@example.com", true))
 
-		opts := &Options{
+		opts := Options{
 			RedirectURL:  "http://localhost:8080/callback",
 			ClientID:     "test-client-id",
 			ClientSecret: "test-client-secret",
@@ -326,7 +320,7 @@ func TestCompleteFlow(t *testing.T) {
 		mockClient.SetResponse("https://www.googleapis.com/oauth2/v3/userinfo",
 			mockGoogleUserResponse(12345, "Test User", "unverified@example.com", false))
 
-		opts := &Options{
+		opts := Options{
 			RedirectURL:  "http://localhost:8080/callback",
 			ClientID:     "test-client-id",
 			ClientSecret: "test-client-secret",
@@ -367,7 +361,7 @@ func TestCompleteFlow(t *testing.T) {
 		mockClient.SetResponse("https://www.googleapis.com/oauth2/v3/userinfo",
 			mockGoogleUserResponse(12345, "Test User", "", true))
 
-		opts := &Options{
+		opts := Options{
 			RedirectURL:  "http://localhost:8080/callback",
 			ClientID:     "test-client-id",
 			ClientSecret: "test-client-secret",
@@ -410,7 +404,7 @@ func TestCompleteFlow(t *testing.T) {
 				},
 			})
 
-		opts := &Options{
+		opts := Options{
 			RedirectURL:  "http://localhost:8080/callback",
 			ClientID:     "test-client-id",
 			ClientSecret: "test-client-secret",
@@ -454,7 +448,7 @@ func TestCompleteFlow(t *testing.T) {
 				Body:       `{"error": {"code": 401, "message": "Invalid Credentials"}}`,
 			})
 
-		opts := &Options{
+		opts := Options{
 			RedirectURL:  "http://localhost:8080/callback",
 			ClientID:     "test-client-id",
 			ClientSecret: "test-client-secret",
@@ -497,7 +491,7 @@ func TestCompleteFlow(t *testing.T) {
 				Error: errors.New("network timeout"),
 			})
 
-		opts := &Options{
+		opts := Options{
 			RedirectURL:  "http://localhost:8080/callback",
 			ClientID:     "test-client-id",
 			ClientSecret: "test-client-secret",
@@ -531,7 +525,7 @@ func TestCompleteFlow(t *testing.T) {
 	t.Run("CompleteFlowWithNonexistentFlow", func(t *testing.T) {
 		mockClient := testutils.SetupMockHTTPClient(t)
 
-		opts := &Options{
+		opts := Options{
 			RedirectURL:  "http://localhost:8080/callback",
 			ClientID:     "test-client-id",
 			ClientSecret: "test-client-secret",
@@ -569,7 +563,7 @@ func TestCompleteFlow(t *testing.T) {
 				Body:       "not valid json",
 			})
 
-		opts := &Options{
+		opts := Options{
 			RedirectURL:  "http://localhost:8080/callback",
 			ClientID:     "test-client-id",
 			ClientSecret: "test-client-secret",
@@ -614,7 +608,7 @@ func TestAuthURLGeneration(t *testing.T) {
 		require.NoError(t, database.Close())
 	})
 
-	opts := &Options{
+	opts := Options{
 		RedirectURL:  "http://localhost:8080/callback",
 		ClientID:     "test-client-id",
 		ClientSecret: "test-client-secret",
@@ -675,7 +669,7 @@ func TestOAuth2Integration(t *testing.T) {
 	})
 
 	t.Run("OAuth2ConfigSetup", func(t *testing.T) {
-		opts := &Options{
+		opts := Options{
 			RedirectURL:  "http://localhost:8080/callback",
 			ClientID:     "test-client-id",
 			ClientSecret: "test-client-secret",
@@ -711,7 +705,7 @@ func TestOAuth2Integration(t *testing.T) {
 		mockClient.SetResponse("https://www.googleapis.com/oauth2/v3/userinfo",
 			mockGoogleUserResponse(12345, "Test User", "test@example.com", true))
 
-		opts := &Options{
+		opts := Options{
 			RedirectURL:  "http://localhost:8080/callback",
 			ClientID:     "test-client-id",
 			ClientSecret: "test-client-secret",
@@ -776,7 +770,7 @@ func TestErrorHandling(t *testing.T) {
 				},
 			})
 
-		opts := &Options{
+		opts := Options{
 			RedirectURL:  "http://localhost:8080/callback",
 			ClientID:     "test-client-id",
 			ClientSecret: "test-client-secret",
@@ -833,7 +827,7 @@ func TestErrorHandling(t *testing.T) {
 				},
 			})
 
-		opts := &Options{
+		opts := Options{
 			RedirectURL:  "http://localhost:8080/callback",
 			ClientID:     "test-client-id",
 			ClientSecret: "test-client-secret",
@@ -914,7 +908,7 @@ func TestGarbageCollection(t *testing.T) {
 		now = func() time.Time { return futureTime }
 
 		// Create Google instance with mocked time
-		opts := &Options{
+		opts := Options{
 			RedirectURL:  "http://localhost:8080/callback",
 			ClientID:     "test-client-id",
 			ClientSecret: "test-client-secret",
@@ -949,7 +943,7 @@ func TestGarbageCollection(t *testing.T) {
 		})
 
 		// This test verifies that the gc goroutine starts and stops properly
-		opts := &Options{
+		opts := Options{
 			RedirectURL:  "http://localhost:8080/callback",
 			ClientID:     "test-client-id",
 			ClientSecret: "test-client-secret",
@@ -1041,7 +1035,7 @@ func TestGarbageCollection(t *testing.T) {
 		now = func() time.Time { return baseTime.Add(Expiry) }
 
 		// Create Google instance with mocked time
-		opts := &Options{
+		opts := Options{
 			RedirectURL:  "http://localhost:8080/callback",
 			ClientID:     "test-client-id",
 			ClientSecret: "test-client-secret",

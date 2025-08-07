@@ -78,11 +78,7 @@ type Github struct {
 	cancel context.CancelFunc
 }
 
-func New(options *Options, db *db.DB, logger types.Logger) (*Github, error) {
-	if options == nil {
-		return nil, ErrInvalidOptions
-	}
-
+func New(options Options, db *db.DB, logger types.Logger) (*Github, error) {
 	if options.RedirectURL == "" || options.ClientID == "" || options.ClientSecret == "" {
 		return nil, ErrInvalidOptions
 	}
