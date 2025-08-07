@@ -68,7 +68,7 @@ type Client struct {
 	magicLinkTemplate *template.Template
 }
 
-func New(config Config) (*Client, error) {
+func New(config Config) (Mailer, error) {
 	// Validate required configuration fields
 	if err := validateConfig(config); err != nil {
 		return nil, err

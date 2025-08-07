@@ -18,7 +18,7 @@ import (
 
 	"github.com/loopholelabs/auth/internal/db"
 	"github.com/loopholelabs/auth/internal/db/generated"
-	"github.com/loopholelabs/auth/pkg/controller/flows"
+	"github.com/loopholelabs/auth/pkg/manager/flow"
 )
 
 var (
@@ -109,7 +109,7 @@ func (c *Magic) CreateFlow(ctx context.Context, emailAddress string, deviceIdent
 	return base64.StdEncoding.EncodeToString([]byte(params.Identifier + "_" + secret)), nil
 }
 
-func (c *Magic) CompleteFlow(ctx context.Context, token string) (*flows.Flow, error) {
+func (c *Magic) CompleteFlow(ctx context.Context, token string) (*flow.Flow, error) {
 	tokenBytes, err := base64.StdEncoding.DecodeString(token)
 	if err != nil {
 		return nil, errors.Join(ErrCompletingFlow, ErrInvalidToken, err)
@@ -144,7 +144,7 @@ func (c *Magic) CompleteFlow(ctx context.Context, token string) (*flows.Flow, er
 
 	qtx := c.db.Queries.WithTx(tx)
 
-	flow, err := qtx.GetMagicLinkFlowByIdentifier(ctx, identifier)
+	f, err := qtx.GetMagicLinkFlowByIdentifier(ctx, identifier)
 	if err != nil {
 		return nil, errors.Join(ErrCompletingFlow, err)
 	}
@@ -159,18 +159,18 @@ func (c *Magic) CompleteFlow(ctx context.Context, token string) (*flows.Flow, er
 		return nil, errors.Join(ErrCompletingFlow, err)
 	}
 
-	if bcrypt.CompareHashAndPassword(flow.Hash, append([]byte(flow.Salt), []byte(secret)...)) != nil {
+	if bcrypt.CompareHashAndPassword(f.Hash, append([]byte(f.Salt), []byte(secret)...)) != nil {
 		return nil, errors.Join(ErrCompletingFlow, ErrInvalidSecret)
 	}
 
-	return &flows.Flow{
-		Identifier:       flow.EmailAddress,
+	return &flow.Flow{
+		Identifier:       f.EmailAddress,
 		Name:             "",
-		NextURL:          flow.NextUrl.String,
-		DeviceIdentifier: flow.DeviceIdentifier.String,
-		UserIdentifier:   flow.UserIdentifier.String,
-		PrimaryEmail:     flow.EmailAddress,
-		VerifiedEmails:   []string{flow.EmailAddress},
+		NextURL:          f.NextUrl.String,
+		DeviceIdentifier: f.DeviceIdentifier.String,
+		UserIdentifier:   f.UserIdentifier.String,
+		PrimaryEmail:     f.EmailAddress,
+		VerifiedEmails:   []string{f.EmailAddress},
 	}, nil
 }
 
