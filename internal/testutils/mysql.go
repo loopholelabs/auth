@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql" // MySQL Driver
+	"github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -23,8 +23,6 @@ type MySQLContainer struct {
 func SetupMySQLContainer(t testing.TB) *MySQLContainer {
 	t.Helper()
 
-	ctx := context.Background()
-
 	req := testcontainers.ContainerRequest{
 		Image:        "mysql:8.0",
 		ExposedPorts: []string{"3306/tcp"},
@@ -37,16 +35,16 @@ func SetupMySQLContainer(t testing.TB) *MySQLContainer {
 			WithStartupTimeout(60 * time.Second),
 	}
 
-	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+	container, err := testcontainers.GenericContainer(t.Context(), testcontainers.GenericContainerRequest{
 		ContainerRequest: req,
 		Started:          true,
 	})
 	require.NoError(t, err, "failed to start MySQL container")
 
-	host, err := container.Host(ctx)
+	host, err := container.Host(t.Context())
 	require.NoError(t, err, "failed to get container host")
 
-	port, err := container.MappedPort(ctx, "3306")
+	port, err := container.MappedPort(t.Context(), "3306")
 	require.NoError(t, err, "failed to get container port")
 
 	url := fmt.Sprintf("root:testpassword@tcp(%s:%s)/testdb?parseTime=true&multiStatements=true&loc=UTC", host, port.Port())
@@ -57,10 +55,15 @@ func SetupMySQLContainer(t testing.TB) *MySQLContainer {
 	}
 
 	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+		defer cancel()
 		if err := container.Terminate(ctx); err != nil {
 			t.Logf("failed to terminate container: %v", err)
 		}
 	})
+
+	err = mysql.SetLogger(new(mysql.NopLogger))
+	require.NoError(t, err)
 
 	// Wait for MySQL to be truly ready
 	maxRetries := 30
