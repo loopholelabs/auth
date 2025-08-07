@@ -115,25 +115,46 @@ func (c *Magic) CompleteFlow(ctx context.Context, token string) (*flows.Flow, er
 		return nil, errors.Join(ErrCompletingFlow, ErrInvalidToken, err)
 	}
 
-	identifierBytes := tokenBytes[:bytes.IndexByte(tokenBytes, '_')]
+	underscoreIndex := bytes.IndexByte(tokenBytes, '_')
+	if underscoreIndex == -1 {
+		return nil, errors.Join(ErrCompletingFlow, ErrInvalidToken)
+	}
+
+	identifierBytes := tokenBytes[:underscoreIndex]
 	identifier := string(identifierBytes)
 	if len(identifier) != 36 {
 		return nil, errors.Join(ErrCompletingFlow, ErrInvalidToken)
 	}
 
-	secretBytes := tokenBytes[bytes.IndexByte(tokenBytes, '_')+1:]
+	secretBytes := tokenBytes[underscoreIndex+1:]
 	secret := string(secretBytes)
 	if len(secret) != 36 {
 		return nil, errors.Join(ErrCompletingFlow, ErrInvalidToken)
 	}
 
 	c.logger.Debug().Str("identifier", identifier).Msg("completing flow")
-	flow, err := c.db.Queries.GetMagicLinkFlowByIdentifier(ctx, identifier)
+	tx, err := c.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
 		return nil, errors.Join(ErrCompletingFlow, err)
 	}
 
-	err = c.db.Queries.DeleteMagicLinkFlowByIdentifier(ctx, identifier)
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	qtx := c.db.Queries.WithTx(tx)
+
+	flow, err := qtx.GetMagicLinkFlowByIdentifier(ctx, identifier)
+	if err != nil {
+		return nil, errors.Join(ErrCompletingFlow, err)
+	}
+
+	err = qtx.DeleteMagicLinkFlowByIdentifier(ctx, identifier)
+	if err != nil {
+		return nil, errors.Join(ErrCompletingFlow, err)
+	}
+
+	err = tx.Commit()
 	if err != nil {
 		return nil, errors.Join(ErrCompletingFlow, err)
 	}

@@ -159,12 +159,28 @@ func (c *Github) CreateFlow(ctx context.Context, deviceIdentifier string, userId
 
 func (c *Github) CompleteFlow(ctx context.Context, identifier string, code string) (*flows.Flow, error) {
 	c.logger.Debug().Str("identifier", identifier).Msg("completing flow")
+	tx, err := c.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return nil, errors.Join(ErrCompletingFlow, err)
+	}
+
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	qtx := c.db.Queries.WithTx(tx)
+
 	flow, err := c.db.Queries.GetGithubOAuthFlowByIdentifier(ctx, identifier)
 	if err != nil {
 		return nil, errors.Join(ErrCompletingFlow, err)
 	}
 
-	err = c.db.Queries.DeleteGithubOAuthFlowByIdentifier(ctx, identifier)
+	err = qtx.DeleteGithubOAuthFlowByIdentifier(ctx, identifier)
+	if err != nil {
+		return nil, errors.Join(ErrCompletingFlow, err)
+	}
+
+	err = tx.Commit()
 	if err != nil {
 		return nil, errors.Join(ErrCompletingFlow, err)
 	}

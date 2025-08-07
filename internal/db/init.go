@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql" // MySQL Driver
+	"github.com/go-sql-driver/mysql"
 	"github.com/pressly/goose/v3"
 
 	"github.com/loopholelabs/logging/types"
@@ -54,6 +54,14 @@ func (l *gooseLogger) Printf(format string, v ...any) {
 	l.logger.Info().Msgf(strings.TrimSpace(format), v...)
 }
 
+type mysqlLogger struct {
+	logger types.Logger
+}
+
+func (l *mysqlLogger) Print(v ...any) {
+	l.logger.Info().Msg(fmt.Sprint(v...))
+}
+
 func New(url string, logger types.Logger) (*DB, error) {
 	if !strings.Contains(url, parseTimeOption) {
 		return nil, fmt.Errorf("invalid database url: %w", ErrMissingParseTimeOption)
@@ -66,6 +74,18 @@ func New(url string, logger types.Logger) (*DB, error) {
 	if !strings.Contains(url, locationOption) {
 		return nil, fmt.Errorf("invalid database url: %w", ErrMissingLocationOption)
 	}
+
+	l := logger.SubLogger("DATABASE")
+
+	// Set MySQL Logger
+	err := mysql.SetLogger(&mysqlLogger{logger: l.SubLogger("MYSQL")})
+	if err != nil {
+		return nil, fmt.Errorf("failed to set mysql logger: %w", err)
+	}
+
+	// Set Goose Logger
+	goose.SetBaseFS(Migrations)
+	goose.SetLogger(&gooseLogger{logger: l.SubLogger("GOOSE")})
 
 	db, err := sql.Open("mysql", url)
 	if err != nil {
@@ -84,12 +104,6 @@ func New(url string, logger types.Logger) (*DB, error) {
 		_ = db.Close()
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
-
-	l := logger.SubLogger("DATABASE")
-
-	// Run database migrations.
-	goose.SetBaseFS(Migrations)
-	goose.SetLogger(&gooseLogger{logger: l.SubLogger("GOOSE")})
 
 	err = goose.SetDialect("mysql")
 	if err != nil {

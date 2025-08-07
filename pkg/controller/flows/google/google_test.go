@@ -3,7 +3,6 @@
 package google
 
 import (
-	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -174,9 +173,7 @@ func TestCreateFlow(t *testing.T) {
 	})
 
 	t.Run("CreateFlowSuccess", func(t *testing.T) {
-		ctx := context.Background()
-
-		authURL, err := g.CreateFlow(ctx, "", "", "http://localhost:3000/dashboard")
+		authURL, err := g.CreateFlow(t.Context(), "", "", "http://localhost:3000/dashboard")
 		require.NoError(t, err)
 		require.NotEmpty(t, authURL)
 
@@ -198,7 +195,7 @@ func TestCreateFlow(t *testing.T) {
 
 		// Verify flow was created in database
 		flowID := q.Get("state")
-		flow, err := database.Queries.GetGoogleOAuthFlowByIdentifier(ctx, flowID)
+		flow, err := database.Queries.GetGoogleOAuthFlowByIdentifier(t.Context(), flowID)
 		require.NoError(t, err)
 		require.Equal(t, flowID, flow.Identifier)
 		require.NotEmpty(t, flow.Verifier)
@@ -209,26 +206,25 @@ func TestCreateFlow(t *testing.T) {
 	})
 
 	t.Run("CreateFlowWithUser", func(t *testing.T) {
-		ctx := context.Background()
 		userID := uuid.New().String()
 
 		// First create a user and organization
 		orgID := uuid.New().String()
-		err := database.Queries.CreateOrganization(ctx, generated.CreateOrganizationParams{
+		err := database.Queries.CreateOrganization(t.Context(), generated.CreateOrganizationParams{
 			Identifier: orgID,
 			Name:       "test-org-" + uuid.New().String()[:8], // Unique name
 			IsDefault:  true,
 		})
 		require.NoError(t, err)
 
-		err = database.Queries.CreateUser(ctx, generated.CreateUserParams{
+		err = database.Queries.CreateUser(t.Context(), generated.CreateUserParams{
 			Identifier:          userID,
 			PrimaryEmail:        "test-" + uuid.New().String()[:8] + "@example.com", // Unique email
 			DefaultOrganization: orgID,
 		})
 		require.NoError(t, err)
 
-		authURL, err := g.CreateFlow(ctx, "", userID, "http://example.com/next")
+		authURL, err := g.CreateFlow(t.Context(), "", userID, "http://example.com/next")
 		require.NoError(t, err)
 		require.NotEmpty(t, authURL)
 
@@ -238,7 +234,7 @@ func TestCreateFlow(t *testing.T) {
 		flowID := u.Query().Get("state")
 
 		// Verify flow was created with user ID
-		flow, err := database.Queries.GetGoogleOAuthFlowByIdentifier(ctx, flowID)
+		flow, err := database.Queries.GetGoogleOAuthFlowByIdentifier(t.Context(), flowID)
 		require.NoError(t, err)
 		require.False(t, flow.DeviceIdentifier.Valid)
 		require.True(t, flow.UserIdentifier.Valid)
@@ -258,7 +254,6 @@ func TestCompleteFlow(t *testing.T) {
 	})
 
 	t.Run("CompleteFlowSuccess", func(t *testing.T) {
-		ctx := context.Background()
 		mockClient := testutils.SetupMockHTTPClient(t)
 
 		// Set up mock responses
@@ -284,7 +279,7 @@ func TestCompleteFlow(t *testing.T) {
 
 		// Create a flow first
 		flowID := uuid.New().String()
-		err = database.Queries.CreateGoogleOAuthFlow(ctx, generated.CreateGoogleOAuthFlowParams{
+		err = database.Queries.CreateGoogleOAuthFlow(t.Context(), generated.CreateGoogleOAuthFlowParams{
 			Identifier: flowID,
 			Verifier:   "test-verifier",
 			Challenge:  "test-challenge",
@@ -296,7 +291,7 @@ func TestCompleteFlow(t *testing.T) {
 		require.NoError(t, err)
 
 		// Complete the flow
-		flow, err := g.CompleteFlow(ctx, flowID, "test-auth-code")
+		flow, err := g.CompleteFlow(t.Context(), flowID, "test-auth-code")
 		require.NoError(t, err)
 		require.NotNil(t, flow)
 
@@ -311,7 +306,7 @@ func TestCompleteFlow(t *testing.T) {
 		require.Empty(t, flow.UserIdentifier)
 
 		// Verify flow was deleted from database
-		_, err = database.Queries.GetGoogleOAuthFlowByIdentifier(ctx, flowID)
+		_, err = database.Queries.GetGoogleOAuthFlowByIdentifier(t.Context(), flowID)
 		require.Error(t, err)
 
 		// Verify HTTP requests were made
@@ -321,7 +316,6 @@ func TestCompleteFlow(t *testing.T) {
 	})
 
 	t.Run("CompleteFlowWithNoVerifiedEmail", func(t *testing.T) {
-		ctx := context.Background()
 		mockClient := testutils.SetupMockHTTPClient(t)
 
 		// Set up mock responses
@@ -348,7 +342,7 @@ func TestCompleteFlow(t *testing.T) {
 
 		// Create a flow
 		flowID := uuid.New().String()
-		err = database.Queries.CreateGoogleOAuthFlow(ctx, generated.CreateGoogleOAuthFlowParams{
+		err = database.Queries.CreateGoogleOAuthFlow(t.Context(), generated.CreateGoogleOAuthFlowParams{
 			Identifier: flowID,
 			Verifier:   "test-verifier",
 			Challenge:  "test-challenge",
@@ -356,14 +350,13 @@ func TestCompleteFlow(t *testing.T) {
 		require.NoError(t, err)
 
 		// Complete the flow - should fail due to unverified email
-		flow, err := g.CompleteFlow(ctx, flowID, "test-auth-code")
+		flow, err := g.CompleteFlow(t.Context(), flowID, "test-auth-code")
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrNoVerifiedEmails)
 		require.Nil(t, flow)
 	})
 
 	t.Run("CompleteFlowWithEmptyEmail", func(t *testing.T) {
-		ctx := context.Background()
 		mockClient := testutils.SetupMockHTTPClient(t)
 
 		// Set up mock responses
@@ -390,7 +383,7 @@ func TestCompleteFlow(t *testing.T) {
 
 		// Create a flow
 		flowID := uuid.New().String()
-		err = database.Queries.CreateGoogleOAuthFlow(ctx, generated.CreateGoogleOAuthFlowParams{
+		err = database.Queries.CreateGoogleOAuthFlow(t.Context(), generated.CreateGoogleOAuthFlowParams{
 			Identifier: flowID,
 			Verifier:   "test-verifier",
 			Challenge:  "test-challenge",
@@ -398,14 +391,13 @@ func TestCompleteFlow(t *testing.T) {
 		require.NoError(t, err)
 
 		// Complete the flow - should fail due to empty email
-		flow, err := g.CompleteFlow(ctx, flowID, "test-auth-code")
+		flow, err := g.CompleteFlow(t.Context(), flowID, "test-auth-code")
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrNoVerifiedEmails)
 		require.Nil(t, flow)
 	})
 
 	t.Run("CompleteFlowWithInvalidCode", func(t *testing.T) {
-		ctx := context.Background()
 		mockClient := testutils.SetupMockHTTPClient(t)
 
 		// OAuth2 token exchange fails
@@ -434,7 +426,7 @@ func TestCompleteFlow(t *testing.T) {
 
 		// Create a flow
 		flowID := uuid.New().String()
-		err = database.Queries.CreateGoogleOAuthFlow(ctx, generated.CreateGoogleOAuthFlowParams{
+		err = database.Queries.CreateGoogleOAuthFlow(t.Context(), generated.CreateGoogleOAuthFlowParams{
 			Identifier: flowID,
 			Verifier:   "test-verifier",
 			Challenge:  "test-challenge",
@@ -442,14 +434,13 @@ func TestCompleteFlow(t *testing.T) {
 		require.NoError(t, err)
 
 		// Complete the flow - should fail due to invalid code
-		flow, err := g.CompleteFlow(ctx, flowID, "invalid-code")
+		flow, err := g.CompleteFlow(t.Context(), flowID, "invalid-code")
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrCompletingFlow)
 		require.Nil(t, flow)
 	})
 
 	t.Run("CompleteFlowWithGoogleAPIError", func(t *testing.T) {
-		ctx := context.Background()
 		mockClient := testutils.SetupMockHTTPClient(t)
 
 		// Set up mock responses
@@ -479,7 +470,7 @@ func TestCompleteFlow(t *testing.T) {
 
 		// Create a flow
 		flowID := uuid.New().String()
-		err = database.Queries.CreateGoogleOAuthFlow(ctx, generated.CreateGoogleOAuthFlowParams{
+		err = database.Queries.CreateGoogleOAuthFlow(t.Context(), generated.CreateGoogleOAuthFlowParams{
 			Identifier: flowID,
 			Verifier:   "test-verifier",
 			Challenge:  "test-challenge",
@@ -487,14 +478,13 @@ func TestCompleteFlow(t *testing.T) {
 		require.NoError(t, err)
 
 		// Complete the flow - should fail due to API error
-		flow, err := g.CompleteFlow(ctx, flowID, "test-auth-code")
+		flow, err := g.CompleteFlow(t.Context(), flowID, "test-auth-code")
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrInvalidResponse)
 		require.Nil(t, flow)
 	})
 
 	t.Run("CompleteFlowWithNetworkError", func(t *testing.T) {
-		ctx := context.Background()
 		mockClient := testutils.SetupMockHTTPClient(t)
 
 		// Set up mock responses
@@ -523,7 +513,7 @@ func TestCompleteFlow(t *testing.T) {
 
 		// Create a flow
 		flowID := uuid.New().String()
-		err = database.Queries.CreateGoogleOAuthFlow(ctx, generated.CreateGoogleOAuthFlowParams{
+		err = database.Queries.CreateGoogleOAuthFlow(t.Context(), generated.CreateGoogleOAuthFlowParams{
 			Identifier: flowID,
 			Verifier:   "test-verifier",
 			Challenge:  "test-challenge",
@@ -531,7 +521,7 @@ func TestCompleteFlow(t *testing.T) {
 		require.NoError(t, err)
 
 		// Complete the flow - should fail due to network error
-		flow, err := g.CompleteFlow(ctx, flowID, "test-auth-code")
+		flow, err := g.CompleteFlow(t.Context(), flowID, "test-auth-code")
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrCompletingFlow)
 		require.Contains(t, err.Error(), "network timeout")
@@ -539,7 +529,6 @@ func TestCompleteFlow(t *testing.T) {
 	})
 
 	t.Run("CompleteFlowWithNonexistentFlow", func(t *testing.T) {
-		ctx := context.Background()
 		mockClient := testutils.SetupMockHTTPClient(t)
 
 		opts := &Options{
@@ -557,7 +546,7 @@ func TestCompleteFlow(t *testing.T) {
 		})
 
 		// Try to complete a non-existent flow
-		flow, err := g.CompleteFlow(ctx, "nonexistent-flow-id", "test-auth-code")
+		flow, err := g.CompleteFlow(t.Context(), "nonexistent-flow-id", "test-auth-code")
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrCompletingFlow)
 		require.Nil(t, flow)
@@ -567,7 +556,6 @@ func TestCompleteFlow(t *testing.T) {
 	})
 
 	t.Run("CompleteFlowWithInvalidJSON", func(t *testing.T) {
-		ctx := context.Background()
 		mockClient := testutils.SetupMockHTTPClient(t)
 
 		// Set up mock responses
@@ -597,7 +585,7 @@ func TestCompleteFlow(t *testing.T) {
 
 		// Create a flow
 		flowID := uuid.New().String()
-		err = database.Queries.CreateGoogleOAuthFlow(ctx, generated.CreateGoogleOAuthFlowParams{
+		err = database.Queries.CreateGoogleOAuthFlow(t.Context(), generated.CreateGoogleOAuthFlowParams{
 			Identifier: flowID,
 			Verifier:   "test-verifier",
 			Challenge:  "test-challenge",
@@ -605,7 +593,7 @@ func TestCompleteFlow(t *testing.T) {
 		require.NoError(t, err)
 
 		// Complete the flow - should fail due to invalid JSON
-		flow, err := g.CompleteFlow(ctx, flowID, "test-auth-code")
+		flow, err := g.CompleteFlow(t.Context(), flowID, "test-auth-code")
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrCompletingFlow)
 
@@ -640,9 +628,7 @@ func TestAuthURLGeneration(t *testing.T) {
 	})
 
 	t.Run("ValidateAuthURLParameters", func(t *testing.T) {
-		ctx := context.Background()
-
-		authURL, err := g.CreateFlow(ctx, "", "", "")
+		authURL, err := g.CreateFlow(t.Context(), "", "", "")
 		require.NoError(t, err)
 
 		// Parse URL and validate OAuth2 parameters
@@ -740,9 +726,9 @@ func TestOAuth2Integration(t *testing.T) {
 		})
 
 		// Create and complete a flow to verify custom client is used
-		ctx := context.Background()
+
 		flowID := uuid.New().String()
-		err = database.Queries.CreateGoogleOAuthFlow(ctx, generated.CreateGoogleOAuthFlowParams{
+		err = database.Queries.CreateGoogleOAuthFlow(t.Context(), generated.CreateGoogleOAuthFlowParams{
 			Identifier: flowID,
 			Verifier:   "test-verifier",
 			Challenge:  "test-challenge",
@@ -750,7 +736,7 @@ func TestOAuth2Integration(t *testing.T) {
 		require.NoError(t, err)
 
 		// Complete flow - this should use the custom HTTP client
-		flow, err := g.CompleteFlow(ctx, flowID, "test-auth-code")
+		flow, err := g.CompleteFlow(t.Context(), flowID, "test-auth-code")
 		require.NoError(t, err)
 		require.NotNil(t, flow)
 
@@ -778,7 +764,6 @@ func TestErrorHandling(t *testing.T) {
 	})
 
 	t.Run("TokenExchangeError", func(t *testing.T) {
-		ctx := context.Background()
 		mockClient := testutils.SetupMockHTTPClient(t)
 
 		// Mock OAuth2 error response
@@ -807,7 +792,7 @@ func TestErrorHandling(t *testing.T) {
 
 		// Create a flow
 		flowID := uuid.New().String()
-		err = database.Queries.CreateGoogleOAuthFlow(ctx, generated.CreateGoogleOAuthFlowParams{
+		err = database.Queries.CreateGoogleOAuthFlow(t.Context(), generated.CreateGoogleOAuthFlowParams{
 			Identifier: flowID,
 			Verifier:   "test-verifier",
 			Challenge:  "test-challenge",
@@ -815,7 +800,7 @@ func TestErrorHandling(t *testing.T) {
 		require.NoError(t, err)
 
 		// Try to complete flow
-		flow, err := g.CompleteFlow(ctx, flowID, "invalid-code")
+		flow, err := g.CompleteFlow(t.Context(), flowID, "invalid-code")
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrCompletingFlow)
 
@@ -826,7 +811,6 @@ func TestErrorHandling(t *testing.T) {
 	})
 
 	t.Run("GoogleAPIRateLimitError", func(t *testing.T) {
-		ctx := context.Background()
 		mockClient := testutils.SetupMockHTTPClient(t)
 
 		// Set up mock responses
@@ -865,7 +849,7 @@ func TestErrorHandling(t *testing.T) {
 
 		// Create a flow
 		flowID := uuid.New().String()
-		err = database.Queries.CreateGoogleOAuthFlow(ctx, generated.CreateGoogleOAuthFlowParams{
+		err = database.Queries.CreateGoogleOAuthFlow(t.Context(), generated.CreateGoogleOAuthFlowParams{
 			Identifier: flowID,
 			Verifier:   "test-verifier",
 			Challenge:  "test-challenge",
@@ -873,7 +857,7 @@ func TestErrorHandling(t *testing.T) {
 		require.NoError(t, err)
 
 		// Try to complete flow
-		flow, err := g.CompleteFlow(ctx, flowID, "test-auth-code")
+		flow, err := g.CompleteFlow(t.Context(), flowID, "test-auth-code")
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrInvalidResponse)
 		require.Nil(t, flow)
@@ -897,11 +881,9 @@ func TestGarbageCollection(t *testing.T) {
 			now = originalNow
 		})
 
-		ctx := context.Background()
-
 		// Create flows that will be created at the current time
 		expiredFlowID := uuid.New().String()
-		err = database.Queries.CreateGoogleOAuthFlow(ctx, generated.CreateGoogleOAuthFlowParams{
+		err = database.Queries.CreateGoogleOAuthFlow(t.Context(), generated.CreateGoogleOAuthFlowParams{
 			Identifier: expiredFlowID,
 			Verifier:   "expired-verifier",
 			Challenge:  "expired-challenge",
@@ -910,7 +892,7 @@ func TestGarbageCollection(t *testing.T) {
 
 		// Create a recent flow
 		recentFlowID := uuid.New().String()
-		err = database.Queries.CreateGoogleOAuthFlow(ctx, generated.CreateGoogleOAuthFlowParams{
+		err = database.Queries.CreateGoogleOAuthFlow(t.Context(), generated.CreateGoogleOAuthFlowParams{
 			Identifier: recentFlowID,
 			Verifier:   "recent-verifier",
 			Challenge:  "recent-challenge",
@@ -919,7 +901,7 @@ func TestGarbageCollection(t *testing.T) {
 
 		// Create another expired flow
 		expiredFlowID2 := uuid.New().String()
-		err = database.Queries.CreateGoogleOAuthFlow(ctx, generated.CreateGoogleOAuthFlowParams{
+		err = database.Queries.CreateGoogleOAuthFlow(t.Context(), generated.CreateGoogleOAuthFlowParams{
 			Identifier: expiredFlowID2,
 			Verifier:   "expired-verifier-2",
 			Challenge:  "expired-challenge-2",
@@ -949,13 +931,13 @@ func TestGarbageCollection(t *testing.T) {
 		require.Equal(t, int64(3), deleted) // Should delete all 3 flows since they're now "expired"
 
 		// Verify all flows are deleted
-		_, err = database.Queries.GetGoogleOAuthFlowByIdentifier(ctx, expiredFlowID)
+		_, err = database.Queries.GetGoogleOAuthFlowByIdentifier(t.Context(), expiredFlowID)
 		require.Error(t, err) // Should not exist
 
-		_, err = database.Queries.GetGoogleOAuthFlowByIdentifier(ctx, expiredFlowID2)
+		_, err = database.Queries.GetGoogleOAuthFlowByIdentifier(t.Context(), expiredFlowID2)
 		require.Error(t, err) // Should not exist
 
-		_, err = database.Queries.GetGoogleOAuthFlowByIdentifier(ctx, recentFlowID)
+		_, err = database.Queries.GetGoogleOAuthFlowByIdentifier(t.Context(), recentFlowID)
 		require.Error(t, err) // Should not exist since with mocked time it's also expired
 	})
 

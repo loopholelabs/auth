@@ -155,12 +155,28 @@ func (c *Google) CreateFlow(ctx context.Context, deviceIdentifier string, userId
 
 func (c *Google) CompleteFlow(ctx context.Context, identifier string, code string) (*flows.Flow, error) {
 	c.logger.Debug().Str("identifier", identifier).Msg("completing flow")
-	flow, err := c.db.Queries.GetGoogleOAuthFlowByIdentifier(ctx, identifier)
+	tx, err := c.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
 		return nil, errors.Join(ErrCompletingFlow, err)
 	}
 
-	err = c.db.Queries.DeleteGoogleOAuthFlowByIdentifier(ctx, identifier)
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	qtx := c.db.Queries.WithTx(tx)
+
+	flow, err := qtx.GetGoogleOAuthFlowByIdentifier(ctx, identifier)
+	if err != nil {
+		return nil, errors.Join(ErrCompletingFlow, err)
+	}
+
+	err = qtx.DeleteGoogleOAuthFlowByIdentifier(ctx, identifier)
+	if err != nil {
+		return nil, errors.Join(ErrCompletingFlow, err)
+	}
+
+	err = tx.Commit()
 	if err != nil {
 		return nil, errors.Join(ErrCompletingFlow, err)
 	}
