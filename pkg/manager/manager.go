@@ -71,7 +71,7 @@ func New(options Options, db *db.DB, logger types.Logger) (*Manager, error) {
 	var err error
 	var gh *github.Github
 	if options.Github.Enabled {
-		gh, err = github.New(&github.Options{
+		gh, err = github.New(github.Options{
 			RedirectURL:  "",
 			ClientID:     options.Github.ClientID,
 			ClientSecret: options.Github.ClientSecret,
@@ -83,7 +83,7 @@ func New(options Options, db *db.DB, logger types.Logger) (*Manager, error) {
 
 	var gg *google.Google
 	if options.Google.Enabled {
-		gg, err = google.New(&google.Options{
+		gg, err = google.New(google.Options{
 			RedirectURL:  "",
 			ClientID:     options.Google.ClientID,
 			ClientSecret: options.Google.ClientSecret,
