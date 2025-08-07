@@ -210,7 +210,7 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 
 	defer func() {
 		err := tx.Rollback()
-		if err != nil {
+		if err != nil && !errors.Is(err, sql.ErrTxDone) {
 			m.logger.Error().Err(err).Str("provider", provider.String()).Str("provider_identifier", data.ProviderIdentifier).Str("primary_email", data.PrimaryEmail).Msg("failed to rollback transaction")
 		}
 	}()
