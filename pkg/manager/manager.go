@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/loopholelabs/auth/pkg/manager/role"
 
 	"github.com/loopholelabs/logging/types"
 
@@ -67,8 +68,23 @@ type Options struct {
 	Mailer MailerOptions
 }
 
+type OrganizationInfo struct {
+	Identifier string `json:"identifier"`
+	Role       string `json:"role"`
+}
+
+type UserInfo struct {
+	Identifier string `json:"identifier"`
+	Name       string `json:"name"`
+	Email      string `json:"email"`
+}
+
 type Session struct {
-	Session generated.Session
+	Identifier       string           `json:"identifier"`
+	OrganizationInfo OrganizationInfo `json:"organization_info"`
+	UserInfo         UserInfo         `json:"user_info"`
+	Generation       uint32           `json:"generation"`
+	ExpiresAt        time.Time        `json:"expires_at"`
 }
 
 type Manager struct {
@@ -271,6 +287,17 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 	}
 
 	return &Session{
-		Session: session,
+		Identifier: sessionIdentifier,
+		OrganizationInfo: OrganizationInfo{
+			Identifier: session.OrganizationIdentifier,
+			Role:       role.OwnerRole,
+		},
+		UserInfo: UserInfo{
+			Identifier: session.UserIdentifier,
+			Name:       user.Name.String,
+			Email:      user.PrimaryEmail,
+		},
+		Generation: session.LastGeneration,
+		ExpiresAt:  session.ExpiresAt,
 	}, nil
 }

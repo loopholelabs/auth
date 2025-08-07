@@ -20,7 +20,7 @@ type CreateSessionParams struct {
 	Identifier             string
 	OrganizationIdentifier string
 	UserIdentifier         string
-	LastGeneration         int32
+	LastGeneration         uint32
 	ExpiresAt              time.Time
 }
 
