@@ -109,7 +109,7 @@ func (c *Magic) CreateFlow(ctx context.Context, emailAddress string, deviceIdent
 	return base64.StdEncoding.EncodeToString([]byte(params.Identifier + "_" + secret)), nil
 }
 
-func (c *Magic) CompleteFlow(ctx context.Context, token string) (*flow.Flow, error) {
+func (c *Magic) CompleteFlow(ctx context.Context, token string) (*flow.Data, error) {
 	tokenBytes, err := base64.StdEncoding.DecodeString(token)
 	if err != nil {
 		return nil, errors.Join(ErrCompletingFlow, ErrInvalidToken, err)
@@ -163,14 +163,14 @@ func (c *Magic) CompleteFlow(ctx context.Context, token string) (*flow.Flow, err
 		return nil, errors.Join(ErrCompletingFlow, ErrInvalidSecret)
 	}
 
-	return &flow.Flow{
-		Identifier:       f.EmailAddress,
-		Name:             "",
-		NextURL:          f.NextUrl.String,
-		DeviceIdentifier: f.DeviceIdentifier.String,
-		UserIdentifier:   f.UserIdentifier.String,
-		PrimaryEmail:     f.EmailAddress,
-		VerifiedEmails:   []string{f.EmailAddress},
+	return &flow.Data{
+		ProviderIdentifier: f.EmailAddress,
+		Name:               "",
+		NextURL:            f.NextUrl.String,
+		DeviceIdentifier:   f.DeviceIdentifier.String,
+		UserIdentifier:     f.UserIdentifier.String,
+		PrimaryEmail:       f.EmailAddress,
+		VerifiedEmails:     []string{f.EmailAddress},
 	}, nil
 }
 

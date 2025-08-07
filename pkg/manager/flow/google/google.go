@@ -149,7 +149,7 @@ func (c *Google) CreateFlow(ctx context.Context, deviceIdentifier string, userId
 	return c.config.AuthCodeURL(params.Identifier, oauth2.AccessTypeOnline, oauth2.SetAuthURLParam(pkce.ParamCodeChallenge, params.Challenge), oauth2.SetAuthURLParam(pkce.ParamCodeChallengeMethod, pkce.MethodS256)), nil
 }
 
-func (c *Google) CompleteFlow(ctx context.Context, identifier string, code string) (*flow.Flow, error) {
+func (c *Google) CompleteFlow(ctx context.Context, identifier string, code string) (*flow.Data, error) {
 	c.logger.Debug().Str("identifier", identifier).Msg("completing flow")
 	tx, err := c.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
@@ -218,22 +218,22 @@ func (c *Google) CompleteFlow(ctx context.Context, identifier string, code strin
 		return nil, errors.Join(ErrCompletingFlow, err)
 	}
 
-	_flow := &flow.Flow{
-		Identifier:       strconv.FormatInt(u.ID, 10),
-		Name:             u.Name,
-		NextURL:          f.NextUrl.String,
-		DeviceIdentifier: f.DeviceIdentifier.String,
-		UserIdentifier:   f.UserIdentifier.String,
+	data := &flow.Data{
+		ProviderIdentifier: strconv.FormatInt(u.ID, 10),
+		Name:               u.Name,
+		NextURL:            f.NextUrl.String,
+		DeviceIdentifier:   f.DeviceIdentifier.String,
+		UserIdentifier:     f.UserIdentifier.String,
 	}
 
 	if !u.Verified || u.Email == "" {
 		return nil, errors.Join(ErrCompletingFlow, ErrNoVerifiedEmails)
 	}
 
-	_flow.PrimaryEmail = u.Email
-	_flow.VerifiedEmails = append(_flow.VerifiedEmails, u.Email)
+	data.PrimaryEmail = u.Email
+	data.VerifiedEmails = append(data.VerifiedEmails, u.Email)
 
-	return _flow, nil
+	return data, nil
 }
 
 func (c *Google) gc() (int64, error) {

@@ -3,6 +3,7 @@
 package magic
 
 import (
+	"database/sql"
 	"encoding/base64"
 	"fmt"
 	"strings"
@@ -145,9 +146,9 @@ func TestCreateFlow(t *testing.T) {
 		require.NoError(t, err)
 
 		err = database.Queries.CreateUser(t.Context(), generated.CreateUserParams{
-			Identifier:          userID,
-			PrimaryEmail:        "test-" + uuid.New().String()[:8] + "@example.com",
-			DefaultOrganization: orgID,
+			Identifier:                    userID,
+			PrimaryEmail:                  "test-" + uuid.New().String()[:8] + "@example.com",
+			DefaultOrganizationIdentifier: orgID,
 		})
 		require.NoError(t, err)
 
@@ -185,9 +186,9 @@ func TestCreateFlow(t *testing.T) {
 		require.NoError(t, err)
 
 		err = database.Queries.CreateUser(t.Context(), generated.CreateUserParams{
-			Identifier:          userID,
-			PrimaryEmail:        "test-" + uuid.New().String()[:8] + "@example.com",
-			DefaultOrganization: orgID,
+			Identifier:                    userID,
+			PrimaryEmail:                  "test-" + uuid.New().String()[:8] + "@example.com",
+			DefaultOrganizationIdentifier: orgID,
 		})
 		require.NoError(t, err)
 
@@ -292,7 +293,7 @@ func TestCompleteFlow(t *testing.T) {
 		require.NotNil(t, flow)
 
 		// Verify flow data
-		require.Equal(t, "test@example.com", flow.Identifier)
+		require.Equal(t, "test@example.com", flow.ProviderIdentifier)
 		require.Empty(t, flow.Name) // Magic link doesn't have name
 		require.Equal(t, "test@example.com", flow.PrimaryEmail)
 		require.Len(t, flow.VerifiedEmails, 1)
@@ -321,9 +322,9 @@ func TestCompleteFlow(t *testing.T) {
 		require.NoError(t, err)
 
 		err = database.Queries.CreateUser(t.Context(), generated.CreateUserParams{
-			Identifier:          userID,
-			PrimaryEmail:        "test-" + uuid.New().String()[:8] + "@example.com",
-			DefaultOrganization: orgID,
+			Identifier:                    userID,
+			PrimaryEmail:                  "test-" + uuid.New().String()[:8] + "@example.com",
+			DefaultOrganizationIdentifier: orgID,
 		})
 		require.NoError(t, err)
 
@@ -337,7 +338,7 @@ func TestCompleteFlow(t *testing.T) {
 		require.NotNil(t, flow)
 
 		// Verify fields are returned
-		require.Equal(t, "complete@example.com", flow.Identifier)
+		require.Equal(t, "complete@example.com", flow.ProviderIdentifier)
 		require.Empty(t, flow.Name)
 		require.Equal(t, "complete@example.com", flow.PrimaryEmail)
 		require.Contains(t, flow.VerifiedEmails, "complete@example.com")
@@ -425,7 +426,7 @@ func TestCompleteFlow(t *testing.T) {
 
 		// Verify the flow is deleted on failure
 		_, err = database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), identifier)
-		require.ErrorContains(t, err, "no rows in result set") // Should not exist anymore
+		require.ErrorIs(t, err, sql.ErrNoRows) // Should not exist anymore
 	})
 
 	t.Run("CompleteFlowIdempotency", func(t *testing.T) {
@@ -758,7 +759,7 @@ func TestGarbageCollection(t *testing.T) {
 			tokenBytes, _ := base64.StdEncoding.DecodeString(token)
 			identifier := string(tokenBytes[:strings.Index(string(tokenBytes), "_")])
 			_, err = database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), identifier)
-			require.ErrorContains(t, err, "no rows in result set")
+			require.ErrorIs(t, err, sql.ErrNoRows)
 		}
 	})
 }
@@ -1016,9 +1017,9 @@ func TestFlowLifecycle(t *testing.T) {
 		require.NoError(t, err)
 
 		err = database.Queries.CreateUser(t.Context(), generated.CreateUserParams{
-			Identifier:          userID,
-			PrimaryEmail:        "test-" + uuid.New().String()[:8] + "@example.com",
-			DefaultOrganization: orgID,
+			Identifier:                    userID,
+			PrimaryEmail:                  "test-" + uuid.New().String()[:8] + "@example.com",
+			DefaultOrganizationIdentifier: orgID,
 		})
 		require.NoError(t, err)
 
@@ -1042,7 +1043,7 @@ func TestFlowLifecycle(t *testing.T) {
 		completedFlow, err := m.CompleteFlow(t.Context(), token)
 		require.NoError(t, err)
 		require.NotNil(t, completedFlow)
-		require.Equal(t, email, completedFlow.Identifier)
+		require.Equal(t, email, completedFlow.ProviderIdentifier)
 		require.Equal(t, email, completedFlow.PrimaryEmail)
 		require.Empty(t, completedFlow.DeviceIdentifier)
 		require.Equal(t, userID, completedFlow.UserIdentifier)
@@ -1140,7 +1141,7 @@ func TestNullableFields(t *testing.T) {
 		// Complete flow and verify empty fields
 		flow, err := m.CompleteFlow(t.Context(), token)
 		require.NoError(t, err)
-		require.Equal(t, "minimal@example.com", flow.Identifier)
+		require.Equal(t, "minimal@example.com", flow.ProviderIdentifier)
 		require.Empty(t, flow.DeviceIdentifier)
 		require.Empty(t, flow.UserIdentifier)
 		require.Empty(t, flow.NextURL)
@@ -1172,9 +1173,9 @@ func TestNullableFields(t *testing.T) {
 					require.NoError(t, err)
 
 					err = database.Queries.CreateUser(t.Context(), generated.CreateUserParams{
-						Identifier:          tc.user,
-						PrimaryEmail:        "test-" + uuid.New().String()[:8] + "@example.com",
-						DefaultOrganization: orgID,
+						Identifier:                    tc.user,
+						PrimaryEmail:                  "test-" + uuid.New().String()[:8] + "@example.com",
+						DefaultOrganizationIdentifier: orgID,
 					})
 					require.NoError(t, err)
 				}
