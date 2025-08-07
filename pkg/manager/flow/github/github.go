@@ -1,6 +1,6 @@
 //SPDX-License-Identifier: Apache-2.0
 
-package google
+package github
 
 import (
 	"context"
@@ -17,13 +17,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/grokify/go-pkce"
 	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
+	"golang.org/x/oauth2/github"
 
 	"github.com/loopholelabs/logging/types"
 
 	"github.com/loopholelabs/auth/internal/db"
 	"github.com/loopholelabs/auth/internal/db/generated"
-	"github.com/loopholelabs/auth/pkg/controller/flows"
+	"github.com/loopholelabs/auth/pkg/manager/flow"
 )
 
 var (
@@ -46,14 +46,18 @@ const (
 )
 
 var (
-	defaultScopes = []string{"https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile"}
+	defaultScopes = []string{"user:email"}
 )
 
 type user struct {
-	ID       int64  `json:"sub"`
-	Name     string `json:"name"`
+	ID   int64  `json:"id"`
+	Name string `json:"name"`
+}
+
+type email struct {
 	Email    string `json:"email"`
-	Verified bool   `json:"email_verified"`
+	Verified bool   `json:"verified"`
+	Primary  bool   `json:"primary"`
 }
 
 type Options struct {
@@ -63,7 +67,7 @@ type Options struct {
 	HTTPClient   *http.Client // Optional: custom HTTP client for testing
 }
 
-type Google struct {
+type Github struct {
 	logger     types.Logger
 	db         *db.DB
 	config     *oauth2.Config
@@ -74,7 +78,7 @@ type Google struct {
 	cancel context.CancelFunc
 }
 
-func New(options *Options, db *db.DB, logger types.Logger) (*Google, error) {
+func New(options *Options, db *db.DB, logger types.Logger) (*Github, error) {
 	if options == nil {
 		return nil, ErrInvalidOptions
 	}
@@ -93,14 +97,14 @@ func New(options *Options, db *db.DB, logger types.Logger) (*Google, error) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	g := &Google{
-		logger:     logger.SubLogger("GOOGLE"),
+	g := &Github{
+		logger:     logger.SubLogger("GITHUB"),
 		db:         db,
 		httpClient: httpClient,
 		config: &oauth2.Config{
 			ClientID:     options.ClientID,
 			ClientSecret: options.ClientSecret,
-			Endpoint:     google.Endpoint,
+			Endpoint:     github.Endpoint,
 			RedirectURL:  options.RedirectURL,
 			Scopes:       defaultScopes,
 		},
@@ -114,19 +118,19 @@ func New(options *Options, db *db.DB, logger types.Logger) (*Google, error) {
 	return g, nil
 }
 
-func (c *Google) Close() error {
+func (c *Github) Close() error {
 	c.cancel()
 	c.wg.Wait()
 	return nil
 }
 
-func (c *Google) CreateFlow(ctx context.Context, deviceIdentifier string, userIdentifier string, nextURL string) (string, error) {
+func (c *Github) CreateFlow(ctx context.Context, deviceIdentifier string, userIdentifier string, nextURL string) (string, error) {
 	verifier, err := pkce.NewCodeVerifier(-1)
 	if err != nil {
 		return "", errors.Join(ErrCreatingFlow, err)
 	}
 
-	params := generated.CreateGoogleOAuthFlowParams{
+	params := generated.CreateGithubOAuthFlowParams{
 		Identifier: uuid.New().String(),
 		Verifier:   verifier,
 		Challenge:  pkce.CodeChallengeS256(verifier),
@@ -145,7 +149,7 @@ func (c *Google) CreateFlow(ctx context.Context, deviceIdentifier string, userId
 	}
 
 	c.logger.Debug().Msg("creating flow")
-	err = c.db.Queries.CreateGoogleOAuthFlow(ctx, params)
+	err = c.db.Queries.CreateGithubOAuthFlow(ctx, params)
 	if err != nil {
 		return "", errors.Join(ErrCreatingFlow, err)
 	}
@@ -153,8 +157,8 @@ func (c *Google) CreateFlow(ctx context.Context, deviceIdentifier string, userId
 	return c.config.AuthCodeURL(params.Identifier, oauth2.AccessTypeOnline, oauth2.SetAuthURLParam(pkce.ParamCodeChallenge, params.Challenge), oauth2.SetAuthURLParam(pkce.ParamCodeChallengeMethod, pkce.MethodS256)), nil
 }
 
-func (c *Google) CompleteFlow(ctx context.Context, identifier string, code string) (*flows.Flow, error) {
-	c.logger.Debug().Str("identifier", identifier).Msg("completing flow")
+func (c *Github) CompleteFlow(ctx context.Context, identifier string, code string) (*flow.Flow, error) {
+	c.logger.Debug().Str("identifier", identifier).Msg("completing f")
 	tx, err := c.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
 		return nil, errors.Join(ErrCompletingFlow, err)
@@ -166,12 +170,12 @@ func (c *Google) CompleteFlow(ctx context.Context, identifier string, code strin
 
 	qtx := c.db.Queries.WithTx(tx)
 
-	flow, err := qtx.GetGoogleOAuthFlowByIdentifier(ctx, identifier)
+	f, err := c.db.Queries.GetGithubOAuthFlowByIdentifier(ctx, identifier)
 	if err != nil {
 		return nil, errors.Join(ErrCompletingFlow, err)
 	}
 
-	err = qtx.DeleteGoogleOAuthFlowByIdentifier(ctx, identifier)
+	err = qtx.DeleteGithubOAuthFlowByIdentifier(ctx, identifier)
 	if err != nil {
 		return nil, errors.Join(ErrCompletingFlow, err)
 	}
@@ -187,14 +191,14 @@ func (c *Google) CompleteFlow(ctx context.Context, identifier string, code strin
 		oauth2Ctx = context.WithValue(ctx, oauth2.HTTPClient, c.httpClient)
 	}
 
-	token, err := c.config.Exchange(oauth2Ctx, code, oauth2.SetAuthURLParam(pkce.ParamCodeVerifier, flow.Verifier))
+	token, err := c.config.Exchange(oauth2Ctx, code, oauth2.SetAuthURLParam(pkce.ParamCodeVerifier, f.Verifier))
 	if err != nil {
 		return nil, errors.Join(ErrCompletingFlow, err)
 	}
 
 	// Get User Info
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://www.googleapis.com/oauth2/v3/userinfo", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/user", nil)
 	if err != nil {
 		return nil, errors.Join(ErrCompletingFlow, err)
 	}
@@ -222,31 +226,67 @@ func (c *Google) CompleteFlow(ctx context.Context, identifier string, code strin
 		return nil, errors.Join(ErrCompletingFlow, err)
 	}
 
-	f := &flows.Flow{
+	_flow := &flow.Flow{
 		Identifier:       strconv.FormatInt(u.ID, 10),
 		Name:             u.Name,
-		NextURL:          flow.NextUrl.String,
-		DeviceIdentifier: flow.DeviceIdentifier.String,
-		UserIdentifier:   flow.UserIdentifier.String,
+		NextURL:          f.NextUrl.String,
+		DeviceIdentifier: f.DeviceIdentifier.String,
+		UserIdentifier:   f.UserIdentifier.String,
 	}
 
-	if !u.Verified || u.Email == "" {
+	// Get User Emails
+
+	req, err = http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/user/emails", nil)
+	if err != nil {
+		return nil, errors.Join(ErrCompletingFlow, err)
+	}
+
+	req.Header.Set("Authorization", fmt.Sprintf("token %s", token.AccessToken))
+
+	res, err = c.httpClient.Do(req)
+	if err != nil {
+		return nil, errors.Join(ErrCompletingFlow, err)
+	}
+
+	if res.StatusCode != http.StatusOK {
+		return nil, errors.Join(ErrCompletingFlow, ErrInvalidResponse)
+	}
+
+	body, err = io.ReadAll(res.Body)
+	_ = res.Body.Close()
+	if err != nil {
+		return nil, errors.Join(ErrCompletingFlow, err)
+	}
+
+	var emails []email
+	err = json.Unmarshal(body, &emails)
+	if err != nil {
+		return nil, errors.Join(ErrCompletingFlow, err)
+	}
+
+	for _, e := range emails {
+		if e.Verified {
+			_flow.VerifiedEmails = append(_flow.VerifiedEmails, e.Email)
+			if e.Primary {
+				_flow.PrimaryEmail = e.Email
+			}
+		}
+	}
+
+	if len(_flow.VerifiedEmails) < 1 {
 		return nil, errors.Join(ErrCompletingFlow, ErrNoVerifiedEmails)
 	}
 
-	f.PrimaryEmail = u.Email
-	f.VerifiedEmails = append(f.VerifiedEmails, u.Email)
-
-	return f, nil
+	return _flow, nil
 }
 
-func (c *Google) gc() (int64, error) {
+func (c *Github) gc() (int64, error) {
 	ctx, cancel := context.WithTimeout(c.ctx, Timeout)
 	defer cancel()
-	return c.db.Queries.DeleteGoogleOAuthFlowsBeforeTime(ctx, now().Add(-Expiry))
+	return c.db.Queries.DeleteGithubOAuthFlowsBeforeTime(ctx, now().Add(-Expiry))
 }
 
-func (c *Google) doGC() {
+func (c *Github) doGC() {
 	defer c.wg.Done()
 	for {
 		select {

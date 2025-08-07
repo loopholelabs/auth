@@ -1,6 +1,6 @@
 //SPDX-License-Identifier: Apache-2.0
 
-package flows
+package flow
 
 type Flow struct {
 	Identifier       string
