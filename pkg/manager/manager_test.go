@@ -1,3 +1,780 @@
 //SPDX-License-Identifier: Apache-2.0
 
 package manager
+
+import (
+	"database/sql"
+	"encoding/json"
+	"testing"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
+
+	"github.com/loopholelabs/logging"
+
+	"github.com/loopholelabs/auth/internal/db"
+	"github.com/loopholelabs/auth/internal/db/generated"
+	"github.com/loopholelabs/auth/internal/testutils"
+	"github.com/loopholelabs/auth/pkg/manager/flow"
+)
+
+func TestNew(t *testing.T) {
+	container := testutils.SetupMySQLContainer(t)
+	logger := logging.Test(t, logging.Zerolog, "test")
+	database, err := db.New(container.URL, logger)
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		require.NoError(t, database.Close())
+	})
+
+	t.Run("BasicManager", func(t *testing.T) {
+		opts := Options{}
+		m, err := New(opts, database, logger)
+		require.NoError(t, err)
+		require.NotNil(t, m)
+		require.Nil(t, m.Github())
+		require.Nil(t, m.Google())
+		require.Nil(t, m.Magic())
+	})
+
+	t.Run("WithGithub", func(t *testing.T) {
+		opts := Options{
+			Github: GithubOptions{
+				Enabled:      true,
+				RedirectURL:  "http://localhost:8080/callback",
+				ClientID:     "test-client-id",
+				ClientSecret: "test-client-secret",
+			},
+		}
+		m, err := New(opts, database, logger)
+		require.NoError(t, err)
+		require.NotNil(t, m)
+		require.NotNil(t, m.Github())
+		require.Nil(t, m.Google())
+		require.Nil(t, m.Magic())
+	})
+
+	t.Run("WithGoogle", func(t *testing.T) {
+		opts := Options{
+			Google: GoogleOptions{
+				Enabled:      true,
+				RedirectURL:  "http://localhost:8080/callback",
+				ClientID:     "test-client-id",
+				ClientSecret: "test-client-secret",
+			},
+		}
+		m, err := New(opts, database, logger)
+		require.NoError(t, err)
+		require.NotNil(t, m)
+		require.Nil(t, m.Github())
+		require.NotNil(t, m.Google())
+		require.Nil(t, m.Magic())
+	})
+
+	t.Run("WithMagic", func(t *testing.T) {
+		opts := Options{
+			Magic: MagicOptions{
+				Enabled: true,
+			},
+		}
+		m, err := New(opts, database, logger)
+		require.NoError(t, err)
+		require.NotNil(t, m)
+		require.Nil(t, m.Github())
+		require.Nil(t, m.Google())
+		require.NotNil(t, m.Magic())
+	})
+
+	t.Run("WithAllProviders", func(t *testing.T) {
+		opts := Options{
+			Github: GithubOptions{
+				Enabled:      true,
+				RedirectURL:  "http://localhost:8080/callback",
+				ClientID:     "github-client",
+				ClientSecret: "github-secret",
+			},
+			Google: GoogleOptions{
+				Enabled:      true,
+				RedirectURL:  "http://localhost:8080/callback",
+				ClientID:     "google-client",
+				ClientSecret: "google-secret",
+			},
+			Magic: MagicOptions{
+				Enabled: true,
+			},
+		}
+		m, err := New(opts, database, logger)
+		require.NoError(t, err)
+		require.NotNil(t, m)
+		require.NotNil(t, m.Github())
+		require.NotNil(t, m.Google())
+		require.NotNil(t, m.Magic())
+	})
+}
+
+func TestCreateSession(t *testing.T) {
+	container := testutils.SetupMySQLContainer(t)
+	logger := logging.Test(t, logging.Zerolog, "test")
+	database, err := db.New(container.URL, logger)
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		require.NoError(t, database.Close())
+	})
+
+	// Create manager with all providers enabled
+	opts := Options{
+		Github: GithubOptions{
+			Enabled:      true,
+			RedirectURL:  "http://localhost:8080/callback",
+			ClientID:     "github-client",
+			ClientSecret: "github-secret",
+		},
+		Google: GoogleOptions{
+			Enabled:      true,
+			RedirectURL:  "http://localhost:8080/callback",
+			ClientID:     "google-client",
+			ClientSecret: "google-secret",
+		},
+		Magic: MagicOptions{
+			Enabled: true,
+		},
+	}
+
+	m, err := New(opts, database, logger)
+	require.NoError(t, err)
+
+	t.Run("NewUserWithGithubProvider", func(t *testing.T) {
+		flowData := flow.Data{
+			ProviderIdentifier: "github-user-123",
+			UserName:           "Test User",
+			PrimaryEmail:       "test@example.com",
+			VerifiedEmails:     []string{"test@example.com", "alt@example.com"},
+			NextURL:            "https://app.com/dashboard",
+			DeviceIdentifier:   "",
+			UserIdentifier:     "", // Empty means new user
+		}
+
+		session, err := m.CreateSession(t.Context(), flowData, flow.GithubProvider)
+		require.NoError(t, err)
+		require.NotNil(t, session)
+
+		// Verify session structure
+		require.NotEmpty(t, session.Identifier)
+		_, err = uuid.Parse(session.Identifier)
+		require.NoError(t, err, "session identifier should be a valid UUID")
+
+		// Verify organization info
+		require.NotEmpty(t, session.OrganizationInfo.Identifier)
+		require.Equal(t, "OWNER", session.OrganizationInfo.Role)
+
+		// Verify user info
+		require.NotEmpty(t, session.UserInfo.Identifier)
+		require.Equal(t, "Test User", session.UserInfo.Name) // Name is now set from flow data
+		require.Equal(t, "test@example.com", session.UserInfo.Email)
+
+		// Verify session metadata
+		require.Equal(t, uint32(0), session.Generation)
+		require.True(t, session.ExpiresAt.After(time.Now()))
+		require.True(t, session.ExpiresAt.Before(time.Now().Add(31*time.Minute)))
+
+		// Verify data was persisted correctly
+		identity, err := database.Queries.GetIdentityByProviderAndProviderIdentifier(t.Context(), generated.GetIdentityByProviderAndProviderIdentifierParams{
+			Provider:           generated.IdentitiesProviderGITHUB,
+			ProviderIdentifier: "github-user-123",
+		})
+		require.NoError(t, err)
+		require.Equal(t, session.UserInfo.Identifier, identity.UserIdentifier)
+
+		var verifiedEmails []string
+		err = json.Unmarshal(identity.VerifiedEmails, &verifiedEmails)
+		require.NoError(t, err)
+		require.Equal(t, flowData.VerifiedEmails, verifiedEmails)
+
+		// Verify user was created
+		user, err := database.Queries.GetUserByIdentifier(t.Context(), session.UserInfo.Identifier)
+		require.NoError(t, err)
+		require.Equal(t, "test@example.com", user.PrimaryEmail)
+		require.Equal(t, "Test User", user.Name)
+		require.Equal(t, session.OrganizationInfo.Identifier, user.DefaultOrganizationIdentifier)
+
+		// Verify organization was created
+		org, err := database.Queries.GetOrganizationByIdentifier(t.Context(), session.OrganizationInfo.Identifier)
+		require.NoError(t, err)
+		require.Equal(t, "Test User's Organization", org.Name)
+		require.True(t, org.IsDefault)
+
+		// Verify session was created
+		dbSession, err := database.Queries.GetSessionByIdentifier(t.Context(), session.Identifier)
+		require.NoError(t, err)
+		require.Equal(t, session.OrganizationInfo.Identifier, dbSession.OrganizationIdentifier)
+		require.Equal(t, session.UserInfo.Identifier, dbSession.UserIdentifier)
+		require.Equal(t, uint32(0), dbSession.LastGeneration)
+	})
+
+	t.Run("NewUserWithGoogleProvider", func(t *testing.T) {
+		flowData := flow.Data{
+			ProviderIdentifier: "google-user-456",
+			UserName:           "Google User",
+			PrimaryEmail:       "google@example.com",
+			VerifiedEmails:     []string{"google@example.com"},
+		}
+
+		session, err := m.CreateSession(t.Context(), flowData, flow.GoogleProvider)
+		require.NoError(t, err)
+		require.NotNil(t, session)
+
+		// Verify identity was created with correct provider
+		identity, err := database.Queries.GetIdentityByProviderAndProviderIdentifier(t.Context(), generated.GetIdentityByProviderAndProviderIdentifierParams{
+			Provider:           generated.IdentitiesProviderGOOGLE,
+			ProviderIdentifier: "google-user-456",
+		})
+		require.NoError(t, err)
+		require.Equal(t, session.UserInfo.Identifier, identity.UserIdentifier)
+	})
+
+	t.Run("NewUserWithMagicProvider", func(t *testing.T) {
+		flowData := flow.Data{
+			ProviderIdentifier: "magic@example.com",
+			UserName:           "",
+			PrimaryEmail:       "magic@example.com",
+			VerifiedEmails:     []string{"magic@example.com"},
+		}
+
+		session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
+		require.NoError(t, err)
+		require.NotNil(t, session)
+
+		// Verify identity was created with correct provider
+		identity, err := database.Queries.GetIdentityByProviderAndProviderIdentifier(t.Context(), generated.GetIdentityByProviderAndProviderIdentifierParams{
+			Provider:           generated.IdentitiesProviderMAGIC,
+			ProviderIdentifier: "magic@example.com",
+		})
+		require.NoError(t, err)
+		require.Equal(t, session.UserInfo.Identifier, identity.UserIdentifier)
+
+		// Verify organization name when no name is provided
+		org, err := database.Queries.GetOrganizationByIdentifier(t.Context(), session.OrganizationInfo.Identifier)
+		require.NoError(t, err)
+		require.Contains(t, org.Name, " Organization") // Should have generated a random name
+	})
+
+	t.Run("ExistingUserNewIdentity", func(t *testing.T) {
+		// First create a user with an organization
+		orgID := uuid.New().String()
+		err := database.Queries.CreateOrganization(t.Context(), generated.CreateOrganizationParams{
+			Identifier: orgID,
+			Name:       "Existing Org",
+			IsDefault:  true,
+		})
+		require.NoError(t, err)
+
+		userID := uuid.New().String()
+		err = database.Queries.CreateUser(t.Context(), generated.CreateUserParams{
+			Identifier:                    userID,
+			Name:                          "test",
+			PrimaryEmail:                  "existing@example.com",
+			DefaultOrganizationIdentifier: orgID,
+		})
+		require.NoError(t, err)
+
+		// Create session with existing user ID
+		flowData := flow.Data{
+			ProviderIdentifier: "github-existing-789",
+			UserName:           "Existing User",
+			PrimaryEmail:       "existing@example.com",
+			VerifiedEmails:     []string{"existing@example.com", "existing-alt@example.com"},
+			UserIdentifier:     userID, // Existing user
+		}
+
+		session, err := m.CreateSession(t.Context(), flowData, flow.GithubProvider)
+		require.NoError(t, err)
+		require.NotNil(t, session)
+
+		// Verify the session uses the existing user and organization
+		require.Equal(t, userID, session.UserInfo.Identifier)
+		require.Equal(t, orgID, session.OrganizationInfo.Identifier)
+
+		// Verify identity was created for existing user
+		identity, err := database.Queries.GetIdentityByProviderAndProviderIdentifier(t.Context(), generated.GetIdentityByProviderAndProviderIdentifierParams{
+			Provider:           generated.IdentitiesProviderGITHUB,
+			ProviderIdentifier: "github-existing-789",
+		})
+		require.NoError(t, err)
+		require.Equal(t, userID, identity.UserIdentifier)
+	})
+
+	t.Run("ExistingIdentityReturnsSession", func(t *testing.T) {
+		// First create a complete user setup
+		orgID := uuid.New().String()
+		err := database.Queries.CreateOrganization(t.Context(), generated.CreateOrganizationParams{
+			Identifier: orgID,
+			Name:       "Test Org",
+			IsDefault:  true,
+		})
+		require.NoError(t, err)
+
+		userID := uuid.New().String()
+		err = database.Queries.CreateUser(t.Context(), generated.CreateUserParams{
+			Identifier:                    userID,
+			Name:                          "test",
+			PrimaryEmail:                  "identity@example.com",
+			DefaultOrganizationIdentifier: orgID,
+		})
+		require.NoError(t, err)
+
+		// Create an identity
+		verifiedEmails, _ := json.Marshal([]string{"identity@example.com"})
+		err = database.Queries.CreateIdentity(t.Context(), generated.CreateIdentityParams{
+			Provider:           generated.IdentitiesProviderGITHUB,
+			ProviderIdentifier: "github-identity-999",
+			UserIdentifier:     userID,
+			VerifiedEmails:     verifiedEmails,
+		})
+		require.NoError(t, err)
+
+		// Try to create session with same identity
+		flowData := flow.Data{
+			ProviderIdentifier: "github-identity-999",
+			UserName:           "Should Not Matter",
+			PrimaryEmail:       "identity@example.com",
+			VerifiedEmails:     []string{"identity@example.com"},
+		}
+
+		session, err := m.CreateSession(t.Context(), flowData, flow.GithubProvider)
+		require.NoError(t, err)
+		require.NotNil(t, session)
+
+		// Verify it returns the existing user
+		require.Equal(t, userID, session.UserInfo.Identifier)
+		require.Equal(t, orgID, session.OrganizationInfo.Identifier)
+
+		// Verify a new session was still created
+		dbSession, err := database.Queries.GetSessionByIdentifier(t.Context(), session.Identifier)
+		require.NoError(t, err)
+		require.Equal(t, userID, dbSession.UserIdentifier)
+	})
+
+	t.Run("NoVerifiedEmailsError", func(t *testing.T) {
+		flowData := flow.Data{
+			ProviderIdentifier: "no-emails-user",
+			UserName:           "No Emails",
+			PrimaryEmail:       "test@example.com",
+			VerifiedEmails:     []string{}, // Empty
+		}
+
+		session, err := m.CreateSession(t.Context(), flowData, flow.GithubProvider)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrCreatingSession)
+		require.ErrorIs(t, err, ErrInvalidFlowData)
+		require.Nil(t, session)
+	})
+
+	t.Run("InvalidProviderError", func(t *testing.T) {
+		flowData := flow.Data{
+			ProviderIdentifier: "invalid-provider-user",
+			UserName:           "Invalid Provider",
+			PrimaryEmail:       "invalid@example.com",
+			VerifiedEmails:     []string{"invalid@example.com"},
+		}
+
+		// Use an invalid provider value
+		session, err := m.CreateSession(t.Context(), flowData, flow.Provider(999))
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrCreatingSession)
+		require.ErrorIs(t, err, ErrInvalidProvider)
+		require.Nil(t, session)
+	})
+
+	t.Run("MultipleVerifiedEmails", func(t *testing.T) {
+		flowData := flow.Data{
+			ProviderIdentifier: "multi-email-user",
+			UserName:           "Multi Email",
+			PrimaryEmail:       "primary@example.com",
+			VerifiedEmails: []string{
+				"primary@example.com",
+				"secondary@example.com",
+				"tertiary@example.com",
+			},
+		}
+
+		session, err := m.CreateSession(t.Context(), flowData, flow.GithubProvider)
+		require.NoError(t, err)
+		require.NotNil(t, session)
+
+		// Verify all emails were stored
+		identity, err := database.Queries.GetIdentityByProviderAndProviderIdentifier(t.Context(), generated.GetIdentityByProviderAndProviderIdentifierParams{
+			Provider:           generated.IdentitiesProviderGITHUB,
+			ProviderIdentifier: "multi-email-user",
+		})
+		require.NoError(t, err)
+
+		var storedEmails []string
+		err = json.Unmarshal(identity.VerifiedEmails, &storedEmails)
+		require.NoError(t, err)
+		require.Equal(t, flowData.VerifiedEmails, storedEmails)
+	})
+
+	t.Run("SessionExpiryTime", func(t *testing.T) {
+		flowData := flow.Data{
+			ProviderIdentifier: "expiry-test-user",
+			UserName:           "Expiry Test",
+			PrimaryEmail:       "expiry@example.com",
+			VerifiedEmails:     []string{"expiry@example.com"},
+		}
+
+		beforeCreate := time.Now()
+		session, err := m.CreateSession(t.Context(), flowData, flow.GithubProvider)
+		require.NoError(t, err)
+		afterCreate := time.Now()
+
+		// Session should expire 30 minutes from creation
+		expectedExpiry := beforeCreate.Add(30 * time.Minute)
+		require.True(t, session.ExpiresAt.After(expectedExpiry.Add(-1*time.Second)))
+		require.True(t, session.ExpiresAt.Before(afterCreate.Add(30*time.Minute).Add(1*time.Second)))
+	})
+
+	t.Run("ConcurrentSessionCreation", func(t *testing.T) {
+		// Test that multiple sessions can be created for the same identity
+		flowData := flow.Data{
+			ProviderIdentifier: "concurrent-user",
+			UserName:           "Concurrent User",
+			PrimaryEmail:       "concurrent@example.com",
+			VerifiedEmails:     []string{"concurrent@example.com"},
+		}
+
+		// Create first session
+		session1, err := m.CreateSession(t.Context(), flowData, flow.GithubProvider)
+		require.NoError(t, err)
+		require.NotNil(t, session1)
+
+		// Create second session for same identity
+		session2, err := m.CreateSession(t.Context(), flowData, flow.GithubProvider)
+		require.NoError(t, err)
+		require.NotNil(t, session2)
+
+		// Sessions should be different
+		require.NotEqual(t, session1.Identifier, session2.Identifier)
+
+		// But should point to same user
+		require.Equal(t, session1.UserInfo.Identifier, session2.UserInfo.Identifier)
+		require.Equal(t, session1.OrganizationInfo.Identifier, session2.OrganizationInfo.Identifier)
+	})
+
+	t.Run("NonExistentUserIdentifier", func(t *testing.T) {
+		// Try to create identity for non-existent user
+		flowData := flow.Data{
+			ProviderIdentifier: "nonexistent-link",
+			UserName:           "NonExistent",
+			PrimaryEmail:       "nonexistent@example.com",
+			VerifiedEmails:     []string{"nonexistent@example.com"},
+			UserIdentifier:     uuid.New().String(), // Non-existent user ID
+		}
+
+		session, err := m.CreateSession(t.Context(), flowData, flow.GithubProvider)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrCreatingSession)
+		require.Nil(t, session)
+
+		// Verify no identity was created
+		_, err = database.Queries.GetIdentityByProviderAndProviderIdentifier(t.Context(), generated.GetIdentityByProviderAndProviderIdentifierParams{
+			Provider:           generated.IdentitiesProviderGITHUB,
+			ProviderIdentifier: "nonexistent-link",
+		})
+		require.Error(t, err)
+		require.ErrorIs(t, err, sql.ErrNoRows)
+	})
+
+	t.Run("TransactionRollbackOnError", func(t *testing.T) {
+		// Create a user but don't create the organization it references
+		// This should cause a foreign key constraint error
+		nonExistentOrgID := uuid.New().String()
+		userID := uuid.New().String()
+
+		// This will succeed temporarily within a transaction
+		flowData := flow.Data{
+			ProviderIdentifier: "rollback-test",
+			UserName:           "Rollback Test",
+			PrimaryEmail:       "rollback@example.com",
+			VerifiedEmails:     []string{"rollback@example.com"},
+			UserIdentifier:     userID,
+		}
+
+		// First we need to create the user with invalid org reference
+		// to test transaction rollback
+		tx, err := database.DB.BeginTx(t.Context(), nil)
+		require.NoError(t, err)
+
+		qtx := database.Queries.WithTx(tx)
+		err = qtx.CreateUser(t.Context(), generated.CreateUserParams{
+			Identifier:                    userID,
+			Name:                          "test",
+			PrimaryEmail:                  "rollback@example.com",
+			DefaultOrganizationIdentifier: nonExistentOrgID, // This doesn't exist
+		})
+		// This should fail due to foreign key constraint
+		require.Error(t, err)
+		err = tx.Rollback()
+		require.NoError(t, err)
+
+		// Now try to create session with this user that shouldn't exist
+		session, err := m.CreateSession(t.Context(), flowData, flow.GithubProvider)
+		require.Error(t, err)
+		require.Nil(t, session)
+	})
+
+	t.Run("EmptyProviderIdentifier", func(t *testing.T) {
+		flowData := flow.Data{
+			ProviderIdentifier: "", // Empty
+			UserName:           "Empty Provider",
+			PrimaryEmail:       "empty-provider@example.com",
+			VerifiedEmails:     []string{"empty-provider@example.com"},
+		}
+
+		// This should now fail due to validation
+		session, err := m.CreateSession(t.Context(), flowData, flow.GithubProvider)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrCreatingSession)
+		require.ErrorIs(t, err, ErrInvalidFlowData)
+		require.Nil(t, session)
+	})
+
+	t.Run("SpecialCharactersInData", func(t *testing.T) {
+		flowData := flow.Data{
+			ProviderIdentifier: "special-!@#$%^&*()",
+			UserName:           "User's \"Special\" Name",
+			PrimaryEmail:       "special+tag@example.com",
+			VerifiedEmails:     []string{"special+tag@example.com", "üñíçödé@example.com"},
+		}
+
+		session, err := m.CreateSession(t.Context(), flowData, flow.GithubProvider)
+		require.NoError(t, err)
+		require.NotNil(t, session)
+
+		// Verify special characters were handled correctly
+		org, err := database.Queries.GetOrganizationByIdentifier(t.Context(), session.OrganizationInfo.Identifier)
+		require.NoError(t, err)
+		require.Equal(t, "User's \"Special\" Name's Organization", org.Name)
+
+		// Verify emails with special characters
+		identity, err := database.Queries.GetIdentityByProviderAndProviderIdentifier(t.Context(), generated.GetIdentityByProviderAndProviderIdentifierParams{
+			Provider:           generated.IdentitiesProviderGITHUB,
+			ProviderIdentifier: "special-!@#$%^&*()",
+		})
+		require.NoError(t, err)
+
+		var emails []string
+		err = json.Unmarshal(identity.VerifiedEmails, &emails)
+		require.NoError(t, err)
+		require.Equal(t, flowData.VerifiedEmails, emails)
+	})
+
+	t.Run("LongProviderIdentifier", func(t *testing.T) {
+		// Test with a very long provider identifier (max is 255 chars)
+		longID := ""
+		for i := 0; i < 250; i++ {
+			longID += "a"
+		}
+
+		flowData := flow.Data{
+			ProviderIdentifier: longID,
+			UserName:           "Long ID User",
+			PrimaryEmail:       "longid@example.com",
+			VerifiedEmails:     []string{"longid@example.com"},
+		}
+
+		session, err := m.CreateSession(t.Context(), flowData, flow.GithubProvider)
+		require.NoError(t, err)
+		require.NotNil(t, session)
+
+		// Verify it was stored correctly
+		identity, err := database.Queries.GetIdentityByProviderAndProviderIdentifier(t.Context(), generated.GetIdentityByProviderAndProviderIdentifierParams{
+			Provider:           generated.IdentitiesProviderGITHUB,
+			ProviderIdentifier: longID,
+		})
+		require.NoError(t, err)
+		require.Equal(t, longID, identity.ProviderIdentifier)
+	})
+}
+
+func TestCreateSessionEdgeCases(t *testing.T) {
+	container := testutils.SetupMySQLContainer(t)
+	logger := logging.Test(t, logging.Zerolog, "test")
+	database, err := db.New(container.URL, logger)
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		require.NoError(t, database.Close())
+	})
+
+	opts := Options{
+		Magic: MagicOptions{
+			Enabled: true,
+		},
+	}
+
+	m, err := New(opts, database, logger)
+	require.NoError(t, err)
+
+	t.Run("DuplicateIdentityCreation", func(t *testing.T) {
+		flowData := flow.Data{
+			ProviderIdentifier: "duplicate-test",
+			UserName:           "Duplicate Test",
+			PrimaryEmail:       "duplicate@example.com",
+			VerifiedEmails:     []string{"duplicate@example.com"},
+		}
+
+		// Create first identity
+		session1, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
+		require.NoError(t, err)
+
+		// Try to create duplicate identity - should return existing user's session
+		session2, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
+		require.NoError(t, err)
+		require.NotNil(t, session2)
+
+		// Should be the same user as the first session
+		require.Equal(t, session1.UserInfo.Identifier, session2.UserInfo.Identifier)
+
+		// Original identity should still exist and be unchanged
+		identity, err := database.Queries.GetIdentityByProviderAndProviderIdentifier(t.Context(), generated.GetIdentityByProviderAndProviderIdentifierParams{
+			Provider:           generated.IdentitiesProviderMAGIC,
+			ProviderIdentifier: "duplicate-test",
+		})
+		require.NoError(t, err)
+		require.Equal(t, session1.UserInfo.Identifier, identity.UserIdentifier)
+	})
+
+	t.Run("SessionGenerationStartsAtZero", func(t *testing.T) {
+		flowData := flow.Data{
+			ProviderIdentifier: "generation-test",
+			UserName:           "Generation Test",
+			PrimaryEmail:       "generation@example.com",
+			VerifiedEmails:     []string{"generation@example.com"},
+		}
+
+		session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
+		require.NoError(t, err)
+		require.Equal(t, uint32(0), session.Generation)
+
+		// Verify in database
+		dbSession, err := database.Queries.GetSessionByIdentifier(t.Context(), session.Identifier)
+		require.NoError(t, err)
+		require.Equal(t, uint32(0), dbSession.LastGeneration)
+	})
+
+	t.Run("RoleAssignment", func(t *testing.T) {
+		flowData := flow.Data{
+			ProviderIdentifier: "role-test",
+			UserName:           "Role Test",
+			PrimaryEmail:       "role@example.com",
+			VerifiedEmails:     []string{"role@example.com"},
+		}
+
+		session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
+		require.NoError(t, err)
+
+		// Verify role assignment
+		require.Equal(t, "OWNER", session.OrganizationInfo.Role)
+	})
+}
+
+// TestCreateSessionValidation tests the validation improvements in the implementation
+func TestCreateSessionValidation(t *testing.T) {
+	t.Run("ProviderIdentifierValidation", func(t *testing.T) {
+		container := testutils.SetupMySQLContainer(t)
+		logger := logging.Test(t, logging.Zerolog, "test")
+		database, err := db.New(container.URL, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, database.Close())
+		})
+
+		opts := Options{Magic: MagicOptions{Enabled: true}}
+		m, err := New(opts, database, logger)
+		require.NoError(t, err)
+
+		flowData := flow.Data{
+			ProviderIdentifier: "",
+			UserName:           "Test",
+			PrimaryEmail:       "test@example.com",
+			VerifiedEmails:     []string{"test@example.com"},
+		}
+
+		session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrInvalidFlowData)
+		require.Nil(t, session)
+	})
+
+	t.Run("DuplicateEmailPrevented", func(t *testing.T) {
+		container := testutils.SetupMySQLContainer(t)
+		logger := logging.Test(t, logging.Zerolog, "test")
+		database, err := db.New(container.URL, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, database.Close())
+		})
+
+		opts := Options{Magic: MagicOptions{Enabled: true}}
+		m, err := New(opts, database, logger)
+		require.NoError(t, err)
+
+		// Create first user
+		flowData1 := flow.Data{
+			ProviderIdentifier: "user1",
+			UserName:           "User One",
+			PrimaryEmail:       "duplicate@example.com",
+			VerifiedEmails:     []string{"duplicate@example.com"},
+		}
+
+		session1, err := m.CreateSession(t.Context(), flowData1, flow.MagicProvider)
+		require.NoError(t, err)
+		require.NotNil(t, session1)
+
+		// Try to create second user with same email
+		flowData2 := flow.Data{
+			ProviderIdentifier: "user2",
+			UserName:           "User Two",
+			PrimaryEmail:       "duplicate@example.com",
+			VerifiedEmails:     []string{"duplicate@example.com"},
+		}
+
+		session2, err := m.CreateSession(t.Context(), flowData2, flow.MagicProvider)
+		require.Error(t, err) // Should fail due to UNIQUE constraint
+		require.Nil(t, session2)
+	})
+
+	t.Run("UserCreatedWithName", func(t *testing.T) {
+		container := testutils.SetupMySQLContainer(t)
+		logger := logging.Test(t, logging.Zerolog, "test")
+		database, err := db.New(container.URL, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, database.Close())
+		})
+
+		opts := Options{Magic: MagicOptions{Enabled: true}}
+		m, err := New(opts, database, logger)
+		require.NoError(t, err)
+
+		flowData := flow.Data{
+			ProviderIdentifier: "user-with-name",
+			UserName:           "John Doe",
+			PrimaryEmail:       "john@example.com",
+			VerifiedEmails:     []string{"john@example.com"},
+		}
+
+		session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
+		require.NoError(t, err)
+		require.NotNil(t, session)
+		require.Equal(t, "John Doe", session.UserInfo.Name)
+
+		// Verify in database
+		user, err := database.Queries.GetUserByIdentifier(t.Context(), session.UserInfo.Identifier)
+		require.NoError(t, err)
+		require.Equal(t, "John Doe", user.Name)
+	})
+}
