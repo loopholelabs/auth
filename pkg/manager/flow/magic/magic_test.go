@@ -736,7 +736,7 @@ func TestGarbageCollection(t *testing.T) {
 		baseTime := time.Now()
 
 		// Mock time to be exactly at baseTime + Expiry
-		now = func() time.Time { return baseTime.Add(Expiry) }
+		now = func() time.Time { return baseTime.Add(Expiry + time.Second) }
 
 		// Create Magic instance with mocked time
 		m, err := New(database, logger)

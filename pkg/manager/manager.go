@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/loopholelabs/auth/pkg/manager/role"
 
 	"github.com/loopholelabs/logging/types"
 
@@ -22,6 +21,7 @@ import (
 	"github.com/loopholelabs/auth/pkg/manager/flow/github"
 	"github.com/loopholelabs/auth/pkg/manager/flow/google"
 	"github.com/loopholelabs/auth/pkg/manager/flow/magic"
+	"github.com/loopholelabs/auth/pkg/manager/role"
 )
 
 var (
@@ -67,25 +67,6 @@ type Options struct {
 	Google GoogleOptions
 	Magic  MagicOptions
 	Mailer MailerOptions
-}
-
-type OrganizationInfo struct {
-	Identifier string `json:"identifier"`
-	Role       string `json:"role"`
-}
-
-type UserInfo struct {
-	Identifier string `json:"identifier"`
-	Name       string `json:"name"`
-	Email      string `json:"email"`
-}
-
-type Session struct {
-	Identifier       string           `json:"identifier"`
-	OrganizationInfo OrganizationInfo `json:"organization_info"`
-	UserInfo         UserInfo         `json:"user_info"`
-	Generation       uint32           `json:"generation"`
-	ExpiresAt        time.Time        `json:"expires_at"`
 }
 
 type Manager struct {

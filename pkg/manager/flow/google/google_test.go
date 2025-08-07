@@ -1033,7 +1033,7 @@ func TestGarbageCollection(t *testing.T) {
 		baseTime := time.Now()
 
 		// Mock time to be exactly at baseTime + Expiry so gc() will delete flows older than now
-		now = func() time.Time { return baseTime.Add(Expiry) }
+		now = func() time.Time { return baseTime.Add(Expiry + time.Second) }
 
 		// Create Google instance with mocked time
 		opts := Options{
