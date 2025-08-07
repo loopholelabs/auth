@@ -186,10 +186,12 @@ func TestNewClient(t *testing.T) {
 		client, err := New(cfg)
 		require.NoError(t, err)
 		require.NotNil(t, client)
-		require.Equal(t, cfg.FromEmail, client.fromEmail)
-		require.Equal(t, cfg.FromName, client.fromName)
-		require.Equal(t, cfg.AppName, client.appName)
-		require.NotNil(t, client.magicLinkTemplate)
+		_client, ok := client.(*Client)
+		require.True(t, ok)
+		require.Equal(t, cfg.FromEmail, _client.fromEmail)
+		require.Equal(t, cfg.FromName, _client.fromName)
+		require.Equal(t, cfg.AppName, _client.appName)
+		require.NotNil(t, _client.magicLinkTemplate)
 	})
 
 	t.Run("Missing SMTP host", func(t *testing.T) {
@@ -489,8 +491,11 @@ func TestRealTemplateExample(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, client)
 
+	_client, ok := client.(*Client)
+	require.True(t, ok)
+
 	// Verify the template was loaded and validated
-	require.NotNil(t, client.magicLinkTemplate)
+	require.NotNil(t, _client.magicLinkTemplate)
 }
 
 // Benchmark tests
