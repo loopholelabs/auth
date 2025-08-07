@@ -12,6 +12,49 @@ import (
 	"time"
 )
 
+type IdentitiesProvider string
+
+const (
+	IdentitiesProviderGITHUB IdentitiesProvider = "GITHUB"
+	IdentitiesProviderGOOGLE IdentitiesProvider = "GOOGLE"
+	IdentitiesProviderMAGIC  IdentitiesProvider = "MAGIC"
+)
+
+func (e *IdentitiesProvider) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = IdentitiesProvider(s)
+	case string:
+		*e = IdentitiesProvider(s)
+	default:
+		return fmt.Errorf("unsupported scan type for IdentitiesProvider: %T", src)
+	}
+	return nil
+}
+
+type NullIdentitiesProvider struct {
+	IdentitiesProvider IdentitiesProvider
+	Valid              bool // Valid is true if IdentitiesProvider is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullIdentitiesProvider) Scan(value interface{}) error {
+	if value == nil {
+		ns.IdentitiesProvider, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.IdentitiesProvider.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullIdentitiesProvider) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.IdentitiesProvider), nil
+}
+
 type InvitationsStatus string
 
 const (
@@ -88,14 +131,6 @@ type GithubOauthFlow struct {
 	CreatedAt        time.Time
 }
 
-type GithubOauthIdentity struct {
-	Identifier         uint32
-	UserIdentifier     string
-	ProviderIdentifier string
-	VerifiedEmails     json.RawMessage
-	CreatedAt          time.Time
-}
-
 type GoogleOauthFlow struct {
 	Identifier       string
 	Verifier         string
@@ -106,10 +141,10 @@ type GoogleOauthFlow struct {
 	CreatedAt        time.Time
 }
 
-type GoogleOauthIdentity struct {
-	Identifier         uint32
-	UserIdentifier     string
+type Identity struct {
+	Provider           IdentitiesProvider
 	ProviderIdentifier string
+	UserIdentifier     string
 	VerifiedEmails     json.RawMessage
 	CreatedAt          time.Time
 }
@@ -134,14 +169,6 @@ type MagicLinkFlow struct {
 	UserIdentifier   sql.NullString
 	NextUrl          sql.NullString
 	CreatedAt        time.Time
-}
-
-type MagicLinkIdentity struct {
-	Identifier         uint32
-	UserIdentifier     string
-	ProviderIdentifier string
-	VerifiedEmails     json.RawMessage
-	CreatedAt          time.Time
 }
 
 type Membership struct {
@@ -192,10 +219,10 @@ type SessionRevocation struct {
 }
 
 type User struct {
-	Identifier          string
-	Name                sql.NullString
-	PrimaryEmail        string
-	DefaultOrganization string
-	LastSeen            time.Time
-	CreatedAt           time.Time
+	Identifier                    string
+	Name                          sql.NullString
+	PrimaryEmail                  string
+	DefaultOrganizationIdentifier string
+	LastSeen                      time.Time
+	CreatedAt                     time.Time
 }

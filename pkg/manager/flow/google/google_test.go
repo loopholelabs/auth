@@ -212,9 +212,9 @@ func TestCreateFlow(t *testing.T) {
 		require.NoError(t, err)
 
 		err = database.Queries.CreateUser(t.Context(), generated.CreateUserParams{
-			Identifier:          userID,
-			PrimaryEmail:        "test-" + uuid.New().String()[:8] + "@example.com", // Unique email
-			DefaultOrganization: orgID,
+			Identifier:                    userID,
+			PrimaryEmail:                  "test-" + uuid.New().String()[:8] + "@example.com", // Unique email
+			DefaultOrganizationIdentifier: orgID,
 		})
 		require.NoError(t, err)
 
@@ -290,7 +290,7 @@ func TestCompleteFlow(t *testing.T) {
 		require.NotNil(t, flow)
 
 		// Verify flow data
-		require.Equal(t, "12345", flow.Identifier)
+		require.Equal(t, "12345", flow.ProviderIdentifier)
 		require.Equal(t, "Test User", flow.Name)
 		require.Equal(t, "test@example.com", flow.PrimaryEmail)
 		require.Len(t, flow.VerifiedEmails, 1)
@@ -1063,7 +1063,7 @@ func TestGarbageCollection(t *testing.T) {
 
 		for _, id := range ids {
 			_, err = database.Queries.GetGoogleOAuthFlowByIdentifier(t.Context(), id)
-			require.ErrorContains(t, err, "no rows in result set")
+			require.ErrorIs(t, err, sql.ErrNoRows)
 		}
 	})
 }

@@ -24,3 +24,21 @@ func (q *Queries) CreateOrganization(ctx context.Context, arg CreateOrganization
 	_, err := q.db.ExecContext(ctx, createOrganization, arg.Identifier, arg.Name, arg.IsDefault)
 	return err
 }
+
+const getOrganizationByIdentifier = `-- name: GetOrganizationByIdentifier :one
+SELECT identifier, name, is_default, created_at
+FROM organizations
+WHERE identifier = ? LIMIT 1
+`
+
+func (q *Queries) GetOrganizationByIdentifier(ctx context.Context, identifier string) (Organization, error) {
+	row := q.db.QueryRowContext(ctx, getOrganizationByIdentifier, identifier)
+	var i Organization
+	err := row.Scan(
+		&i.Identifier,
+		&i.Name,
+		&i.IsDefault,
+		&i.CreatedAt,
+	)
+	return i, err
+}

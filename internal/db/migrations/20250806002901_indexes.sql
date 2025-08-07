@@ -19,9 +19,7 @@ CREATE INDEX idx_service_keys_expires_at ON service_keys (expires_at);
 -- for cleanup
 
 -- Identity provider reverse lookups
-CREATE INDEX idx_google_oauth_user ON google_oauth_identities (user_identifier);
-CREATE INDEX idx_github_oauth_user ON github_oauth_identities (user_identifier);
-CREATE INDEX idx_magic_link_user ON magic_link_identities (user_identifier);
+CREATE INDEX idx_identities_user ON identities (user_identifier);
 
 -- Memberships lookup indexes
 CREATE INDEX idx_memberships_user ON memberships (user_identifier);

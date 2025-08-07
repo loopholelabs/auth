@@ -16,62 +16,34 @@ CREATE TABLE organizations
 -- ------------------------------------------------------------------
 CREATE TABLE users
 (
-    identifier           CHAR(36)     NOT NULL PRIMARY KEY DEFAULT (uuid()),
-    name                 VARCHAR(255),
-    primary_email        VARCHAR(255) NOT NULL UNIQUE,
-    default_organization CHAR(36)     NOT NULL,
-    last_seen            DATETIME     NOT NULL             DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    created_at           DATETIME     NOT NULL             DEFAULT CURRENT_TIMESTAMP,
+    identifier                      CHAR(36)     NOT NULL PRIMARY KEY DEFAULT (uuid()),
+    name                            VARCHAR(255),
+    primary_email                   VARCHAR(255) NOT NULL UNIQUE,
+    default_organization_identifier CHAR(36)     NOT NULL,
+    last_seen                       DATETIME     NOT NULL             DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_at                      DATETIME     NOT NULL             DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_users_default_org
-        FOREIGN KEY (default_organization)
+        FOREIGN KEY (default_organization_identifier)
             REFERENCES organizations (identifier)
             ON DELETE RESTRICT -- prevent silent cascade-delete
             ON UPDATE CASCADE
 );
 
 -- ------------------------------------------------------------------
--- IDENTITIES
+-- USER IDENTITIES
 -- ------------------------------------------------------------------
-CREATE TABLE google_oauth_identities
+CREATE TABLE identities
 (
-    identifier          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    provider            ENUM('GITHUB', 'GOOGLE', 'MAGIC') NOT NULL,
+    provider_identifier VARCHAR(255) NOT NULL,
     user_identifier     CHAR(36)     NOT NULL,
-    provider_identifier VARCHAR(255) NOT NULL UNIQUE,
-    verified_emails     JSON,
+    verified_emails     JSON         NOT NULL,
     created_at          DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (provider, provider_identifier),
 
     CONSTRAINT fk_google_oauth_identities_user_identifier_users
-        FOREIGN KEY (user_identifier)
-            REFERENCES users (identifier)
-            ON DELETE CASCADE
-            ON UPDATE CASCADE
-);
-
-CREATE TABLE github_oauth_identities
-(
-    identifier          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    user_identifier     CHAR(36)     NOT NULL,
-    provider_identifier VARCHAR(255) NOT NULL UNIQUE,
-    verified_emails     JSON,
-    created_at          DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT fk_github_oauth_identities_user_identifier_users
-        FOREIGN KEY (user_identifier)
-            REFERENCES users (identifier)
-            ON DELETE CASCADE
-            ON UPDATE CASCADE
-);
-
-CREATE TABLE magic_link_identities
-(
-    identifier          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    user_identifier     CHAR(36)     NOT NULL,
-    provider_identifier VARCHAR(255) NOT NULL UNIQUE,
-    verified_emails     JSON,
-    created_at          DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT fk_magic_link_identities_user_identifier_users
         FOREIGN KEY (user_identifier)
             REFERENCES users (identifier)
             ON DELETE CASCADE
@@ -344,9 +316,7 @@ DROP TABLE session_revocations;
 DROP TABLE sessions;
 DROP TABLE invitations;
 DROP TABLE memberships;
-DROP TABLE magic_link_identities;
-DROP TABLE github_oauth_identities;
-DROP TABLE google_oauth_identities;
+DROP TABLE identities;
 DROP TABLE users;
 DROP TABLE organizations;
 -- +goose StatementEnd

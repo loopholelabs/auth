@@ -10,17 +10,37 @@ import (
 )
 
 const createUser = `-- name: CreateUser :exec
-INSERT INTO users (identifier, primary_email, default_organization, created_at)
+INSERT INTO users (identifier, primary_email, default_organization_identifier, created_at)
 VALUES (?, LOWER(?), ?, CURRENT_TIMESTAMP)
 `
 
 type CreateUserParams struct {
-	Identifier          string
-	PrimaryEmail        string
-	DefaultOrganization string
+	Identifier                    string
+	PrimaryEmail                  string
+	DefaultOrganizationIdentifier string
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
-	_, err := q.db.ExecContext(ctx, createUser, arg.Identifier, arg.PrimaryEmail, arg.DefaultOrganization)
+	_, err := q.db.ExecContext(ctx, createUser, arg.Identifier, arg.PrimaryEmail, arg.DefaultOrganizationIdentifier)
 	return err
+}
+
+const getUserByIdentifier = `-- name: GetUserByIdentifier :one
+SELECT identifier, name, primary_email, default_organization_identifier, last_seen, created_at
+FROM users
+WHERE identifier = ? LIMIT 1
+`
+
+func (q *Queries) GetUserByIdentifier(ctx context.Context, identifier string) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByIdentifier, identifier)
+	var i User
+	err := row.Scan(
+		&i.Identifier,
+		&i.Name,
+		&i.PrimaryEmail,
+		&i.DefaultOrganizationIdentifier,
+		&i.LastSeen,
+		&i.CreatedAt,
+	)
+	return i, err
 }
