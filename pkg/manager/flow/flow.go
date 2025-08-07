@@ -10,6 +10,19 @@ const (
 	MagicProvider
 )
 
+func (p Provider) String() string {
+	switch p {
+	case GithubProvider:
+		return "GITHUB"
+	case GoogleProvider:
+		return "GOOGLE"
+	case MagicProvider:
+		return "MAGIC"
+	default:
+		return "UNKNOWN"
+	}
+}
+
 type Data struct {
 	ProviderIdentifier string
 	Name               string
