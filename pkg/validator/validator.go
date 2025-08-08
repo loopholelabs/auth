@@ -36,7 +36,7 @@ type Validator struct {
 	configuration *configuration.Configuration
 
 	sessionRevocationCache   *ttlcache.Cache[string, struct{}]
-	sessionRevalidationCache *ttlcache.Cache[string, uint32]
+	sessionInvalidationCache *ttlcache.Cache[string, uint32]
 
 	wg     sync.WaitGroup
 	ctx    context.Context
@@ -55,7 +55,7 @@ func New(options Options, db *db.DB, logger types.Logger) (*Validator, error) {
 	}
 
 	sessionRevocationCache := ttlcache.New[string, struct{}](ttlcache.WithTTL[string, struct{}](c.SessionExpiry()))
-	sessionRevalidationCache := ttlcache.New[string, uint32](ttlcache.WithTTL[string, uint32](c.SessionExpiry()))
+	sessionInvalidationCache := ttlcache.New[string, uint32](ttlcache.WithTTL[string, uint32](c.SessionExpiry()))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	v := &Validator{
@@ -63,13 +63,13 @@ func New(options Options, db *db.DB, logger types.Logger) (*Validator, error) {
 		db:                       db,
 		configuration:            c,
 		sessionRevocationCache:   sessionRevocationCache,
-		sessionRevalidationCache: sessionRevalidationCache,
+		sessionInvalidationCache: sessionInvalidationCache,
 		ctx:                      ctx,
 		cancel:                   cancel,
 	}
 
 	v.sessionRevocationsRefresh()
-	v.sessionRevalidationsRefresh()
+	v.sessionInvalidationsRefresh()
 
 	v.wg.Add(1)
 	go v.doRefresh()
@@ -81,8 +81,8 @@ func (v *Validator) IsSessionRevoked(identifier string) bool {
 	return v.sessionRevocationCache.Get(identifier, ttlcache.WithDisableTouchOnHit[string, struct{}]()) != nil
 }
 
-func (v *Validator) IsSessionRevalidated(identifier string, generation uint32) bool {
-	item := v.sessionRevalidationCache.Get(identifier, ttlcache.WithDisableTouchOnHit[string, uint32]())
+func (v *Validator) IsSessionInvalidated(identifier string, generation uint32) bool {
+	item := v.sessionInvalidationCache.Get(identifier, ttlcache.WithDisableTouchOnHit[string, uint32]())
 	if item == nil {
 		return false
 	}
@@ -124,22 +124,22 @@ func (v *Validator) sessionRevocationsRefresh() {
 	}
 }
 
-func (v *Validator) sessionRevalidationsRefresh() {
-	v.sessionRevalidationCache.DeleteExpired()
+func (v *Validator) sessionInvalidationsRefresh() {
+	v.sessionInvalidationCache.DeleteExpired()
 	ctx, cancel := context.WithTimeout(v.ctx, Timeout)
 	defer cancel()
 	refreshed := 0
-	sessionRevalidations, err := v.db.Queries.GetAllSessionRevalidations(ctx)
+	sessionInvalidations, err := v.db.Queries.GetAllSessionInvalidations(ctx)
 	if err != nil {
-		v.logger.Error().Err(err).Msg("failed to update session revalidations")
+		v.logger.Error().Err(err).Msg("failed to update session invalidations")
 	} else {
-		for _, sessionRevalidation := range sessionRevalidations {
-			if sessionRevalidation.ExpiresAt.After(time.Now()) {
-				v.sessionRevalidationCache.Set(sessionRevalidation.SessionIdentifier, sessionRevalidation.Generation, time.Until(sessionRevalidation.ExpiresAt))
+		for _, sessionInvalidation := range sessionInvalidations {
+			if sessionInvalidation.ExpiresAt.After(time.Now()) {
+				v.sessionInvalidationCache.Set(sessionInvalidation.SessionIdentifier, sessionInvalidation.Generation, time.Until(sessionInvalidation.ExpiresAt))
 				refreshed++
 			}
 		}
-		v.logger.Info().Msgf("refresh %d session revalidations", refreshed)
+		v.logger.Info().Msgf("refresh %d session invalidations", refreshed)
 	}
 }
 
@@ -152,7 +152,7 @@ func (v *Validator) doRefresh() {
 			return
 		case <-time.After(v.Configuration().PollInterval()):
 			v.sessionRevocationsRefresh()
-			v.sessionRevalidationsRefresh()
+			v.sessionInvalidationsRefresh()
 		}
 	}
 }

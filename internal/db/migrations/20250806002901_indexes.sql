@@ -7,7 +7,7 @@
 CREATE INDEX idx_sessions_user ON sessions (user_identifier);
 CREATE INDEX idx_sessions_organization ON sessions (organization_identifier);
 CREATE INDEX idx_sessions_expires_at ON sessions (expires_at); -- for cleanup jobs
-CREATE INDEX idx_session_revalidations_session ON session_revalidations (session_identifier);
+CREATE INDEX idx_session_invalidations_session ON session_invalidations (session_identifier);
 
 -- API Keys lookup
 CREATE INDEX idx_api_keys_organization ON api_keys (organization_identifier);
@@ -65,7 +65,7 @@ DROP INDEX idx_service_keys_organization;
 
 DROP INDEX idx_api_keys_organization;
 
-DROP INDEX idx_session_revalidations_session;
+DROP INDEX idx_session_invalidation_session;
 DROP INDEX idx_sessions_expires_at;
 DROP INDEX idx_sessions_organization;
 DROP INDEX idx_sessions_user;
