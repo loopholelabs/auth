@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/loopholelabs/auth/internal/testutils"
 	"github.com/loopholelabs/auth/pkg/manager/configuration"
 	"github.com/loopholelabs/auth/pkg/manager/flow"
+	"github.com/loopholelabs/auth/pkg/manager/role"
 )
 
 func TestNew(t *testing.T) {
@@ -213,7 +215,7 @@ func TestCreateSession(t *testing.T) {
 
 		// Verify organization info
 		require.NotEmpty(t, session.OrganizationInfo.Identifier)
-		require.Equal(t, "OWNER", session.OrganizationInfo.Role)
+		require.Equal(t, role.OwnerRole.String(), session.OrganizationInfo.Role)
 
 		// Verify user info
 		require.NotEmpty(t, session.UserInfo.Identifier)
@@ -729,7 +731,7 @@ func TestCreateSessionEdgeCases(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify role assignment
-		require.Equal(t, "OWNER", session.OrganizationInfo.Role)
+		require.Equal(t, role.OwnerRole.String(), session.OrganizationInfo.Role)
 	})
 }
 
@@ -855,6 +857,421 @@ func TestCreateSessionValidation(t *testing.T) {
 		user, err := database.Queries.GetUserByIdentifier(t.Context(), session.UserInfo.Identifier)
 		require.NoError(t, err)
 		require.Equal(t, "John Doe", user.Name)
+	})
+}
+
+func TestRefreshSession(t *testing.T) {
+	t.Run("RefreshExtendsExpiry", func(t *testing.T) {
+		container := testutils.SetupMySQLContainer(t)
+		logger := logging.Test(t, logging.Zerolog, "test")
+		database, err := db.New(container.URL, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, database.Close())
+		})
+
+		opts := Options{
+			Configuration: configuration.Options{
+				PollInterval:  time.Minute,
+				SessionExpiry: time.Second * 5,
+			},
+			Magic: MagicOptions{Enabled: true},
+		}
+		m, err := New(opts, database, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, m.Close())
+		})
+
+		// Create a session
+		flowData := flow.Data{
+			ProviderIdentifier: "refresh-test",
+			UserName:           "Refresh Test",
+			PrimaryEmail:       "refresh@example.com",
+			VerifiedEmails:     []string{"refresh@example.com"},
+		}
+		session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
+		require.NoError(t, err)
+
+		originalExpiry := session.ExpiresAt
+		originalGeneration := session.Generation
+
+		// Wait a bit
+		time.Sleep(time.Second * 1)
+
+		// Refresh the session
+		refreshedSession, err := m.RefreshSession(t.Context(), session)
+		require.NoError(t, err)
+		require.Equal(t, session.Identifier, refreshedSession.Identifier)
+		require.True(t, refreshedSession.ExpiresAt.After(originalExpiry), "Expiry should be extended")
+		require.Equal(t, originalGeneration, refreshedSession.Generation, "Generation should not change when only refreshing expiry")
+
+		// Verify in database
+		dbSession, err := database.Queries.GetSessionByIdentifier(t.Context(), session.Identifier)
+		require.NoError(t, err)
+		// The refreshed session should have exactly the same expiry as in the database
+		require.Equal(t, dbSession.ExpiresAt.Unix(), refreshedSession.ExpiresAt.Unix(),
+			"RefreshSession should return the exact database expiry time")
+		require.Equal(t, originalGeneration, dbSession.LastGeneration, "Generation should not change in DB")
+	})
+
+	t.Run("GenerationMismatchUpdatesSessionData", func(t *testing.T) {
+		container := testutils.SetupMySQLContainer(t)
+		logger := logging.Test(t, logging.Zerolog, "test")
+		database, err := db.New(container.URL, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, database.Close())
+		})
+
+		opts := Options{
+			Configuration: configuration.Options{
+				PollInterval:  time.Minute,
+				SessionExpiry: time.Second * 10,
+			},
+			Magic: MagicOptions{Enabled: true},
+		}
+		m, err := New(opts, database, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, m.Close())
+		})
+
+		// Create a session
+		flowData := flow.Data{
+			ProviderIdentifier: "generation-test",
+			UserName:           "Original Name",
+			PrimaryEmail:       "original@example.com",
+			VerifiedEmails:     []string{"original@example.com"},
+		}
+		session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
+		require.NoError(t, err)
+
+		// Simulate a generation update in the database (e.g., from another service)
+		err = database.Queries.UpdateSessionLastGenerationByIdentifier(t.Context(), generated.UpdateSessionLastGenerationByIdentifierParams{
+			LastGeneration: session.Generation + 1,
+			Identifier:     session.Identifier,
+		})
+		require.NoError(t, err)
+
+		// Update user info in database to simulate profile changes
+		err = database.Queries.UpdateUserNameByIdentifier(t.Context(), generated.UpdateUserNameByIdentifierParams{
+			Identifier: session.UserInfo.Identifier,
+			Name:       "Updated Name",
+		})
+		require.NoError(t, err)
+
+		err = database.Queries.UpdateUserPrimaryEmailByIdentifier(t.Context(), generated.UpdateUserPrimaryEmailByIdentifierParams{
+			Identifier:   session.UserInfo.Identifier,
+			PrimaryEmail: "updated@example.com",
+		})
+		require.NoError(t, err)
+
+		// Refresh the session with old generation
+		refreshedSession, err := m.RefreshSession(t.Context(), session)
+		require.NoError(t, err)
+
+		// Verify the generation was updated
+		require.Equal(t, session.Generation+1, refreshedSession.Generation, "Generation should be updated")
+
+		// Verify user info was refreshed
+		require.Equal(t, "Updated Name", refreshedSession.UserInfo.Name, "User name should be updated")
+		require.Equal(t, "updated@example.com", refreshedSession.UserInfo.Email, "User email should be updated")
+	})
+
+	t.Run("MonotonicExpiryGuarantee", func(t *testing.T) {
+		container := testutils.SetupMySQLContainer(t)
+		logger := logging.Test(t, logging.Zerolog, "test")
+		database, err := db.New(container.URL, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, database.Close())
+		})
+
+		// Create manager with short expiry
+		opts := Options{
+			Configuration: configuration.Options{
+				PollInterval:  time.Minute,
+				SessionExpiry: time.Second * 1, // Very short expiry
+			},
+			Magic: MagicOptions{Enabled: true},
+		}
+		m, err := New(opts, database, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, m.Close())
+		})
+
+		// Create a session
+		flowData := flow.Data{
+			ProviderIdentifier: "monotonic-test",
+			UserName:           "Monotonic Test",
+			PrimaryEmail:       "monotonic@example.com",
+			VerifiedEmails:     []string{"monotonic@example.com"},
+		}
+		session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
+		require.NoError(t, err)
+
+		// Manually extend the session expiry in the database to be longer than what configuration would set
+		// Truncate to match MySQL DATETIME precision
+		futureExpiry := time.Now().Add(time.Hour).Truncate(time.Second)
+		err = database.Queries.UpdateSessionExpiryByIdentifier(t.Context(), generated.UpdateSessionExpiryByIdentifierParams{
+			ExpiresAt:  futureExpiry,
+			Identifier: session.Identifier,
+		})
+		require.NoError(t, err)
+
+		// Refresh the session - it should NOT reduce the expiry time
+		refreshedSession, err := m.RefreshSession(t.Context(), session)
+		require.NoError(t, err)
+
+		// Verify the expiry was NOT reduced
+		require.True(t, refreshedSession.ExpiresAt.After(time.Now().Add(time.Minute*30)),
+			"Expiry should not be reduced below database value")
+
+		// Verify database still has the longer expiry
+		dbSession, err := database.Queries.GetSessionByIdentifier(t.Context(), session.Identifier)
+		require.NoError(t, err)
+		require.Equal(t, futureExpiry.Unix(), dbSession.ExpiresAt.Unix(),
+			"Database expiry should not have been reduced")
+		// The refreshed session should have the exact same expiry as the database
+		require.Equal(t, dbSession.ExpiresAt.Unix(), refreshedSession.ExpiresAt.Unix(),
+			"RefreshSession should return the exact database expiry time")
+	})
+
+	t.Run("CannotRefreshExpiredSession", func(t *testing.T) {
+		container := testutils.SetupMySQLContainer(t)
+		logger := logging.Test(t, logging.Zerolog, "test")
+		database, err := db.New(container.URL, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, database.Close())
+		})
+
+		opts := Options{
+			Configuration: configuration.Options{
+				PollInterval:  time.Minute,
+				SessionExpiry: time.Millisecond * 100, // Very short expiry
+			},
+			Magic: MagicOptions{Enabled: true},
+		}
+		m, err := New(opts, database, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, m.Close())
+		})
+
+		// Create a session
+		flowData := flow.Data{
+			ProviderIdentifier: "expired-test",
+			UserName:           "Expired Test",
+			PrimaryEmail:       "expired@example.com",
+			VerifiedEmails:     []string{"expired@example.com"},
+		}
+		session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
+		require.NoError(t, err)
+
+		// Wait for session to expire
+		time.Sleep(time.Second * 1)
+
+		// Try to refresh the expired session
+		_, err = m.RefreshSession(t.Context(), session)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrSessionIsExpired)
+		require.ErrorIs(t, err, ErrUpdatingSession)
+	})
+
+	t.Run("NonExistentSessionRefreshFails", func(t *testing.T) {
+		container := testutils.SetupMySQLContainer(t)
+		logger := logging.Test(t, logging.Zerolog, "test")
+		database, err := db.New(container.URL, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, database.Close())
+		})
+
+		opts := Options{
+			Configuration: configuration.Options{
+				PollInterval:  time.Minute,
+				SessionExpiry: time.Hour,
+			},
+			Magic: MagicOptions{Enabled: true},
+		}
+		m, err := New(opts, database, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, m.Close())
+		})
+
+		// Create a fake session that doesn't exist in DB
+		fakeSession := Session{
+			Identifier: uuid.New().String(),
+			OrganizationInfo: OrganizationInfo{
+				Identifier: uuid.New().String(),
+				IsDefault:  true,
+				Role:       role.OwnerRole.String(),
+			},
+			UserInfo: UserInfo{
+				Identifier: uuid.New().String(),
+				Name:       "Fake User",
+				Email:      "fake@example.com",
+			},
+			Generation: 0,
+			ExpiresAt:  time.Now().Add(time.Hour),
+		}
+
+		// Try to refresh the non-existent session
+		_, err = m.RefreshSession(t.Context(), fakeSession)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrUpdatingSession)
+	})
+
+	t.Run("ConcurrentRefreshHandling", func(t *testing.T) {
+		container := testutils.SetupMySQLContainer(t)
+		logger := logging.Test(t, logging.Zerolog, "test")
+		database, err := db.New(container.URL, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, database.Close())
+		})
+
+		opts := Options{
+			Configuration: configuration.Options{
+				PollInterval:  time.Minute,
+				SessionExpiry: time.Second * 10,
+			},
+			Magic: MagicOptions{Enabled: true},
+		}
+		m, err := New(opts, database, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, m.Close())
+		})
+
+		// Create a session
+		flowData := flow.Data{
+			ProviderIdentifier: "concurrent-test",
+			UserName:           "Concurrent Test",
+			PrimaryEmail:       "concurrent@example.com",
+			VerifiedEmails:     []string{"concurrent@example.com"},
+		}
+		session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
+		require.NoError(t, err)
+
+		// Wait a bit to ensure the refreshed expiry will be noticeably different
+		time.Sleep(time.Second * 2)
+
+		// Try to refresh the same session concurrently
+		var wg sync.WaitGroup
+		successCount := 0
+		var mu sync.Mutex
+
+		for i := 0; i < 5; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				_, err := m.RefreshSession(t.Context(), session)
+				if err == nil {
+					mu.Lock()
+					successCount++
+					mu.Unlock()
+				}
+			}()
+		}
+
+		wg.Wait()
+
+		// All refreshes should succeed due to serializable isolation
+		require.GreaterOrEqual(t, successCount, 1, "At least one refresh should succeed")
+
+		// Verify the session still exists and has been refreshed
+		dbSession, err := database.Queries.GetSessionByIdentifier(t.Context(), session.Identifier)
+		require.NoError(t, err)
+		require.True(t, dbSession.ExpiresAt.After(session.ExpiresAt), "Expiry should have been extended")
+	})
+
+	t.Run("RefreshWithOrganizationMembership", func(t *testing.T) {
+		container := testutils.SetupMySQLContainer(t)
+		logger := logging.Test(t, logging.Zerolog, "test")
+		database, err := db.New(container.URL, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, database.Close())
+		})
+
+		opts := Options{
+			Configuration: configuration.Options{
+				PollInterval:  time.Minute,
+				SessionExpiry: time.Second * 10,
+			},
+			Magic: MagicOptions{Enabled: true},
+		}
+		m, err := New(opts, database, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, m.Close())
+		})
+
+		// Create a session
+		flowData := flow.Data{
+			ProviderIdentifier: "membership-test",
+			UserName:           "Membership Test",
+			PrimaryEmail:       "membership@example.com",
+			VerifiedEmails:     []string{"membership@example.com"},
+		}
+		session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
+		require.NoError(t, err)
+
+		// Create a non-default organization and membership
+		orgID := uuid.New().String()
+		err = database.Queries.CreateOrganization(t.Context(), generated.CreateOrganizationParams{
+			Identifier: orgID,
+			Name:       "Test Org",
+			IsDefault:  false,
+		})
+		require.NoError(t, err)
+
+		err = database.Queries.CreateMembership(t.Context(), generated.CreateMembershipParams{
+			UserIdentifier:         session.UserInfo.Identifier,
+			OrganizationIdentifier: orgID,
+			Role:                   role.MemberRole.String(),
+		})
+		require.NoError(t, err)
+
+		// Create session object with non-default org
+		// Note: Session's organizations are immutable so we'll just test with the role update
+		sessionWithOrg := Session{
+			Identifier: session.Identifier,
+			OrganizationInfo: OrganizationInfo{
+				Identifier: orgID,
+				IsDefault:  false,
+				Role:       role.MemberRole.String(),
+			},
+			UserInfo:   session.UserInfo,
+			Generation: session.Generation,
+			ExpiresAt:  session.ExpiresAt,
+		}
+
+		// Update the generation to trigger user data refresh
+		err = database.Queries.UpdateSessionLastGenerationByIdentifier(t.Context(), generated.UpdateSessionLastGenerationByIdentifierParams{
+			LastGeneration: session.Generation + 1,
+			Identifier:     session.Identifier,
+		})
+		require.NoError(t, err)
+
+		// Update the membership role
+		err = database.Queries.UpdateMembershipRoleByUserIdentifierAndOrganizationIdentifier(t.Context(), generated.UpdateMembershipRoleByUserIdentifierAndOrganizationIdentifierParams{
+			UserIdentifier:         session.UserInfo.Identifier,
+			OrganizationIdentifier: orgID,
+			Role:                   role.AdminRole.String(),
+		})
+		require.NoError(t, err)
+
+		// Refresh the session - should update role due to generation mismatch
+		refreshedSession, err := m.RefreshSession(t.Context(), sessionWithOrg)
+		require.NoError(t, err)
+		require.Equal(t, role.AdminRole.String(), refreshedSession.OrganizationInfo.Role, "Role should be updated")
+		require.Equal(t, session.Generation+1, refreshedSession.Generation, "Generation should be updated")
 	})
 }
 
@@ -1011,7 +1428,7 @@ func TestSessionGarbageCollection(t *testing.T) {
 		}
 	})
 
-	t.Run("MixedExpirySessionsHandledCorrectly", func(t *testing.T) {
+	t.Run("SessionRefreshPreventsGarbageCollection", func(t *testing.T) {
 		container := testutils.SetupMySQLContainer(t)
 		logger := logging.Test(t, logging.Zerolog, "test")
 		database, err := db.New(container.URL, logger)
@@ -1019,76 +1436,73 @@ func TestSessionGarbageCollection(t *testing.T) {
 		t.Cleanup(func() {
 			require.NoError(t, database.Close())
 		})
-		// Create two managers with different session expiry times
-		shortOpts := Options{
+
+		// Create a single manager with short session expiry
+		opts := Options{
 			Configuration: configuration.Options{
 				PollInterval:  time.Minute,
-				SessionExpiry: time.Millisecond * 500, // Half a second
+				SessionExpiry: time.Second * 2, // 2 seconds expiry
 			},
 			Magic: MagicOptions{Enabled: true},
 		}
-		shortManager, err := New(shortOpts, database, logger)
+		m, err := New(opts, database, logger)
 		require.NoError(t, err)
 		t.Cleanup(func() {
-			require.NoError(t, shortManager.Close())
+			require.NoError(t, m.Close())
 		})
 
-		longOpts := Options{
-			Configuration: configuration.Options{
-				PollInterval:  time.Minute,
-				SessionExpiry: time.Hour,
-			},
-			Magic: MagicOptions{Enabled: true},
+		// Create two sessions
+		session1FlowData := flow.Data{
+			ProviderIdentifier: "refresh-test-user-1",
+			UserName:           "Refresh Test User 1",
+			PrimaryEmail:       "refresh1@example.com",
+			VerifiedEmails:     []string{"refresh1@example.com"},
 		}
-		longManager, err := New(longOpts, database, logger)
-		require.NoError(t, err)
-		t.Cleanup(func() {
-			require.NoError(t, longManager.Close())
-		})
-
-		// Create session with short expiry
-		shortFlowData := flow.Data{
-			ProviderIdentifier: "short-expiry-user",
-			UserName:           "Short Expiry",
-			PrimaryEmail:       "short@example.com",
-			VerifiedEmails:     []string{"short@example.com"},
-		}
-		shortSession, err := shortManager.CreateSession(t.Context(), shortFlowData, flow.MagicProvider)
+		session1, err := m.CreateSession(t.Context(), session1FlowData, flow.MagicProvider)
 		require.NoError(t, err)
 
-		// Create session with long expiry
-		longFlowData := flow.Data{
-			ProviderIdentifier: "long-expiry-user",
-			UserName:           "Long Expiry",
-			PrimaryEmail:       "long@example.com",
-			VerifiedEmails:     []string{"long@example.com"},
+		session2FlowData := flow.Data{
+			ProviderIdentifier: "refresh-test-user-2",
+			UserName:           "Refresh Test User 2",
+			PrimaryEmail:       "refresh2@example.com",
+			VerifiedEmails:     []string{"refresh2@example.com"},
 		}
-		longSession, err := longManager.CreateSession(t.Context(), longFlowData, flow.MagicProvider)
+		session2, err := m.CreateSession(t.Context(), session2FlowData, flow.MagicProvider)
 		require.NoError(t, err)
 
-		// Verify both sessions exist before GC
-		_, err = database.Queries.GetSessionByIdentifier(t.Context(), shortSession.Identifier)
-		require.NoError(t, err, "Short session should exist before GC")
-		_, err = database.Queries.GetSessionByIdentifier(t.Context(), longSession.Identifier)
-		require.NoError(t, err, "Long session should exist before GC")
+		// Verify both sessions exist
+		_, err = database.Queries.GetSessionByIdentifier(t.Context(), session1.Identifier)
+		require.NoError(t, err, "Session 1 should exist")
+		_, err = database.Queries.GetSessionByIdentifier(t.Context(), session2.Identifier)
+		require.NoError(t, err, "Session 2 should exist")
 
-		// Wait for short session to expire
+		// Wait for 1 second (half the expiry time)
 		time.Sleep(time.Second * 1)
 
-		// Trigger GC
-		deleted, err := shortManager.gc()
+		// Refresh session 1 to extend its expiry
+		refreshedSession1, err := m.RefreshSession(t.Context(), session1)
+		require.NoError(t, err)
+		require.Equal(t, session1.Identifier, refreshedSession1.Identifier)
+		require.True(t, refreshedSession1.ExpiresAt.After(session1.ExpiresAt), "Refreshed session should have later expiry")
+
+		// Wait for another 1.5 seconds (total 2.5 seconds)
+		// Session 2 should now be expired, but session 1 should still be valid
+		time.Sleep(time.Millisecond * 1500)
+
+		// Run garbage collection
+		deleted, err := m.gc()
 		require.NoError(t, err)
 		require.Equal(t, int64(1), deleted, "Expected exactly 1 session to be deleted")
 
-		// Verify short session was deleted
-		_, err = database.Queries.GetSessionByIdentifier(t.Context(), shortSession.Identifier)
+		// Verify session 2 was deleted (not refreshed)
+		_, err = database.Queries.GetSessionByIdentifier(t.Context(), session2.Identifier)
 		require.Error(t, err)
-		require.ErrorIs(t, err, sql.ErrNoRows)
+		require.ErrorIs(t, err, sql.ErrNoRows, "Session 2 should have been garbage collected")
 
-		// Verify long session still exists
-		dbSession, err := database.Queries.GetSessionByIdentifier(t.Context(), longSession.Identifier)
-		require.NoError(t, err, "Long session should still exist")
-		require.Equal(t, longSession.Identifier, dbSession.Identifier)
+		// Verify session 1 still exists (was refreshed)
+		dbSession, err := database.Queries.GetSessionByIdentifier(t.Context(), refreshedSession1.Identifier)
+		require.NoError(t, err, "Session 1 should still exist after refresh")
+		require.Equal(t, refreshedSession1.Identifier, dbSession.Identifier)
 	})
 
 	t.Run("GCWithNoExpiredSessions", func(t *testing.T) {
