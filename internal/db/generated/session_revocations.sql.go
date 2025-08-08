@@ -38,3 +38,31 @@ func (q *Queries) DeleteExpiredSessionRevocations(ctx context.Context) (int64, e
 	}
 	return result.RowsAffected()
 }
+
+const getAllSessionRevocations = `-- name: GetAllSessionRevocations :many
+SELECT session_identifier, expires_at, created_at
+FROM session_revocations
+`
+
+func (q *Queries) GetAllSessionRevocations(ctx context.Context) ([]SessionRevocation, error) {
+	rows, err := q.db.QueryContext(ctx, getAllSessionRevocations)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SessionRevocation
+	for rows.Next() {
+		var i SessionRevocation
+		if err := rows.Scan(&i.SessionIdentifier, &i.ExpiresAt, &i.CreatedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

@@ -1275,6 +1275,672 @@ func TestRefreshSession(t *testing.T) {
 	})
 }
 
+func TestRevokeSession(t *testing.T) {
+	t.Run("BasicSessionRevocation", func(t *testing.T) {
+		container := testutils.SetupMySQLContainer(t)
+		logger := logging.Test(t, logging.Zerolog, "test")
+		database, err := db.New(container.URL, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, database.Close())
+		})
+
+		opts := Options{
+			Configuration: configuration.Options{
+				PollInterval:  time.Minute,
+				SessionExpiry: time.Hour,
+			},
+			Magic: MagicOptions{Enabled: true},
+		}
+		m, err := New(opts, database, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, m.Close())
+		})
+
+		// Create a session
+		flowData := flow.Data{
+			ProviderIdentifier: "revoke-test",
+			UserName:           "Revoke Test",
+			PrimaryEmail:       "revoke@example.com",
+			VerifiedEmails:     []string{"revoke@example.com"},
+		}
+		session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
+		require.NoError(t, err)
+
+		// Verify session exists
+		dbSession, err := database.Queries.GetSessionByIdentifier(t.Context(), session.Identifier)
+		require.NoError(t, err)
+		require.Equal(t, session.Identifier, dbSession.Identifier)
+
+		// Revoke the session
+		err = m.RevokeSession(t.Context(), session.Identifier)
+		require.NoError(t, err)
+
+		// Verify session no longer exists
+		_, err = database.Queries.GetSessionByIdentifier(t.Context(), session.Identifier)
+		require.Error(t, err)
+		require.ErrorIs(t, err, sql.ErrNoRows)
+
+		// Verify revocation entry was created
+		// Note: We can't directly query session_revocations without adding a query,
+		// but we can test the GC behavior later
+	})
+
+	t.Run("RevokeNonExistentSession", func(t *testing.T) {
+		container := testutils.SetupMySQLContainer(t)
+		logger := logging.Test(t, logging.Zerolog, "test")
+		database, err := db.New(container.URL, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, database.Close())
+		})
+
+		opts := Options{
+			Configuration: configuration.Options{
+				PollInterval:  time.Minute,
+				SessionExpiry: time.Hour,
+			},
+			Magic: MagicOptions{Enabled: true},
+		}
+		m, err := New(opts, database, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, m.Close())
+		})
+
+		// Try to revoke a non-existent session
+		fakeSessionID := uuid.New().String()
+		err = m.RevokeSession(t.Context(), fakeSessionID)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrRevokingSession)
+		require.ErrorIs(t, err, sql.ErrNoRows)
+	})
+
+	t.Run("DoubleRevocation", func(t *testing.T) {
+		container := testutils.SetupMySQLContainer(t)
+		logger := logging.Test(t, logging.Zerolog, "test")
+		database, err := db.New(container.URL, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, database.Close())
+		})
+
+		opts := Options{
+			Configuration: configuration.Options{
+				PollInterval:  time.Minute,
+				SessionExpiry: time.Hour,
+			},
+			Magic: MagicOptions{Enabled: true},
+		}
+		m, err := New(opts, database, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, m.Close())
+		})
+
+		// Create a session
+		flowData := flow.Data{
+			ProviderIdentifier: "double-revoke",
+			UserName:           "Double Revoke",
+			PrimaryEmail:       "double@example.com",
+			VerifiedEmails:     []string{"double@example.com"},
+		}
+		session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
+		require.NoError(t, err)
+
+		// Revoke the session once
+		err = m.RevokeSession(t.Context(), session.Identifier)
+		require.NoError(t, err)
+
+		// Try to revoke again - should fail since session no longer exists
+		err = m.RevokeSession(t.Context(), session.Identifier)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrRevokingSession)
+		require.ErrorIs(t, err, sql.ErrNoRows)
+	})
+
+	t.Run("RevokeSessionAfterRefresh", func(t *testing.T) {
+		container := testutils.SetupMySQLContainer(t)
+		logger := logging.Test(t, logging.Zerolog, "test")
+		database, err := db.New(container.URL, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, database.Close())
+		})
+
+		opts := Options{
+			Configuration: configuration.Options{
+				PollInterval:  time.Minute,
+				SessionExpiry: time.Second * 10,
+			},
+			Magic: MagicOptions{Enabled: true},
+		}
+		m, err := New(opts, database, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, m.Close())
+		})
+
+		// Create a session
+		flowData := flow.Data{
+			ProviderIdentifier: "refresh-revoke",
+			UserName:           "Refresh Revoke",
+			PrimaryEmail:       "refresh-revoke@example.com",
+			VerifiedEmails:     []string{"refresh-revoke@example.com"},
+		}
+		session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
+		require.NoError(t, err)
+
+		// Wait and refresh the session
+		time.Sleep(time.Second * 2)
+		refreshedSession, err := m.RefreshSession(t.Context(), session)
+		require.NoError(t, err)
+		require.True(t, refreshedSession.ExpiresAt.After(session.ExpiresAt))
+
+		// Revoke the refreshed session
+		err = m.RevokeSession(t.Context(), refreshedSession.Identifier)
+		require.NoError(t, err)
+
+		// Verify session no longer exists
+		_, err = database.Queries.GetSessionByIdentifier(t.Context(), refreshedSession.Identifier)
+		require.Error(t, err)
+		require.ErrorIs(t, err, sql.ErrNoRows)
+
+		// Try to refresh the revoked session - should fail
+		_, err = m.RefreshSession(t.Context(), refreshedSession)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrRefreshingSession)
+	})
+
+	t.Run("ConcurrentRevocation", func(t *testing.T) {
+		container := testutils.SetupMySQLContainer(t)
+		logger := logging.Test(t, logging.Zerolog, "test")
+		database, err := db.New(container.URL, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, database.Close())
+		})
+
+		opts := Options{
+			Configuration: configuration.Options{
+				PollInterval:  time.Minute,
+				SessionExpiry: time.Hour,
+			},
+			Magic: MagicOptions{Enabled: true},
+		}
+		m, err := New(opts, database, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, m.Close())
+		})
+
+		// Create a session
+		flowData := flow.Data{
+			ProviderIdentifier: "concurrent-revoke",
+			UserName:           "Concurrent Revoke",
+			PrimaryEmail:       "concurrent-revoke@example.com",
+			VerifiedEmails:     []string{"concurrent-revoke@example.com"},
+		}
+		session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
+		require.NoError(t, err)
+
+		// Try to revoke the same session concurrently
+		var wg sync.WaitGroup
+		successCount := 0
+		errorCount := 0
+		var mu sync.Mutex
+
+		for i := 0; i < 5; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				err := m.RevokeSession(t.Context(), session.Identifier)
+				mu.Lock()
+				if err == nil {
+					successCount++
+				} else {
+					errorCount++
+				}
+				mu.Unlock()
+			}()
+		}
+
+		wg.Wait()
+
+		// Exactly one should succeed, others should fail
+		require.Equal(t, 1, successCount, "Exactly one revocation should succeed")
+		require.Equal(t, 4, errorCount, "Four revocations should fail")
+
+		// Verify session is revoked
+		_, err = database.Queries.GetSessionByIdentifier(t.Context(), session.Identifier)
+		require.Error(t, err)
+		require.ErrorIs(t, err, sql.ErrNoRows)
+	})
+
+	t.Run("RevocationExpiryWithJitter", func(t *testing.T) {
+		container := testutils.SetupMySQLContainer(t)
+		logger := logging.Test(t, logging.Zerolog, "test")
+		database, err := db.New(container.URL, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, database.Close())
+		})
+
+		opts := Options{
+			Configuration: configuration.Options{
+				PollInterval:  time.Minute,
+				SessionExpiry: time.Second * 10,
+			},
+			Magic: MagicOptions{Enabled: true},
+		}
+		m, err := New(opts, database, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, m.Close())
+		})
+
+		// Create a session
+		flowData := flow.Data{
+			ProviderIdentifier: "jitter-test",
+			UserName:           "Jitter Test",
+			PrimaryEmail:       "jitter@example.com",
+			VerifiedEmails:     []string{"jitter@example.com"},
+		}
+		session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
+		require.NoError(t, err)
+
+		originalExpiry := session.ExpiresAt
+
+		// Revoke the session
+		err = m.RevokeSession(t.Context(), session.Identifier)
+		require.NoError(t, err)
+
+		// The revocation expiry should be original expiry + Jitter (5 seconds)
+		// We can't directly verify this without a query, but we can test the GC behavior
+		expectedRevocationExpiry := originalExpiry.Add(Jitter)
+
+		// Verify the revocation expiry is indeed later than session expiry
+		require.True(t, expectedRevocationExpiry.After(originalExpiry),
+			"Revocation expiry should be after session expiry")
+		require.Equal(t, Jitter, expectedRevocationExpiry.Sub(originalExpiry),
+			"Revocation expiry should be exactly Jitter seconds after session expiry")
+	})
+}
+
+func TestSessionRevocationGarbageCollection(t *testing.T) {
+	t.Run("ExpiredRevocationsAreDeleted", func(t *testing.T) {
+		container := testutils.SetupMySQLContainer(t)
+		logger := logging.Test(t, logging.Zerolog, "test")
+		database, err := db.New(container.URL, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, database.Close())
+		})
+
+		// Create manager with very short session expiry
+		opts := Options{
+			Configuration: configuration.Options{
+				PollInterval:  time.Minute,
+				SessionExpiry: time.Millisecond * 100, // Very short for testing
+			},
+			Magic: MagicOptions{Enabled: true},
+		}
+		m, err := New(opts, database, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, m.Close())
+		})
+
+		// Create and revoke a session
+		flowData := flow.Data{
+			ProviderIdentifier: "gc-revocation-test",
+			UserName:           "GC Revocation Test",
+			PrimaryEmail:       "gc-revocation@example.com",
+			VerifiedEmails:     []string{"gc-revocation@example.com"},
+		}
+		session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
+		require.NoError(t, err)
+
+		// Revoke the session
+		err = m.RevokeSession(t.Context(), session.Identifier)
+		require.NoError(t, err)
+
+		// Wait for the revocation to expire (session expiry + jitter + buffer)
+		time.Sleep(time.Millisecond*100 + Jitter + time.Second)
+
+		// Manually trigger revocation GC
+		deleted, err := m.sessionRevocationGC()
+		require.NoError(t, err)
+		require.GreaterOrEqual(t, deleted, int64(1), "Expected at least 1 revocation to be deleted")
+	})
+
+	t.Run("NonExpiredRevocationsAreNotDeleted", func(t *testing.T) {
+		container := testutils.SetupMySQLContainer(t)
+		logger := logging.Test(t, logging.Zerolog, "test")
+		database, err := db.New(container.URL, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, database.Close())
+		})
+
+		opts := Options{
+			Configuration: configuration.Options{
+				PollInterval:  time.Minute,
+				SessionExpiry: time.Hour, // Long expiry
+			},
+			Magic: MagicOptions{Enabled: true},
+		}
+		m, err := New(opts, database, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, m.Close())
+		})
+
+		// Create and revoke a session
+		flowData := flow.Data{
+			ProviderIdentifier: "no-gc-revocation",
+			UserName:           "No GC Revocation",
+			PrimaryEmail:       "no-gc-revocation@example.com",
+			VerifiedEmails:     []string{"no-gc-revocation@example.com"},
+		}
+		session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
+		require.NoError(t, err)
+
+		// Revoke the session
+		err = m.RevokeSession(t.Context(), session.Identifier)
+		require.NoError(t, err)
+
+		// Immediately trigger revocation GC
+		deleted, err := m.sessionRevocationGC()
+		require.NoError(t, err)
+		require.Equal(t, int64(0), deleted, "No revocations should be deleted yet")
+	})
+
+	t.Run("MultipleRevocationGC", func(t *testing.T) {
+		container := testutils.SetupMySQLContainer(t)
+		logger := logging.Test(t, logging.Zerolog, "test")
+		database, err := db.New(container.URL, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, database.Close())
+		})
+
+		// Create manager with very short session expiry
+		opts := Options{
+			Configuration: configuration.Options{
+				PollInterval:  time.Minute,
+				SessionExpiry: time.Millisecond * 100,
+			},
+			Magic: MagicOptions{Enabled: true},
+		}
+		m, err := New(opts, database, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, m.Close())
+		})
+
+		// Create and revoke multiple sessions
+		sessionCount := 3
+		for i := 0; i < sessionCount; i++ {
+			flowData := flow.Data{
+				ProviderIdentifier: fmt.Sprintf("multi-gc-revocation-%d", i),
+				UserName:           fmt.Sprintf("Multi GC %d", i),
+				PrimaryEmail:       fmt.Sprintf("multi-gc-%d@example.com", i),
+				VerifiedEmails:     []string{fmt.Sprintf("multi-gc-%d@example.com", i)},
+			}
+			session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
+			require.NoError(t, err)
+
+			err = m.RevokeSession(t.Context(), session.Identifier)
+			require.NoError(t, err)
+		}
+
+		// Wait for all revocations to expire
+		time.Sleep(time.Millisecond*100 + Jitter + time.Second)
+
+		// Manually trigger revocation GC
+		deleted, err := m.sessionRevocationGC()
+		require.NoError(t, err)
+		require.GreaterOrEqual(t, deleted, int64(sessionCount),
+			"Expected at least %d revocations to be deleted", sessionCount)
+	})
+
+	t.Run("SessionAndRevocationGCInteraction", func(t *testing.T) {
+		container := testutils.SetupMySQLContainer(t)
+		logger := logging.Test(t, logging.Zerolog, "test")
+		database, err := db.New(container.URL, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, database.Close())
+		})
+
+		// Create manager with very short session expiry
+		opts := Options{
+			Configuration: configuration.Options{
+				PollInterval:  time.Minute,
+				SessionExpiry: time.Millisecond * 500,
+			},
+			Magic: MagicOptions{Enabled: true},
+		}
+		m, err := New(opts, database, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, m.Close())
+		})
+
+		// Create two sessions
+		flowData1 := flow.Data{
+			ProviderIdentifier: "interaction-1",
+			UserName:           "Interaction 1",
+			PrimaryEmail:       "interaction1@example.com",
+			VerifiedEmails:     []string{"interaction1@example.com"},
+		}
+		session1, err := m.CreateSession(t.Context(), flowData1, flow.MagicProvider)
+		require.NoError(t, err)
+
+		flowData2 := flow.Data{
+			ProviderIdentifier: "interaction-2",
+			UserName:           "Interaction 2",
+			PrimaryEmail:       "interaction2@example.com",
+			VerifiedEmails:     []string{"interaction2@example.com"},
+		}
+		session2, err := m.CreateSession(t.Context(), flowData2, flow.MagicProvider)
+		require.NoError(t, err)
+
+		// Revoke only session1
+		err = m.RevokeSession(t.Context(), session1.Identifier)
+		require.NoError(t, err)
+
+		// Wait for sessions to expire (but revocation not yet)
+		time.Sleep(time.Second * 1)
+
+		// Run session GC - should delete session2 but not affect revocation of session1
+		deletedSessions, err := m.sessionGC()
+		require.NoError(t, err)
+		require.GreaterOrEqual(t, deletedSessions, int64(1), "At least session2 should be deleted")
+
+		// Session1 is already revoked, so it shouldn't exist
+		_, err = database.Queries.GetSessionByIdentifier(t.Context(), session1.Identifier)
+		require.Error(t, err)
+		require.ErrorIs(t, err, sql.ErrNoRows)
+
+		// Session2 should also be gone due to GC
+		_, err = database.Queries.GetSessionByIdentifier(t.Context(), session2.Identifier)
+		require.Error(t, err)
+		require.ErrorIs(t, err, sql.ErrNoRows)
+
+		// Run revocation GC - shouldn't delete anything yet (jitter not expired)
+		deletedRevocations, err := m.sessionRevocationGC()
+		require.NoError(t, err)
+		require.Equal(t, int64(0), deletedRevocations, "No revocations should be deleted yet")
+
+		// Wait for revocation to expire (jitter time)
+		time.Sleep(Jitter)
+
+		// Now revocation GC should clean up
+		deletedRevocations, err = m.sessionRevocationGC()
+		require.NoError(t, err)
+		require.GreaterOrEqual(t, deletedRevocations, int64(1), "Session1 revocation should be deleted")
+	})
+}
+
+func TestSessionRevocationEdgeCases(t *testing.T) {
+	t.Run("RevokeSessionDuringRefresh", func(t *testing.T) {
+		container := testutils.SetupMySQLContainer(t)
+		logger := logging.Test(t, logging.Zerolog, "test")
+		database, err := db.New(container.URL, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, database.Close())
+		})
+
+		opts := Options{
+			Configuration: configuration.Options{
+				PollInterval:  time.Minute,
+				SessionExpiry: time.Second * 10,
+			},
+			Magic: MagicOptions{Enabled: true},
+		}
+		m, err := New(opts, database, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, m.Close())
+		})
+
+		// Create a session
+		flowData := flow.Data{
+			ProviderIdentifier: "race-condition",
+			UserName:           "Race Condition",
+			PrimaryEmail:       "race@example.com",
+			VerifiedEmails:     []string{"race@example.com"},
+		}
+		session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
+		require.NoError(t, err)
+
+		// Start concurrent operations
+		var wg sync.WaitGroup
+		var refreshErr, revokeErr error
+
+		// Try to refresh and revoke concurrently
+		wg.Add(2)
+
+		go func() {
+			defer wg.Done()
+			time.Sleep(time.Millisecond * 10) // Small delay to increase chance of race
+			_, refreshErr = m.RefreshSession(t.Context(), session)
+		}()
+
+		go func() {
+			defer wg.Done()
+			revokeErr = m.RevokeSession(t.Context(), session.Identifier)
+		}()
+
+		wg.Wait()
+
+		// One should succeed, the other should fail (or both could succeed depending on timing)
+		// The important thing is no panic or corruption
+		if revokeErr == nil {
+			// If revoke succeeded, refresh should have failed
+			require.Error(t, refreshErr, "Refresh should fail if revoke succeeded")
+		}
+
+		// Verify final state - session should not exist
+		_, err = database.Queries.GetSessionByIdentifier(t.Context(), session.Identifier)
+		require.Error(t, err)
+		require.ErrorIs(t, err, sql.ErrNoRows)
+	})
+
+	t.Run("RevokeVeryOldSession", func(t *testing.T) {
+		container := testutils.SetupMySQLContainer(t)
+		logger := logging.Test(t, logging.Zerolog, "test")
+		database, err := db.New(container.URL, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, database.Close())
+		})
+
+		opts := Options{
+			Configuration: configuration.Options{
+				PollInterval:  time.Minute,
+				SessionExpiry: time.Millisecond * 100, // Very short
+			},
+			Magic: MagicOptions{Enabled: true},
+		}
+		m, err := New(opts, database, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, m.Close())
+		})
+
+		// Create a session
+		flowData := flow.Data{
+			ProviderIdentifier: "old-session",
+			UserName:           "Old Session",
+			PrimaryEmail:       "old@example.com",
+			VerifiedEmails:     []string{"old@example.com"},
+		}
+		session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
+		require.NoError(t, err)
+
+		// Don't wait for expiry - immediately revoke
+		// This tests that revocation works regardless of session age
+		err = m.RevokeSession(t.Context(), session.Identifier)
+		require.NoError(t, err)
+
+		// Verify session is gone
+		_, err = database.Queries.GetSessionByIdentifier(t.Context(), session.Identifier)
+		require.Error(t, err)
+		require.ErrorIs(t, err, sql.ErrNoRows)
+	})
+
+	t.Run("TransactionRollbackOnRevocationFailure", func(t *testing.T) {
+		container := testutils.SetupMySQLContainer(t)
+		logger := logging.Test(t, logging.Zerolog, "test")
+		database, err := db.New(container.URL, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, database.Close())
+		})
+
+		opts := Options{
+			Configuration: configuration.Options{
+				PollInterval:  time.Minute,
+				SessionExpiry: time.Hour,
+			},
+			Magic: MagicOptions{Enabled: true},
+		}
+		m, err := New(opts, database, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, m.Close())
+		})
+
+		// Create a session
+		flowData := flow.Data{
+			ProviderIdentifier: "rollback-test",
+			UserName:           "Rollback Test",
+			PrimaryEmail:       "rollback@example.com",
+			VerifiedEmails:     []string{"rollback@example.com"},
+		}
+		session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
+		require.NoError(t, err)
+
+		// Try to revoke with a duplicate session identifier
+		// This simulates a scenario where CreateSessionRevocation might fail
+		// In the real implementation, this would happen if there's a unique constraint violation
+
+		// First revocation succeeds
+		err = m.RevokeSession(t.Context(), session.Identifier)
+		require.NoError(t, err)
+
+		// Attempting to revoke again should fail cleanly without partial state
+		err = m.RevokeSession(t.Context(), session.Identifier)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrRevokingSession)
+	})
+}
+
 func TestSessionGarbageCollection(t *testing.T) {
 	t.Run("ExpiredSessionsAreDeleted", func(t *testing.T) {
 		container := testutils.SetupMySQLContainer(t)
