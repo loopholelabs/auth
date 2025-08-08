@@ -312,7 +312,7 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 		Identifier:             sessionIdentifier,
 		OrganizationIdentifier: user.DefaultOrganizationIdentifier,
 		UserIdentifier:         user.Identifier,
-		LastGeneration:         0,
+		Generation:             0,
 		ExpiresAt:              expiresAt,
 	})
 	if err != nil {
@@ -336,7 +336,7 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 			Name:       user.Name,
 			Email:      user.PrimaryEmail,
 		},
-		Generation: session.LastGeneration,
+		Generation: session.Generation,
 		ExpiresAt:  session.ExpiresAt,
 	}, nil
 }
@@ -365,8 +365,8 @@ func (m *Manager) RefreshSession(ctx context.Context, session Session) (Session,
 		return Session{}, errors.Join(ErrRefreshingSession, err)
 	}
 
-	if s.LastGeneration != session.Generation {
-		session.Generation = s.LastGeneration
+	if s.Generation != session.Generation {
+		session.Generation = s.Generation
 
 		user, err := qtx.GetUserByIdentifier(ctx, session.UserInfo.Identifier)
 		if err != nil {

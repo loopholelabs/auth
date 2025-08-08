@@ -258,7 +258,7 @@ func TestCreateSession(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, session.OrganizationInfo.Identifier, dbSession.OrganizationIdentifier)
 		require.Equal(t, session.UserInfo.Identifier, dbSession.UserIdentifier)
-		require.Equal(t, uint32(0), dbSession.LastGeneration)
+		require.Equal(t, uint32(0), dbSession.Generation)
 	})
 
 	t.Run("NewUserWithGoogleProvider", func(t *testing.T) {
@@ -716,7 +716,7 @@ func TestCreateSessionEdgeCases(t *testing.T) {
 		// Verify in database
 		dbSession, err := database.Queries.GetSessionByIdentifier(t.Context(), session.Identifier)
 		require.NoError(t, err)
-		require.Equal(t, uint32(0), dbSession.LastGeneration)
+		require.Equal(t, uint32(0), dbSession.Generation)
 	})
 
 	t.Run("RoleAssignment", func(t *testing.T) {
@@ -912,7 +912,7 @@ func TestRefreshSession(t *testing.T) {
 		// The refreshed session should have exactly the same expiry as in the database
 		require.Equal(t, dbSession.ExpiresAt.Unix(), refreshedSession.ExpiresAt.Unix(),
 			"RefreshSession should return the exact database expiry time")
-		require.Equal(t, originalGeneration, dbSession.LastGeneration, "Generation should not change in DB")
+		require.Equal(t, originalGeneration, dbSession.Generation, "Generation should not change in DB")
 	})
 
 	t.Run("GenerationMismatchUpdatesSessionData", func(t *testing.T) {
@@ -948,9 +948,9 @@ func TestRefreshSession(t *testing.T) {
 		require.NoError(t, err)
 
 		// Simulate a generation update in the database (e.g., from another service)
-		err = database.Queries.UpdateSessionLastGenerationByIdentifier(t.Context(), generated.UpdateSessionLastGenerationByIdentifierParams{
-			LastGeneration: session.Generation + 1,
-			Identifier:     session.Identifier,
+		err = database.Queries.UpdateSessionGenerationByIdentifier(t.Context(), generated.UpdateSessionGenerationByIdentifierParams{
+			Generation: session.Generation + 1,
+			Identifier: session.Identifier,
 		})
 		require.NoError(t, err)
 
@@ -1253,9 +1253,9 @@ func TestRefreshSession(t *testing.T) {
 		}
 
 		// Update the generation to trigger user data refresh
-		err = database.Queries.UpdateSessionLastGenerationByIdentifier(t.Context(), generated.UpdateSessionLastGenerationByIdentifierParams{
-			LastGeneration: session.Generation + 1,
-			Identifier:     session.Identifier,
+		err = database.Queries.UpdateSessionGenerationByIdentifier(t.Context(), generated.UpdateSessionGenerationByIdentifierParams{
+			Generation: session.Generation + 1,
+			Identifier: session.Identifier,
 		})
 		require.NoError(t, err)
 

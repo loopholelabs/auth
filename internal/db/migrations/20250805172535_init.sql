@@ -110,7 +110,7 @@ CREATE TABLE sessions
     identifier              CHAR(36) PRIMARY KEY DEFAULT (uuid()),
     organization_identifier CHAR(36) NOT NULL,
     user_identifier         CHAR(36) NOT NULL,
-    last_generation         INT UNSIGNED NOT NULL,
+    generation              INT UNSIGNED NOT NULL,
     expires_at              DATETIME NOT NULL,
     created_at              DATETIME NOT NULL    DEFAULT CURRENT_TIMESTAMP,
 

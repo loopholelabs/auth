@@ -47,7 +47,7 @@ func createTestSession(t *testing.T, ctx context.Context, database *db.DB, expir
 		Identifier:             sessionID,
 		OrganizationIdentifier: orgID,
 		UserIdentifier:         userID,
-		LastGeneration:         0,
+		Generation:             0,
 		ExpiresAt:              expiresAt,
 	})
 	require.NoError(t, err)
@@ -502,9 +502,9 @@ func TestValidator(t *testing.T) {
 			require.NoError(t, err)
 
 			// Update session generation
-			err = database.Queries.UpdateSessionLastGenerationByIdentifier(t.Context(), generated.UpdateSessionLastGenerationByIdentifierParams{
-				LastGeneration: session.Generation + 1,
-				Identifier:     session.Identifier,
+			err = database.Queries.UpdateSessionGenerationByIdentifier(t.Context(), generated.UpdateSessionGenerationByIdentifierParams{
+				Generation: session.Generation + 1,
+				Identifier: session.Identifier,
 			})
 			require.NoError(t, err)
 

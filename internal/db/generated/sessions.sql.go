@@ -11,7 +11,7 @@ import (
 )
 
 const createSession = `-- name: CreateSession :exec
-INSERT INTO sessions (identifier, organization_identifier, user_identifier, last_generation, expires_at, created_at)
+INSERT INTO sessions (identifier, organization_identifier, user_identifier, generation, expires_at, created_at)
 VALUES (?, ?, ?, ?,
         ?, CURRENT_TIMESTAMP)
 `
@@ -20,7 +20,7 @@ type CreateSessionParams struct {
 	Identifier             string
 	OrganizationIdentifier string
 	UserIdentifier         string
-	LastGeneration         uint32
+	Generation             uint32
 	ExpiresAt              time.Time
 }
 
@@ -29,7 +29,7 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) er
 		arg.Identifier,
 		arg.OrganizationIdentifier,
 		arg.UserIdentifier,
-		arg.LastGeneration,
+		arg.Generation,
 		arg.ExpiresAt,
 	)
 	return err
@@ -61,7 +61,7 @@ func (q *Queries) DeleteSessionByIdentifier(ctx context.Context, identifier stri
 }
 
 const getSessionByIdentifier = `-- name: GetSessionByIdentifier :one
-SELECT identifier, organization_identifier, user_identifier, last_generation, expires_at, created_at
+SELECT identifier, organization_identifier, user_identifier, generation, expires_at, created_at
 FROM sessions
 WHERE identifier = ? LIMIT 1
 `
@@ -73,7 +73,7 @@ func (q *Queries) GetSessionByIdentifier(ctx context.Context, identifier string)
 		&i.Identifier,
 		&i.OrganizationIdentifier,
 		&i.UserIdentifier,
-		&i.LastGeneration,
+		&i.Generation,
 		&i.ExpiresAt,
 		&i.CreatedAt,
 	)
@@ -96,18 +96,18 @@ func (q *Queries) UpdateSessionExpiryByIdentifier(ctx context.Context, arg Updat
 	return err
 }
 
-const updateSessionLastGenerationByIdentifier = `-- name: UpdateSessionLastGenerationByIdentifier :exec
+const updateSessionGenerationByIdentifier = `-- name: UpdateSessionGenerationByIdentifier :exec
 UPDATE sessions
-SET last_generation = ?
+SET generation = ?
 WHERE identifier = ?
 `
 
-type UpdateSessionLastGenerationByIdentifierParams struct {
-	LastGeneration uint32
-	Identifier     string
+type UpdateSessionGenerationByIdentifierParams struct {
+	Generation uint32
+	Identifier string
 }
 
-func (q *Queries) UpdateSessionLastGenerationByIdentifier(ctx context.Context, arg UpdateSessionLastGenerationByIdentifierParams) error {
-	_, err := q.db.ExecContext(ctx, updateSessionLastGenerationByIdentifier, arg.LastGeneration, arg.Identifier)
+func (q *Queries) UpdateSessionGenerationByIdentifier(ctx context.Context, arg UpdateSessionGenerationByIdentifierParams) error {
+	_, err := q.db.ExecContext(ctx, updateSessionGenerationByIdentifier, arg.Generation, arg.Identifier)
 	return err
 }
