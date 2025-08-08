@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -17,6 +18,7 @@ import (
 	"github.com/loopholelabs/auth/internal/db"
 	"github.com/loopholelabs/auth/internal/db/generated"
 	"github.com/loopholelabs/auth/internal/mailer"
+	"github.com/loopholelabs/auth/pkg/manager/configuration"
 	"github.com/loopholelabs/auth/pkg/manager/flow"
 	"github.com/loopholelabs/auth/pkg/manager/flow/github"
 	"github.com/loopholelabs/auth/pkg/manager/flow/google"
@@ -24,8 +26,13 @@ import (
 	"github.com/loopholelabs/auth/pkg/manager/role"
 )
 
+const (
+	Timeout = time.Second * 30
+)
+
 var (
 	ErrCreatingManager = errors.New("error creating manager")
+	ErrDBIsRequired    = errors.New("db is required")
 	ErrCreatingSession = errors.New("error creating session")
 	ErrInvalidProvider = errors.New("invalid provider")
 	ErrInvalidFlowData = errors.New("invalid flow data")
@@ -63,27 +70,41 @@ type MailerOptions struct {
 }
 
 type Options struct {
-	Github GithubOptions
-	Google GoogleOptions
-	Magic  MagicOptions
-	Mailer MailerOptions
+	Github        GithubOptions
+	Google        GoogleOptions
+	Magic         MagicOptions
+	Mailer        MailerOptions
+	Configuration configuration.Options
 }
 
 type Manager struct {
 	logger types.Logger
 	db     *db.DB
 
+	configuration *configuration.Configuration
+
 	github *github.Github
 	google *google.Google
 	magic  *magic.Magic
 
 	mailer mailer.Mailer
+
+	wg     sync.WaitGroup
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 func New(options Options, db *db.DB, logger types.Logger) (*Manager, error) {
 	logger = logger.SubLogger("MANAGER")
+	if db == nil {
+		return nil, errors.Join(ErrCreatingManager, ErrDBIsRequired)
+	}
 
-	var err error
+	c, err := configuration.New(options.Configuration, db, logger)
+	if err != nil {
+		return nil, errors.Join(ErrCreatingManager, err)
+	}
+
 	var gh *github.Github
 	if options.Github.Enabled {
 		gh, err = github.New(github.Options{
@@ -137,14 +158,20 @@ func New(options Options, db *db.DB, logger types.Logger) (*Manager, error) {
 		}
 	}
 
-	return &Manager{
-		logger: logger,
-		db:     db,
-		github: gh,
-		google: gg,
-		magic:  mg,
-		mailer: ml,
-	}, nil
+	m := &Manager{
+		logger:        logger,
+		db:            db,
+		configuration: c,
+		github:        gh,
+		google:        gg,
+		magic:         mg,
+		mailer:        ml,
+	}
+
+	//m.wg.Add(1)
+	//go m.doGC()
+
+	return m, nil
 }
 
 func (m *Manager) Github() *github.Github {
@@ -264,7 +291,7 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 		OrganizationIdentifier: user.DefaultOrganizationIdentifier,
 		UserIdentifier:         user.Identifier,
 		LastGeneration:         0,
-		ExpiresAt:              time.Now().Add(time.Minute * 30),
+		ExpiresAt:              time.Now().Add(m.configuration.SessionExpiry()),
 	})
 	if err != nil {
 		return nil, errors.Join(ErrCreatingSession, err)
@@ -290,3 +317,27 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 		ExpiresAt:  session.ExpiresAt,
 	}, nil
 }
+
+//func (c *Manager) gc() (int64, error) {
+//	ctx, cancel := context.WithTimeout(c.ctx, Timeout)
+//	defer cancel()
+//	return c.db.Queries.DeleteGithubOAuthFlowsBeforeTime(ctx, now().Add(-Expiry))
+//}
+//
+//func (c *Manager) doGC() {
+//	defer c.wg.Done()
+//	for {
+//		select {
+//		case <-c.ctx.Done():
+//			c.logger.Info().Msg("GC Stopped")
+//			return
+//		case <-time.After(GCInterval):
+//			deleted, err := c.gc()
+//			if err != nil {
+//				c.logger.Error().Err(err).Msg("failed to garbage collect expired flows")
+//			} else {
+//				c.logger.Debug().Msgf("garbage collected %d expired flows", deleted)
+//			}
+//		}
+//	}
+//}

@@ -294,10 +294,10 @@ CREATE TABLE magic_link_flows
 -- ------------------------------------------------------------------
 -- Configuration
 -- ------------------------------------------------------------------
-CREATE TABLE configuration
+CREATE TABLE configurations
 (
-    config_key   VARCHAR(255) PRIMARY KEY,
-    config_value TEXT     NOT NULL,
+    configuration_key   VARCHAR(255) PRIMARY KEY,
+    configuration_value TEXT     NOT NULL,
     updated_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 -- +goose StatementEnd
