@@ -8,7 +8,7 @@ SELECT *
 FROM sessions
 WHERE identifier = sqlc.arg(identifier) LIMIT 1;
 
--- -- name: DeleteSessionsBeforeTime :execrows
--- DELETE
--- FROM sessions
--- WHERE created_at < ?;
+-- name: DeleteExpiredSessions :execrows
+DELETE
+FROM sessions
+WHERE expires_at <= NOW();
