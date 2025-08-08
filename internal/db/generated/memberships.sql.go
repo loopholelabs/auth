@@ -49,19 +49,20 @@ func (q *Queries) GetMembershipByUserIdentifierAndOrganizationIdentifier(ctx con
 	return i, err
 }
 
-const updateMembershipRoleByUserIdentifier = `-- name: UpdateMembershipRoleByUserIdentifier :exec
+const updateMembershipRoleByUserIdentifierAndOrganizationIdentifier = `-- name: UpdateMembershipRoleByUserIdentifierAndOrganizationIdentifier :exec
 UPDATE memberships
 SET role = LOWER(?)
-WHERE user_identifier = ? AND organization_identifier = ?
+WHERE user_identifier = ?
+  AND organization_identifier = ?
 `
 
-type UpdateMembershipRoleByUserIdentifierParams struct {
+type UpdateMembershipRoleByUserIdentifierAndOrganizationIdentifierParams struct {
 	Role                   string
 	UserIdentifier         string
 	OrganizationIdentifier string
 }
 
-func (q *Queries) UpdateMembershipRoleByUserIdentifier(ctx context.Context, arg UpdateMembershipRoleByUserIdentifierParams) error {
-	_, err := q.db.ExecContext(ctx, updateMembershipRoleByUserIdentifier, arg.Role, arg.UserIdentifier, arg.OrganizationIdentifier)
+func (q *Queries) UpdateMembershipRoleByUserIdentifierAndOrganizationIdentifier(ctx context.Context, arg UpdateMembershipRoleByUserIdentifierAndOrganizationIdentifierParams) error {
+	_, err := q.db.ExecContext(ctx, updateMembershipRoleByUserIdentifierAndOrganizationIdentifier, arg.Role, arg.UserIdentifier, arg.OrganizationIdentifier)
 	return err
 }
