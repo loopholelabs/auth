@@ -50,3 +50,35 @@ func (q *Queries) GetUserByIdentifier(ctx context.Context, identifier string) (U
 	)
 	return i, err
 }
+
+const updateUserNameByIdentifier = `-- name: UpdateUserNameByIdentifier :exec
+UPDATE users
+SET name = ?
+WHERE identifier = ?
+`
+
+type UpdateUserNameByIdentifierParams struct {
+	Name       string
+	Identifier string
+}
+
+func (q *Queries) UpdateUserNameByIdentifier(ctx context.Context, arg UpdateUserNameByIdentifierParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserNameByIdentifier, arg.Name, arg.Identifier)
+	return err
+}
+
+const updateUserPrimaryEmailByIdentifier = `-- name: UpdateUserPrimaryEmailByIdentifier :exec
+UPDATE users
+SET primary_email = ?
+WHERE identifier = ?
+`
+
+type UpdateUserPrimaryEmailByIdentifierParams struct {
+	PrimaryEmail string
+	Identifier   string
+}
+
+func (q *Queries) UpdateUserPrimaryEmailByIdentifier(ctx context.Context, arg UpdateUserPrimaryEmailByIdentifierParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserPrimaryEmailByIdentifier, arg.PrimaryEmail, arg.Identifier)
+	return err
+}

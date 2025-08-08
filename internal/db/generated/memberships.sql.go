@@ -9,6 +9,22 @@ import (
 	"context"
 )
 
+const createMembership = `-- name: CreateMembership :exec
+INSERT INTO memberships (user_identifier, organization_identifier, role, created_at)
+VALUES (?, ?, LOWER(?), CURRENT_TIMESTAMP)
+`
+
+type CreateMembershipParams struct {
+	UserIdentifier         string
+	OrganizationIdentifier string
+	Role                   string
+}
+
+func (q *Queries) CreateMembership(ctx context.Context, arg CreateMembershipParams) error {
+	_, err := q.db.ExecContext(ctx, createMembership, arg.UserIdentifier, arg.OrganizationIdentifier, arg.Role)
+	return err
+}
+
 const getMembershipByUserIdentifierAndOrganizationIdentifier = `-- name: GetMembershipByUserIdentifierAndOrganizationIdentifier :one
 SELECT user_identifier, organization_identifier, role, created_at
 FROM memberships
@@ -31,4 +47,21 @@ func (q *Queries) GetMembershipByUserIdentifierAndOrganizationIdentifier(ctx con
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const updateMembershipRoleByUserIdentifier = `-- name: UpdateMembershipRoleByUserIdentifier :exec
+UPDATE memberships
+SET role = LOWER(?)
+WHERE user_identifier = ? AND organization_identifier = ?
+`
+
+type UpdateMembershipRoleByUserIdentifierParams struct {
+	Role                   string
+	UserIdentifier         string
+	OrganizationIdentifier string
+}
+
+func (q *Queries) UpdateMembershipRoleByUserIdentifier(ctx context.Context, arg UpdateMembershipRoleByUserIdentifierParams) error {
+	_, err := q.db.ExecContext(ctx, updateMembershipRoleByUserIdentifier, arg.Role, arg.UserIdentifier, arg.OrganizationIdentifier)
+	return err
 }

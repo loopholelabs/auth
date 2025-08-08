@@ -6,3 +6,13 @@ VALUES (sqlc.arg(identifier), sqlc.arg(name), LOWER(sqlc.arg(primary_email)), sq
 SELECT *
 FROM users
 WHERE identifier = sqlc.arg(identifier) LIMIT 1;
+
+-- name: UpdateUserNameByIdentifier :exec
+UPDATE users
+SET name = sqlc.arg(name)
+WHERE identifier = sqlc.arg(identifier);
+
+-- name: UpdateUserPrimaryEmailByIdentifier :exec
+UPDATE users
+SET primary_email = sqlc.arg(primary_email)
+WHERE identifier = sqlc.arg(identifier);
