@@ -13,6 +13,7 @@ require (
 	github.com/gofiber/fiber/v2 v2.52.9
 	github.com/google/uuid v1.6.0
 	github.com/grokify/go-pkce v0.2.3
+	github.com/jellydator/ttlcache/v3 v3.4.0
 	github.com/loopholelabs/logging v0.3.2
 	github.com/pressly/goose/v3 v3.24.3
 	github.com/stretchr/testify v1.10.0

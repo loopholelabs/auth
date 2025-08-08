@@ -136,8 +136,9 @@ CREATE TABLE session_revocations
 
 CREATE TABLE session_revalidations
 (
-    session_identifier CHAR(36) UNIQUE,
-    generation         INT      NOT NULL,
+    session_identifier CHAR(36) NOT NULL UNIQUE,
+    generation         INT UNSIGNED     NOT NULL,
+    expires_at         DATETIME NOT NULL,
     created_at         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     PRIMARY KEY (session_identifier, generation),

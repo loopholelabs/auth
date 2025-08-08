@@ -173,7 +173,7 @@ func (c *Configuration) doUpdate() {
 	for {
 		select {
 		case <-c.ctx.Done():
-			c.logger.Info().Msg("Update Stopped")
+			c.logger.Info().Msg("update stopped")
 			return
 		case <-time.After(c.PollInterval()):
 			configurations, err := c.update()

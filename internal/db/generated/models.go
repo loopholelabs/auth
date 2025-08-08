@@ -207,8 +207,9 @@ type Session struct {
 }
 
 type SessionRevalidation struct {
-	SessionIdentifier sql.NullString
-	Generation        int32
+	SessionIdentifier string
+	Generation        uint32
+	ExpiresAt         time.Time
 	CreatedAt         time.Time
 }
 
