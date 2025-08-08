@@ -201,7 +201,7 @@ type Session struct {
 	Identifier             string
 	OrganizationIdentifier string
 	UserIdentifier         string
-	LastGeneration         uint32
+	Generation             uint32
 	ExpiresAt              time.Time
 	CreatedAt              time.Time
 }
