@@ -107,9 +107,9 @@ type ApiKey struct {
 }
 
 type Configuration struct {
-	ConfigKey   string
-	ConfigValue string
-	UpdatedAt   time.Time
+	ConfigurationKey   string
+	ConfigurationValue string
+	UpdatedAt          time.Time
 }
 
 type DeviceCodeFlow struct {
