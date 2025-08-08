@@ -11,23 +11,28 @@ import (
 )
 
 const createSessionRevocation = `-- name: CreateSessionRevocation :exec
-INSERT INTO session_revocations (session_identifier, created_at)
-VALUES (?, CURRENT_TIMESTAMP)
+INSERT INTO session_revocations (session_identifier, expires_at, created_at)
+VALUES (?, ?, CURRENT_TIMESTAMP)
 `
 
-func (q *Queries) CreateSessionRevocation(ctx context.Context, sessionIdentifier string) error {
-	_, err := q.db.ExecContext(ctx, createSessionRevocation, sessionIdentifier)
+type CreateSessionRevocationParams struct {
+	SessionIdentifier string
+	ExpiresAt         time.Time
+}
+
+func (q *Queries) CreateSessionRevocation(ctx context.Context, arg CreateSessionRevocationParams) error {
+	_, err := q.db.ExecContext(ctx, createSessionRevocation, arg.SessionIdentifier, arg.ExpiresAt)
 	return err
 }
 
-const deleteSessionRevocationsBeforeCreatedAt = `-- name: DeleteSessionRevocationsBeforeCreatedAt :execrows
+const deleteExpiredSessionRevocations = `-- name: DeleteExpiredSessionRevocations :execrows
 DELETE
 FROM session_revocations
-WHERE created_at < ?
+WHERE expires_at <= NOW()
 `
 
-func (q *Queries) DeleteSessionRevocationsBeforeCreatedAt(ctx context.Context, createdAt time.Time) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deleteSessionRevocationsBeforeCreatedAt, createdAt)
+func (q *Queries) DeleteExpiredSessionRevocations(ctx context.Context) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteExpiredSessionRevocations)
 	if err != nil {
 		return 0, err
 	}

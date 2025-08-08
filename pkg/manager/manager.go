@@ -26,10 +26,6 @@ import (
 	"github.com/loopholelabs/auth/pkg/manager/role"
 )
 
-var (
-	now = time.Now
-)
-
 const (
 	Timeout    = time.Second * 30
 	GCInterval = time.Minute
@@ -427,12 +423,20 @@ func (m *Manager) RevokeSession(ctx context.Context, identifier string) error {
 
 	qtx := m.db.Queries.WithTx(tx)
 
-	err = qtx.DeleteSessionByIdentifier(ctx, identifier)
+	session, err := m.db.Queries.GetSessionByIdentifier(ctx, identifier)
 	if err != nil {
 		return errors.Join(ErrRevokingSession, err)
 	}
 
-	err = qtx.CreateSessionRevocation(ctx, identifier)
+	err = qtx.DeleteSessionByIdentifier(ctx, session.Identifier)
+	if err != nil {
+		return errors.Join(ErrRevokingSession, err)
+	}
+
+	err = qtx.CreateSessionRevocation(ctx, generated.CreateSessionRevocationParams{
+		SessionIdentifier: session.Identifier,
+		ExpiresAt:         session.ExpiresAt,
+	})
 	if err != nil {
 		return errors.Join(ErrRevokingSession, err)
 	}
@@ -505,7 +509,7 @@ func (m *Manager) doSessionGC() {
 func (m *Manager) sessionRevocationGC() (int64, error) {
 	ctx, cancel := context.WithTimeout(m.ctx, Timeout)
 	defer cancel()
-	return m.db.Queries.DeleteSessionRevocationsBeforeCreatedAt(ctx, now().Add(-m.Configuration().SessionExpiry()))
+	return m.db.Queries.DeleteExpiredSessionRevocations(ctx)
 }
 
 func (m *Manager) doSessionRevocationGC() {
