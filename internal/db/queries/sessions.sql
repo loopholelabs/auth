@@ -7,3 +7,8 @@ VALUES (sqlc.arg(identifier), sqlc.arg(organization_identifier), sqlc.arg(user_i
 SELECT *
 FROM sessions
 WHERE identifier = sqlc.arg(identifier) LIMIT 1;
+
+-- -- name: DeleteSessionsBeforeTime :execrows
+-- DELETE
+-- FROM sessions
+-- WHERE created_at < ?;

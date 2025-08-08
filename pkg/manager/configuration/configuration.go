@@ -57,7 +57,7 @@ type Configuration struct {
 }
 
 func New(options Options, db *db.DB, logger types.Logger) (*Configuration, error) {
-	if options.PollInterval == 0 {
+	if options.PollInterval == 0 || options.SessionExpiry == 0 {
 		return nil, ErrInvalidOptions
 	}
 

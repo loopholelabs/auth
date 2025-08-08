@@ -168,8 +168,8 @@ func New(options Options, db *db.DB, logger types.Logger) (*Manager, error) {
 		mailer:        ml,
 	}
 
-	//m.wg.Add(1)
-	//go m.doGC()
+	// m.wg.Add(1)
+	// go m.doGC()
 
 	return m, nil
 }
@@ -318,13 +318,13 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 	}, nil
 }
 
-//func (c *Manager) gc() (int64, error) {
+// func (c *Manager) gc() (int64, error) {
 //	ctx, cancel := context.WithTimeout(c.ctx, Timeout)
 //	defer cancel()
 //	return c.db.Queries.DeleteGithubOAuthFlowsBeforeTime(ctx, now().Add(-Expiry))
 //}
 //
-//func (c *Manager) doGC() {
+// func (c *Manager) doGC() {
 //	defer c.wg.Done()
 //	for {
 //		select {
