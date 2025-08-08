@@ -416,7 +416,7 @@ func TestCreateSession(t *testing.T) {
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrCreatingSession)
 		require.ErrorIs(t, err, ErrInvalidFlowData)
-		require.Nil(t, session)
+		require.Zero(t, session)
 	})
 
 	t.Run("InvalidProviderError", func(t *testing.T) {
@@ -432,7 +432,7 @@ func TestCreateSession(t *testing.T) {
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrCreatingSession)
 		require.ErrorIs(t, err, ErrInvalidProvider)
-		require.Nil(t, session)
+		require.Zero(t, session)
 	})
 
 	t.Run("MultipleVerifiedEmails", func(t *testing.T) {
@@ -523,7 +523,7 @@ func TestCreateSession(t *testing.T) {
 		session, err := m.CreateSession(t.Context(), flowData, flow.GithubProvider)
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrCreatingSession)
-		require.Nil(t, session)
+		require.Zero(t, session)
 
 		// Verify no identity was created
 		_, err = database.Queries.GetIdentityByProviderAndProviderIdentifier(t.Context(), generated.GetIdentityByProviderAndProviderIdentifierParams{
@@ -569,7 +569,7 @@ func TestCreateSession(t *testing.T) {
 		// Now try to create session with this user that shouldn't exist
 		session, err := m.CreateSession(t.Context(), flowData, flow.GithubProvider)
 		require.Error(t, err)
-		require.Nil(t, session)
+		require.Zero(t, session)
 	})
 
 	t.Run("EmptyProviderIdentifier", func(t *testing.T) {
@@ -585,7 +585,7 @@ func TestCreateSession(t *testing.T) {
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrCreatingSession)
 		require.ErrorIs(t, err, ErrInvalidFlowData)
-		require.Nil(t, session)
+		require.Zero(t, session)
 	})
 
 	t.Run("SpecialCharactersInData", func(t *testing.T) {
@@ -769,7 +769,7 @@ func TestCreateSessionValidation(t *testing.T) {
 		session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrInvalidFlowData)
-		require.Nil(t, session)
+		require.Zero(t, session)
 	})
 
 	t.Run("DuplicateEmailPrevented", func(t *testing.T) {
@@ -816,7 +816,7 @@ func TestCreateSessionValidation(t *testing.T) {
 
 		session2, err := m.CreateSession(t.Context(), flowData2, flow.MagicProvider)
 		require.Error(t, err) // Should fail due to UNIQUE constraint
-		require.Nil(t, session2)
+		require.Zero(t, session2)
 	})
 
 	t.Run("UserCreatedWithName", func(t *testing.T) {
@@ -1441,7 +1441,7 @@ func TestSessionGarbageCollection(t *testing.T) {
 		opts := Options{
 			Configuration: configuration.Options{
 				PollInterval:  time.Minute,
-				SessionExpiry: time.Second * 2, // 2 seconds expiry
+				SessionExpiry: time.Second * 4, // 4 seconds expiry
 			},
 			Magic: MagicOptions{Enabled: true},
 		}
@@ -1476,8 +1476,8 @@ func TestSessionGarbageCollection(t *testing.T) {
 		_, err = database.Queries.GetSessionByIdentifier(t.Context(), session2.Identifier)
 		require.NoError(t, err, "Session 2 should exist")
 
-		// Wait for 1 second (half the expiry time)
-		time.Sleep(time.Second * 1)
+		// Wait for 2 second (half the expiry time)
+		time.Sleep(time.Second * 2)
 
 		// Refresh session 1 to extend its expiry
 		refreshedSession1, err := m.RefreshSession(t.Context(), session1)
@@ -1485,9 +1485,9 @@ func TestSessionGarbageCollection(t *testing.T) {
 		require.Equal(t, session1.Identifier, refreshedSession1.Identifier)
 		require.True(t, refreshedSession1.ExpiresAt.After(session1.ExpiresAt), "Refreshed session should have later expiry")
 
-		// Wait for another 1.5 seconds (total 2.5 seconds)
+		// Wait for another 3 seconds (total 5 seconds)
 		// Session 2 should now be expired, but session 1 should still be valid
-		time.Sleep(time.Millisecond * 1500)
+		time.Sleep(time.Second * 3)
 
 		// Run garbage collection
 		deleted, err := m.gc()
