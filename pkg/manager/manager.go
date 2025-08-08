@@ -29,6 +29,7 @@ import (
 const (
 	Timeout    = time.Second * 30
 	GCInterval = time.Minute
+	Jitter     = time.Second * 5
 )
 
 var (
@@ -435,7 +436,7 @@ func (m *Manager) RevokeSession(ctx context.Context, identifier string) error {
 
 	err = qtx.CreateSessionRevocation(ctx, generated.CreateSessionRevocationParams{
 		SessionIdentifier: session.Identifier,
-		ExpiresAt:         session.ExpiresAt,
+		ExpiresAt:         session.ExpiresAt.Add(Jitter),
 	})
 	if err != nil {
 		return errors.Join(ErrRevokingSession, err)
