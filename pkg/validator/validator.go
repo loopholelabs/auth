@@ -18,9 +18,7 @@ import (
 )
 
 const (
-	Timeout    = time.Second * 30
-	GCInterval = time.Minute
-	Jitter     = time.Second * 5
+	Timeout = time.Second * 30
 )
 
 var (
@@ -32,11 +30,6 @@ type Options struct {
 	Configuration configuration.Options
 }
 
-type revalidationKey struct {
-	identifier string
-	generation uint32
-}
-
 type Validator struct {
 	logger types.Logger
 	db     *db.DB
@@ -44,7 +37,7 @@ type Validator struct {
 	configuration *configuration.Configuration
 
 	sessionRevocationCache   *ttlcache.Cache[string, struct{}]
-	sessionRevalidationCache *ttlcache.Cache[revalidationKey, struct{}]
+	sessionRevalidationCache *ttlcache.Cache[string, uint32]
 
 	wg     sync.WaitGroup
 	ctx    context.Context
@@ -63,7 +56,7 @@ func New(options Options, db *db.DB, logger types.Logger) (*Validator, error) {
 	}
 
 	sessionRevocationCache := ttlcache.New[string, struct{}](ttlcache.WithTTL[string, struct{}](c.SessionExpiry()))
-	sessionRevalidationCache := ttlcache.New[revalidationKey, struct{}](ttlcache.WithTTL[revalidationKey, struct{}](c.SessionExpiry()))
+	sessionRevalidationCache := ttlcache.New[string, uint32](ttlcache.WithTTL[string, uint32](c.SessionExpiry()))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	v := &Validator{
@@ -87,7 +80,11 @@ func (v *Validator) IsSessionRevoked(identifier string) bool {
 }
 
 func (v *Validator) IsSessionRevalidated(identifier string, generation uint32) bool {
-	return v.sessionRevalidationCache.Get(revalidationKey{identifier: identifier, generation: generation}, ttlcache.WithDisableTouchOnHit[revalidationKey, struct{}]()) != nil
+	item := v.sessionRevalidationCache.Get(identifier, ttlcache.WithDisableTouchOnHit[string, uint32]())
+	if item == nil {
+		return false
+	}
+	return item.Value() >= generation
 }
 
 func (v *Validator) Configuration() *configuration.Configuration {
@@ -144,10 +141,7 @@ func (v *Validator) doRefresh() {
 				v.logger.Error().Err(err).Msg("failed to update session revalidations")
 			} else {
 				for _, sessionRevalidation := range sessionRevalidations {
-					v.sessionRevalidationCache.Set(revalidationKey{
-						identifier: sessionRevalidation.SessionIdentifier,
-						generation: sessionRevalidation.Generation,
-					}, struct{}{}, time.Until(sessionRevalidation.ExpiresAt))
+					v.sessionRevalidationCache.Set(sessionRevalidation.SessionIdentifier, sessionRevalidation.Generation, time.Until(sessionRevalidation.ExpiresAt))
 				}
 				v.logger.Info().Msgf("refresh %d session revalidations", len(sessionRevalidations))
 			}
