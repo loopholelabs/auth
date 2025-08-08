@@ -300,12 +300,15 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 	}
 
 	sessionIdentifier := uuid.New().String()
+	// Truncate expiry time to nearest second to match MySQL DATETIME precision
+	// This ensures consistency between Go's nanosecond precision and MySQL's second precision
+	expiresAt := time.Now().Add(m.configuration.SessionExpiry()).Truncate(time.Second)
 	err = m.db.Queries.CreateSession(ctx, generated.CreateSessionParams{
 		Identifier:             sessionIdentifier,
 		OrganizationIdentifier: user.DefaultOrganizationIdentifier,
 		UserIdentifier:         user.Identifier,
 		LastGeneration:         0,
-		ExpiresAt:              time.Now().Add(m.configuration.SessionExpiry()),
+		ExpiresAt:              expiresAt,
 	})
 	if err != nil {
 		return Session{}, errors.Join(ErrCreatingSession, err)
@@ -381,7 +384,9 @@ func (m *Manager) RefreshSession(ctx context.Context, session Session) (Session,
 		}
 	}
 
-	session.ExpiresAt = time.Now().Add(m.configuration.SessionExpiry())
+	// Truncate expiry time to nearest second to match MySQL DATETIME precision
+	// This ensures consistency between Go's nanosecond precision and MySQL's second precision
+	session.ExpiresAt = time.Now().Add(m.configuration.SessionExpiry()).Truncate(time.Second)
 	if session.ExpiresAt.After(s.ExpiresAt) {
 		err = qtx.UpdateSessionExpiryByIdentifier(ctx, generated.UpdateSessionExpiryByIdentifierParams{
 			ExpiresAt:  session.ExpiresAt,
