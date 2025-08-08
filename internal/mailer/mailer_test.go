@@ -349,7 +349,6 @@ func TestSendMagicLink(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create a client with mock SMTP settings
-	// Note: This won't actually send emails in tests
 	cfg := Config{
 		SMTPHost:              "localhost",
 		SMTPPort:              1025, // Non-standard port to avoid actual sending

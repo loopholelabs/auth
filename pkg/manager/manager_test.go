@@ -5,6 +5,7 @@ package manager
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -40,6 +41,9 @@ func TestNew(t *testing.T) {
 		m, err := New(opts, database, logger)
 		require.NoError(t, err)
 		require.NotNil(t, m)
+		t.Cleanup(func() {
+			require.NoError(t, m.Close())
+		})
 		require.Nil(t, m.Github())
 		require.Nil(t, m.Google())
 		require.Nil(t, m.Magic())
@@ -61,6 +65,9 @@ func TestNew(t *testing.T) {
 		m, err := New(opts, database, logger)
 		require.NoError(t, err)
 		require.NotNil(t, m)
+		t.Cleanup(func() {
+			require.NoError(t, m.Close())
+		})
 		require.NotNil(t, m.Github())
 		require.Nil(t, m.Google())
 		require.Nil(t, m.Magic())
@@ -82,6 +89,9 @@ func TestNew(t *testing.T) {
 		m, err := New(opts, database, logger)
 		require.NoError(t, err)
 		require.NotNil(t, m)
+		t.Cleanup(func() {
+			require.NoError(t, m.Close())
+		})
 		require.Nil(t, m.Github())
 		require.NotNil(t, m.Google())
 		require.Nil(t, m.Magic())
@@ -100,6 +110,9 @@ func TestNew(t *testing.T) {
 		m, err := New(opts, database, logger)
 		require.NoError(t, err)
 		require.NotNil(t, m)
+		t.Cleanup(func() {
+			require.NoError(t, m.Close())
+		})
 		require.Nil(t, m.Github())
 		require.Nil(t, m.Google())
 		require.NotNil(t, m.Magic())
@@ -130,6 +143,9 @@ func TestNew(t *testing.T) {
 		m, err := New(opts, database, logger)
 		require.NoError(t, err)
 		require.NotNil(t, m)
+		t.Cleanup(func() {
+			require.NoError(t, m.Close())
+		})
 		require.NotNil(t, m.Github())
 		require.NotNil(t, m.Google())
 		require.NotNil(t, m.Magic())
@@ -171,6 +187,9 @@ func TestCreateSession(t *testing.T) {
 
 	m, err := New(opts, database, logger)
 	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, m.Close())
+	})
 
 	t.Run("NewUserWithGithubProvider", func(t *testing.T) {
 		flowData := flow.Data{
@@ -647,6 +666,9 @@ func TestCreateSessionEdgeCases(t *testing.T) {
 
 	m, err := New(opts, database, logger)
 	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, m.Close())
+	})
 
 	t.Run("DuplicateIdentityCreation", func(t *testing.T) {
 		flowData := flow.Data{
@@ -731,6 +753,9 @@ func TestCreateSessionValidation(t *testing.T) {
 		}
 		m, err := New(opts, database, logger)
 		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, m.Close())
+		})
 
 		flowData := flow.Data{
 			ProviderIdentifier: "",
@@ -763,6 +788,9 @@ func TestCreateSessionValidation(t *testing.T) {
 		}
 		m, err := New(opts, database, logger)
 		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, m.Close())
+		})
 
 		// Create first user
 		flowData1 := flow.Data{
@@ -807,6 +835,9 @@ func TestCreateSessionValidation(t *testing.T) {
 		}
 		m, err := New(opts, database, logger)
 		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, m.Close())
+		})
 
 		flowData := flow.Data{
 			ProviderIdentifier: "user-with-name",
@@ -824,5 +855,280 @@ func TestCreateSessionValidation(t *testing.T) {
 		user, err := database.Queries.GetUserByIdentifier(t.Context(), session.UserInfo.Identifier)
 		require.NoError(t, err)
 		require.Equal(t, "John Doe", user.Name)
+	})
+}
+
+func TestSessionGarbageCollection(t *testing.T) {
+	t.Run("ExpiredSessionsAreDeleted", func(t *testing.T) {
+		container := testutils.SetupMySQLContainer(t)
+		logger := logging.Test(t, logging.Zerolog, "test")
+		database, err := db.New(container.URL, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, database.Close())
+		})
+		// Create manager with very short session expiry for testing
+		opts := Options{
+			Configuration: configuration.Options{
+				PollInterval:  time.Minute,
+				SessionExpiry: time.Millisecond * 10, // Very short expiry for testing
+			},
+			Magic: MagicOptions{Enabled: true},
+		}
+		m, err := New(opts, database, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, m.Close())
+		})
+
+		// Create a session that will expire quickly
+		flowData := flow.Data{
+			ProviderIdentifier: "gc-test-user",
+			UserName:           "GC Test",
+			PrimaryEmail:       "gc@example.com",
+			VerifiedEmails:     []string{"gc@example.com"},
+		}
+
+		session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
+		require.NoError(t, err)
+		require.NotNil(t, session)
+
+		// Verify session was created
+		dbSession, err := database.Queries.GetSessionByIdentifier(t.Context(), session.Identifier)
+		require.NoError(t, err)
+		require.Equal(t, session.Identifier, dbSession.Identifier)
+
+		// Wait for session to expire
+		// Need to wait longer because database NOW() might be slightly different
+		time.Sleep(time.Second * 1)
+
+		// Manually trigger GC
+		deleted, err := m.gc()
+		require.NoError(t, err)
+		require.GreaterOrEqual(t, deleted, int64(1), "Expected at least 1 session to be deleted")
+
+		// Verify session was deleted
+		_, err = database.Queries.GetSessionByIdentifier(t.Context(), session.Identifier)
+		require.Error(t, err)
+		require.ErrorIs(t, err, sql.ErrNoRows)
+	})
+
+	t.Run("NonExpiredSessionsAreNotDeleted", func(t *testing.T) {
+		container := testutils.SetupMySQLContainer(t)
+		logger := logging.Test(t, logging.Zerolog, "test")
+		database, err := db.New(container.URL, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, database.Close())
+		})
+		// Create manager with longer session expiry
+		opts := Options{
+			Configuration: configuration.Options{
+				PollInterval:  time.Minute,
+				SessionExpiry: time.Hour, // Long expiry
+			},
+			Magic: MagicOptions{Enabled: true},
+		}
+		m, err := New(opts, database, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, m.Close())
+		})
+
+		// Create a session that won't expire soon
+		flowData := flow.Data{
+			ProviderIdentifier: "no-gc-test-user",
+			UserName:           "No GC Test",
+			PrimaryEmail:       "nogc@example.com",
+			VerifiedEmails:     []string{"nogc@example.com"},
+		}
+
+		session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
+		require.NoError(t, err)
+		require.NotNil(t, session)
+
+		// Manually trigger GC immediately
+		deleted, err := m.gc()
+		require.NoError(t, err)
+		require.Equal(t, int64(0), deleted, "Expected 0 sessions to be deleted")
+
+		// Verify session still exists
+		dbSession, err := database.Queries.GetSessionByIdentifier(t.Context(), session.Identifier)
+		require.NoError(t, err)
+		require.Equal(t, session.Identifier, dbSession.Identifier)
+	})
+
+	t.Run("MultipleExpiredSessionsAreDeleted", func(t *testing.T) {
+		container := testutils.SetupMySQLContainer(t)
+		logger := logging.Test(t, logging.Zerolog, "test")
+		database, err := db.New(container.URL, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, database.Close())
+		})
+		// Create manager with very short session expiry
+		opts := Options{
+			Configuration: configuration.Options{
+				PollInterval:  time.Minute,
+				SessionExpiry: time.Millisecond * 10,
+			},
+			Magic: MagicOptions{Enabled: true},
+		}
+		m, err := New(opts, database, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, m.Close())
+		})
+
+		// Create multiple sessions
+		sessions := make([]Session, 3)
+		for i := 0; i < 3; i++ {
+			flowData := flow.Data{
+				ProviderIdentifier: fmt.Sprintf("multi-gc-user-%d", i),
+				UserName:           fmt.Sprintf("Multi GC User %d", i),
+				PrimaryEmail:       fmt.Sprintf("multi%d@example.com", i),
+				VerifiedEmails:     []string{fmt.Sprintf("multi%d@example.com", i)},
+			}
+
+			session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
+			require.NoError(t, err)
+			sessions[i] = session
+		}
+
+		// Wait for all sessions to expire
+		time.Sleep(time.Second * 1)
+
+		// Manually trigger GC
+		deleted, err := m.gc()
+		require.NoError(t, err)
+		require.GreaterOrEqual(t, deleted, int64(3), "Expected at least 3 sessions to be deleted")
+
+		// Verify all sessions were deleted
+		for _, session := range sessions {
+			_, err = database.Queries.GetSessionByIdentifier(t.Context(), session.Identifier)
+			require.Error(t, err)
+			require.ErrorIs(t, err, sql.ErrNoRows)
+		}
+	})
+
+	t.Run("MixedExpirySessionsHandledCorrectly", func(t *testing.T) {
+		container := testutils.SetupMySQLContainer(t)
+		logger := logging.Test(t, logging.Zerolog, "test")
+		database, err := db.New(container.URL, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, database.Close())
+		})
+		// Create two managers with different session expiry times
+		shortOpts := Options{
+			Configuration: configuration.Options{
+				PollInterval:  time.Minute,
+				SessionExpiry: time.Millisecond * 500, // Half a second
+			},
+			Magic: MagicOptions{Enabled: true},
+		}
+		shortManager, err := New(shortOpts, database, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, shortManager.Close())
+		})
+
+		longOpts := Options{
+			Configuration: configuration.Options{
+				PollInterval:  time.Minute,
+				SessionExpiry: time.Hour,
+			},
+			Magic: MagicOptions{Enabled: true},
+		}
+		longManager, err := New(longOpts, database, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, longManager.Close())
+		})
+
+		// Create session with short expiry
+		shortFlowData := flow.Data{
+			ProviderIdentifier: "short-expiry-user",
+			UserName:           "Short Expiry",
+			PrimaryEmail:       "short@example.com",
+			VerifiedEmails:     []string{"short@example.com"},
+		}
+		shortSession, err := shortManager.CreateSession(t.Context(), shortFlowData, flow.MagicProvider)
+		require.NoError(t, err)
+
+		// Create session with long expiry
+		longFlowData := flow.Data{
+			ProviderIdentifier: "long-expiry-user",
+			UserName:           "Long Expiry",
+			PrimaryEmail:       "long@example.com",
+			VerifiedEmails:     []string{"long@example.com"},
+		}
+		longSession, err := longManager.CreateSession(t.Context(), longFlowData, flow.MagicProvider)
+		require.NoError(t, err)
+
+		// Verify both sessions exist before GC
+		_, err = database.Queries.GetSessionByIdentifier(t.Context(), shortSession.Identifier)
+		require.NoError(t, err, "Short session should exist before GC")
+		_, err = database.Queries.GetSessionByIdentifier(t.Context(), longSession.Identifier)
+		require.NoError(t, err, "Long session should exist before GC")
+
+		// Wait for short session to expire
+		time.Sleep(time.Second * 1)
+
+		// Trigger GC
+		deleted, err := shortManager.gc()
+		require.NoError(t, err)
+		require.Equal(t, int64(1), deleted, "Expected exactly 1 session to be deleted")
+
+		// Verify short session was deleted
+		_, err = database.Queries.GetSessionByIdentifier(t.Context(), shortSession.Identifier)
+		require.Error(t, err)
+		require.ErrorIs(t, err, sql.ErrNoRows)
+
+		// Verify long session still exists
+		dbSession, err := database.Queries.GetSessionByIdentifier(t.Context(), longSession.Identifier)
+		require.NoError(t, err, "Long session should still exist")
+		require.Equal(t, longSession.Identifier, dbSession.Identifier)
+	})
+
+	t.Run("GCWithNoExpiredSessions", func(t *testing.T) {
+		container := testutils.SetupMySQLContainer(t)
+		logger := logging.Test(t, logging.Zerolog, "test")
+		database, err := db.New(container.URL, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, database.Close())
+		})
+		// Create manager with normal session expiry
+		opts := Options{
+			Configuration: configuration.Options{
+				PollInterval:  time.Minute,
+				SessionExpiry: time.Hour,
+			},
+			Magic: MagicOptions{Enabled: true},
+		}
+		m, err := New(opts, database, logger)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, m.Close())
+		})
+
+		// Create multiple sessions that won't expire
+		for i := 0; i < 3; i++ {
+			flowData := flow.Data{
+				ProviderIdentifier: fmt.Sprintf("no-expire-user-%d", i),
+				UserName:           fmt.Sprintf("No Expire User %d", i),
+				PrimaryEmail:       fmt.Sprintf("noexpire%d@example.com", i),
+				VerifiedEmails:     []string{fmt.Sprintf("noexpire%d@example.com", i)},
+			}
+
+			_, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
+			require.NoError(t, err)
+		}
+
+		// Trigger GC immediately
+		deleted, err := m.gc()
+		require.NoError(t, err)
+		require.Equal(t, int64(0), deleted, "Expected no sessions to be deleted")
 	})
 }

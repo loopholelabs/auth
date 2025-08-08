@@ -6,6 +6,7 @@ import "time"
 
 type OrganizationInfo struct {
 	Identifier string `json:"identifier"`
+	IsDefault  bool   `json:"is_default"`
 	Role       string `json:"role"`
 }
 

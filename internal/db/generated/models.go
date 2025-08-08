@@ -172,7 +172,6 @@ type MagicLinkFlow struct {
 }
 
 type Membership struct {
-	Identifier             uint32
 	UserIdentifier         string
 	OrganizationIdentifier string
 	Role                   string
