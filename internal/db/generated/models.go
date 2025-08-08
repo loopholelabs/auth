@@ -214,6 +214,7 @@ type SessionRevalidation struct {
 
 type SessionRevocation struct {
 	SessionIdentifier string
+	ExpiresAt         time.Time
 	CreatedAt         time.Time
 }
 

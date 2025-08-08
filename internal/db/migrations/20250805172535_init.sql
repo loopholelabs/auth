@@ -130,6 +130,7 @@ CREATE TABLE sessions
 CREATE TABLE session_revocations
 (
     session_identifier CHAR(36) PRIMARY KEY,
+    expires_at         DATETIME NOT NULL,
     created_at         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_session_revocations_session_identifier_sessions
@@ -297,7 +298,7 @@ CREATE TABLE configurations
 (
     configuration_key   VARCHAR(255) PRIMARY KEY,
     configuration_value TEXT     NOT NULL,
-    updated_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 -- +goose StatementEnd
 
