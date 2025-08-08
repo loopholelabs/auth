@@ -179,6 +179,9 @@ func New(options Options, db *db.DB, logger types.Logger) (*Manager, error) {
 	m.wg.Add(1)
 	go m.doSessionGC()
 
+	m.wg.Add(1)
+	go m.doSessionRevocationGC()
+
 	return m, nil
 }
 
