@@ -206,7 +206,7 @@ type Session struct {
 	CreatedAt              time.Time
 }
 
-type SessionRevalidation struct {
+type SessionInvalidation struct {
 	SessionIdentifier string
 	Generation        uint32
 	ExpiresAt         time.Time

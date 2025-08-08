@@ -134,7 +134,7 @@ CREATE TABLE session_revocations
     created_at         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE session_revalidations
+CREATE TABLE session_invalidations
 (
     session_identifier CHAR(36) NOT NULL UNIQUE,
     generation         INT UNSIGNED     NOT NULL,
@@ -143,7 +143,7 @@ CREATE TABLE session_revalidations
 
     PRIMARY KEY (session_identifier, generation),
 
-    CONSTRAINT fk_session_revalidations_session_identifier_sessions
+    CONSTRAINT fk_session_invalidations_session_identifier_sessions
         FOREIGN KEY (session_identifier)
             REFERENCES sessions (identifier)
             ON DELETE CASCADE
@@ -306,7 +306,7 @@ DROP TABLE google_oauth_flows;
 DROP TABLE device_code_flows;
 DROP TABLE service_keys;
 DROP TABLE api_keys;
-DROP TABLE session_revalidations;
+DROP TABLE session_invalidations;
 DROP TABLE session_revocations;
 DROP TABLE sessions;
 DROP TABLE invitations;

@@ -255,7 +255,7 @@ func TestValidator(t *testing.T) {
 		})
 	})
 
-	t.Run("SessionRevalidation", func(t *testing.T) {
+	t.Run("SessionInvalidation", func(t *testing.T) {
 		t.Run("EmptyCache", func(t *testing.T) {
 			container := testutils.SetupMySQLContainer(t)
 			logger := logging.Test(t, logging.Zerolog, "test")
@@ -281,8 +281,8 @@ func TestValidator(t *testing.T) {
 
 			// Check non-existent session
 			sessionID := uuid.New().String()
-			assert.False(t, v.IsSessionRevalidated(sessionID, 0))
-			assert.False(t, v.IsSessionRevalidated(sessionID, 10))
+			assert.False(t, v.IsSessionInvalidated(sessionID, 0))
+			assert.False(t, v.IsSessionInvalidated(sessionID, 10))
 		})
 
 		t.Run("GenerationComparison", func(t *testing.T) {
@@ -312,8 +312,8 @@ func TestValidator(t *testing.T) {
 			expiresAt := time.Now().Add(time.Minute).Truncate(time.Second)
 			sessionID := createTestSession(t, t.Context(), database, expiresAt)
 
-			// Add revalidation with generation 5
-			err = database.Queries.CreateSessionRevalidation(t.Context(), generated.CreateSessionRevalidationParams{
+			// Add invalidation with generation 5
+			err = database.Queries.CreateSessionInvalidation(t.Context(), generated.CreateSessionInvalidationParams{
 				SessionIdentifier: sessionID,
 				Generation:        5,
 				ExpiresAt:         expiresAt,
@@ -321,17 +321,17 @@ func TestValidator(t *testing.T) {
 			require.NoError(t, err)
 
 			// Force refresh
-			v.sessionRevalidationsRefresh()
+			v.sessionInvalidationsRefresh()
 
-			// IsSessionRevalidated returns true if cached generation >= passed generation
+			// IsSessionInvalidated returns true if cached generation >= passed generation
 			// Cached generation is 5, so:
-			assert.True(t, v.IsSessionRevalidated(sessionID, 4))    // 5 >= 4, no revalidation needed
-			assert.True(t, v.IsSessionRevalidated(sessionID, 5))    // 5 >= 5, no revalidation needed
-			assert.False(t, v.IsSessionRevalidated(sessionID, 6))   // 5 < 6, revalidation needed
-			assert.False(t, v.IsSessionRevalidated(sessionID, 100)) // 5 < 100, revalidation needed
+			assert.True(t, v.IsSessionInvalidated(sessionID, 4))    // 5 >= 4, no invalidation needed
+			assert.True(t, v.IsSessionInvalidated(sessionID, 5))    // 5 >= 5, no invalidation needed
+			assert.False(t, v.IsSessionInvalidated(sessionID, 6))   // 5 < 6, invalidation needed
+			assert.False(t, v.IsSessionInvalidated(sessionID, 100)) // 5 < 100, invalidation needed
 		})
 
-		t.Run("MultipleRevalidations", func(t *testing.T) {
+		t.Run("MultipleInvalidations", func(t *testing.T) {
 			container := testutils.SetupMySQLContainer(t)
 			logger := logging.Test(t, logging.Zerolog, "test")
 			database, err := db.New(container.URL, logger)
@@ -360,21 +360,21 @@ func TestValidator(t *testing.T) {
 			sessionID2 := createTestSession(t, t.Context(), database, expiresAt)
 			sessionID3 := createTestSession(t, t.Context(), database, expiresAt)
 
-			err = database.Queries.CreateSessionRevalidation(t.Context(), generated.CreateSessionRevalidationParams{
+			err = database.Queries.CreateSessionInvalidation(t.Context(), generated.CreateSessionInvalidationParams{
 				SessionIdentifier: sessionID1,
 				Generation:        3,
 				ExpiresAt:         expiresAt,
 			})
 			require.NoError(t, err)
 
-			err = database.Queries.CreateSessionRevalidation(t.Context(), generated.CreateSessionRevalidationParams{
+			err = database.Queries.CreateSessionInvalidation(t.Context(), generated.CreateSessionInvalidationParams{
 				SessionIdentifier: sessionID2,
 				Generation:        10,
 				ExpiresAt:         expiresAt,
 			})
 			require.NoError(t, err)
 
-			err = database.Queries.CreateSessionRevalidation(t.Context(), generated.CreateSessionRevalidationParams{
+			err = database.Queries.CreateSessionInvalidation(t.Context(), generated.CreateSessionInvalidationParams{
 				SessionIdentifier: sessionID3,
 				Generation:        0,
 				ExpiresAt:         expiresAt,
@@ -386,21 +386,21 @@ func TestValidator(t *testing.T) {
 
 			// Test each session's generation threshold
 			// sessionID1 has generation 3 cached
-			assert.True(t, v.IsSessionRevalidated(sessionID1, 2))  // 3 >= 2
-			assert.True(t, v.IsSessionRevalidated(sessionID1, 3))  // 3 >= 3
-			assert.False(t, v.IsSessionRevalidated(sessionID1, 4)) // 3 >= 4 is false
+			assert.True(t, v.IsSessionInvalidated(sessionID1, 2))  // 3 >= 2
+			assert.True(t, v.IsSessionInvalidated(sessionID1, 3))  // 3 >= 3
+			assert.False(t, v.IsSessionInvalidated(sessionID1, 4)) // 3 >= 4 is false
 
 			// sessionID2 has generation 10 cached
-			assert.True(t, v.IsSessionRevalidated(sessionID2, 9))   // 10 >= 9
-			assert.True(t, v.IsSessionRevalidated(sessionID2, 10))  // 10 >= 10
-			assert.False(t, v.IsSessionRevalidated(sessionID2, 11)) // 10 >= 11 is false
+			assert.True(t, v.IsSessionInvalidated(sessionID2, 9))   // 10 >= 9
+			assert.True(t, v.IsSessionInvalidated(sessionID2, 10))  // 10 >= 10
+			assert.False(t, v.IsSessionInvalidated(sessionID2, 11)) // 10 >= 11 is false
 
 			// sessionID3 has generation 0 cached
-			assert.True(t, v.IsSessionRevalidated(sessionID3, 0))  // 0 >= 0
-			assert.False(t, v.IsSessionRevalidated(sessionID3, 1)) // 0 >= 1 is false
+			assert.True(t, v.IsSessionInvalidated(sessionID3, 0))  // 0 >= 0
+			assert.False(t, v.IsSessionInvalidated(sessionID3, 1)) // 0 >= 1 is false
 		})
 
-		t.Run("ExpiredRevalidation", func(t *testing.T) {
+		t.Run("ExpiredInvalidation", func(t *testing.T) {
 			container := testutils.SetupMySQLContainer(t)
 			logger := logging.Test(t, logging.Zerolog, "test")
 			database, err := db.New(container.URL, logger)
@@ -427,8 +427,8 @@ func TestValidator(t *testing.T) {
 			expiresAt := time.Now().Add(time.Second * 2).Truncate(time.Second)
 			sessionID := createTestSession(t, t.Context(), database, expiresAt)
 
-			// Add revalidation with short expiry
-			err = database.Queries.CreateSessionRevalidation(t.Context(), generated.CreateSessionRevalidationParams{
+			// Add invalidation with short expiry
+			err = database.Queries.CreateSessionInvalidation(t.Context(), generated.CreateSessionInvalidationParams{
 				SessionIdentifier: sessionID,
 				Generation:        5,
 				ExpiresAt:         expiresAt,
@@ -437,17 +437,17 @@ func TestValidator(t *testing.T) {
 
 			// Wait for refresh
 			time.Sleep(time.Millisecond * 200)
-			assert.True(t, v.IsSessionRevalidated(sessionID, 5))
+			assert.True(t, v.IsSessionInvalidated(sessionID, 5))
 
 			// Wait for expiry (can't avoid this wait)
 			time.Sleep(time.Second * 3)
 
 			// Should be expired and removed from cache
-			assert.False(t, v.IsSessionRevalidated(sessionID, 5))
+			assert.False(t, v.IsSessionInvalidated(sessionID, 5))
 		})
 	})
 
-	t.Run("SessionRevalidationWithManager", func(t *testing.T) {
+	t.Run("SessionInvalidationWithManager", func(t *testing.T) {
 		t.Run("UpdateUserData", func(t *testing.T) {
 			container := testutils.SetupMySQLContainer(t)
 			logger := logging.Test(t, logging.Zerolog, "test")
@@ -491,8 +491,8 @@ func TestValidator(t *testing.T) {
 			session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
 			require.NoError(t, err)
 
-			// Initially, no revalidation needed
-			assert.False(t, v.IsSessionRevalidated(session.Identifier, session.Generation))
+			// Initially, no invalidation needed
+			assert.False(t, v.IsSessionInvalidated(session.Identifier, session.Generation))
 
 			// Update user name (this should increment generation)
 			err = database.Queries.UpdateUserNameByIdentifier(t.Context(), generated.UpdateUserNameByIdentifierParams{
@@ -508,9 +508,9 @@ func TestValidator(t *testing.T) {
 			})
 			require.NoError(t, err)
 
-			// Create revalidation entry
+			// Create invalidation entry
 			expiresAt := time.Now().Add(time.Minute * 30).Truncate(time.Second)
-			err = database.Queries.CreateSessionRevalidation(t.Context(), generated.CreateSessionRevalidationParams{
+			err = database.Queries.CreateSessionInvalidation(t.Context(), generated.CreateSessionInvalidationParams{
 				SessionIdentifier: session.Identifier,
 				Generation:        session.Generation + 1,
 				ExpiresAt:         expiresAt,
@@ -518,14 +518,14 @@ func TestValidator(t *testing.T) {
 			require.NoError(t, err)
 
 			// Manually refresh the cache
-			v.sessionRevalidationsRefresh()
+			v.sessionInvalidationsRefresh()
 
 			// The cached generation is session.Generation + 1
-			// IsSessionRevalidated returns true if cached generation >= passed generation
+			// IsSessionInvalidated returns true if cached generation >= passed generation
 			// So checking with old generation returns true (cached gen+1 >= gen)
-			assert.True(t, v.IsSessionRevalidated(session.Identifier, session.Generation))
+			assert.True(t, v.IsSessionInvalidated(session.Identifier, session.Generation))
 			// New generation should also be valid (cached gen+1 >= gen+1)
-			assert.True(t, v.IsSessionRevalidated(session.Identifier, session.Generation+1))
+			assert.True(t, v.IsSessionInvalidated(session.Identifier, session.Generation+1))
 		})
 
 		t.Run("RevokedSessionCheck", func(t *testing.T) {
@@ -616,10 +616,10 @@ func TestValidator(t *testing.T) {
 			// Revoked session (doesn't need to be in sessions table)
 			revokedSession := uuid.New().String()
 
-			// Revalidated session (needs to be in sessions table)
-			revalidatedSession := createTestSession(t, t.Context(), database, expiresAt)
+			// Invalidated session (needs to be in sessions table)
+			invalidatedSession := createTestSession(t, t.Context(), database, expiresAt)
 
-			// Both revoked and revalidated (needs to be in sessions table)
+			// Both revoked and invalidated (needs to be in sessions table)
 			bothSession := createTestSession(t, t.Context(), database, expiresAt)
 
 			// Neither session (not in any cache)
@@ -638,15 +638,15 @@ func TestValidator(t *testing.T) {
 			})
 			require.NoError(t, err)
 
-			// Add to revalidation cache
-			err = database.Queries.CreateSessionRevalidation(t.Context(), generated.CreateSessionRevalidationParams{
-				SessionIdentifier: revalidatedSession,
+			// Add to invalidation cache
+			err = database.Queries.CreateSessionInvalidation(t.Context(), generated.CreateSessionInvalidationParams{
+				SessionIdentifier: invalidatedSession,
 				Generation:        7,
 				ExpiresAt:         expiresAt,
 			})
 			require.NoError(t, err)
 
-			err = database.Queries.CreateSessionRevalidation(t.Context(), generated.CreateSessionRevalidationParams{
+			err = database.Queries.CreateSessionInvalidation(t.Context(), generated.CreateSessionInvalidationParams{
 				SessionIdentifier: bothSession,
 				Generation:        3,
 				ExpiresAt:         expiresAt,
@@ -658,16 +658,16 @@ func TestValidator(t *testing.T) {
 
 			// Verify cache states
 			assert.True(t, v.IsSessionRevoked(revokedSession))
-			assert.False(t, v.IsSessionRevalidated(revokedSession, 1))
+			assert.False(t, v.IsSessionInvalidated(revokedSession, 1))
 
-			assert.False(t, v.IsSessionRevoked(revalidatedSession))
-			assert.True(t, v.IsSessionRevalidated(revalidatedSession, 7))
+			assert.False(t, v.IsSessionRevoked(invalidatedSession))
+			assert.True(t, v.IsSessionInvalidated(invalidatedSession, 7))
 
 			assert.True(t, v.IsSessionRevoked(bothSession))
-			assert.True(t, v.IsSessionRevalidated(bothSession, 3))
+			assert.True(t, v.IsSessionInvalidated(bothSession, 3))
 
 			assert.False(t, v.IsSessionRevoked(neitherSession))
-			assert.False(t, v.IsSessionRevalidated(neitherSession, 1))
+			assert.False(t, v.IsSessionInvalidated(neitherSession, 1))
 		})
 	})
 
@@ -753,7 +753,7 @@ func TestValidator(t *testing.T) {
 			require.NoError(t, err)
 
 			_, err = database.DB.Exec(`
-				INSERT INTO session_revalidations (session_identifier, generation, expires_at, created_at)
+				INSERT INTO session_invalidations (session_identifier, generation, expires_at, created_at)
 				VALUES (?, 5, DATE_SUB(NOW(), INTERVAL 1 HOUR), CURRENT_TIMESTAMP)
 			`, expiredID2)
 			require.NoError(t, err)
@@ -771,7 +771,7 @@ func TestValidator(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, int64(1), deleted)
 
-			deleted, err = database.Queries.DeleteExpiredSessionRevalidations(t.Context())
+			deleted, err = database.Queries.DeleteExpiredSessionInvalidations(t.Context())
 			require.NoError(t, err)
 			assert.Equal(t, int64(1), deleted)
 
@@ -781,9 +781,9 @@ func TestValidator(t *testing.T) {
 			assert.Len(t, revocations, 1)
 			assert.Equal(t, activeID, revocations[0].SessionIdentifier)
 
-			revalidations, err := database.Queries.GetAllSessionRevalidations(t.Context())
+			invalidations, err := database.Queries.GetAllSessionInvalidations(t.Context())
 			require.NoError(t, err)
-			assert.Empty(t, revalidations)
+			assert.Empty(t, invalidations)
 		})
 	})
 
@@ -856,7 +856,7 @@ func TestValidator(t *testing.T) {
 
 			expiresAt := time.Now().Add(time.Minute).Truncate(time.Second)
 			sessionID := createTestSession(t, t.Context(), database, expiresAt)
-			err = database.Queries.CreateSessionRevalidation(t.Context(), generated.CreateSessionRevalidationParams{
+			err = database.Queries.CreateSessionInvalidation(t.Context(), generated.CreateSessionInvalidationParams{
 				SessionIdentifier: sessionID,
 				Generation:        0,
 				ExpiresAt:         expiresAt,
@@ -867,8 +867,8 @@ func TestValidator(t *testing.T) {
 			time.Sleep(time.Millisecond * 200)
 
 			// Generation 0 is cached
-			assert.True(t, v.IsSessionRevalidated(sessionID, 0))  // 0 >= 0
-			assert.False(t, v.IsSessionRevalidated(sessionID, 1)) // 0 >= 1 is false
+			assert.True(t, v.IsSessionInvalidated(sessionID, 0))  // 0 >= 0
+			assert.False(t, v.IsSessionInvalidated(sessionID, 1)) // 0 >= 1 is false
 		})
 
 		t.Run("MaxGeneration", func(t *testing.T) {
@@ -897,7 +897,7 @@ func TestValidator(t *testing.T) {
 			expiresAt := time.Now().Add(time.Minute).Truncate(time.Second)
 			sessionID := createTestSession(t, t.Context(), database, expiresAt)
 			maxGen := ^uint32(0) - 1 // Max uint32 - 1
-			err = database.Queries.CreateSessionRevalidation(t.Context(), generated.CreateSessionRevalidationParams{
+			err = database.Queries.CreateSessionInvalidation(t.Context(), generated.CreateSessionInvalidationParams{
 				SessionIdentifier: sessionID,
 				Generation:        maxGen,
 				ExpiresAt:         expiresAt,
@@ -908,9 +908,9 @@ func TestValidator(t *testing.T) {
 			time.Sleep(time.Millisecond * 200)
 
 			// maxGen is cached
-			assert.True(t, v.IsSessionRevalidated(sessionID, maxGen-1))  // maxGen >= maxGen-1
-			assert.True(t, v.IsSessionRevalidated(sessionID, maxGen))    // maxGen >= maxGen
-			assert.False(t, v.IsSessionRevalidated(sessionID, maxGen+1)) // maxGen >= maxGen+1 is false (overflow wraps to 0)
+			assert.True(t, v.IsSessionInvalidated(sessionID, maxGen-1))  // maxGen >= maxGen-1
+			assert.True(t, v.IsSessionInvalidated(sessionID, maxGen))    // maxGen >= maxGen
+			assert.False(t, v.IsSessionInvalidated(sessionID, maxGen+1)) // maxGen >= maxGen+1 is false (overflow wraps to 0)
 		})
 
 		t.Run("DuplicateEntries", func(t *testing.T) {
@@ -952,15 +952,15 @@ func TestValidator(t *testing.T) {
 			})
 			require.Error(t, err) // Should fail due to unique constraint
 
-			// Try to create duplicate revalidation with same generation (should fail)
-			err = database.Queries.CreateSessionRevalidation(t.Context(), generated.CreateSessionRevalidationParams{
+			// Try to create duplicate invalidation with same generation (should fail)
+			err = database.Queries.CreateSessionInvalidation(t.Context(), generated.CreateSessionInvalidationParams{
 				SessionIdentifier: sessionID,
 				Generation:        5,
 				ExpiresAt:         expiresAt,
 			})
 			require.NoError(t, err)
 
-			err = database.Queries.CreateSessionRevalidation(t.Context(), generated.CreateSessionRevalidationParams{
+			err = database.Queries.CreateSessionInvalidation(t.Context(), generated.CreateSessionInvalidationParams{
 				SessionIdentifier: sessionID,
 				Generation:        5, // Same generation
 				ExpiresAt:         expiresAt.Add(time.Hour),
@@ -968,7 +968,7 @@ func TestValidator(t *testing.T) {
 			require.Error(t, err) // Should fail due to primary key constraint
 
 			// Different generation should work
-			err = database.Queries.CreateSessionRevalidation(t.Context(), generated.CreateSessionRevalidationParams{
+			err = database.Queries.CreateSessionInvalidation(t.Context(), generated.CreateSessionInvalidationParams{
 				SessionIdentifier: sessionID,
 				Generation:        6, // Different generation
 				ExpiresAt:         expiresAt,
@@ -1007,9 +1007,9 @@ func TestValidator(t *testing.T) {
 			expiresAt := time.Now().Add(time.Minute).Truncate(time.Second)
 
 			for i := 0; i < sessionCount; i++ {
-				// Create sessions for revalidation tests, use UUID for revocation-only
+				// Create sessions for invalidation tests, use UUID for revocation-only
 				if i%3 == 0 {
-					// Will need revalidation - must be in sessions table
+					// Will need invalidation - must be in sessions table
 					sessions[i] = createTestSession(t, t.Context(), database, expiresAt)
 				} else {
 					// Only for revocation - doesn't need to be in sessions table
@@ -1025,8 +1025,8 @@ func TestValidator(t *testing.T) {
 					require.NoError(t, err)
 				}
 				if i%3 == 0 {
-					// Divisible by 3: revalidated (session already created above)
-					err = database.Queries.CreateSessionRevalidation(t.Context(), generated.CreateSessionRevalidationParams{
+					// Divisible by 3: invalidated (session already created above)
+					err = database.Queries.CreateSessionInvalidation(t.Context(), generated.CreateSessionInvalidationParams{
 						SessionIdentifier: sessions[i],
 						Generation:        uint32(i),
 						ExpiresAt:         expiresAt,
@@ -1045,7 +1045,7 @@ func TestValidator(t *testing.T) {
 					for j := 0; j < 1000; j++ {
 						idx := j % sessionCount
 						v.IsSessionRevoked(sessions[idx])
-						v.IsSessionRevalidated(sessions[idx], uint32(idx))
+						v.IsSessionInvalidated(sessions[idx], uint32(idx))
 					}
 					done <- true
 				}()
@@ -1064,9 +1064,9 @@ func TestValidator(t *testing.T) {
 					assert.False(t, v.IsSessionRevoked(sessions[i]))
 				}
 				if i%3 == 0 {
-					assert.True(t, v.IsSessionRevalidated(sessions[i], uint32(i)))
+					assert.True(t, v.IsSessionInvalidated(sessions[i], uint32(i)))
 				} else {
-					assert.False(t, v.IsSessionRevalidated(sessions[i], uint32(i)))
+					assert.False(t, v.IsSessionInvalidated(sessions[i], uint32(i)))
 				}
 			}
 		})
@@ -1103,10 +1103,10 @@ func TestValidatorIntegration(t *testing.T) {
 
 		// Phase 1: Session is active (not in any cache)
 		assert.False(t, v.IsSessionRevoked(sessionID))
-		assert.False(t, v.IsSessionRevalidated(sessionID, 1))
+		assert.False(t, v.IsSessionInvalidated(sessionID, 1))
 
-		// Phase 2: Session needs revalidation (generation 3)
-		err = database.Queries.CreateSessionRevalidation(t.Context(), generated.CreateSessionRevalidationParams{
+		// Phase 2: Session needs invalidation (generation 3)
+		err = database.Queries.CreateSessionInvalidation(t.Context(), generated.CreateSessionInvalidationParams{
 			SessionIdentifier: sessionID,
 			Generation:        3,
 			ExpiresAt:         expiresAt,
@@ -1117,9 +1117,9 @@ func TestValidatorIntegration(t *testing.T) {
 		time.Sleep(time.Millisecond * 200)
 
 		assert.False(t, v.IsSessionRevoked(sessionID))
-		assert.True(t, v.IsSessionRevalidated(sessionID, 2))  // 3 >= 2
-		assert.True(t, v.IsSessionRevalidated(sessionID, 3))  // 3 >= 3
-		assert.False(t, v.IsSessionRevalidated(sessionID, 4)) // 3 >= 4 is false
+		assert.True(t, v.IsSessionInvalidated(sessionID, 2))  // 3 >= 2
+		assert.True(t, v.IsSessionInvalidated(sessionID, 3))  // 3 >= 3
+		assert.False(t, v.IsSessionInvalidated(sessionID, 4)) // 3 >= 4 is false
 
 		// Phase 3: Session is revoked
 		err = database.Queries.CreateSessionRevocation(t.Context(), generated.CreateSessionRevocationParams{
@@ -1132,14 +1132,14 @@ func TestValidatorIntegration(t *testing.T) {
 		time.Sleep(time.Millisecond * 200)
 
 		assert.True(t, v.IsSessionRevoked(sessionID))
-		assert.True(t, v.IsSessionRevalidated(sessionID, 3)) // Still in revalidation cache
+		assert.True(t, v.IsSessionInvalidated(sessionID, 3)) // Still in invalidation cache
 
 		// Phase 4: Wait for expiry (can't avoid this wait)
 		time.Sleep(time.Second * 10)
 
 		// Both caches should be cleared
 		assert.False(t, v.IsSessionRevoked(sessionID))
-		assert.False(t, v.IsSessionRevalidated(sessionID, 3))
+		assert.False(t, v.IsSessionInvalidated(sessionID, 3))
 	})
 
 	t.Run("RealWorldScenario", func(t *testing.T) {
@@ -1172,7 +1172,7 @@ func TestValidatorIntegration(t *testing.T) {
 
 		activeSession := createTestSession(t, t.Context(), database, longExpiry)
 		revokedSession := createTestSession(t, t.Context(), database, longExpiry)
-		outdatedSession := createTestSession(t, t.Context(), database, longExpiry) // Needs revalidation
+		outdatedSession := createTestSession(t, t.Context(), database, longExpiry) // Needs invalidation
 		expiredSession := createTestSession(t, t.Context(), database, shortExpiry)
 
 		// Setup revoked session
@@ -1182,8 +1182,8 @@ func TestValidatorIntegration(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		// Setup outdated session (needs revalidation)
-		err = database.Queries.CreateSessionRevalidation(t.Context(), generated.CreateSessionRevalidationParams{
+		// Setup outdated session (needs invalidation)
+		err = database.Queries.CreateSessionInvalidation(t.Context(), generated.CreateSessionInvalidationParams{
 			SessionIdentifier: outdatedSession,
 			Generation:        10,
 			ExpiresAt:         longExpiry,
@@ -1199,7 +1199,7 @@ func TestValidatorIntegration(t *testing.T) {
 
 		// Force cache refresh
 		v.sessionRevocationsRefresh()
-		v.sessionRevalidationsRefresh()
+		v.sessionInvalidationsRefresh()
 
 		// Verify states
 		assert.False(t, v.IsSessionRevoked(activeSession))
@@ -1207,12 +1207,12 @@ func TestValidatorIntegration(t *testing.T) {
 		assert.False(t, v.IsSessionRevoked(outdatedSession))
 		assert.True(t, v.IsSessionRevoked(expiredSession))
 
-		assert.False(t, v.IsSessionRevalidated(activeSession, 1))
-		assert.False(t, v.IsSessionRevalidated(revokedSession, 1))
-		assert.True(t, v.IsSessionRevalidated(outdatedSession, 9))   // 10 >= 9
-		assert.True(t, v.IsSessionRevalidated(outdatedSession, 10))  // 10 >= 10
-		assert.False(t, v.IsSessionRevalidated(outdatedSession, 11)) // 10 >= 11 is false
-		assert.False(t, v.IsSessionRevalidated(expiredSession, 1))
+		assert.False(t, v.IsSessionInvalidated(activeSession, 1))
+		assert.False(t, v.IsSessionInvalidated(revokedSession, 1))
+		assert.True(t, v.IsSessionInvalidated(outdatedSession, 9))   // 10 >= 9
+		assert.True(t, v.IsSessionInvalidated(outdatedSession, 10))  // 10 >= 10
+		assert.False(t, v.IsSessionInvalidated(outdatedSession, 11)) // 10 >= 11 is false
+		assert.False(t, v.IsSessionInvalidated(expiredSession, 1))
 
 		// Wait for short expiry to pass (can't avoid this wait)
 		time.Sleep(time.Second * 2)

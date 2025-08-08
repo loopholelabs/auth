@@ -39,11 +39,11 @@ libraries, ensuring no service directly accesses the authentication database.
 - **Fixed Bindings**: All credentials are permanently bound to one `organization_identifier` and one `user_identifier`at
   creation (enforced by foreign keys)
 - **No Migration**: Credentials cannot be moved between organizations or users
-- **Revalidation over Mutation**: Changes trigger revalidation (new token generation) rather than modification
+- **Invalidation over Mutation**: Changes trigger invalidation (new token generation) rather than modification
 
 #### 1.2.4 Efficient Validation Through Caching
 
-- **In-Memory Lookups**: Validators cache revocation and revalidation data locally
+- **In-Memory Lookups**: Validators cache revocation and invalidation data locally
 - **Periodic Polling**: Configurable refresh cycle balances freshness with database load
 - **Silent Rotation**: Generation mismatches trigger automatic token refresh without failing requests
 - **Zero-Downtime Updates**: Role changes and permission updates apply within a configurable amount of time
@@ -224,7 +224,7 @@ Three tables with identical structure:
 - `identifier` (CHAR(36) PK): Session ID embedded in JWT
 - `organization_identifier` (CHAR(36) FK): Fixed organization binding
 - `user_identifier` (CHAR(36) FK): Fixed user binding
-- `last_generation` (INT): Current generation number for revalidation
+- `last_generation` (INT): Current generation number for invalidation
 - `expires_at` (DATETIME): Hard expiration time
 - `created_at` (DATETIME): Session creation time
 
@@ -254,7 +254,7 @@ Three tables with identical structure:
 - Records can be deleted after session natural expiration
 - Expiry computed as: related session's `expires_at` + 24 hours (grace period)
 
-#### 2.3.3 Session Revalidations
+#### 2.3.3 Session Invalidations
 
 **Purpose**: Track generation changes requiring token refresh.
 
@@ -262,13 +262,13 @@ Three tables with identical structure:
 
 - `session_identifier` (CHAR(36) FK): Session needing refresh
 - `generation` (INT): New generation number
-- `created_at` (DATETIME): When revalidation was triggered
+- `created_at` (DATETIME): When invalidation was triggered
 
 **Primary Key**: `(session_identifier, generation)` - supports multiple generation updates
 
 **Business Rules**:
 
-- Validators poll this table every `revalidation_poll_seconds` (typically 60 seconds)
+- Validators poll this table every `invalidation_poll_seconds` (typically 60 seconds)
 - Validator caches `session_identifier -> latest_generation` mapping in memory
 - When validator detects generation mismatch (JWT generation < cached generation):
     - Silently calls `/v1/sessions/refresh` on behalf of the user
@@ -276,7 +276,7 @@ Three tables with identical structure:
     - Proceeds with the API call using the new session context (updated role, permissions)
 - Client libraries should transparently handle session rotation
 - Records expire when related session expires
-- Multiple generations can be revalidated concurrently
+- Multiple generations can be invalidated concurrently
 
 #### 2.3.4 API Keys
 
@@ -699,7 +699,7 @@ Authorization: Bearer [session_jwt]
 
 - Only 'owner' can change roles
 - Cannot remove last 'owner'
-- Role changes trigger session revalidation
+- Role changes trigger session invalidation
 
 #### 4.3.3 Remove Member
 
@@ -954,7 +954,7 @@ class ValidatorCache:
         # Fetch all revoked sessions
         self.revoked_sessions = fetch_revoked_session_ids()
         
-        # Fetch all sessions needing revalidation
+        # Fetch all sessions needing invalidation
         self.session_generations = fetch_session_latest_generations()
         
         # Check configuration version
@@ -989,7 +989,7 @@ def make_api_call(endpoint, token):
 
 Validators use two different polling intervals:
 
-- **Revocation/Revalidation Poll**: Every <configurable> seconds (high priority)
+- **Revocation/Invalidation Poll**: Every <configurable> seconds (high priority)
     - Fetches revoked session IDs
     - Fetches session generation updates
 - **Configuration Poll**: Every <configurable> seconds (low priority)
@@ -1009,7 +1009,7 @@ Authorization: Bearer [admin_session]
 2. Update configuration table with new keys
 3. Increment `config_version`
 4. Keep old public key for grace period
-5. Trigger session revalidation for all active sessions
+5. Trigger session invalidation for all active sessions
 
 #### 5.5.2 Validator Response
 
