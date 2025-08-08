@@ -179,9 +179,6 @@ func TestConnectionPoolSettings(t *testing.T) {
 	stats := db.DB.Stats()
 	require.Equal(t, 25, stats.MaxOpenConnections)
 
-	// Note: MaxIdleConns is not directly accessible via Stats(), but we can verify it was set
-	// by checking that the pool doesn't error when we try to use it
-
 	// Clean up
 	err = db.Close()
 	require.NoError(t, err)

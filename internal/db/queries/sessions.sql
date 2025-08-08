@@ -3,6 +3,16 @@ INSERT INTO sessions (identifier, organization_identifier, user_identifier, last
 VALUES (sqlc.arg(identifier), sqlc.arg(organization_identifier), sqlc.arg(user_identifier), sqlc.arg(last_generation),
         sqlc.arg(expires_at), CURRENT_TIMESTAMP);
 
+-- name: UpdateSessionExpiryByIdentifier :exec
+UPDATE sessions
+SET expires_at = sqlc.arg(expires_at)
+WHERE identifier = sqlc.arg(identifier);
+
+-- name: UpdateSessionLastGenerationByIdentifier :exec
+UPDATE sessions
+SET last_generation = sqlc.arg(last_generation)
+WHERE identifier = sqlc.arg(identifier);
+
 -- name: GetSessionByIdentifier :one
 SELECT *
 FROM sessions

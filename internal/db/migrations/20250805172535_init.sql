@@ -55,7 +55,6 @@ CREATE TABLE identities
 -- ------------------------------------------------------------------
 CREATE TABLE memberships
 (
-    identifier              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     user_identifier         CHAR(36)    NOT NULL,
     organization_identifier CHAR(36)    NOT NULL,
     role                    VARCHAR(64) NOT NULL,
@@ -73,7 +72,7 @@ CREATE TABLE memberships
             ON DELETE CASCADE
             ON UPDATE CASCADE,
 
-    UNIQUE KEY memberships_index (user_identifier, organization_identifier)
+    PRIMARY KEY memberships_index (user_identifier, organization_identifier)
 );
 
 -- ------------------------------------------------------------------

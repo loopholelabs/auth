@@ -32,11 +32,13 @@ const (
 )
 
 var (
-	ErrCreatingManager = errors.New("error creating manager")
-	ErrDBIsRequired    = errors.New("db is required")
-	ErrCreatingSession = errors.New("error creating session")
-	ErrInvalidProvider = errors.New("invalid provider")
-	ErrInvalidFlowData = errors.New("invalid flow data")
+	ErrCreatingManager  = errors.New("error creating manager")
+	ErrDBIsRequired     = errors.New("db is required")
+	ErrCreatingSession  = errors.New("error creating session")
+	ErrUpdatingSession  = errors.New("error updating session")
+	ErrInvalidProvider  = errors.New("invalid provider")
+	ErrInvalidFlowData  = errors.New("invalid flow data")
+	ErrSessionIsExpired = errors.New("session is expired")
 )
 
 type GithubOptions struct {
@@ -159,6 +161,7 @@ func New(options Options, db *db.DB, logger types.Logger) (*Manager, error) {
 		}
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
 	m := &Manager{
 		logger:        logger,
 		db:            db,
@@ -167,6 +170,8 @@ func New(options Options, db *db.DB, logger types.Logger) (*Manager, error) {
 		google:        gg,
 		magic:         mg,
 		mailer:        ml,
+		ctx:           ctx,
+		cancel:        cancel,
 	}
 
 	m.wg.Add(1)
@@ -195,16 +200,16 @@ func (m *Manager) Configuration() *configuration.Configuration {
 	return m.configuration
 }
 
-func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider flow.Provider) (*Session, error) {
+func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider flow.Provider) (Session, error) {
 	if data.ProviderIdentifier == "" {
-		return nil, errors.Join(ErrCreatingSession, ErrInvalidFlowData)
+		return Session{}, errors.Join(ErrCreatingSession, ErrInvalidFlowData)
 	}
 	if len(data.VerifiedEmails) < 1 {
-		return nil, errors.Join(ErrCreatingSession, ErrInvalidFlowData)
+		return Session{}, errors.Join(ErrCreatingSession, ErrInvalidFlowData)
 	}
 	verifiedEmails, err := json.Marshal(data.VerifiedEmails)
 	if err != nil {
-		return nil, errors.Join(ErrCreatingSession, err)
+		return Session{}, errors.Join(ErrCreatingSession, err)
 	}
 	params := generated.GetIdentityByProviderAndProviderIdentifierParams{
 		ProviderIdentifier: data.ProviderIdentifier,
@@ -217,12 +222,12 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 	case flow.MagicProvider:
 		params.Provider = generated.IdentitiesProviderMAGIC
 	default:
-		return nil, errors.Join(ErrCreatingSession, ErrInvalidProvider)
+		return Session{}, errors.Join(ErrCreatingSession, ErrInvalidProvider)
 	}
 
 	tx, err := m.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
-		return nil, errors.Join(ErrCreatingSession, err)
+		return Session{}, errors.Join(ErrCreatingSession, err)
 	}
 
 	defer func() {
@@ -237,7 +242,7 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 	providerIdentity, err := qtx.GetIdentityByProviderAndProviderIdentifier(ctx, params)
 	if err != nil {
 		if !errors.Is(err, sql.ErrNoRows) {
-			return nil, errors.Join(ErrCreatingSession, err)
+			return Session{}, errors.Join(ErrCreatingSession, err)
 		}
 		// This identity doesn't exist, we need to create it
 		if data.UserIdentifier == "" {
@@ -253,7 +258,7 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 				IsDefault:  true,
 			})
 			if err != nil {
-				return nil, errors.Join(ErrCreatingSession, err)
+				return Session{}, errors.Join(ErrCreatingSession, err)
 			}
 			userIdentifier := uuid.New().String()
 			err = qtx.CreateUser(ctx, generated.CreateUserParams{
@@ -263,7 +268,7 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 				DefaultOrganizationIdentifier: organizationIdentifier,
 			})
 			if err != nil {
-				return nil, errors.Join(ErrCreatingSession, err)
+				return Session{}, errors.Join(ErrCreatingSession, err)
 			}
 			data.UserIdentifier = userIdentifier
 		}
@@ -275,23 +280,23 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 			VerifiedEmails:     verifiedEmails,
 		})
 		if err != nil {
-			return nil, errors.Join(ErrCreatingSession, err)
+			return Session{}, errors.Join(ErrCreatingSession, err)
 		}
 
 		providerIdentity, err = qtx.GetIdentityByProviderAndProviderIdentifier(ctx, params)
 		if err != nil {
-			return nil, errors.Join(ErrCreatingSession, err)
+			return Session{}, errors.Join(ErrCreatingSession, err)
 		}
 	}
 
 	user, err := qtx.GetUserByIdentifier(ctx, providerIdentity.UserIdentifier)
 	if err != nil {
-		return nil, errors.Join(ErrCreatingSession, err)
+		return Session{}, errors.Join(ErrCreatingSession, err)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return nil, errors.Join(ErrCreatingSession, err)
+		return Session{}, errors.Join(ErrCreatingSession, err)
 	}
 
 	sessionIdentifier := uuid.New().String()
@@ -303,18 +308,19 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 		ExpiresAt:              time.Now().Add(m.configuration.SessionExpiry()),
 	})
 	if err != nil {
-		return nil, errors.Join(ErrCreatingSession, err)
+		return Session{}, errors.Join(ErrCreatingSession, err)
 	}
 
 	session, err := m.db.Queries.GetSessionByIdentifier(ctx, sessionIdentifier)
 	if err != nil {
-		return nil, errors.Join(ErrCreatingSession, err)
+		return Session{}, errors.Join(ErrCreatingSession, err)
 	}
 
-	return &Session{
+	return Session{
 		Identifier: sessionIdentifier,
 		OrganizationInfo: OrganizationInfo{
 			Identifier: session.OrganizationIdentifier,
+			IsDefault:  true,
 			Role:       role.OwnerRole.String(),
 		},
 		UserInfo: UserInfo{
@@ -325,6 +331,75 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 		Generation: session.LastGeneration,
 		ExpiresAt:  session.ExpiresAt,
 	}, nil
+}
+
+func (m *Manager) RefreshSession(ctx context.Context, session Session) (Session, error) {
+	if session.ExpiresAt.Before(time.Now()) {
+		return Session{}, errors.Join(ErrUpdatingSession, ErrSessionIsExpired)
+	}
+
+	tx, err := m.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return Session{}, errors.Join(ErrUpdatingSession, err)
+	}
+
+	defer func() {
+		err := tx.Rollback()
+		if err != nil && !errors.Is(err, sql.ErrTxDone) {
+			m.logger.Error().Err(err).Str("session", session.Identifier).Msg("failed to rollback transaction")
+		}
+	}()
+
+	qtx := m.db.Queries.WithTx(tx)
+
+	s, err := qtx.GetSessionByIdentifier(ctx, session.Identifier)
+	if err != nil {
+		return Session{}, errors.Join(ErrUpdatingSession, err)
+	}
+
+	if s.LastGeneration != session.Generation {
+		session.Generation = s.LastGeneration
+
+		user, err := qtx.GetUserByIdentifier(ctx, session.UserInfo.Identifier)
+		if err != nil {
+			return Session{}, errors.Join(ErrUpdatingSession, err)
+		}
+
+		session.UserInfo.Name = user.Name
+		session.UserInfo.Email = user.PrimaryEmail
+
+		if session.OrganizationInfo.IsDefault {
+			// Not a default org, need to get the membership for updated role
+			membership, err := qtx.GetMembershipByUserIdentifierAndOrganizationIdentifier(ctx, generated.GetMembershipByUserIdentifierAndOrganizationIdentifierParams{
+				UserIdentifier:         session.UserInfo.Identifier,
+				OrganizationIdentifier: session.OrganizationInfo.Identifier,
+			})
+			if err != nil {
+				return Session{}, errors.Join(ErrUpdatingSession, err)
+			}
+			session.OrganizationInfo.Role = membership.Role
+		}
+	}
+
+	session.ExpiresAt = time.Now().Add(m.configuration.SessionExpiry())
+	if session.ExpiresAt.After(s.ExpiresAt) {
+		err = qtx.UpdateSessionExpiryByIdentifier(ctx, generated.UpdateSessionExpiryByIdentifierParams{
+			ExpiresAt:  session.ExpiresAt,
+			Identifier: session.Identifier,
+		})
+		if err != nil {
+			return Session{}, errors.Join(ErrUpdatingSession, err)
+		}
+	} else {
+		session.ExpiresAt = s.ExpiresAt
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return Session{}, errors.Join(ErrUpdatingSession, err)
+	}
+
+	return session, nil
 }
 
 func (m *Manager) Close() error {

@@ -68,3 +68,35 @@ func (q *Queries) GetSessionByIdentifier(ctx context.Context, identifier string)
 	)
 	return i, err
 }
+
+const updateSessionExpiryByIdentifier = `-- name: UpdateSessionExpiryByIdentifier :exec
+UPDATE sessions
+SET expires_at = ?
+WHERE identifier = ?
+`
+
+type UpdateSessionExpiryByIdentifierParams struct {
+	ExpiresAt  time.Time
+	Identifier string
+}
+
+func (q *Queries) UpdateSessionExpiryByIdentifier(ctx context.Context, arg UpdateSessionExpiryByIdentifierParams) error {
+	_, err := q.db.ExecContext(ctx, updateSessionExpiryByIdentifier, arg.ExpiresAt, arg.Identifier)
+	return err
+}
+
+const updateSessionLastGenerationByIdentifier = `-- name: UpdateSessionLastGenerationByIdentifier :exec
+UPDATE sessions
+SET last_generation = ?
+WHERE identifier = ?
+`
+
+type UpdateSessionLastGenerationByIdentifierParams struct {
+	LastGeneration uint32
+	Identifier     string
+}
+
+func (q *Queries) UpdateSessionLastGenerationByIdentifier(ctx context.Context, arg UpdateSessionLastGenerationByIdentifierParams) error {
+	_, err := q.db.ExecContext(ctx, updateSessionLastGenerationByIdentifier, arg.LastGeneration, arg.Identifier)
+	return err
+}
