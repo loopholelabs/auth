@@ -183,14 +183,14 @@ func (q *Queries) DeleteGithubOAuthFlowByIdentifier(ctx context.Context, identif
 	return err
 }
 
-const deleteGithubOAuthFlowsBeforeTime = `-- name: DeleteGithubOAuthFlowsBeforeTime :execrows
+const deleteGithubOAuthFlowsBeforeCreatedAt = `-- name: DeleteGithubOAuthFlowsBeforeCreatedAt :execrows
 DELETE
 FROM github_oauth_flows
 WHERE created_at < ?
 `
 
-func (q *Queries) DeleteGithubOAuthFlowsBeforeTime(ctx context.Context, createdAt time.Time) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deleteGithubOAuthFlowsBeforeTime, createdAt)
+func (q *Queries) DeleteGithubOAuthFlowsBeforeCreatedAt(ctx context.Context, createdAt time.Time) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteGithubOAuthFlowsBeforeCreatedAt, createdAt)
 	if err != nil {
 		return 0, err
 	}
@@ -208,14 +208,14 @@ func (q *Queries) DeleteGoogleOAuthFlowByIdentifier(ctx context.Context, identif
 	return err
 }
 
-const deleteGoogleOAuthFlowsBeforeTime = `-- name: DeleteGoogleOAuthFlowsBeforeTime :execrows
+const deleteGoogleOAuthFlowsBeforeCreatedAt = `-- name: DeleteGoogleOAuthFlowsBeforeCreatedAt :execrows
 DELETE
 FROM google_oauth_flows
 WHERE created_at < ?
 `
 
-func (q *Queries) DeleteGoogleOAuthFlowsBeforeTime(ctx context.Context, createdAt time.Time) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deleteGoogleOAuthFlowsBeforeTime, createdAt)
+func (q *Queries) DeleteGoogleOAuthFlowsBeforeCreatedAt(ctx context.Context, createdAt time.Time) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteGoogleOAuthFlowsBeforeCreatedAt, createdAt)
 	if err != nil {
 		return 0, err
 	}
@@ -233,14 +233,14 @@ func (q *Queries) DeleteMagicLinkFlowByIdentifier(ctx context.Context, identifie
 	return err
 }
 
-const deleteMagicLinkFlowsBeforeTime = `-- name: DeleteMagicLinkFlowsBeforeTime :execrows
+const deleteMagicLinkFlowsBeforeCreatedAt = `-- name: DeleteMagicLinkFlowsBeforeCreatedAt :execrows
 DELETE
 FROM magic_link_flows
 WHERE created_at < ?
 `
 
-func (q *Queries) DeleteMagicLinkFlowsBeforeTime(ctx context.Context, createdAt time.Time) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deleteMagicLinkFlowsBeforeTime, createdAt)
+func (q *Queries) DeleteMagicLinkFlowsBeforeCreatedAt(ctx context.Context, createdAt time.Time) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteMagicLinkFlowsBeforeCreatedAt, createdAt)
 	if err != nil {
 		return 0, err
 	}

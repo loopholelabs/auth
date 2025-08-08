@@ -180,7 +180,7 @@ func (c *Magic) CompleteFlow(ctx context.Context, token string) (*flow.Data, err
 func (c *Magic) gc() (int64, error) {
 	ctx, cancel := context.WithTimeout(c.ctx, Timeout)
 	defer cancel()
-	return c.db.Queries.DeleteMagicLinkFlowsBeforeTime(ctx, now().Add(-Expiry))
+	return c.db.Queries.DeleteMagicLinkFlowsBeforeCreatedAt(ctx, now().Add(-Expiry))
 }
 
 func (c *Magic) doGC() {
