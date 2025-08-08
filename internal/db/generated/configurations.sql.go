@@ -52,7 +52,10 @@ func (q *Queries) GetConfigurationByKey(ctx context.Context, configurationKey st
 
 const setConfiguration = `-- name: SetConfiguration :exec
 INSERT INTO configurations (configuration_key, configuration_value, updated_at)
-VALUES (?, ?, CURRENT_TIMESTAMP)
+VALUES (?, ?, CURRENT_TIMESTAMP) ON DUPLICATE KEY
+UPDATE
+    configuration_value =
+VALUES (configuration_value), updated_at = CURRENT_TIMESTAMP
 `
 
 type SetConfigurationParams struct {
