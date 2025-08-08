@@ -131,13 +131,7 @@ CREATE TABLE session_revocations
 (
     session_identifier CHAR(36) PRIMARY KEY,
     expires_at         DATETIME NOT NULL,
-    created_at         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT fk_session_revocations_session_identifier_sessions
-        FOREIGN KEY (session_identifier)
-            REFERENCES sessions (identifier)
-            ON DELETE CASCADE
-            ON UPDATE CASCADE
+    created_at         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE session_revalidations
