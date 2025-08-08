@@ -16,6 +16,7 @@ import (
 	"github.com/loopholelabs/auth/internal/db"
 	"github.com/loopholelabs/auth/internal/db/generated"
 	"github.com/loopholelabs/auth/internal/testutils"
+	"github.com/loopholelabs/auth/pkg/manager/configuration"
 	"github.com/loopholelabs/auth/pkg/manager/flow"
 )
 
@@ -30,7 +31,12 @@ func TestNew(t *testing.T) {
 	})
 
 	t.Run("BasicManager", func(t *testing.T) {
-		opts := Options{}
+		opts := Options{
+			Configuration: configuration.Options{
+				PollInterval:  time.Minute,
+				SessionExpiry: time.Minute,
+			},
+		}
 		m, err := New(opts, database, logger)
 		require.NoError(t, err)
 		require.NotNil(t, m)
@@ -41,6 +47,10 @@ func TestNew(t *testing.T) {
 
 	t.Run("WithGithub", func(t *testing.T) {
 		opts := Options{
+			Configuration: configuration.Options{
+				PollInterval:  time.Minute,
+				SessionExpiry: time.Minute,
+			},
 			Github: GithubOptions{
 				Enabled:      true,
 				RedirectURL:  "http://localhost:8080/callback",
@@ -58,6 +68,10 @@ func TestNew(t *testing.T) {
 
 	t.Run("WithGoogle", func(t *testing.T) {
 		opts := Options{
+			Configuration: configuration.Options{
+				PollInterval:  time.Minute,
+				SessionExpiry: time.Minute,
+			},
 			Google: GoogleOptions{
 				Enabled:      true,
 				RedirectURL:  "http://localhost:8080/callback",
@@ -75,6 +89,10 @@ func TestNew(t *testing.T) {
 
 	t.Run("WithMagic", func(t *testing.T) {
 		opts := Options{
+			Configuration: configuration.Options{
+				PollInterval:  time.Minute,
+				SessionExpiry: time.Minute,
+			},
 			Magic: MagicOptions{
 				Enabled: true,
 			},
@@ -89,6 +107,10 @@ func TestNew(t *testing.T) {
 
 	t.Run("WithAllProviders", func(t *testing.T) {
 		opts := Options{
+			Configuration: configuration.Options{
+				PollInterval:  time.Minute,
+				SessionExpiry: time.Minute,
+			},
 			Github: GithubOptions{
 				Enabled:      true,
 				RedirectURL:  "http://localhost:8080/callback",
@@ -126,6 +148,10 @@ func TestCreateSession(t *testing.T) {
 
 	// Create manager with all providers enabled
 	opts := Options{
+		Configuration: configuration.Options{
+			PollInterval:  time.Minute,
+			SessionExpiry: time.Minute,
+		},
 		Github: GithubOptions{
 			Enabled:      true,
 			RedirectURL:  "http://localhost:8080/callback",
@@ -430,10 +456,10 @@ func TestCreateSession(t *testing.T) {
 		require.NoError(t, err)
 		afterCreate := time.Now()
 
-		// Session should expire 30 minutes from creation
-		expectedExpiry := beforeCreate.Add(30 * time.Minute)
+		// Session should expire after the session expiration time
+		expectedExpiry := beforeCreate.Add(m.Configuration().SessionExpiry())
 		require.True(t, session.ExpiresAt.After(expectedExpiry.Add(-1*time.Second)))
-		require.True(t, session.ExpiresAt.Before(afterCreate.Add(30*time.Minute).Add(1*time.Second)))
+		require.True(t, session.ExpiresAt.Before(afterCreate.Add(m.Configuration().SessionExpiry()).Add(1*time.Second)))
 	})
 
 	t.Run("ConcurrentSessionCreation", func(t *testing.T) {
@@ -610,6 +636,10 @@ func TestCreateSessionEdgeCases(t *testing.T) {
 	})
 
 	opts := Options{
+		Configuration: configuration.Options{
+			PollInterval:  time.Minute,
+			SessionExpiry: time.Minute,
+		},
 		Magic: MagicOptions{
 			Enabled: true,
 		},
@@ -692,7 +722,13 @@ func TestCreateSessionValidation(t *testing.T) {
 			require.NoError(t, database.Close())
 		})
 
-		opts := Options{Magic: MagicOptions{Enabled: true}}
+		opts := Options{
+			Configuration: configuration.Options{
+				PollInterval:  time.Minute,
+				SessionExpiry: time.Minute,
+			},
+			Magic: MagicOptions{Enabled: true},
+		}
 		m, err := New(opts, database, logger)
 		require.NoError(t, err)
 
@@ -718,7 +754,13 @@ func TestCreateSessionValidation(t *testing.T) {
 			require.NoError(t, database.Close())
 		})
 
-		opts := Options{Magic: MagicOptions{Enabled: true}}
+		opts := Options{
+			Configuration: configuration.Options{
+				PollInterval:  time.Minute,
+				SessionExpiry: time.Minute,
+			},
+			Magic: MagicOptions{Enabled: true},
+		}
 		m, err := New(opts, database, logger)
 		require.NoError(t, err)
 
@@ -756,7 +798,13 @@ func TestCreateSessionValidation(t *testing.T) {
 			require.NoError(t, database.Close())
 		})
 
-		opts := Options{Magic: MagicOptions{Enabled: true}}
+		opts := Options{
+			Configuration: configuration.Options{
+				PollInterval:  time.Minute,
+				SessionExpiry: time.Minute,
+			},
+			Magic: MagicOptions{Enabled: true},
+		}
 		m, err := New(opts, database, logger)
 		require.NoError(t, err)
 

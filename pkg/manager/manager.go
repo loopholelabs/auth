@@ -186,6 +186,14 @@ func (m *Manager) Magic() *magic.Magic {
 	return m.magic
 }
 
+func (m *Manager) Mailer() mailer.Mailer {
+	return m.mailer
+}
+
+func (m *Manager) Configuration() *configuration.Configuration {
+	return m.configuration
+}
+
 func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider flow.Provider) (*Session, error) {
 	if data.ProviderIdentifier == "" {
 		return nil, errors.Join(ErrCreatingSession, ErrInvalidFlowData)
