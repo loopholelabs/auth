@@ -371,7 +371,7 @@ func (m *Manager) RefreshSession(ctx context.Context, session Session) (Session,
 		session.UserInfo.Name = user.Name
 		session.UserInfo.Email = user.PrimaryEmail
 
-		if session.OrganizationInfo.IsDefault {
+		if !session.OrganizationInfo.IsDefault {
 			// Not a default org, need to get the membership for updated role
 			membership, err := qtx.GetMembershipByUserIdentifierAndOrganizationIdentifier(ctx, generated.GetMembershipByUserIdentifierAndOrganizationIdentifierParams{
 				UserIdentifier:         session.UserInfo.Identifier,
