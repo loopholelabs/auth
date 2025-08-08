@@ -427,7 +427,7 @@ func (m *Manager) RevokeSession(ctx context.Context, identifier string) error {
 
 	qtx := m.db.Queries.WithTx(tx)
 
-	session, err := m.db.Queries.GetSessionByIdentifier(ctx, identifier)
+	session, err := qtx.GetSessionByIdentifier(ctx, identifier)
 	if err != nil {
 		return errors.Join(ErrRevokingSession, err)
 	}
