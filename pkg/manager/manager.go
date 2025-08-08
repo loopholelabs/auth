@@ -27,7 +27,8 @@ import (
 )
 
 const (
-	Timeout = time.Second * 30
+	Timeout    = time.Second * 30
+	GCInterval = time.Minute
 )
 
 var (
@@ -168,8 +169,8 @@ func New(options Options, db *db.DB, logger types.Logger) (*Manager, error) {
 		mailer:        ml,
 	}
 
-	// m.wg.Add(1)
-	// go m.doGC()
+	m.wg.Add(1)
+	go m.doGC()
 
 	return m, nil
 }
@@ -326,26 +327,59 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 	}, nil
 }
 
-// func (c *Manager) gc() (int64, error) {
-//	ctx, cancel := context.WithTimeout(c.ctx, Timeout)
-//	defer cancel()
-//	return c.db.Queries.DeleteGithubOAuthFlowsBeforeTime(ctx, now().Add(-Expiry))
-//}
-//
-// func (c *Manager) doGC() {
-//	defer c.wg.Done()
-//	for {
-//		select {
-//		case <-c.ctx.Done():
-//			c.logger.Info().Msg("GC Stopped")
-//			return
-//		case <-time.After(GCInterval):
-//			deleted, err := c.gc()
-//			if err != nil {
-//				c.logger.Error().Err(err).Msg("failed to garbage collect expired flows")
-//			} else {
-//				c.logger.Debug().Msgf("garbage collected %d expired flows", deleted)
-//			}
-//		}
-//	}
-//}
+func (m *Manager) Close() error {
+	m.cancel()
+	m.wg.Wait()
+
+	err := m.configuration.Close()
+	if err != nil {
+		return err
+	}
+
+	if m.github != nil {
+		err = m.github.Close()
+		if err != nil {
+			return err
+		}
+	}
+
+	if m.google != nil {
+		err = m.google.Close()
+		if err != nil {
+			return err
+		}
+	}
+
+	if m.magic != nil {
+		err = m.magic.Close()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *Manager) gc() (int64, error) {
+	ctx, cancel := context.WithTimeout(m.ctx, Timeout)
+	defer cancel()
+	return m.db.Queries.DeleteExpiredSessions(ctx)
+}
+
+func (m *Manager) doGC() {
+	defer m.wg.Done()
+	for {
+		select {
+		case <-m.ctx.Done():
+			m.logger.Info().Msg("GC Stopped")
+			return
+		case <-time.After(GCInterval):
+			deleted, err := m.gc()
+			if err != nil {
+				m.logger.Error().Err(err).Msg("failed to garbage collect expired sessions")
+			} else {
+				m.logger.Debug().Msgf("garbage collected %d expired sessions", deleted)
+			}
+		}
+	}
+}
