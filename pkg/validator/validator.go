@@ -104,12 +104,14 @@ func (v *Validator) Close() error {
 }
 
 func (v *Validator) sessionRevocationsRefresh() ([]generated.SessionRevocation, error) {
+	v.sessionRevocationCache.DeleteExpired()
 	ctx, cancel := context.WithTimeout(v.ctx, Timeout)
 	defer cancel()
 	return v.db.Queries.GetAllSessionRevocations(ctx)
 }
 
 func (v *Validator) sessionRevalidationsRefresh() ([]generated.SessionRevalidation, error) {
+	v.sessionRevalidationCache.DeleteExpired()
 	ctx, cancel := context.WithTimeout(v.ctx, Timeout)
 	defer cancel()
 	return v.db.Queries.GetAllSessionRevalidations(ctx)
@@ -123,9 +125,6 @@ func (v *Validator) doRefresh() {
 			v.logger.Info().Msg("refresh stopped")
 			return
 		case <-time.After(v.Configuration().PollInterval()):
-			v.sessionRevocationCache.DeleteExpired()
-			v.sessionRevalidationCache.DeleteExpired()
-
 			sessionRevocations, err := v.sessionRevocationsRefresh()
 			if err != nil {
 				v.logger.Error().Err(err).Msg("failed to update session revocations")
