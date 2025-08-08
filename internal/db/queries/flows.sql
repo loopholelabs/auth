@@ -12,12 +12,12 @@ WHERE identifier = sqlc.arg(identifier) LIMIT 1;
 -- name: DeleteGithubOAuthFlowByIdentifier :exec
 DELETE
 FROM github_oauth_flows
-WHERE identifier = ?;
+WHERE identifier = sqlc.arg(identifier);
 
--- name: DeleteGithubOAuthFlowsBeforeTime :execrows
+-- name: DeleteGithubOAuthFlowsBeforeCreatedAt :execrows
 DELETE
 FROM github_oauth_flows
-WHERE created_at < ?;
+WHERE created_at < sqlc.arg(created_at);
 
 -- name: DeleteAllGithubOAuthFlows :execrows
 DELETE
@@ -41,12 +41,12 @@ WHERE identifier = sqlc.arg(identifier) LIMIT 1;
 -- name: DeleteGoogleOAuthFlowByIdentifier :exec
 DELETE
 FROM google_oauth_flows
-WHERE identifier = ?;
+WHERE identifier = sqlc.arg(identifier);
 
--- name: DeleteGoogleOAuthFlowsBeforeTime :execrows
+-- name: DeleteGoogleOAuthFlowsBeforeCreatedAt :execrows
 DELETE
 FROM google_oauth_flows
-WHERE created_at < ?;
+WHERE created_at < sqlc.arg(created_at);
 
 -- name: DeleteAllGoogleOAuthFlows :execrows
 DELETE
@@ -70,12 +70,12 @@ WHERE identifier = sqlc.arg(identifier) LIMIT 1;
 -- name: DeleteMagicLinkFlowByIdentifier :exec
 DELETE
 FROM magic_link_flows
-WHERE identifier = ?;
+WHERE identifier = sqlc.arg(identifier);
 
--- name: DeleteMagicLinkFlowsBeforeTime :execrows
+-- name: DeleteMagicLinkFlowsBeforeCreatedAt :execrows
 DELETE
 FROM magic_link_flows
-WHERE created_at < ?;
+WHERE created_at < sqlc.arg(created_at);
 
 -- name: DeleteAllMagicLinkFlows :execrows
 DELETE

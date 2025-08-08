@@ -26,19 +26,24 @@ import (
 	"github.com/loopholelabs/auth/pkg/manager/role"
 )
 
+var (
+	now = time.Now
+)
+
 const (
 	Timeout    = time.Second * 30
 	GCInterval = time.Minute
 )
 
 var (
-	ErrCreatingManager  = errors.New("error creating manager")
-	ErrDBIsRequired     = errors.New("db is required")
-	ErrCreatingSession  = errors.New("error creating session")
-	ErrUpdatingSession  = errors.New("error updating session")
-	ErrInvalidProvider  = errors.New("invalid provider")
-	ErrInvalidFlowData  = errors.New("invalid flow data")
-	ErrSessionIsExpired = errors.New("session is expired")
+	ErrCreatingManager   = errors.New("error creating manager")
+	ErrDBIsRequired      = errors.New("db is required")
+	ErrCreatingSession   = errors.New("error creating session")
+	ErrRefreshingSession = errors.New("error refreshing session")
+	ErrRevokingSession   = errors.New("error revoking session")
+	ErrInvalidProvider   = errors.New("invalid provider")
+	ErrInvalidFlowData   = errors.New("invalid flow data")
+	ErrSessionIsExpired  = errors.New("session is expired")
 )
 
 type GithubOptions struct {
@@ -175,7 +180,7 @@ func New(options Options, db *db.DB, logger types.Logger) (*Manager, error) {
 	}
 
 	m.wg.Add(1)
-	go m.doGC()
+	go m.doSessionGC()
 
 	return m, nil
 }
@@ -302,7 +307,7 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 	sessionIdentifier := uuid.New().String()
 	// Truncate expiry time to nearest second to match MySQL DATETIME precision
 	// This ensures consistency between Go's nanosecond precision and MySQL's second precision
-	expiresAt := time.Now().Add(m.configuration.SessionExpiry()).Truncate(time.Second)
+	expiresAt := time.Now().Add(m.Configuration().SessionExpiry()).Truncate(time.Second)
 	err = m.db.Queries.CreateSession(ctx, generated.CreateSessionParams{
 		Identifier:             sessionIdentifier,
 		OrganizationIdentifier: user.DefaultOrganizationIdentifier,
@@ -338,12 +343,12 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 
 func (m *Manager) RefreshSession(ctx context.Context, session Session) (Session, error) {
 	if session.ExpiresAt.Before(time.Now()) {
-		return Session{}, errors.Join(ErrUpdatingSession, ErrSessionIsExpired)
+		return Session{}, errors.Join(ErrRefreshingSession, ErrSessionIsExpired)
 	}
 
 	tx, err := m.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
-		return Session{}, errors.Join(ErrUpdatingSession, err)
+		return Session{}, errors.Join(ErrRefreshingSession, err)
 	}
 
 	defer func() {
@@ -357,7 +362,7 @@ func (m *Manager) RefreshSession(ctx context.Context, session Session) (Session,
 
 	s, err := qtx.GetSessionByIdentifier(ctx, session.Identifier)
 	if err != nil {
-		return Session{}, errors.Join(ErrUpdatingSession, err)
+		return Session{}, errors.Join(ErrRefreshingSession, err)
 	}
 
 	if s.LastGeneration != session.Generation {
@@ -365,7 +370,7 @@ func (m *Manager) RefreshSession(ctx context.Context, session Session) (Session,
 
 		user, err := qtx.GetUserByIdentifier(ctx, session.UserInfo.Identifier)
 		if err != nil {
-			return Session{}, errors.Join(ErrUpdatingSession, err)
+			return Session{}, errors.Join(ErrRefreshingSession, err)
 		}
 
 		session.UserInfo.Name = user.Name
@@ -378,7 +383,7 @@ func (m *Manager) RefreshSession(ctx context.Context, session Session) (Session,
 				OrganizationIdentifier: session.OrganizationInfo.Identifier,
 			})
 			if err != nil {
-				return Session{}, errors.Join(ErrUpdatingSession, err)
+				return Session{}, errors.Join(ErrRefreshingSession, err)
 			}
 			session.OrganizationInfo.Role = membership.Role
 		}
@@ -386,14 +391,14 @@ func (m *Manager) RefreshSession(ctx context.Context, session Session) (Session,
 
 	// Truncate expiry time to nearest second to match MySQL DATETIME precision
 	// This ensures consistency between Go's nanosecond precision and MySQL's second precision
-	session.ExpiresAt = time.Now().Add(m.configuration.SessionExpiry()).Truncate(time.Second)
+	session.ExpiresAt = time.Now().Add(m.Configuration().SessionExpiry()).Truncate(time.Second)
 	if session.ExpiresAt.After(s.ExpiresAt) {
 		err = qtx.UpdateSessionExpiryByIdentifier(ctx, generated.UpdateSessionExpiryByIdentifierParams{
 			ExpiresAt:  session.ExpiresAt,
 			Identifier: session.Identifier,
 		})
 		if err != nil {
-			return Session{}, errors.Join(ErrUpdatingSession, err)
+			return Session{}, errors.Join(ErrRefreshingSession, err)
 		}
 	} else {
 		session.ExpiresAt = s.ExpiresAt
@@ -401,10 +406,43 @@ func (m *Manager) RefreshSession(ctx context.Context, session Session) (Session,
 
 	err = tx.Commit()
 	if err != nil {
-		return Session{}, errors.Join(ErrUpdatingSession, err)
+		return Session{}, errors.Join(ErrRefreshingSession, err)
 	}
 
 	return session, nil
+}
+
+func (m *Manager) RevokeSession(ctx context.Context, identifier string) error {
+	tx, err := m.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return errors.Join(ErrRevokingSession, err)
+	}
+
+	defer func() {
+		err := tx.Rollback()
+		if err != nil && !errors.Is(err, sql.ErrTxDone) {
+			m.logger.Error().Err(err).Str("session", identifier).Msg("failed to rollback transaction")
+		}
+	}()
+
+	qtx := m.db.Queries.WithTx(tx)
+
+	err = qtx.DeleteSessionByIdentifier(ctx, identifier)
+	if err != nil {
+		return errors.Join(ErrRevokingSession, err)
+	}
+
+	err = qtx.CreateSessionRevocation(ctx, identifier)
+	if err != nil {
+		return errors.Join(ErrRevokingSession, err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return errors.Join(ErrRevokingSession, err)
+	}
+
+	return nil
 }
 
 func (m *Manager) Close() error {
@@ -440,25 +478,49 @@ func (m *Manager) Close() error {
 	return nil
 }
 
-func (m *Manager) gc() (int64, error) {
+func (m *Manager) sessionGC() (int64, error) {
 	ctx, cancel := context.WithTimeout(m.ctx, Timeout)
 	defer cancel()
 	return m.db.Queries.DeleteExpiredSessions(ctx)
 }
 
-func (m *Manager) doGC() {
+func (m *Manager) doSessionGC() {
 	defer m.wg.Done()
 	for {
 		select {
 		case <-m.ctx.Done():
-			m.logger.Info().Msg("GC Stopped")
+			m.logger.Info().Msg("Session GC Stopped")
 			return
 		case <-time.After(GCInterval):
-			deleted, err := m.gc()
+			deleted, err := m.sessionGC()
 			if err != nil {
 				m.logger.Error().Err(err).Msg("failed to garbage collect expired sessions")
 			} else {
 				m.logger.Debug().Msgf("garbage collected %d expired sessions", deleted)
+			}
+		}
+	}
+}
+
+func (m *Manager) sessionRevocationGC() (int64, error) {
+	ctx, cancel := context.WithTimeout(m.ctx, Timeout)
+	defer cancel()
+	return m.db.Queries.DeleteSessionRevocationsBeforeCreatedAt(ctx, now().Add(-m.Configuration().SessionExpiry()))
+}
+
+func (m *Manager) doSessionRevocationGC() {
+	defer m.wg.Done()
+	for {
+		select {
+		case <-m.ctx.Done():
+			m.logger.Info().Msg("Session Revocation GC Stopped")
+			return
+		case <-time.After(GCInterval):
+			deleted, err := m.sessionRevocationGC()
+			if err != nil {
+				m.logger.Error().Err(err).Msg("failed to garbage collect expired session revocations")
+			} else {
+				m.logger.Debug().Msgf("garbage collected %d expired session revocations", deleted)
 			}
 		}
 	}

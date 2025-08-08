@@ -242,7 +242,7 @@ func (c *Google) CompleteFlow(ctx context.Context, identifier string, code strin
 func (c *Google) gc() (int64, error) {
 	ctx, cancel := context.WithTimeout(c.ctx, Timeout)
 	defer cancel()
-	return c.db.Queries.DeleteGoogleOAuthFlowsBeforeTime(ctx, now().Add(-Expiry))
+	return c.db.Queries.DeleteGoogleOAuthFlowsBeforeCreatedAt(ctx, now().Add(-Expiry))
 }
 
 func (c *Google) doGC() {

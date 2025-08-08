@@ -282,7 +282,7 @@ func (c *Github) CompleteFlow(ctx context.Context, identifier string, code strin
 func (c *Github) gc() (int64, error) {
 	ctx, cancel := context.WithTimeout(c.ctx, Timeout)
 	defer cancel()
-	return c.db.Queries.DeleteGithubOAuthFlowsBeforeTime(ctx, now().Add(-Expiry))
+	return c.db.Queries.DeleteGithubOAuthFlowsBeforeCreatedAt(ctx, now().Add(-Expiry))
 }
 
 func (c *Github) doGC() {

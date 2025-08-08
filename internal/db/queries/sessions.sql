@@ -18,6 +18,11 @@ SELECT *
 FROM sessions
 WHERE identifier = sqlc.arg(identifier) LIMIT 1;
 
+-- name: DeleteSessionByIdentifier :exec
+DELETE
+FROM sessions
+WHERE identifier = sqlc.arg(identifier);
+
 -- name: DeleteExpiredSessions :execrows
 DELETE
 FROM sessions

@@ -693,7 +693,7 @@ func TestGarbageCollection(t *testing.T) {
 		require.NoError(t, err)
 
 		// Run cleanup on empty table
-		deleted, err := database.Queries.DeleteMagicLinkFlowsBeforeTime(t.Context(), time.Now())
+		deleted, err := database.Queries.DeleteMagicLinkFlowsBeforeCreatedAt(t.Context(), time.Now())
 		require.NoError(t, err)
 		require.Equal(t, int64(0), deleted) // No rows deleted
 	})
@@ -712,7 +712,7 @@ func TestGarbageCollection(t *testing.T) {
 		}
 
 		// Run cleanup with a time that won't match any flows
-		deleted, err := database.Queries.DeleteMagicLinkFlowsBeforeTime(t.Context(), time.Now().Add(-5*time.Minute))
+		deleted, err := database.Queries.DeleteMagicLinkFlowsBeforeCreatedAt(t.Context(), time.Now().Add(-5*time.Minute))
 		require.NoError(t, err)
 		require.Equal(t, int64(0), deleted) // No rows should be deleted
 

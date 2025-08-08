@@ -1078,7 +1078,7 @@ func TestRefreshSession(t *testing.T) {
 		_, err = m.RefreshSession(t.Context(), session)
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrSessionIsExpired)
-		require.ErrorIs(t, err, ErrUpdatingSession)
+		require.ErrorIs(t, err, ErrRefreshingSession)
 	})
 
 	t.Run("NonExistentSessionRefreshFails", func(t *testing.T) {
@@ -1123,7 +1123,7 @@ func TestRefreshSession(t *testing.T) {
 		// Try to refresh the non-existent session
 		_, err = m.RefreshSession(t.Context(), fakeSession)
 		require.Error(t, err)
-		require.ErrorIs(t, err, ErrUpdatingSession)
+		require.ErrorIs(t, err, ErrRefreshingSession)
 	})
 
 	t.Run("ConcurrentRefreshHandling", func(t *testing.T) {
@@ -1320,7 +1320,7 @@ func TestSessionGarbageCollection(t *testing.T) {
 		time.Sleep(time.Second * 1)
 
 		// Manually trigger GC
-		deleted, err := m.gc()
+		deleted, err := m.sessionGC()
 		require.NoError(t, err)
 		require.GreaterOrEqual(t, deleted, int64(1), "Expected at least 1 session to be deleted")
 
@@ -1365,7 +1365,7 @@ func TestSessionGarbageCollection(t *testing.T) {
 		require.NotNil(t, session)
 
 		// Manually trigger GC immediately
-		deleted, err := m.gc()
+		deleted, err := m.sessionGC()
 		require.NoError(t, err)
 		require.Equal(t, int64(0), deleted, "Expected 0 sessions to be deleted")
 
@@ -1416,7 +1416,7 @@ func TestSessionGarbageCollection(t *testing.T) {
 		time.Sleep(time.Second * 1)
 
 		// Manually trigger GC
-		deleted, err := m.gc()
+		deleted, err := m.sessionGC()
 		require.NoError(t, err)
 		require.GreaterOrEqual(t, deleted, int64(3), "Expected at least 3 sessions to be deleted")
 
@@ -1490,7 +1490,7 @@ func TestSessionGarbageCollection(t *testing.T) {
 		time.Sleep(time.Second * 3)
 
 		// Run garbage collection
-		deleted, err := m.gc()
+		deleted, err := m.sessionGC()
 		require.NoError(t, err)
 		require.Equal(t, int64(1), deleted, "Expected exactly 1 session to be deleted")
 
@@ -1541,7 +1541,7 @@ func TestSessionGarbageCollection(t *testing.T) {
 		}
 
 		// Trigger GC immediately
-		deleted, err := m.gc()
+		deleted, err := m.sessionGC()
 		require.NoError(t, err)
 		require.Equal(t, int64(0), deleted, "Expected no sessions to be deleted")
 	})
