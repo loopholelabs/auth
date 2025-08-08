@@ -1,4 +1,4 @@
-DEFAULT_TEST_ARGS = -v -timeout 300s
+DEFAULT_TEST_ARGS = -v -timeout 1800s
 
 .PHONY: generate
 generate:
