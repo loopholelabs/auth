@@ -13,7 +13,6 @@ import (
 	"github.com/loopholelabs/logging/types"
 
 	"github.com/loopholelabs/auth/internal/db"
-	"github.com/loopholelabs/auth/internal/db/generated"
 	"github.com/loopholelabs/auth/pkg/manager/configuration"
 )
 
@@ -69,6 +68,9 @@ func New(options Options, db *db.DB, logger types.Logger) (*Validator, error) {
 		cancel:                   cancel,
 	}
 
+	v.sessionRevocationsRefresh()
+	v.sessionRevalidationsRefresh()
+
 	v.wg.Add(1)
 	go v.doRefresh()
 
@@ -103,18 +105,42 @@ func (v *Validator) Close() error {
 	return nil
 }
 
-func (v *Validator) sessionRevocationsRefresh() ([]generated.SessionRevocation, error) {
+func (v *Validator) sessionRevocationsRefresh() {
 	v.sessionRevocationCache.DeleteExpired()
 	ctx, cancel := context.WithTimeout(v.ctx, Timeout)
 	defer cancel()
-	return v.db.Queries.GetAllSessionRevocations(ctx)
+	refreshed := 0
+	sessionRevocations, err := v.db.Queries.GetAllSessionRevocations(ctx)
+	if err != nil {
+		v.logger.Error().Err(err).Msg("failed to update session revocations")
+	} else {
+		for _, sessionRevocation := range sessionRevocations {
+			if sessionRevocation.ExpiresAt.After(time.Now()) {
+				v.sessionRevocationCache.Set(sessionRevocation.SessionIdentifier, struct{}{}, time.Until(sessionRevocation.ExpiresAt))
+				refreshed++
+			}
+		}
+		v.logger.Info().Msgf("refresh %d session revocations", refreshed)
+	}
 }
 
-func (v *Validator) sessionRevalidationsRefresh() ([]generated.SessionRevalidation, error) {
+func (v *Validator) sessionRevalidationsRefresh() {
 	v.sessionRevalidationCache.DeleteExpired()
 	ctx, cancel := context.WithTimeout(v.ctx, Timeout)
 	defer cancel()
-	return v.db.Queries.GetAllSessionRevalidations(ctx)
+	refreshed := 0
+	sessionRevalidations, err := v.db.Queries.GetAllSessionRevalidations(ctx)
+	if err != nil {
+		v.logger.Error().Err(err).Msg("failed to update session revalidations")
+	} else {
+		for _, sessionRevalidation := range sessionRevalidations {
+			if sessionRevalidation.ExpiresAt.After(time.Now()) {
+				v.sessionRevalidationCache.Set(sessionRevalidation.SessionIdentifier, sessionRevalidation.Generation, time.Until(sessionRevalidation.ExpiresAt))
+				refreshed++
+			}
+		}
+		v.logger.Info().Msgf("refresh %d session revalidations", refreshed)
+	}
 }
 
 func (v *Validator) doRefresh() {
@@ -125,25 +151,8 @@ func (v *Validator) doRefresh() {
 			v.logger.Info().Msg("refresh stopped")
 			return
 		case <-time.After(v.Configuration().PollInterval()):
-			sessionRevocations, err := v.sessionRevocationsRefresh()
-			if err != nil {
-				v.logger.Error().Err(err).Msg("failed to update session revocations")
-			} else {
-				for _, sessionRevocation := range sessionRevocations {
-					v.sessionRevocationCache.Set(sessionRevocation.SessionIdentifier, struct{}{}, time.Until(sessionRevocation.ExpiresAt))
-				}
-				v.logger.Info().Msgf("refresh %d session revocations", len(sessionRevocations))
-			}
-
-			sessionRevalidations, err := v.sessionRevalidationsRefresh()
-			if err != nil {
-				v.logger.Error().Err(err).Msg("failed to update session revalidations")
-			} else {
-				for _, sessionRevalidation := range sessionRevalidations {
-					v.sessionRevalidationCache.Set(sessionRevalidation.SessionIdentifier, sessionRevalidation.Generation, time.Until(sessionRevalidation.ExpiresAt))
-				}
-				v.logger.Info().Msgf("refresh %d session revalidations", len(sessionRevalidations))
-			}
+			v.sessionRevocationsRefresh()
+			v.sessionRevalidationsRefresh()
 		}
 	}
 }

@@ -162,10 +162,38 @@ func (c *Configuration) init(options Options) error {
 	return nil
 }
 
-func (c *Configuration) update() ([]generated.Configuration, error) {
+func (c *Configuration) update() {
 	ctx, cancel := context.WithTimeout(c.ctx, Timeout)
 	defer cancel()
-	return c.db.Queries.GetAllConfigurations(ctx)
+	configurations, err := c.db.Queries.GetAllConfigurations(ctx)
+	if err != nil {
+		c.logger.Error().Err(err).Msg("failed to update configurations")
+	} else {
+		c.mu.Lock()
+		for _, configuration := range configurations {
+			switch Key(configuration.ConfigurationKey) {
+			case PollIntervalKey:
+				var pollInterval time.Duration
+				pollInterval, err = time.ParseDuration(configuration.ConfigurationValue)
+				if err != nil {
+					c.logger.Error().Err(err).Msg("failed to parse poll interval configuration")
+					continue
+				}
+				c.pollInterval = pollInterval
+			case SessionExpiryKey:
+				var sessionExpiry time.Duration
+				sessionExpiry, err = time.ParseDuration(configuration.ConfigurationValue)
+				if err != nil {
+					c.logger.Error().Err(err).Msg("failed to parse session expiry configuration")
+					continue
+				}
+				c.sessionExpiry = sessionExpiry
+			default:
+				c.logger.Info().Msgf("update skipped for unknown configuration key: %s", configuration.ConfigurationKey)
+			}
+		}
+		c.mu.Unlock()
+	}
 }
 
 func (c *Configuration) doUpdate() {
@@ -176,35 +204,7 @@ func (c *Configuration) doUpdate() {
 			c.logger.Info().Msg("update stopped")
 			return
 		case <-time.After(c.PollInterval()):
-			configurations, err := c.update()
-			if err != nil {
-				c.logger.Error().Err(err).Msg("failed to update configurations")
-			} else {
-				c.mu.Lock()
-				for _, configuration := range configurations {
-					switch Key(configuration.ConfigurationKey) {
-					case PollIntervalKey:
-						var pollInterval time.Duration
-						pollInterval, err = time.ParseDuration(configuration.ConfigurationValue)
-						if err != nil {
-							c.logger.Error().Err(err).Msg("failed to parse poll interval configuration")
-							continue
-						}
-						c.pollInterval = pollInterval
-					case SessionExpiryKey:
-						var sessionExpiry time.Duration
-						sessionExpiry, err = time.ParseDuration(configuration.ConfigurationValue)
-						if err != nil {
-							c.logger.Error().Err(err).Msg("failed to parse session expiry configuration")
-							continue
-						}
-						c.sessionExpiry = sessionExpiry
-					default:
-						c.logger.Info().Msgf("update skipped for unknown configuration key: %s", configuration.ConfigurationKey)
-					}
-				}
-				c.mu.Unlock()
-			}
+			c.update()
 		}
 	}
 }

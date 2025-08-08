@@ -215,8 +215,7 @@ func TestPollingUpdates(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// Wait for polling to pick up changes
-	time.Sleep(time.Millisecond * 300)
+	cfg.update()
 
 	// Values should be updated
 	require.Equal(t, time.Millisecond*200, cfg.PollInterval())
@@ -262,8 +261,7 @@ func TestInvalidConfigurationValues(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// Wait for polling
-	time.Sleep(time.Millisecond * 300)
+	cfg.update()
 
 	// Values should remain unchanged due to parse errors
 	require.Equal(t, originalPollInterval, cfg.PollInterval())
@@ -300,8 +298,7 @@ func TestUnknownConfigurationKey(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// Wait for polling - should handle unknown key gracefully
-	time.Sleep(time.Millisecond * 300)
+	cfg.update()
 
 	// Known values should remain unchanged
 	require.Equal(t, time.Millisecond*100, cfg.PollInterval())
@@ -460,8 +457,8 @@ func TestMultipleConfigurations(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// Wait for both to poll
-	time.Sleep(time.Second * 6)
+	cfg1.update()
+	cfg2.update()
 
 	// Both should have updated values
 	require.Equal(t, time.Minute*90, cfg1.SessionExpiry())
@@ -585,8 +582,7 @@ func TestConfigurationEdgeCases(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		// Wait for polling
-		time.Sleep(time.Millisecond * 300)
+		cfg.update()
 
 		// Zero duration should be accepted
 		require.Equal(t, time.Duration(0), cfg.SessionExpiry())
@@ -620,8 +616,7 @@ func TestDatabaseConnectionLost(t *testing.T) {
 	// Close database connection
 	require.NoError(t, database.Close())
 
-	// Wait for polling to encounter error
-	time.Sleep(time.Millisecond * 300)
+	cfg.update()
 
 	// Should still return last known values
 	require.Equal(t, time.Millisecond*100, cfg.PollInterval())
@@ -697,8 +692,7 @@ func TestDatabaseUpdateAfterInit(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		// Wait for polling
-		time.Sleep(time.Millisecond * 150)
+		cfg.update()
 
 		// Verify update was picked up
 		require.Equal(t, duration, cfg.SessionExpiry())
@@ -735,8 +729,7 @@ func TestNegativeDurations(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// Wait for polling
-	time.Sleep(time.Millisecond * 200)
+	cfg.update()
 
 	// Negative duration should be accepted (Go's time.Duration allows negative values)
 	require.Equal(t, -5*time.Minute, cfg.SessionExpiry())
