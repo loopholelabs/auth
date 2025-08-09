@@ -215,7 +215,7 @@ func TestCreateSession(t *testing.T) {
 
 		// Verify organization info
 		require.NotEmpty(t, session.OrganizationInfo.Identifier)
-		require.Equal(t, role.OwnerRole.String(), session.OrganizationInfo.Role)
+		require.Equal(t, role.OwnerRole, session.OrganizationInfo.Role)
 
 		// Verify user info
 		require.NotEmpty(t, session.UserInfo.Identifier)
@@ -731,7 +731,7 @@ func TestCreateSessionEdgeCases(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify role assignment
-		require.Equal(t, role.OwnerRole.String(), session.OrganizationInfo.Role)
+		require.Equal(t, role.OwnerRole, session.OrganizationInfo.Role)
 	})
 }
 
@@ -1109,7 +1109,7 @@ func TestRefreshSession(t *testing.T) {
 			OrganizationInfo: OrganizationInfo{
 				Identifier: uuid.New().String(),
 				IsDefault:  true,
-				Role:       role.OwnerRole.String(),
+				Role:       role.OwnerRole,
 			},
 			UserInfo: UserInfo{
 				Identifier: uuid.New().String(),
@@ -1245,7 +1245,7 @@ func TestRefreshSession(t *testing.T) {
 			OrganizationInfo: OrganizationInfo{
 				Identifier: orgID,
 				IsDefault:  false,
-				Role:       role.MemberRole.String(),
+				Role:       role.MemberRole,
 			},
 			UserInfo:   session.UserInfo,
 			Generation: session.Generation,
@@ -1270,7 +1270,7 @@ func TestRefreshSession(t *testing.T) {
 		// Refresh the session - should update role due to generation mismatch
 		refreshedSession, err := m.RefreshSession(t.Context(), sessionWithOrg)
 		require.NoError(t, err)
-		require.Equal(t, role.AdminRole.String(), refreshedSession.OrganizationInfo.Role, "Role should be updated")
+		require.Equal(t, role.AdminRole, refreshedSession.OrganizationInfo.Role, "Role should be updated")
 		require.Equal(t, session.Generation+1, refreshedSession.Generation, "Generation should be updated")
 	})
 }
