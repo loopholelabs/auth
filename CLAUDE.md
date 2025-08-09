@@ -151,7 +151,7 @@ errors.Join(ErrCreatingSession, err)
 
 **Pattern for Critical Operations**
 ```go
-tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
 defer func() {
     if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
         logger.Error().Err(err).Msg("failed to rollback")

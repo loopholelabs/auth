@@ -155,7 +155,7 @@ func (c *Github) CreateFlow(ctx context.Context, deviceIdentifier string, userId
 
 func (c *Github) CompleteFlow(ctx context.Context, identifier string, code string) (*flow.Data, error) {
 	c.logger.Debug().Str("identifier", identifier).Msg("completing f")
-	tx, err := c.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	tx, err := c.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
 		return nil, errors.Join(ErrCompletingFlow, err)
 	}
@@ -169,7 +169,7 @@ func (c *Github) CompleteFlow(ctx context.Context, identifier string, code strin
 
 	qtx := c.db.Queries.WithTx(tx)
 
-	f, err := c.db.Queries.GetGithubOAuthFlowByIdentifier(ctx, identifier)
+	f, err := qtx.GetGithubOAuthFlowByIdentifier(ctx, identifier)
 	if err != nil {
 		return nil, errors.Join(ErrCompletingFlow, err)
 	}

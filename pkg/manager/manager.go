@@ -74,12 +74,17 @@ type MailerOptions struct {
 	MagicLinkTemplatePath string
 }
 
+type TokenOptions struct {
+	Issuer string
+}
+
 type Options struct {
 	Github        GithubOptions
 	Google        GoogleOptions
 	Magic         MagicOptions
 	Mailer        MailerOptions
 	Configuration configuration.Options
+	Token         TokenOptions
 }
 
 type Manager struct {
@@ -230,7 +235,7 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 		return Session{}, errors.Join(ErrCreatingSession, ErrInvalidProvider)
 	}
 
-	tx, err := m.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	tx, err := m.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
 		return Session{}, errors.Join(ErrCreatingSession, err)
 	}
@@ -342,11 +347,12 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 }
 
 func (m *Manager) RefreshSession(ctx context.Context, session Session) (Session, error) {
-	if session.ExpiresAt.Before(time.Now()) {
+	now := time.Now()
+	if session.ExpiresAt.Before(now) {
 		return Session{}, errors.Join(ErrRefreshingSession, ErrSessionIsExpired)
 	}
 
-	tx, err := m.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	tx, err := m.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
 		return Session{}, errors.Join(ErrRefreshingSession, err)
 	}
@@ -363,6 +369,10 @@ func (m *Manager) RefreshSession(ctx context.Context, session Session) (Session,
 	s, err := qtx.GetSessionByIdentifier(ctx, session.Identifier)
 	if err != nil {
 		return Session{}, errors.Join(ErrRefreshingSession, err)
+	}
+
+	if s.ExpiresAt.Before(now) {
+		return Session{}, errors.Join(ErrRefreshingSession, ErrSessionIsExpired)
 	}
 
 	if s.Generation != session.Generation {
@@ -413,7 +423,7 @@ func (m *Manager) RefreshSession(ctx context.Context, session Session) (Session,
 }
 
 func (m *Manager) RevokeSession(ctx context.Context, identifier string) error {
-	tx, err := m.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	tx, err := m.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
 		return errors.Join(ErrRevokingSession, err)
 	}

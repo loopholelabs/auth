@@ -4,11 +4,16 @@ package configuration
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"database/sql"
+	"encoding/base64"
 	"errors"
 	"sync"
 	"time"
 
+	"github.com/loopholelabs/auth/internal/utils"
 	"github.com/loopholelabs/logging/types"
 
 	"github.com/loopholelabs/auth/internal/db"
@@ -25,13 +30,16 @@ var (
 	ErrInitializingConfigurations = errors.New("error initializing configurations")
 	ErrGettingConfiguration       = errors.New("error getting configuration")
 	ErrSettingConfiguration       = errors.New("error setting configuration")
+	ErrRotatingSigningKey         = errors.New("error rotating signing key")
 )
 
 type Key string
 
 const (
-	PollIntervalKey  Key = "poll_interval"
-	SessionExpiryKey Key = "session_expiry"
+	PollIntervalKey    Key = "poll_interval"
+	SessionExpiryKey   Key = "session_expiry"
+	SigningKey         Key = "signing_key"
+	PreviousSigningKey Key = "previous_signing_key"
 )
 
 func (k Key) String() string {
@@ -47,9 +55,11 @@ type Configuration struct {
 	logger types.Logger
 	db     *db.DB
 
-	pollInterval  time.Duration
-	sessionExpiry time.Duration
-	mu            sync.RWMutex
+	pollInterval       time.Duration
+	sessionExpiry      time.Duration
+	signingKey         *ecdsa.PrivateKey
+	previousSigningKey *ecdsa.PrivateKey
+	mu                 sync.RWMutex
 
 	wg     sync.WaitGroup
 	ctx    context.Context
@@ -78,6 +88,8 @@ func New(options Options, db *db.DB, logger types.Logger) (*Configuration, error
 		return nil, err
 	}
 
+	g.update()
+
 	g.wg.Add(1)
 	go g.doUpdate()
 
@@ -96,6 +108,98 @@ func (c *Configuration) SessionExpiry() time.Duration {
 	return c.sessionExpiry
 }
 
+func (c *Configuration) SigningKey() *ecdsa.PrivateKey {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.signingKey
+}
+
+func (c *Configuration) PreviousSigningKey() *ecdsa.PrivateKey {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.previousSigningKey
+}
+
+func (c *Configuration) RotateSigningKey(ctx context.Context) error {
+	signingKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return errors.Join(ErrRotatingSigningKey, err)
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	tx, err := c.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead})
+	if err != nil {
+		return errors.Join(ErrRotatingSigningKey, err)
+	}
+	defer func() {
+		err := tx.Rollback()
+		if err != nil && !errors.Is(err, sql.ErrTxDone) {
+			c.logger.Error().Err(err).Msg("failed to rollback transaction")
+		}
+	}()
+	qtx := c.db.Queries.WithTx(tx)
+	cfg, err := qtx.GetConfigurationByKey(ctx, SigningKey.String())
+	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			return errors.Join(ErrRotatingSigningKey, err)
+		}
+		err = qtx.SetConfiguration(ctx, generated.SetConfigurationParams{
+			ConfigurationKey:   SigningKey.String(),
+			ConfigurationValue: base64.StdEncoding.EncodeToString(utils.EncodeECDSAPrivateKey(signingKey)),
+		})
+		if err != nil {
+			return errors.Join(ErrRotatingSigningKey, err)
+		}
+
+		err = tx.Commit()
+		if err != nil {
+			return errors.Join(ErrRotatingSigningKey, err)
+		}
+
+		c.signingKey = signingKey
+		c.previousSigningKey = nil
+		return nil
+	}
+
+	pemPreviousSigningKey, err := base64.StdEncoding.DecodeString(cfg.ConfigurationValue)
+	if err != nil {
+		return errors.Join(ErrRotatingSigningKey, err)
+	}
+
+	previousSigningKey, err := utils.DecodeECDSAPrivateKey(pemPreviousSigningKey)
+	if err != nil {
+		return errors.Join(ErrRotatingSigningKey, err)
+	}
+
+	err = qtx.SetConfiguration(ctx, generated.SetConfigurationParams{
+		ConfigurationKey:   PreviousSigningKey.String(),
+		ConfigurationValue: cfg.ConfigurationValue,
+	})
+	if err != nil {
+		return errors.Join(ErrRotatingSigningKey, err)
+	}
+
+	err = qtx.SetConfiguration(ctx, generated.SetConfigurationParams{
+		ConfigurationKey:   SigningKey.String(),
+		ConfigurationValue: base64.StdEncoding.EncodeToString(utils.EncodeECDSAPrivateKey(signingKey)),
+	})
+	if err != nil {
+		return errors.Join(ErrRotatingSigningKey, err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return errors.Join(ErrRotatingSigningKey, err)
+	}
+
+	c.signingKey = signingKey
+	c.previousSigningKey = previousSigningKey
+
+	return nil
+}
+
 func (c *Configuration) Close() error {
 	c.cancel()
 	c.wg.Wait()
@@ -105,7 +209,7 @@ func (c *Configuration) Close() error {
 func (c *Configuration) setDefault(key Key, value string) (string, error) {
 	ctx, cancel := context.WithTimeout(c.ctx, Timeout)
 	defer cancel()
-	tx, err := c.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	tx, err := c.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
 		return "", errors.Join(ErrSettingConfiguration, err)
 	}
@@ -141,6 +245,9 @@ func (c *Configuration) setDefault(key Key, value string) (string, error) {
 }
 
 func (c *Configuration) init(options Options) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	pollInterval, err := c.setDefault(PollIntervalKey, options.PollInterval.String())
 	if err != nil {
 		return errors.Join(ErrInitializingConfigurations, err)
@@ -165,11 +272,12 @@ func (c *Configuration) init(options Options) error {
 func (c *Configuration) update() {
 	ctx, cancel := context.WithTimeout(c.ctx, Timeout)
 	defer cancel()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	configurations, err := c.db.Queries.GetAllConfigurations(ctx)
 	if err != nil {
 		c.logger.Error().Err(err).Msg("failed to update configurations")
 	} else {
-		c.mu.Lock()
 		for _, configuration := range configurations {
 			switch Key(configuration.ConfigurationKey) {
 			case PollIntervalKey:
@@ -188,11 +296,39 @@ func (c *Configuration) update() {
 					continue
 				}
 				c.sessionExpiry = sessionExpiry
+			case SigningKey:
+				pemSigningKey, err := base64.StdEncoding.DecodeString(configuration.ConfigurationValue)
+				if err != nil {
+					c.logger.Error().Err(err).Msg("failed to decode base64 signing key")
+					continue
+				}
+
+				signingKey, err := utils.DecodeECDSAPrivateKey(pemSigningKey)
+				if err != nil {
+					c.logger.Error().Err(err).Msg("failed to decode PEM signing key")
+					continue
+				}
+
+				c.previousSigningKey = c.signingKey
+				c.signingKey = signingKey
+			case PreviousSigningKey:
+				pemPreviousSigningKey, err := base64.StdEncoding.DecodeString(configuration.ConfigurationValue)
+				if err != nil {
+					c.logger.Error().Err(err).Msg("failed to decode base64 previous signing key")
+					continue
+				}
+
+				previousSigningKey, err := utils.DecodeECDSAPrivateKey(pemPreviousSigningKey)
+				if err != nil {
+					c.logger.Error().Err(err).Msg("failed to decode PEM previous signing key")
+					continue
+				}
+
+				c.previousSigningKey = previousSigningKey
 			default:
 				c.logger.Info().Msgf("update skipped for unknown configuration key: %s", configuration.ConfigurationKey)
 			}
 		}
-		c.mu.Unlock()
 	}
 }
 
