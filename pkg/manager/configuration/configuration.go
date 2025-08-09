@@ -4,8 +4,8 @@ package configuration
 
 import (
 	"context"
-	"crypto/ecdsa"
-	"crypto/elliptic"
+	"crypto"
+	"crypto/ed25519"
 	"crypto/rand"
 	"database/sql"
 	"encoding/base64"
@@ -58,9 +58,12 @@ type Configuration struct {
 
 	pollInterval       time.Duration
 	sessionExpiry      time.Duration
-	signingKey         *ecdsa.PrivateKey
-	previousSigningKey *ecdsa.PrivateKey
-	mu                 sync.RWMutex
+	signingKey         ed25519.PrivateKey
+	previousSigningKey ed25519.PrivateKey
+	publicKey          crypto.PublicKey
+	previousPublicKey  crypto.PublicKey
+
+	mu sync.RWMutex
 
 	wg     sync.WaitGroup
 	ctx    context.Context
@@ -109,20 +112,20 @@ func (c *Configuration) SessionExpiry() time.Duration {
 	return c.sessionExpiry
 }
 
-func (c *Configuration) SigningKey() *ecdsa.PrivateKey {
+func (c *Configuration) SigningKey() (ed25519.PrivateKey, crypto.PublicKey) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	return c.signingKey
+	return c.signingKey, c.publicKey
 }
 
-func (c *Configuration) PreviousSigningKey() *ecdsa.PrivateKey {
+func (c *Configuration) PreviousSigningKey() (ed25519.PrivateKey, crypto.PublicKey) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	return c.previousSigningKey
+	return c.previousSigningKey, c.previousPublicKey
 }
 
 func (c *Configuration) RotateSigningKey(ctx context.Context) error {
-	signingKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	_, signingKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		return errors.Join(ErrRotatingSigningKey, err)
 	}
@@ -148,7 +151,7 @@ func (c *Configuration) RotateSigningKey(ctx context.Context) error {
 		}
 		err = qtx.SetConfiguration(ctx, generated.SetConfigurationParams{
 			ConfigurationKey:   SigningKey.String(),
-			ConfigurationValue: base64.StdEncoding.EncodeToString(utils.EncodeECDSAPrivateKey(signingKey)),
+			ConfigurationValue: base64.StdEncoding.EncodeToString(utils.EncodeED25519PrivateKey(signingKey)),
 		})
 		if err != nil {
 			return errors.Join(ErrRotatingSigningKey, err)
@@ -160,7 +163,9 @@ func (c *Configuration) RotateSigningKey(ctx context.Context) error {
 		}
 
 		c.signingKey = signingKey
+		c.publicKey = signingKey.Public()
 		c.previousSigningKey = nil
+		c.previousPublicKey = nil
 		return nil
 	}
 
@@ -169,7 +174,7 @@ func (c *Configuration) RotateSigningKey(ctx context.Context) error {
 		return errors.Join(ErrRotatingSigningKey, err)
 	}
 
-	previousSigningKey, err := utils.DecodeECDSAPrivateKey(pemPreviousSigningKey)
+	previousSigningKey, err := utils.DecodeED25519PrivateKey(pemPreviousSigningKey)
 	if err != nil {
 		return errors.Join(ErrRotatingSigningKey, err)
 	}
@@ -184,7 +189,7 @@ func (c *Configuration) RotateSigningKey(ctx context.Context) error {
 
 	err = qtx.SetConfiguration(ctx, generated.SetConfigurationParams{
 		ConfigurationKey:   SigningKey.String(),
-		ConfigurationValue: base64.StdEncoding.EncodeToString(utils.EncodeECDSAPrivateKey(signingKey)),
+		ConfigurationValue: base64.StdEncoding.EncodeToString(utils.EncodeED25519PrivateKey(signingKey)),
 	})
 	if err != nil {
 		return errors.Join(ErrRotatingSigningKey, err)
@@ -196,7 +201,9 @@ func (c *Configuration) RotateSigningKey(ctx context.Context) error {
 	}
 
 	c.signingKey = signingKey
+	c.publicKey = previousSigningKey.Public()
 	c.previousSigningKey = previousSigningKey
+	c.previousPublicKey = previousSigningKey.Public()
 
 	return nil
 }
@@ -246,7 +253,7 @@ func (c *Configuration) setDefault(key Key, value string) (string, error) {
 }
 
 func (c *Configuration) setDefaultSigningKey() error {
-	defaultSigningKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	_, defaultSigningKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		return errors.Join(ErrSettingDefaultSigningKey, err)
 	}
@@ -271,7 +278,7 @@ func (c *Configuration) setDefaultSigningKey() error {
 		}
 		err = qtx.SetConfiguration(ctx, generated.SetConfigurationParams{
 			ConfigurationKey:   SigningKey.String(),
-			ConfigurationValue: base64.StdEncoding.EncodeToString(utils.EncodeECDSAPrivateKey(defaultSigningKey)),
+			ConfigurationValue: base64.StdEncoding.EncodeToString(utils.EncodeED25519PrivateKey(defaultSigningKey)),
 		})
 		if err != nil {
 			return errors.Join(ErrSettingDefaultSigningKey, err)
@@ -283,7 +290,9 @@ func (c *Configuration) setDefaultSigningKey() error {
 		}
 
 		c.signingKey = defaultSigningKey
+		c.publicKey = defaultSigningKey.Public()
 		c.previousSigningKey = nil
+		c.previousPublicKey = nil
 		return nil
 	}
 
@@ -292,7 +301,7 @@ func (c *Configuration) setDefaultSigningKey() error {
 		return errors.Join(ErrSettingDefaultSigningKey, err)
 	}
 
-	signingKey, err := utils.DecodeECDSAPrivateKey(pemSigningKey)
+	signingKey, err := utils.DecodeED25519PrivateKey(pemSigningKey)
 	if err != nil {
 		return errors.Join(ErrSettingDefaultSigningKey, err)
 	}
@@ -304,7 +313,9 @@ func (c *Configuration) setDefaultSigningKey() error {
 		}
 
 		c.signingKey = signingKey
+		c.publicKey = signingKey.Public()
 		c.previousSigningKey = nil
+		c.previousPublicKey = nil
 
 		err = tx.Commit()
 		if err != nil {
@@ -319,7 +330,7 @@ func (c *Configuration) setDefaultSigningKey() error {
 		return errors.Join(ErrSettingDefaultSigningKey, err)
 	}
 
-	previousSigningKey, err := utils.DecodeECDSAPrivateKey(pemPreviousSigningKey)
+	previousSigningKey, err := utils.DecodeED25519PrivateKey(pemPreviousSigningKey)
 	if err != nil {
 		return errors.Join(ErrSettingDefaultSigningKey, err)
 	}
@@ -330,7 +341,9 @@ func (c *Configuration) setDefaultSigningKey() error {
 	}
 
 	c.signingKey = signingKey
+	c.publicKey = previousSigningKey.Public()
 	c.previousSigningKey = previousSigningKey
+	c.previousPublicKey = previousSigningKey.Public()
 
 	return nil
 }
@@ -399,13 +412,14 @@ func (c *Configuration) update() {
 					continue
 				}
 
-				signingKey, err := utils.DecodeECDSAPrivateKey(pemSigningKey)
+				signingKey, err := utils.DecodeED25519PrivateKey(pemSigningKey)
 				if err != nil {
 					c.logger.Error().Err(err).Msg("failed to decode PEM signing key")
 					continue
 				}
 
 				c.signingKey = signingKey
+				c.publicKey = signingKey.Public()
 			case PreviousSigningKey:
 				pemPreviousSigningKey, err := base64.StdEncoding.DecodeString(configuration.ConfigurationValue)
 				if err != nil {
@@ -413,13 +427,14 @@ func (c *Configuration) update() {
 					continue
 				}
 
-				previousSigningKey, err := utils.DecodeECDSAPrivateKey(pemPreviousSigningKey)
+				previousSigningKey, err := utils.DecodeED25519PrivateKey(pemPreviousSigningKey)
 				if err != nil {
 					c.logger.Error().Err(err).Msg("failed to decode PEM previous signing key")
 					continue
 				}
 
 				c.previousSigningKey = previousSigningKey
+				c.previousPublicKey = previousSigningKey.Public()
 			default:
 				c.logger.Info().Msgf("update skipped for unknown configuration key: %s", configuration.ConfigurationKey)
 			}

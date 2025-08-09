@@ -763,9 +763,13 @@ func TestSigningKeyInitialization(t *testing.T) {
 		})
 
 		// Should have created a signing key
-		require.NotNil(t, cfg.SigningKey())
+		privateKey, publicKey := cfg.SigningKey()
+		require.NotNil(t, privateKey)
+		require.NotNil(t, publicKey)
 		// Should not have a previous signing key on first init
-		require.Nil(t, cfg.PreviousSigningKey())
+		prevPrivateKey, prevPublicKey := cfg.PreviousSigningKey()
+		require.Nil(t, prevPrivateKey)
+		require.Nil(t, prevPublicKey)
 
 		// Verify key was stored in database
 		dbKey, err := database.Queries.GetConfigurationByKey(t.Context(), SigningKey.String())
@@ -797,8 +801,9 @@ func TestSigningKeyInitialization(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, cfg1)
 
-		originalKey := cfg1.SigningKey()
-		require.NotNil(t, originalKey)
+		originalPrivateKey, originalPublicKey := cfg1.SigningKey()
+		require.NotNil(t, originalPrivateKey)
+		require.NotNil(t, originalPublicKey)
 
 		require.NoError(t, cfg1.Close())
 
@@ -817,10 +822,11 @@ func TestSigningKeyInitialization(t *testing.T) {
 		})
 
 		// Should have same signing key
-		require.NotNil(t, cfg2.SigningKey())
-		require.Equal(t, originalKey.D, cfg2.SigningKey().D)
-		require.Equal(t, originalKey.X, cfg2.SigningKey().X)
-		require.Equal(t, originalKey.Y, cfg2.SigningKey().Y)
+		privateKey2, publicKey2 := cfg2.SigningKey()
+		require.NotNil(t, privateKey2)
+		require.NotNil(t, publicKey2)
+
+		require.True(t, privateKey2.Equal(originalPrivateKey))
 	})
 
 	t.Run("ExistingBothKeys", func(t *testing.T) {
@@ -847,10 +853,12 @@ func TestSigningKeyInitialization(t *testing.T) {
 		err = cfg1.RotateSigningKey(t.Context())
 		require.NoError(t, err)
 
-		newKey := cfg1.SigningKey()
-		prevKey := cfg1.PreviousSigningKey()
-		require.NotNil(t, newKey)
-		require.NotNil(t, prevKey)
+		newPrivateKey, newPublicKey := cfg1.SigningKey()
+		prevPrivateKey, prevPublicKey := cfg1.PreviousSigningKey()
+		require.NotNil(t, newPrivateKey)
+		require.NotNil(t, newPublicKey)
+		require.NotNil(t, prevPrivateKey)
+		require.NotNil(t, prevPublicKey)
 
 		require.NoError(t, cfg1.Close())
 
@@ -864,12 +872,16 @@ func TestSigningKeyInitialization(t *testing.T) {
 		})
 
 		// Should load both keys
-		require.NotNil(t, cfg2.SigningKey())
-		require.NotNil(t, cfg2.PreviousSigningKey())
+		privateKey2, publicKey2 := cfg2.SigningKey()
+		require.NotNil(t, privateKey2)
+		require.NotNil(t, publicKey2)
+		prevPrivateKey2, prevPublicKey2 := cfg2.PreviousSigningKey()
+		require.NotNil(t, prevPrivateKey2)
+		require.NotNil(t, prevPublicKey2)
 
 		// Verify keys match
-		require.Equal(t, newKey.D, cfg2.SigningKey().D)
-		require.Equal(t, prevKey.D, cfg2.PreviousSigningKey().D)
+		require.True(t, privateKey2.Equal(newPrivateKey))
+		require.True(t, prevPrivateKey2.Equal(prevPrivateKey))
 	})
 }
 
@@ -897,23 +909,28 @@ func TestRotateSigningKey(t *testing.T) {
 			require.NoError(t, cfg.Close())
 		})
 
-		originalKey := cfg.SigningKey()
-		require.NotNil(t, originalKey)
-		require.Nil(t, cfg.PreviousSigningKey())
+		originalPrivateKey, originalPublicKey := cfg.SigningKey()
+		require.NotNil(t, originalPrivateKey)
+		require.NotNil(t, originalPublicKey)
+		prevPrivateKey, prevPublicKey := cfg.PreviousSigningKey()
+		require.Nil(t, prevPrivateKey)
+		require.Nil(t, prevPublicKey)
 
 		// Rotate key
 		err = cfg.RotateSigningKey(t.Context())
 		require.NoError(t, err)
 
 		// Should have new signing key
-		newKey := cfg.SigningKey()
-		require.NotNil(t, newKey)
-		require.NotEqual(t, originalKey.D, newKey.D)
+		newPrivateKey, newPublicKey := cfg.SigningKey()
+		require.NotNil(t, newPrivateKey)
+		require.NotNil(t, newPublicKey)
+		require.False(t, newPrivateKey.Equal(originalPrivateKey))
 
 		// Original key should be previous key
-		prevKey := cfg.PreviousSigningKey()
-		require.NotNil(t, prevKey)
-		require.Equal(t, originalKey.D, prevKey.D)
+		prevPrivateKey, prevPublicKey = cfg.PreviousSigningKey()
+		require.NotNil(t, prevPrivateKey)
+		require.NotNil(t, prevPublicKey)
+		require.True(t, prevPrivateKey.Equal(originalPrivateKey))
 
 		// Verify database state
 		dbSigningKey, err := database.Queries.GetConfigurationByKey(t.Context(), SigningKey.String())
@@ -952,20 +969,21 @@ func TestRotateSigningKey(t *testing.T) {
 		err = cfg.RotateSigningKey(t.Context())
 		require.NoError(t, err)
 
-		firstRotatedKey := cfg.SigningKey()
-		require.NotNil(t, firstRotatedKey)
+		firstRotatedPrivateKey, firstRotatedPublicKey := cfg.SigningKey()
+		require.NotNil(t, firstRotatedPrivateKey)
+		require.NotNil(t, firstRotatedPublicKey)
 
 		// Second rotation
 		err = cfg.RotateSigningKey(t.Context())
 		require.NoError(t, err)
 
-		secondRotatedKey := cfg.SigningKey()
-		prevKey := cfg.PreviousSigningKey()
+		secondRotatedPrivateKey, _ := cfg.SigningKey()
+		prevPrivateKey, _ := cfg.PreviousSigningKey()
 
 		// Second rotated key should be different from first
-		require.NotEqual(t, firstRotatedKey.D, secondRotatedKey.D)
+		require.False(t, firstRotatedPrivateKey.Equal(secondRotatedPrivateKey))
 		// Previous key should be the first rotated key
-		require.Equal(t, firstRotatedKey.D, prevKey.D)
+		require.True(t, prevPrivateKey.Equal(firstRotatedPrivateKey))
 	})
 
 	t.Run("ConcurrentRotation", func(t *testing.T) {
@@ -1011,8 +1029,12 @@ func TestRotateSigningKey(t *testing.T) {
 		}
 
 		// Should have valid keys after concurrent rotations
-		require.NotNil(t, cfg.SigningKey())
-		require.NotNil(t, cfg.PreviousSigningKey())
+		privateKey, publicKey := cfg.SigningKey()
+		require.NotNil(t, privateKey)
+		require.NotNil(t, publicKey)
+		prevPrivateKey, prevPublicKey := cfg.PreviousSigningKey()
+		require.NotNil(t, prevPrivateKey)
+		require.NotNil(t, prevPublicKey)
 	})
 }
 
@@ -1044,11 +1066,11 @@ func TestSigningKeyPollingUpdate(t *testing.T) {
 		require.NoError(t, cfg2.Close())
 	})
 
-	originalKey1 := cfg1.SigningKey()
-	originalKey2 := cfg2.SigningKey()
+	originalPrivateKey1, _ := cfg1.SigningKey()
+	originalPrivateKey2, _ := cfg2.SigningKey()
 
 	// Keys should initially be the same
-	require.Equal(t, originalKey1.D, originalKey2.D)
+	require.True(t, originalPrivateKey1.Equal(originalPrivateKey2))
 
 	// Rotate key in cfg1
 	err = cfg1.RotateSigningKey(t.Context())
@@ -1058,8 +1080,12 @@ func TestSigningKeyPollingUpdate(t *testing.T) {
 	time.Sleep(time.Millisecond * 300)
 
 	// Both should have the new key
-	require.Equal(t, cfg1.SigningKey().D, cfg2.SigningKey().D)
-	require.Equal(t, cfg1.PreviousSigningKey().D, cfg2.PreviousSigningKey().D)
+	privateKey1, _ := cfg1.SigningKey()
+	privateKey2, _ := cfg2.SigningKey()
+	require.True(t, privateKey1.Equal(privateKey2))
+	prevPrivateKey1, _ := cfg1.PreviousSigningKey()
+	prevPrivateKey2, _ := cfg2.PreviousSigningKey()
+	require.True(t, prevPrivateKey1.Equal(prevPrivateKey2))
 }
 
 func TestSigningKeyEncodingDecoding(t *testing.T) {
@@ -1093,13 +1119,14 @@ func TestSigningKeyEncodingDecoding(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		originalKey := cfg.SigningKey()
+		originalPrivateKey, _ := cfg.SigningKey()
 
 		// Update should handle error gracefully
 		cfg.update()
 
 		// Key should remain unchanged
-		require.Equal(t, originalKey.D, cfg.SigningKey().D)
+		currentPrivateKey, _ := cfg.SigningKey()
+		require.True(t, originalPrivateKey.Equal(currentPrivateKey))
 	})
 
 	t.Run("InvalidPEM", func(t *testing.T) {
@@ -1133,13 +1160,14 @@ func TestSigningKeyEncodingDecoding(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		originalKey := cfg.SigningKey()
+		originalPrivateKey, _ := cfg.SigningKey()
 
 		// Update should handle error gracefully
 		cfg.update()
 
 		// Key should remain unchanged
-		require.Equal(t, originalKey.D, cfg.SigningKey().D)
+		currentPrivateKey, _ := cfg.SigningKey()
+		require.True(t, originalPrivateKey.Equal(currentPrivateKey))
 	})
 }
 
@@ -1173,7 +1201,9 @@ func TestTransactionIsolationLevels(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify the operation completed successfully
-		require.NotNil(t, cfg.SigningKey())
+		privateKey, publicKey := cfg.SigningKey()
+		require.NotNil(t, privateKey)
+		require.NotNil(t, publicKey)
 	})
 
 	t.Run("SetDefaultUsesReadCommitted", func(t *testing.T) {
