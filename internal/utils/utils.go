@@ -5,6 +5,7 @@ package utils //nolint:revive
 import (
 	"crypto/ed25519"
 	"crypto/rand"
+	"crypto/subtle"
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
@@ -62,6 +63,11 @@ func RandomBase32String(n int) string {
 	return *(*string)(unsafe.Pointer(&b))
 }
 
+// ConstantTimeCompareBytes compares two byte slices in constant time
+func ConstantTimeCompareBytes(a []byte, b []byte) bool {
+	return subtle.ConstantTimeCompare(a, b) == 1
+}
+
 // DefaultFiberApp returns a new fiber app with sensible defaults
 func DefaultFiberApp() *fiber.App {
 	return fiber.New(fiber.Config{
@@ -92,4 +98,9 @@ func DecodeED25519PrivateKey(encoded []byte) (ed25519.PrivateKey, error) {
 		return privateKey, nil
 	}
 	return nil, ErrInvalidPKCS8PrivateKey
+}
+
+func GenericZero[T any]() T {
+	var zero T
+	return zero
 }
