@@ -151,7 +151,7 @@ func (c *Google) CreateFlow(ctx context.Context, deviceIdentifier string, userId
 
 func (c *Google) CompleteFlow(ctx context.Context, identifier string, code string) (*flow.Data, error) {
 	c.logger.Debug().Str("identifier", identifier).Msg("completing flow")
-	tx, err := c.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	tx, err := c.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
 		return nil, errors.Join(ErrCompletingFlow, err)
 	}

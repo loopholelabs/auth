@@ -133,7 +133,7 @@ func (c *Magic) CompleteFlow(ctx context.Context, token string) (*flow.Data, err
 	}
 
 	c.logger.Debug().Str("identifier", identifier).Msg("completing flow")
-	tx, err := c.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	tx, err := c.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
 		return nil, errors.Join(ErrCompletingFlow, err)
 	}
