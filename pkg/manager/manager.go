@@ -33,14 +33,15 @@ const (
 )
 
 var (
-	ErrCreatingManager   = errors.New("error creating manager")
-	ErrDBIsRequired      = errors.New("db is required")
-	ErrCreatingSession   = errors.New("error creating session")
-	ErrRefreshingSession = errors.New("error refreshing session")
-	ErrRevokingSession   = errors.New("error revoking session")
-	ErrInvalidProvider   = errors.New("invalid provider")
-	ErrInvalidFlowData   = errors.New("invalid flow data")
-	ErrSessionIsExpired  = errors.New("session is expired")
+	ErrCreatingManager    = errors.New("error creating manager")
+	ErrDBIsRequired       = errors.New("db is required")
+	ErrCreatingSession    = errors.New("error creating session")
+	ErrRefreshingSession  = errors.New("error refreshing session")
+	ErrRevokingSession    = errors.New("error revoking session")
+	ErrInvalidProvider    = errors.New("invalid provider")
+	ErrInvalidFlowData    = errors.New("invalid flow data")
+	ErrSessionIsExpired   = errors.New("session is expired")
+	ErrInvalidSessionRole = errors.New("invalid session role")
 )
 
 type GithubOptions struct {
@@ -334,7 +335,7 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 		OrganizationInfo: OrganizationInfo{
 			Identifier: session.OrganizationIdentifier,
 			IsDefault:  true,
-			Role:       role.OwnerRole.String(),
+			Role:       role.OwnerRole,
 		},
 		UserInfo: UserInfo{
 			Identifier: session.UserIdentifier,
@@ -395,7 +396,11 @@ func (m *Manager) RefreshSession(ctx context.Context, session Session) (Session,
 			if err != nil {
 				return Session{}, errors.Join(ErrRefreshingSession, err)
 			}
-			session.OrganizationInfo.Role = membership.Role
+			membershipRole := role.Role(membership.Role)
+			if !membershipRole.IsValid() {
+				return Session{}, errors.Join(ErrRefreshingSession, ErrInvalidSessionRole)
+			}
+			session.OrganizationInfo.Role = membershipRole
 		}
 	}
 
