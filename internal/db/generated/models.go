@@ -160,6 +160,15 @@ type Invitation struct {
 	CreatedAt              time.Time
 }
 
+type MachineKey struct {
+	Identifier             string
+	Salt                   string
+	Hash                   []byte
+	OrganizationIdentifier string
+	Kind                   string
+	CreatedAt              time.Time
+}
+
 type MagicLinkFlow struct {
 	Identifier       string
 	Salt             string

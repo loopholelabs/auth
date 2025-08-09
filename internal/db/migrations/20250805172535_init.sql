@@ -84,7 +84,7 @@ CREATE TABLE invitations
     organization_identifier CHAR(36)    NOT NULL,
     inviter_user_identifier CHAR(36)    NOT NULL,
     role                    VARCHAR(64) NOT NULL,
-    hash                    BINARY(60)    NOT NULL,
+    hash                    BINARY(32)    NOT NULL,
     status                  ENUM('pending', 'accepted') NOT NULL DEFAULT 'pending',
     expires_at              DATETIME    NOT NULL,
     created_at              DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -155,9 +155,9 @@ CREATE TABLE session_invalidations
 -- ------------------------------------------------------------------
 CREATE TABLE api_keys
 (
-    identifier              CHAR(36) PRIMARY KEY DEFAULT (uuid()),
+    identifier              CHAR(12) PRIMARY KEY,
     salt                    CHAR(36)    NOT NULL,
-    hash                    BINARY(60)    NOT NULL,
+    hash                    BINARY(32)    NOT NULL,
     organization_identifier CHAR(36)    NOT NULL,
     role                    VARCHAR(64) NOT NULL,
     created_at              DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -174,9 +174,9 @@ CREATE TABLE api_keys
 -- ------------------------------------------------------------------
 CREATE TABLE service_keys
 (
-    identifier              CHAR(36) PRIMARY KEY DEFAULT (uuid()),
+    identifier              CHAR(12) PRIMARY KEY,
     salt                    CHAR(36)    NOT NULL,
-    hash                    BINARY(60)    NOT NULL,
+    hash                    BINARY(32)    NOT NULL,
     organization_identifier CHAR(36)    NOT NULL,
     user_identifier         CHAR(36)    NOT NULL,
     role                    VARCHAR(64) NOT NULL,
@@ -196,6 +196,26 @@ CREATE TABLE service_keys
             ON DELETE CASCADE
             ON UPDATE CASCADE
 );
+
+-- ------------------------------------------------------------------
+-- Machine Keys
+-- ------------------------------------------------------------------
+CREATE TABLE machine_keys
+(
+    identifier              CHAR(12) PRIMARY KEY,
+    salt                    CHAR(36)    NOT NULL,
+    hash                    BINARY(32)    NOT NULL,
+    organization_identifier CHAR(36)    NOT NULL,
+    kind                    VARCHAR(64) NOT NULL,
+    created_at              DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_machine_keys_organization_identifier_organizations
+        FOREIGN KEY (organization_identifier)
+            REFERENCES organizations (identifier)
+            ON DELETE CASCADE
+            ON UPDATE CASCADE
+);
+
 
 -- ------------------------------------------------------------------
 -- Flows
@@ -266,7 +286,7 @@ CREATE TABLE magic_link_flows
 (
     identifier        CHAR(36) PRIMARY KEY  DEFAULT (uuid()),
     salt              CHAR(36)     NOT NULL,
-    hash              BINARY(60)     NOT NULL,
+    hash              BINARY(32)     NOT NULL,
     email_address     VARCHAR(320) NOT NULL,
     device_identifier CHAR(36),
     user_identifier   CHAR(36),
