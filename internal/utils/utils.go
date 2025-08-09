@@ -21,11 +21,13 @@ var (
 )
 
 const (
-	letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	letterBytes       = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	base36LetterBytes = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 )
 
 var (
-	maxLetterBytes = big.NewInt(int64(len(letterBytes)))
+	maxLetterBytes       = big.NewInt(int64(len(letterBytes)))
+	maxBase36LetterBytes = big.NewInt(int64(len(base36LetterBytes)))
 )
 
 // RandomBytes generates a random byte slice of length n
@@ -35,13 +37,28 @@ func RandomBytes(n int) []byte {
 		num, _ := rand.Int(rand.Reader, maxLetterBytes)
 		b[i] = letterBytes[num.Int64()]
 	}
+	return b
+}
 
+// RandomBase36Bytes generates a random byte slice length n of Base36 characters
+func RandomBase36Bytes(length int) []byte {
+	b := make([]byte, length)
+	for i := 0; i < length; i++ {
+		num, _ := rand.Int(rand.Reader, maxBase36LetterBytes)
+		b[i] = base36LetterBytes[num.Int64()]
+	}
 	return b
 }
 
 // RandomString generates a random string of length n
 func RandomString(n int) string {
 	b := RandomBytes(n)
+	return *(*string)(unsafe.Pointer(&b))
+}
+
+// RandomBase36String generates a random base36 string of length n
+func RandomBase36String(n int) string {
+	b := RandomBase36Bytes(n)
 	return *(*string)(unsafe.Pointer(&b))
 }
 
@@ -64,6 +81,9 @@ func EncodeECDSAPrivateKey(privateKey *ecdsa.PrivateKey) []byte {
 
 func DecodeECDSAPrivateKey(encoded []byte) (*ecdsa.PrivateKey, error) {
 	block, _ := pem.Decode(encoded)
+	if block == nil {
+		return nil, ErrInvalidPKCS8PrivateKey
+	}
 	key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
 	if err != nil {
 		return nil, err

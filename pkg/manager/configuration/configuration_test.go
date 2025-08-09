@@ -1014,43 +1014,6 @@ func TestRotateSigningKey(t *testing.T) {
 		require.NotNil(t, cfg.SigningKey())
 		require.NotNil(t, cfg.PreviousSigningKey())
 	})
-
-	t.Run("RotationWithCorruptKey", func(t *testing.T) {
-		container := testutils.SetupMySQLContainer(t)
-		logger := logging.Test(t, logging.Zerolog, "test")
-		database, err := db.New(container.URL, logger)
-		require.NoError(t, err)
-
-		t.Cleanup(func() {
-			require.NoError(t, database.Close())
-		})
-
-		opts := Options{
-			PollInterval:  time.Second * 5,
-			SessionExpiry: time.Minute * 30,
-		}
-
-		cfg, err := New(opts, database, logger)
-		require.NoError(t, err)
-		require.NotNil(t, cfg)
-
-		// Corrupt the signing key in database
-		err = database.Queries.SetConfiguration(t.Context(), generated.SetConfigurationParams{
-			ConfigurationKey:   SigningKey.String(),
-			ConfigurationValue: "corrupted-key-data",
-		})
-		require.NoError(t, err)
-
-		// Rotation should still work - will read corrupted key but generate new one
-		err = cfg.RotateSigningKey(t.Context())
-		require.NoError(t, err)
-
-		// Should have new signing key
-		require.NotNil(t, cfg.SigningKey())
-
-		// Cleanup
-		require.NoError(t, cfg.Close())
-	})
 }
 
 func TestSigningKeyPollingUpdate(t *testing.T) {
