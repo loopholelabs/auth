@@ -22,12 +22,12 @@ var (
 
 const (
 	letterBytes       = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	base36LetterBytes = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	base32LetterBytes = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 )
 
 var (
 	maxLetterBytes       = big.NewInt(int64(len(letterBytes)))
-	maxBase36LetterBytes = big.NewInt(int64(len(base36LetterBytes)))
+	maxBase32LetterBytes = big.NewInt(int64(len(base32LetterBytes)))
 )
 
 // RandomBytes generates a random byte slice of length n
@@ -40,12 +40,12 @@ func RandomBytes(n int) []byte {
 	return b
 }
 
-// RandomBase36Bytes generates a random byte slice length n of Base36 characters
-func RandomBase36Bytes(length int) []byte {
+// RandomBase32Bytes generates a random byte slice length n of base32 characters
+func RandomBase32Bytes(length int) []byte {
 	b := make([]byte, length)
 	for i := 0; i < length; i++ {
-		num, _ := rand.Int(rand.Reader, maxBase36LetterBytes)
-		b[i] = base36LetterBytes[num.Int64()]
+		num, _ := rand.Int(rand.Reader, maxBase32LetterBytes)
+		b[i] = base32LetterBytes[num.Int64()]
 	}
 	return b
 }
@@ -56,9 +56,9 @@ func RandomString(n int) string {
 	return *(*string)(unsafe.Pointer(&b))
 }
 
-// RandomBase36String generates a random base36 string of length n
-func RandomBase36String(n int) string {
-	b := RandomBase36Bytes(n)
+// RandomBase32String generates a random base32 string of length n
+func RandomBase32String(n int) string {
+	b := RandomBase32Bytes(n)
 	return *(*string)(unsafe.Pointer(&b))
 }
 
