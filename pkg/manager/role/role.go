@@ -14,3 +14,12 @@ const (
 func (r Role) String() string {
 	return string(r)
 }
+
+func (r Role) IsValid() bool {
+	switch r {
+	case OwnerRole, AdminRole, MemberRole, ViewerRole:
+		return true
+	default:
+		return false
+	}
+}
