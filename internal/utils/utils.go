@@ -3,7 +3,7 @@
 package utils //nolint:revive
 
 import (
-	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/json"
@@ -74,12 +74,12 @@ func DefaultFiberApp() *fiber.App {
 	})
 }
 
-func EncodeECDSAPrivateKey(privateKey *ecdsa.PrivateKey) []byte {
+func EncodeED25519PrivateKey(privateKey ed25519.PrivateKey) []byte {
 	marshalled, _ := x509.MarshalPKCS8PrivateKey(privateKey)
 	return pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: marshalled})
 }
 
-func DecodeECDSAPrivateKey(encoded []byte) (*ecdsa.PrivateKey, error) {
+func DecodeED25519PrivateKey(encoded []byte) (ed25519.PrivateKey, error) {
 	block, _ := pem.Decode(encoded)
 	if block == nil {
 		return nil, ErrInvalidPKCS8PrivateKey
@@ -88,7 +88,7 @@ func DecodeECDSAPrivateKey(encoded []byte) (*ecdsa.PrivateKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	if privateKey, ok := key.(*ecdsa.PrivateKey); ok {
+	if privateKey, ok := key.(ed25519.PrivateKey); ok {
 		return privateKey, nil
 	}
 	return nil, ErrInvalidPKCS8PrivateKey
