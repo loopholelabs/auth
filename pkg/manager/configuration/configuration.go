@@ -13,11 +13,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/loopholelabs/auth/internal/utils"
 	"github.com/loopholelabs/logging/types"
 
 	"github.com/loopholelabs/auth/internal/db"
 	"github.com/loopholelabs/auth/internal/db/generated"
+	"github.com/loopholelabs/auth/internal/utils"
 )
 
 const (
@@ -30,6 +30,7 @@ var (
 	ErrInitializingConfigurations = errors.New("error initializing configurations")
 	ErrGettingConfiguration       = errors.New("error getting configuration")
 	ErrSettingConfiguration       = errors.New("error setting configuration")
+	ErrSettingDefaultSigningKey   = errors.New("error setting default signing key")
 	ErrRotatingSigningKey         = errors.New("error rotating signing key")
 )
 
@@ -244,9 +245,104 @@ func (c *Configuration) setDefault(key Key, value string) (string, error) {
 	return cfg.ConfigurationValue, nil
 }
 
+func (c *Configuration) setDefaultSigningKey() error {
+	defaultSigningKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return errors.Join(ErrSettingDefaultSigningKey, err)
+	}
+
+	ctx, cancel := context.WithTimeout(c.ctx, Timeout)
+	defer cancel()
+	tx, err := c.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
+	if err != nil {
+		return errors.Join(ErrSettingDefaultSigningKey, err)
+	}
+	defer func() {
+		err := tx.Rollback()
+		if err != nil && !errors.Is(err, sql.ErrTxDone) {
+			c.logger.Error().Err(err).Msg("failed to rollback transaction")
+		}
+	}()
+	qtx := c.db.Queries.WithTx(tx)
+	cfg, err := qtx.GetConfigurationByKey(ctx, SigningKey.String())
+	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			return errors.Join(ErrSettingDefaultSigningKey, err)
+		}
+		err = qtx.SetConfiguration(ctx, generated.SetConfigurationParams{
+			ConfigurationKey:   SigningKey.String(),
+			ConfigurationValue: base64.StdEncoding.EncodeToString(utils.EncodeECDSAPrivateKey(defaultSigningKey)),
+		})
+		if err != nil {
+			return errors.Join(ErrSettingDefaultSigningKey, err)
+		}
+
+		err = tx.Commit()
+		if err != nil {
+			return errors.Join(ErrSettingDefaultSigningKey, err)
+		}
+
+		c.signingKey = defaultSigningKey
+		c.previousSigningKey = nil
+		return nil
+	}
+
+	pemSigningKey, err := base64.StdEncoding.DecodeString(cfg.ConfigurationValue)
+	if err != nil {
+		return errors.Join(ErrSettingDefaultSigningKey, err)
+	}
+
+	signingKey, err := utils.DecodeECDSAPrivateKey(pemSigningKey)
+	if err != nil {
+		return errors.Join(ErrSettingDefaultSigningKey, err)
+	}
+
+	cfg, err = qtx.GetConfigurationByKey(ctx, PreviousSigningKey.String())
+	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			return errors.Join(ErrSettingDefaultSigningKey, err)
+		}
+
+		c.signingKey = signingKey
+		c.previousSigningKey = nil
+
+		err = tx.Commit()
+		if err != nil {
+			return errors.Join(ErrSettingDefaultSigningKey, err)
+		}
+
+		return nil
+	}
+
+	pemPreviousSigningKey, err := base64.StdEncoding.DecodeString(cfg.ConfigurationValue)
+	if err != nil {
+		return errors.Join(ErrSettingDefaultSigningKey, err)
+	}
+
+	previousSigningKey, err := utils.DecodeECDSAPrivateKey(pemPreviousSigningKey)
+	if err != nil {
+		return errors.Join(ErrSettingDefaultSigningKey, err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return errors.Join(ErrSettingDefaultSigningKey, err)
+	}
+
+	c.signingKey = signingKey
+	c.previousSigningKey = previousSigningKey
+
+	return nil
+}
+
 func (c *Configuration) init(options Options) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
+	err := c.setDefaultSigningKey()
+	if err != nil {
+		return errors.Join(ErrInitializingConfigurations, err)
+	}
 
 	pollInterval, err := c.setDefault(PollIntervalKey, options.PollInterval.String())
 	if err != nil {
@@ -309,7 +405,6 @@ func (c *Configuration) update() {
 					continue
 				}
 
-				c.previousSigningKey = c.signingKey
 				c.signingKey = signingKey
 			case PreviousSigningKey:
 				pemPreviousSigningKey, err := base64.StdEncoding.DecodeString(configuration.ConfigurationValue)
