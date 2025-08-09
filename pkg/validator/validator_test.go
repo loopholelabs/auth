@@ -325,10 +325,10 @@ func TestValidator(t *testing.T) {
 
 			// IsSessionInvalidated returns true if cached generation >= passed generation
 			// Cached generation is 5, so:
-			assert.True(t, v.IsSessionInvalidated(sessionID, 4))    // 5 >= 4, no invalidation needed
-			assert.True(t, v.IsSessionInvalidated(sessionID, 5))    // 5 >= 5, no invalidation needed
-			assert.False(t, v.IsSessionInvalidated(sessionID, 6))   // 5 < 6, invalidation needed
-			assert.False(t, v.IsSessionInvalidated(sessionID, 100)) // 5 < 100, invalidation needed
+			assert.True(t, v.IsSessionInvalidated(sessionID, 4))    // 5 >= 4, invalidation needed
+			assert.True(t, v.IsSessionInvalidated(sessionID, 5))    // 5 >= 5, invalidation needed
+			assert.False(t, v.IsSessionInvalidated(sessionID, 6))   // 5 < 6, no invalidation needed
+			assert.False(t, v.IsSessionInvalidated(sessionID, 100)) // 5 < 100, no invalidation needed
 		})
 
 		t.Run("MultipleInvalidations", func(t *testing.T) {
@@ -494,7 +494,7 @@ func TestValidator(t *testing.T) {
 			// Initially, no invalidation needed
 			assert.False(t, v.IsSessionInvalidated(session.Identifier, session.Generation))
 
-			// Update user name (this should increment generation)
+			// Update user's name (this should increment generation)
 			err = database.Queries.UpdateUserNameByIdentifier(t.Context(), generated.UpdateUserNameByIdentifierParams{
 				Name:       "Updated User",
 				Identifier: session.UserInfo.Identifier,
