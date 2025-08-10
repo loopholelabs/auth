@@ -22,7 +22,7 @@ info:
   title: Auth API v1
   version: "1.0"
 paths:
-  /device/login:
+  /flows/device/login:
     get:
       consumes:
       - application/json
@@ -46,7 +46,7 @@ paths:
       tags:
       - device
       - login
-  /device/poll:
+  /flows/device/poll:
     get:
       consumes:
       - application/json
@@ -92,7 +92,7 @@ paths:
       tags:
       - device
       - poll
-  /device/validate:
+  /flows/device/validate:
     get:
       consumes:
       - application/json
@@ -130,7 +130,7 @@ paths:
       tags:
       - device
       - validate
-  /github/callback:
+  /flows/github/callback:
     get:
       consumes:
       - application/json
@@ -173,7 +173,7 @@ paths:
       tags:
       - github
       - callback
-  /github/login:
+  /flows/github/login:
     get:
       consumes:
       - application/json
@@ -216,6 +216,93 @@ paths:
       summary: login logs in a user with Github
       tags:
       - github
+      - login
+  /flows/google/callback:
+    get:
+      consumes:
+      - application/json
+      description: callback logs in a user with Google
+      parameters:
+      - description: Next Redirect URL
+        in: query
+        name: code
+        type: string
+      - description: Device Flow Code
+        in: query
+        name: state
+        type: string
+      produces:
+      - application/json
+      responses:
+        "307":
+          description: Temporary Redirect
+          headers:
+            Location:
+              description: Redirects to Next URL
+              type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "403":
+          description: Forbidden
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: callback logs in a user with Google
+      tags:
+      - google
+      - callback
+  /flows/google/login:
+    get:
+      consumes:
+      - application/json
+      description: login logs in a user with Google
+      parameters:
+      - description: Next Redirect URL
+        in: query
+        name: next
+        required: true
+        type: string
+      - description: Device Flow Code
+        in: query
+        name: code
+        type: string
+      produces:
+      - application/json
+      responses:
+        "307":
+          description: Temporary Redirect
+          headers:
+            Location:
+              description: Redirects to Google
+              type: string
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: login logs in a user with Google
+      tags:
+      - google
       - login
   /health:
     get:

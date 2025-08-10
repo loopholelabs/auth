@@ -4,6 +4,7 @@ package v1
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"github.com/loopholelabs/auth/pkg/api/v1/flows"
 
 	"github.com/loopholelabs/logging/types"
 
@@ -66,6 +67,8 @@ func (v *V1) init() {
 		ctx.Response().Header.SetContentType("application/json")
 		return ctx.SendString(docs.SwaggerInfoAuthAPI.ReadDoc())
 	})
+
+	v.app.Mount("/flows", flows.New(v.options, v.logger).App())
 }
 
 func (v *V1) App() *fiber.App {
