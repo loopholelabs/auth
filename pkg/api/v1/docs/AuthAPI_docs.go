@@ -670,7 +670,7 @@ const docTemplateAuthAPI = `{
         },
         "/public": {
             "get": {
-                "description": "public returns the current public ket",
+                "description": "public returns the current public key and session information",
                 "consumes": [
                     "application/json"
                 ],
@@ -680,7 +680,7 @@ const docTemplateAuthAPI = `{
                 "tags": [
                     "public"
                 ],
-                "summary": "public returns the current public key",
+                "summary": "public returns the current public key and session information",
                 "responses": {
                     "200": {
                         "description": "OK",
