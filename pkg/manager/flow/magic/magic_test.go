@@ -443,13 +443,13 @@ func TestCompleteFlow(t *testing.T) {
 		// Complete the flow first time
 		flow1, err := m.CompleteFlow(t.Context(), token)
 		require.NoError(t, err)
-		require.NotNil(t, flow1)
+		require.NotZero(t, flow1)
 
 		// Try to complete the same flow again - should fail as it's deleted
 		flow2, err := m.CompleteFlow(t.Context(), token)
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrCompletingFlow)
-		require.Nil(t, flow2)
+		require.Zero(t, flow2)
 	})
 
 	t.Run("CompleteFlowConcurrency", func(t *testing.T) {
@@ -1112,7 +1112,7 @@ func TestNullableFields(t *testing.T) {
 		require.Equal(t, "minimal@example.com", flow.ProviderIdentifier)
 		require.Empty(t, flow.DeviceIdentifier)
 		require.Empty(t, flow.UserIdentifier)
-		require.Empty(t, flow.NextURL)
+		require.Equal(t, "http://localhost:3000/dashboard", flow.NextURL)
 	})
 
 	t.Run("MixedNullableFields", func(t *testing.T) {
@@ -1123,7 +1123,7 @@ func TestNullableFields(t *testing.T) {
 			user    string
 			nextURL string
 		}{
-			{"OnlyUser", "", "user-123", ""},
+			{"OnlyUser", "", "user-123", "http://localhost:3000/dashboard"},
 			{"OnlyNextURL", "", "", "https://app.com"},
 			{"UserAndURL", "", "user-789", "https://app.com/other"},
 		}
