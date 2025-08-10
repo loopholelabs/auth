@@ -6,6 +6,7 @@ import (
 	"crypto"
 	"crypto/ed25519"
 	"errors"
+	"math"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -15,10 +16,11 @@ import (
 )
 
 var (
-	ErrSigningSession = errors.New("error signing session")
-	ErrParsingSession = errors.New("error parsing session")
-	ErrInvalidSession = errors.New("invalid session")
-	ErrInvalidClaims  = errors.New("invalid claims")
+	ErrInvalidSigningKey = errors.New("invalid signing key")
+	ErrSigningSession    = errors.New("error signing session")
+	ErrParsingSession    = errors.New("error parsing session")
+	ErrInvalidSession    = errors.New("invalid session")
+	ErrInvalidClaims     = errors.New("invalid claims")
 )
 
 type OrganizationInfo struct {
@@ -55,6 +57,10 @@ func (s Session) Sign(signingKey ed25519.PrivateKey) (string, error) {
 		return "", errors.Join(ErrSigningSession, ErrInvalidSession)
 	}
 
+	if signingKey == nil {
+		return "", errors.Join(ErrSigningSession, ErrInvalidSigningKey)
+	}
+
 	claims := jwt.MapClaims{
 		"sub": s.Identifier,                  // Subject is the Session Identifier
 		"iss": s.OrganizationInfo.Identifier, // Issuer is the Organization Identifier
@@ -88,14 +94,14 @@ func ParseSession(token string, publicKey crypto.PublicKey, previousPublicKey cr
 		jwt.WithExpirationRequired(),
 		jwt.WithStrictDecoding(),
 	)
-	if err != nil {
+	if err != nil && !errors.Is(err, jwt.ErrTokenSignatureInvalid) {
 		return Session{}, false, errors.Join(ErrParsingSession, err)
 	}
 
 	replace := false
 VALIDATE:
 	switch {
-	case parsedToken.Valid:
+	case parsedToken.Valid && err == nil:
 	case errors.Is(err, jwt.ErrTokenSignatureInvalid) && !replace:
 		parsedToken, err = jwt.Parse(token, keyFunc(previousPublicKey),
 			jwt.WithValidMethods([]string{jwt.SigningMethodEdDSA.Alg()}),
@@ -107,7 +113,9 @@ VALIDATE:
 		}
 		replace = true
 		goto VALIDATE
-	case replace || errors.Is(err, jwt.ErrTokenExpired) || errors.Is(err, jwt.ErrTokenMalformed) || errors.Is(err, jwt.ErrTokenNotValidYet):
+	case replace:
+		return Session{}, replace, errors.Join(ErrParsingSession, jwt.ErrTokenSignatureInvalid)
+	case errors.Is(err, jwt.ErrTokenExpired) || errors.Is(err, jwt.ErrTokenMalformed) || errors.Is(err, jwt.ErrTokenNotValidYet):
 		fallthrough
 	default:
 		return Session{}, replace, errors.Join(ErrParsingSession, err)
@@ -142,8 +150,12 @@ VALIDATE:
 		return Session{}, replace, errors.Join(ErrParsingSession, ErrInvalidClaims)
 	}
 
-	organizationRole, ok := parseClaims[role.Role]("organization_role", claims)
-	if !organizationRole.IsValid() || !ok {
+	organizationRoleString, ok := parseClaims[string]("organization_role", claims)
+	if organizationRoleString == "" || !ok {
+		return Session{}, replace, errors.Join(ErrParsingSession, ErrInvalidClaims)
+	}
+	organizationRole := role.Role(organizationRoleString)
+	if !organizationRole.IsValid() {
 		return Session{}, replace, errors.Join(ErrParsingSession, ErrInvalidClaims)
 	}
 
@@ -167,10 +179,11 @@ VALIDATE:
 		return Session{}, replace, errors.Join(ErrParsingSession, ErrInvalidClaims)
 	}
 
-	generation, ok := parseClaims[uint32]("generation", claims)
-	if !ok {
+	generationFloat64, ok := parseClaims[float64]("generation", claims)
+	if !ok || generationFloat64 > math.MaxUint32 || generationFloat64 < 0 {
 		return Session{}, replace, errors.Join(ErrParsingSession, ErrInvalidClaims)
 	}
+	generation := uint32(generationFloat64)
 
 	expirationTime, err := claims.GetExpirationTime()
 	if err != nil {

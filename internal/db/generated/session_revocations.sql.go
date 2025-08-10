@@ -66,3 +66,16 @@ func (q *Queries) GetAllSessionRevocations(ctx context.Context) ([]SessionRevoca
 	}
 	return items, nil
 }
+
+const getSessionRevocationBySessionIdentifier = `-- name: GetSessionRevocationBySessionIdentifier :one
+SELECT session_identifier, expires_at, created_at
+FROM session_revocations
+WHERE session_identifier = ? LIMIT 1
+`
+
+func (q *Queries) GetSessionRevocationBySessionIdentifier(ctx context.Context, sessionIdentifier string) (SessionRevocation, error) {
+	row := q.db.QueryRowContext(ctx, getSessionRevocationBySessionIdentifier, sessionIdentifier)
+	var i SessionRevocation
+	err := row.Scan(&i.SessionIdentifier, &i.ExpiresAt, &i.CreatedAt)
+	return i, err
+}
