@@ -294,7 +294,7 @@ func (c *Github) doGC() {
 	for {
 		select {
 		case <-c.ctx.Done():
-			c.logger.Info().Msg("GC Stopped")
+			c.logger.Info().Msg("GC stopped")
 			return
 		case <-time.After(GCInterval):
 			deleted, err := c.gc()

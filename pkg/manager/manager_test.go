@@ -18,8 +18,8 @@ import (
 	"github.com/loopholelabs/auth/internal/db"
 	"github.com/loopholelabs/auth/internal/db/generated"
 	"github.com/loopholelabs/auth/internal/testutils"
+	"github.com/loopholelabs/auth/pkg/credential"
 	"github.com/loopholelabs/auth/pkg/manager/configuration"
-	"github.com/loopholelabs/auth/pkg/manager/credential"
 	"github.com/loopholelabs/auth/pkg/manager/flow"
 	"github.com/loopholelabs/auth/pkg/manager/role"
 )

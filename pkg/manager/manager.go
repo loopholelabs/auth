@@ -19,8 +19,8 @@ import (
 	"github.com/loopholelabs/auth/internal/db"
 	"github.com/loopholelabs/auth/internal/db/generated"
 	"github.com/loopholelabs/auth/internal/mailer"
+	"github.com/loopholelabs/auth/pkg/credential"
 	"github.com/loopholelabs/auth/pkg/manager/configuration"
-	"github.com/loopholelabs/auth/pkg/manager/credential"
 	"github.com/loopholelabs/auth/pkg/manager/flow"
 	"github.com/loopholelabs/auth/pkg/manager/flow/device"
 	"github.com/loopholelabs/auth/pkg/manager/flow/github"
@@ -30,9 +30,10 @@ import (
 )
 
 const (
-	Timeout    = time.Second * 30
-	GCInterval = time.Minute
-	Jitter     = time.Second * 5
+	Timeout        = time.Second * 30
+	GCInterval     = time.Minute
+	HealthInterval = time.Second * 30
+	Jitter         = time.Second * 5
 )
 
 var (
@@ -112,6 +113,9 @@ type Manager struct {
 	device *device.Device
 
 	mailer mailer.Mailer
+
+	healthy bool
+	mu      sync.RWMutex
 
 	wg     sync.WaitGroup
 	ctx    context.Context
@@ -212,11 +216,16 @@ func New(options Options, db *db.DB, logger types.Logger) (*Manager, error) {
 		cancel:        cancel,
 	}
 
+	m.healthCheck()
+
 	m.wg.Add(1)
 	go m.doSessionGC()
 
 	m.wg.Add(1)
 	go m.doSessionRevocationGC()
+
+	m.wg.Add(1)
+	go m.healthCheck()
 
 	return m, nil
 }
@@ -590,8 +599,10 @@ func (m *Manager) RevokeSession(ctx context.Context, identifier string) error {
 	return nil
 }
 
-func (m *Manager) Healthy() bool {
-	return m.db.DB.PingContext(m.ctx) == nil && m.configuration.IsHealthy() && (m.mailer == nil || m.mailer.TestConnection(m.ctx) == nil)
+func (m *Manager) IsHealthy() bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.healthy
 }
 
 func (m *Manager) Close() error {
@@ -638,7 +649,7 @@ func (m *Manager) doSessionGC() {
 	for {
 		select {
 		case <-m.ctx.Done():
-			m.logger.Info().Msg("Session GC Stopped")
+			m.logger.Info().Msg("session GC stopped")
 			return
 		case <-time.After(GCInterval):
 			deleted, err := m.sessionGC()
@@ -662,7 +673,7 @@ func (m *Manager) doSessionRevocationGC() {
 	for {
 		select {
 		case <-m.ctx.Done():
-			m.logger.Info().Msg("Session Revocation GC Stopped")
+			m.logger.Info().Msg("session revocation GC stopped")
 			return
 		case <-time.After(GCInterval):
 			deleted, err := m.sessionRevocationGC()
@@ -671,6 +682,27 @@ func (m *Manager) doSessionRevocationGC() {
 			} else {
 				m.logger.Debug().Msgf("garbage collected %d expired session revocations", deleted)
 			}
+		}
+	}
+}
+
+func (m *Manager) healthCheck() {
+	m.mu.Lock()
+	m.healthy = m.db.DB.PingContext(m.ctx) == nil &&
+		m.configuration.IsHealthy() &&
+		(m.mailer == nil || m.mailer.TestConnection(m.ctx) == nil)
+	m.mu.Unlock()
+}
+
+func (m *Manager) doHealthCheck() {
+	defer m.wg.Done()
+	for {
+		select {
+		case <-m.ctx.Done():
+			m.logger.Info().Msg("health check stopped")
+			return
+		case <-time.After(HealthInterval):
+			m.healthCheck()
 		}
 	}
 }

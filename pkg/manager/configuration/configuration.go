@@ -56,12 +56,14 @@ type Configuration struct {
 	logger types.Logger
 	db     *db.DB
 
-	pollInterval       time.Duration
-	sessionExpiry      time.Duration
-	signingKey         ed25519.PrivateKey
-	previousSigningKey ed25519.PrivateKey
-	publicKey          crypto.PublicKey
-	previousPublicKey  crypto.PublicKey
+	pollInterval             time.Duration
+	sessionExpiry            time.Duration
+	signingKey               ed25519.PrivateKey
+	previousSigningKey       ed25519.PrivateKey
+	publicKey                crypto.PublicKey
+	previousPublicKey        crypto.PublicKey
+	encodedPublicKey         []byte
+	encodedPreviousPublicKey []byte
 
 	healthy bool
 
@@ -132,6 +134,18 @@ func (c *Configuration) PreviousSigningKey() (ed25519.PrivateKey, crypto.PublicK
 	return c.previousSigningKey, c.previousPublicKey
 }
 
+func (c *Configuration) EncodedPublicKey() []byte {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.encodedPublicKey
+}
+
+func (c *Configuration) EncodedPreviousPublicKey() []byte {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.encodedPreviousPublicKey
+}
+
 func (c *Configuration) RotateSigningKey(ctx context.Context) error {
 	_, signingKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
@@ -172,8 +186,10 @@ func (c *Configuration) RotateSigningKey(ctx context.Context) error {
 
 		c.signingKey = signingKey
 		c.publicKey = signingKey.Public()
+		c.encodedPublicKey = utils.EncodePublicKey(c.publicKey)
 		c.previousSigningKey = nil
 		c.previousPublicKey = nil
+		c.encodedPreviousPublicKey = nil
 		return nil
 	}
 
@@ -210,8 +226,10 @@ func (c *Configuration) RotateSigningKey(ctx context.Context) error {
 
 	c.signingKey = signingKey
 	c.publicKey = previousSigningKey.Public()
+	c.encodedPublicKey = utils.EncodePublicKey(c.publicKey)
 	c.previousSigningKey = previousSigningKey
 	c.previousPublicKey = previousSigningKey.Public()
+	c.encodedPreviousPublicKey = utils.EncodePublicKey(c.previousPublicKey)
 
 	return nil
 }
@@ -299,8 +317,10 @@ func (c *Configuration) setDefaultSigningKey() error {
 
 		c.signingKey = defaultSigningKey
 		c.publicKey = defaultSigningKey.Public()
+		c.encodedPublicKey = utils.EncodePublicKey(c.publicKey)
 		c.previousSigningKey = nil
 		c.previousPublicKey = nil
+		c.encodedPreviousPublicKey = nil
 		return nil
 	}
 
@@ -322,8 +342,10 @@ func (c *Configuration) setDefaultSigningKey() error {
 
 		c.signingKey = signingKey
 		c.publicKey = signingKey.Public()
+		c.encodedPublicKey = utils.EncodePublicKey(c.publicKey)
 		c.previousSigningKey = nil
 		c.previousPublicKey = nil
+		c.encodedPreviousPublicKey = nil
 
 		err = tx.Commit()
 		if err != nil {
@@ -350,8 +372,10 @@ func (c *Configuration) setDefaultSigningKey() error {
 
 	c.signingKey = signingKey
 	c.publicKey = previousSigningKey.Public()
+	c.encodedPublicKey = utils.EncodePublicKey(c.publicKey)
 	c.previousSigningKey = previousSigningKey
 	c.previousPublicKey = previousSigningKey.Public()
+	c.encodedPreviousPublicKey = utils.EncodePublicKey(c.previousPublicKey)
 
 	return nil
 }
@@ -434,6 +458,7 @@ func (c *Configuration) update() {
 
 				c.signingKey = signingKey
 				c.publicKey = signingKey.Public()
+				c.encodedPublicKey = utils.EncodePublicKey(c.publicKey)
 			case PreviousSigningKey:
 				pemPreviousSigningKey, err := base64.StdEncoding.DecodeString(configuration.ConfigurationValue)
 				if err != nil {
@@ -451,6 +476,7 @@ func (c *Configuration) update() {
 
 				c.previousSigningKey = previousSigningKey
 				c.previousPublicKey = previousSigningKey.Public()
+				c.encodedPreviousPublicKey = utils.EncodePublicKey(c.previousPublicKey)
 			default:
 				c.logger.Info().Msgf("update skipped for unknown configuration key: %s", configuration.ConfigurationKey)
 				healthy = false
