@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"sync"
 	"time"
 
@@ -48,14 +49,12 @@ var (
 
 type GithubOptions struct {
 	Enabled      bool
-	RedirectURL  string
 	ClientID     string
 	ClientSecret string
 }
 
 type GoogleOptions struct {
 	Enabled      bool
-	RedirectURL  string
 	ClientID     string
 	ClientSecret string
 }
@@ -85,6 +84,11 @@ type TokenOptions struct {
 	Issuer string
 }
 
+type APIOptions struct {
+	TLS      bool
+	Endpoint string
+}
+
 type Options struct {
 	Github        GithubOptions
 	Google        GoogleOptions
@@ -93,6 +97,7 @@ type Options struct {
 	Mailer        MailerOptions
 	Configuration configuration.Options
 	Token         TokenOptions
+	API           APIOptions
 }
 
 type Manager struct {
@@ -124,10 +129,18 @@ func New(options Options, db *db.DB, logger types.Logger) (*Manager, error) {
 		return nil, errors.Join(ErrCreatingManager, err)
 	}
 
+	var endpoint url.URL
+	endpoint.Scheme = "http"
+	if options.API.TLS {
+		endpoint.Scheme = "https"
+	}
+	endpoint.Host = options.API.Endpoint
+	endpoint.Path = "/v1/flows"
+
 	var gh *github.Github
 	if options.Github.Enabled {
 		gh, err = github.New(github.Options{
-			RedirectURL:  options.Github.RedirectURL,
+			RedirectURL:  endpoint.JoinPath("/github/callback").String(),
 			ClientID:     options.Github.ClientID,
 			ClientSecret: options.Github.ClientSecret,
 		}, db, logger)
@@ -139,7 +152,7 @@ func New(options Options, db *db.DB, logger types.Logger) (*Manager, error) {
 	var gg *google.Google
 	if options.Google.Enabled {
 		gg, err = google.New(google.Options{
-			RedirectURL:  options.Google.RedirectURL,
+			RedirectURL:  endpoint.JoinPath("/google/callback").String(),
 			ClientID:     options.Google.ClientID,
 			ClientSecret: options.Google.ClientSecret,
 		}, db, logger)

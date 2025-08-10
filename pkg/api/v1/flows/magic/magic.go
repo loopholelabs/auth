@@ -5,6 +5,7 @@ package magic
 import (
 	"database/sql"
 	"errors"
+	"net/url"
 
 	emailverifier "github.com/AfterShip/email-verifier"
 	"github.com/gofiber/fiber/v2"
@@ -109,9 +110,18 @@ func (a *Magic) login(ctx *fiber.Ctx) error {
 		return ctx.SendStatus(fiber.StatusInternalServerError)
 	}
 
+	var callback url.URL
+	callback.Scheme = "http"
+	if a.options.TLS {
+		callback.Scheme = "https"
+	}
+	callback.Host = a.options.Endpoint
+	callback.Path = "/v1/flows/magic/callback"
+	callback.Query().Add("token", token)
+
 	err = a.options.Manager.Mailer().SendMagicLink(ctx.Context(), mailer.Email{
 		To: email,
-	}, token, magic.Expiry)
+	}, callback.String(), magic.Expiry)
 	if err != nil {
 		a.logger.Error().Err(err).Msg("failed to send magic link")
 		return ctx.SendStatus(fiber.StatusInternalServerError)
