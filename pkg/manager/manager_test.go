@@ -2084,7 +2084,7 @@ func TestSessionGarbageCollection(t *testing.T) {
 		opts := Options{
 			Configuration: configuration.Options{
 				PollInterval:  time.Minute,
-				SessionExpiry: time.Second,
+				SessionExpiry: time.Second * 2,
 			},
 			Magic: MagicOptions{Enabled: true},
 		}
@@ -2111,7 +2111,7 @@ func TestSessionGarbageCollection(t *testing.T) {
 		}
 
 		// Wait for all sessions to expire
-		time.Sleep(time.Second * 1)
+		time.Sleep(time.Second * 4)
 
 		// Manually trigger GC
 		deleted, err := m.sessionGC()

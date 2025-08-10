@@ -175,7 +175,7 @@ func (a *Magic) callback(ctx *fiber.Ctx) error {
 		}
 	}
 
-	session, err := a.options.Manager.CreateSession(ctx.Context(), f, flow.GoogleProvider)
+	session, err := a.options.Manager.CreateSession(ctx.Context(), f, flow.MagicProvider)
 	if err != nil {
 		a.logger.Error().Err(err).Msg("failed to create session")
 		return ctx.SendStatus(fiber.StatusInternalServerError)
