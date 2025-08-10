@@ -33,6 +33,11 @@ type Options struct {
 	Configuration configuration.Options
 }
 
+type InvalidatedSession struct {
+	Identifier string
+	Generation uint32
+}
+
 type Validator struct {
 	logger types.Logger
 	db     *db.DB
@@ -108,6 +113,22 @@ func (v *Validator) IsSessionInvalidated(identifier string, generation uint32) b
 		return false
 	}
 	return item.Value() >= generation
+}
+
+func (v *Validator) SessionRevocationList() []string {
+	return v.sessionRevocationCache.Keys()
+}
+
+func (v *Validator) SessionInvalidationList() []InvalidatedSession {
+	items := v.sessionInvalidationCache.Items()
+	sessions := make([]InvalidatedSession, 0, len(items))
+	for _, item := range items {
+		sessions = append(sessions, InvalidatedSession{
+			Identifier: item.Key(),
+			Generation: item.Value(),
+		})
+	}
+	return sessions
 }
 
 func (v *Validator) Configuration() *configuration.Configuration {
