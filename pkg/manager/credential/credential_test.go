@@ -170,7 +170,7 @@ func TestSession_Sign(t *testing.T) {
 		require.NotEmpty(t, token)
 
 		// Verify the token can be parsed back
-		parsedToken, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
+		parsedToken, err := jwt.Parse(token, func(_ *jwt.Token) (interface{}, error) {
 			return publicKey, nil
 		})
 		require.NoError(t, err)
@@ -186,7 +186,7 @@ func TestSession_Sign(t *testing.T) {
 		assert.Equal(t, session.UserInfo.Name, claims["user_name"])
 		assert.Equal(t, session.OrganizationInfo.IsDefault, claims["organization_is_default"])
 		assert.Equal(t, string(session.OrganizationInfo.Role), claims["organization_role"])
-		assert.Equal(t, float64(session.Generation), claims["generation"])
+		assert.Equal(t, float64(session.Generation), claims["generation"]) //nolint:testifylint
 	})
 
 	t.Run("SignInvalidSession", func(t *testing.T) {
@@ -231,7 +231,7 @@ func TestSession_Sign(t *testing.T) {
 		token, err := session.Sign(privateKey)
 		require.NoError(t, err)
 
-		parsedToken, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
+		parsedToken, err := jwt.Parse(token, func(_ *jwt.Token) (interface{}, error) {
 			return publicKey, nil
 		})
 		require.NoError(t, err)
@@ -241,7 +241,7 @@ func TestSession_Sign(t *testing.T) {
 
 		exp, ok := claims["exp"].(float64)
 		require.True(t, ok)
-		assert.Equal(t, futureTime.Unix(), int64(exp))
+		assert.Equal(t, int64(exp), futureTime.Unix())
 	})
 
 	t.Run("SignatureAlgorithm", func(t *testing.T) {
@@ -525,7 +525,7 @@ func TestParseSession(t *testing.T) {
 		if len(signature) > 0 {
 			tamperedSig := []byte(signature)
 			// Simply XOR with a value to tamper
-			tamperedSig[0] = tamperedSig[0] ^ 0xFF
+			tamperedSig[0] ^= 0xFF
 			parts[2] = string(tamperedSig)
 		}
 

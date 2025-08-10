@@ -23,6 +23,7 @@ var (
 	ErrCreatingFlow     = errors.New("error creating flow")
 	ErrPollingFlow      = errors.New("error polling flow")
 	ErrGettingFlow      = errors.New("error getting flow")
+	ErrCompletingFlow   = errors.New("error completing flow")
 	ErrRateLimitFlow    = errors.New("error rate limit")
 	ErrFlowNotCompleted = errors.New("flow not completed")
 )
@@ -87,16 +88,16 @@ func (c *Device) CreateFlow(ctx context.Context) (string, string, error) {
 	return params.Code, params.Poll, nil
 }
 
-func (c *Device) ExistsFlow(ctx context.Context, code string) (bool, error) {
+func (c *Device) ExistsFlow(ctx context.Context, code string) (string, error) {
 	c.logger.Debug().Msg("checking if flow exists")
-	_, err := c.db.Queries.GetDeviceCodeFlowByCode(ctx, code)
+	f, err := c.db.Queries.GetDeviceCodeFlowByCode(ctx, code)
 	if err != nil {
 		if !errors.Is(err, sql.ErrNoRows) {
-			return false, errors.Join(ErrGettingFlow, err)
+			return "", errors.Join(ErrGettingFlow, err)
 		}
-		return false, nil
+		return "", nil
 	}
-	return true, nil
+	return f.Identifier, nil
 }
 
 func (c *Device) PollFlow(ctx context.Context, poll string, pollRate time.Duration) (string, error) {
@@ -153,6 +154,21 @@ func (c *Device) PollFlow(ctx context.Context, poll string, pollRate time.Durati
 	}
 
 	return "", errors.Join(ErrPollingFlow, ErrFlowNotCompleted)
+}
+
+func (c *Device) CompleteFlow(ctx context.Context, identifier string, sessionIdentifier string) error {
+	c.logger.Debug().Str("identifier", identifier).Msg("completing flow")
+	err := c.db.Queries.UpdateDeviceCodeFlowSessionIdentifierByIdentifier(ctx, generated.UpdateDeviceCodeFlowSessionIdentifierByIdentifierParams{
+		SessionIdentifier: sql.NullString{
+			String: sessionIdentifier,
+			Valid:  sessionIdentifier != "",
+		},
+		Identifier: identifier,
+	})
+	if err != nil {
+		return errors.Join(ErrCompletingFlow, err)
+	}
+	return nil
 }
 
 func (c *Device) gc() (int64, error) {

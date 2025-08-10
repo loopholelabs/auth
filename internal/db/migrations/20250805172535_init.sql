@@ -220,15 +220,31 @@ CREATE TABLE machine_keys
 -- ------------------------------------------------------------------
 -- Flows
 -- ------------------------------------------------------------------
+CREATE TABLE device_code_flows
+(
+    identifier         CHAR(36) PRIMARY KEY DEFAULT (uuid()),
+    session_identifier CHAR(36) UNIQUE,
+    code               CHAR(8)  NOT NULL UNIQUE,
+    poll               CHAR(36) NOT NULL UNIQUE,
+    last_poll          DATETIME NOT NULL    DEFAULT CURRENT_TIMESTAMP,
+    created_at         DATETIME NOT NULL    DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_device_code_flows_session_identifier_sessions
+        FOREIGN KEY (session_identifier)
+            REFERENCES sessions (identifier)
+            ON DELETE CASCADE
+            ON UPDATE CASCADE
+);
+
 CREATE TABLE google_oauth_flows
 (
-    identifier        CHAR(36) PRIMARY KEY  DEFAULT (uuid()),
-    verifier          VARCHAR(255) NOT NULL,
-    challenge         VARCHAR(255) NOT NULL,
+    identifier        CHAR(36) PRIMARY KEY   DEFAULT (uuid()),
+    verifier          VARCHAR(255)  NOT NULL,
+    challenge         VARCHAR(255)  NOT NULL,
     device_identifier CHAR(36),
     user_identifier   char(36),
-    next_url          VARCHAR(1024),
-    created_at        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    next_url          VARCHAR(1024) NOT NULL,
+    created_at        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_google_oauth_flows_device_identifier_device_code_flows
         FOREIGN KEY (device_identifier)
@@ -245,13 +261,13 @@ CREATE TABLE google_oauth_flows
 
 CREATE TABLE github_oauth_flows
 (
-    identifier        CHAR(36) PRIMARY KEY  DEFAULT (uuid()),
-    verifier          VARCHAR(255) NOT NULL,
-    challenge         VARCHAR(255) NOT NULL,
+    identifier        CHAR(36) PRIMARY KEY   DEFAULT (uuid()),
+    verifier          VARCHAR(255)  NOT NULL,
+    challenge         VARCHAR(255)  NOT NULL,
     device_identifier CHAR(36),
     user_identifier   char(36),
-    next_url          VARCHAR(1024),
-    created_at        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    next_url          VARCHAR(1024) NOT NULL,
+    created_at        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_github_oauth_flows_device_identifier_device_code_flows
         FOREIGN KEY (device_identifier)
@@ -268,14 +284,14 @@ CREATE TABLE github_oauth_flows
 
 CREATE TABLE magic_link_flows
 (
-    identifier        CHAR(36) PRIMARY KEY  DEFAULT (uuid()),
-    salt              CHAR(36)     NOT NULL,
+    identifier        CHAR(36) PRIMARY KEY   DEFAULT (uuid()),
+    salt              CHAR(36)      NOT NULL,
     hash              BINARY(32)     NOT NULL,
-    email_address     VARCHAR(320) NOT NULL,
+    email_address     VARCHAR(320)  NOT NULL,
     device_identifier CHAR(36),
     user_identifier   CHAR(36),
-    next_url          VARCHAR(1024),
-    created_at        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    next_url          VARCHAR(1024) NOT NULL,
+    created_at        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_magic_link_flows_device_identifier_device_code_flows
         FOREIGN KEY (device_identifier)
@@ -286,22 +302,6 @@ CREATE TABLE magic_link_flows
     CONSTRAINT fk_magic_link_flows_user_identifier_users
         FOREIGN KEY (user_identifier)
             REFERENCES users (identifier)
-            ON DELETE CASCADE
-            ON UPDATE CASCADE
-);
-
-CREATE TABLE device_code_flows
-(
-    identifier         CHAR(36) PRIMARY KEY DEFAULT (uuid()),
-    session_identifier CHAR(36) UNIQUE,
-    code               CHAR(8)  NOT NULL UNIQUE,
-    poll               CHAR(36) NOT NULL UNIQUE,
-    last_poll          DATETIME NOT NULL    DEFAULT CURRENT_TIMESTAMP,
-    created_at         DATETIME NOT NULL    DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT fk_device_code_flows_session_identifier_sessions
-        FOREIGN KEY (session_identifier)
-            REFERENCES sessions (identifier)
             ON DELETE CASCADE
             ON UPDATE CASCADE
 );

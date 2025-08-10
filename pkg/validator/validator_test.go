@@ -3,7 +3,6 @@
 package validator
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -22,20 +21,20 @@ import (
 )
 
 // Helper function to create a test session in the database
-func createTestSession(t *testing.T, ctx context.Context, database *db.DB, expiresAt time.Time) string {
+func createTestSession(t *testing.T, database *db.DB, expiresAt time.Time) string {
 	// Create a test user and organization first
 	userID := uuid.New().String()
 	orgID := uuid.New().String()
 	sessionID := uuid.New().String()
 
-	err := database.Queries.CreateOrganization(ctx, generated.CreateOrganizationParams{
+	err := database.Queries.CreateOrganization(t.Context(), generated.CreateOrganizationParams{
 		Identifier: orgID,
 		Name:       "Test Org",
 		IsDefault:  true,
 	})
 	require.NoError(t, err)
 
-	err = database.Queries.CreateUser(ctx, generated.CreateUserParams{
+	err = database.Queries.CreateUser(t.Context(), generated.CreateUserParams{
 		Identifier:                    userID,
 		Name:                          "Test User",
 		PrimaryEmail:                  userID + "@example.com", // Use unique email
@@ -43,7 +42,7 @@ func createTestSession(t *testing.T, ctx context.Context, database *db.DB, expir
 	})
 	require.NoError(t, err)
 
-	err = database.Queries.CreateSession(ctx, generated.CreateSessionParams{
+	err = database.Queries.CreateSession(t.Context(), generated.CreateSessionParams{
 		Identifier:             sessionID,
 		OrganizationIdentifier: orgID,
 		UserIdentifier:         userID,
@@ -310,7 +309,7 @@ func TestValidator(t *testing.T) {
 
 			// Create a session first
 			expiresAt := time.Now().Add(time.Minute).Truncate(time.Second)
-			sessionID := createTestSession(t, t.Context(), database, expiresAt)
+			sessionID := createTestSession(t, database, expiresAt)
 
 			// Add invalidation with generation 5
 			err = database.Queries.CreateSessionInvalidation(t.Context(), generated.CreateSessionInvalidationParams{
@@ -356,9 +355,9 @@ func TestValidator(t *testing.T) {
 
 			// Create sessions first
 			expiresAt := time.Now().Add(time.Minute).Truncate(time.Second)
-			sessionID1 := createTestSession(t, t.Context(), database, expiresAt)
-			sessionID2 := createTestSession(t, t.Context(), database, expiresAt)
-			sessionID3 := createTestSession(t, t.Context(), database, expiresAt)
+			sessionID1 := createTestSession(t, database, expiresAt)
+			sessionID2 := createTestSession(t, database, expiresAt)
+			sessionID3 := createTestSession(t, database, expiresAt)
 
 			err = database.Queries.CreateSessionInvalidation(t.Context(), generated.CreateSessionInvalidationParams{
 				SessionIdentifier: sessionID1,
@@ -425,7 +424,7 @@ func TestValidator(t *testing.T) {
 
 			// Create a session first
 			expiresAt := time.Now().Add(time.Second * 2).Truncate(time.Second)
-			sessionID := createTestSession(t, t.Context(), database, expiresAt)
+			sessionID := createTestSession(t, database, expiresAt)
 
 			// Add invalidation with short expiry
 			err = database.Queries.CreateSessionInvalidation(t.Context(), generated.CreateSessionInvalidationParams{
@@ -617,10 +616,10 @@ func TestValidator(t *testing.T) {
 			revokedSession := uuid.New().String()
 
 			// Invalidated session (needs to be in sessions table)
-			invalidatedSession := createTestSession(t, t.Context(), database, expiresAt)
+			invalidatedSession := createTestSession(t, database, expiresAt)
 
 			// Both revoked and invalidated (needs to be in sessions table)
-			bothSession := createTestSession(t, t.Context(), database, expiresAt)
+			bothSession := createTestSession(t, database, expiresAt)
 
 			// Neither session (not in any cache)
 			neitherSession := uuid.New().String()
@@ -783,7 +782,7 @@ func TestValidator(t *testing.T) {
 			})
 
 			expiresAt := time.Now().Add(time.Minute).Truncate(time.Second)
-			sessionID := createTestSession(t, t.Context(), database, expiresAt)
+			sessionID := createTestSession(t, database, expiresAt)
 			err = database.Queries.CreateSessionInvalidation(t.Context(), generated.CreateSessionInvalidationParams{
 				SessionIdentifier: sessionID,
 				Generation:        0,
@@ -823,7 +822,7 @@ func TestValidator(t *testing.T) {
 			})
 
 			expiresAt := time.Now().Add(time.Minute).Truncate(time.Second)
-			sessionID := createTestSession(t, t.Context(), database, expiresAt)
+			sessionID := createTestSession(t, database, expiresAt)
 			maxGen := ^uint32(0) - 1 // Max uint32 - 1
 			err = database.Queries.CreateSessionInvalidation(t.Context(), generated.CreateSessionInvalidationParams{
 				SessionIdentifier: sessionID,
@@ -875,7 +874,7 @@ func TestValidator(t *testing.T) {
 				// Create sessions for invalidation tests, use UUID for revocation-only
 				if i%3 == 0 {
 					// Will need invalidation - must be in sessions table
-					sessions[i] = createTestSession(t, t.Context(), database, expiresAt)
+					sessions[i] = createTestSession(t, database, expiresAt)
 				} else {
 					// Only for revocation - doesn't need to be in sessions table
 					sessions[i] = uuid.New().String()
@@ -964,7 +963,7 @@ func TestValidatorIntegration(t *testing.T) {
 
 		// Create a session first
 		expiresAt := time.Now().Add(time.Second * 10).Truncate(time.Second)
-		sessionID := createTestSession(t, t.Context(), database, expiresAt)
+		sessionID := createTestSession(t, database, expiresAt)
 
 		// Phase 1: Session is active (not in any cache)
 		assert.False(t, v.IsSessionRevoked(sessionID))
@@ -1035,10 +1034,10 @@ func TestValidatorIntegration(t *testing.T) {
 		longExpiry := time.Now().Add(time.Hour).Truncate(time.Second)
 		shortExpiry := time.Now().Add(time.Second).Truncate(time.Second)
 
-		activeSession := createTestSession(t, t.Context(), database, longExpiry)
-		revokedSession := createTestSession(t, t.Context(), database, longExpiry)
-		outdatedSession := createTestSession(t, t.Context(), database, longExpiry) // Needs invalidation
-		expiredSession := createTestSession(t, t.Context(), database, shortExpiry)
+		activeSession := createTestSession(t, database, longExpiry)
+		revokedSession := createTestSession(t, database, longExpiry)
+		outdatedSession := createTestSession(t, database, longExpiry) // Needs invalidation
+		expiredSession := createTestSession(t, database, shortExpiry)
 
 		// Setup revoked session
 		err = database.Queries.CreateSessionRevocation(t.Context(), generated.CreateSessionRevocationParams{

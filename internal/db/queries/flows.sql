@@ -109,6 +109,11 @@ UPDATE device_code_flows
 SET last_poll = CURRENT_TIMESTAMP
 WHERE poll = sqlc.arg(poll);
 
+-- name: UpdateDeviceCodeFlowSessionIdentifierByIdentifier :exec
+UPDATE device_code_flows
+SET session_identifier = sqlc.arg(session_identifier)
+WHERE identifier = sqlc.arg(identifier);
+
 -- name: DeleteDeviceCodeFlowByIdentifier :exec
 DELETE
 FROM device_code_flows

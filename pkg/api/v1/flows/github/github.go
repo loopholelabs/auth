@@ -3,27 +3,37 @@
 package github
 
 import (
+	"database/sql"
+	"errors"
+
 	"github.com/gofiber/fiber/v2"
+	"github.com/loopholelabs/auth/pkg/api/v1/models"
+	"github.com/loopholelabs/auth/pkg/manager/flow"
 
 	"github.com/loopholelabs/logging/types"
 
 	"github.com/loopholelabs/auth/internal/utils"
+	"github.com/loopholelabs/auth/pkg/api/options"
 )
 
 type Github struct {
 	logger types.Logger
 	app    *fiber.App
+
+	options options.Options
 }
 
-func New(logger types.Logger) *Github {
-	i := &Github{
-		logger: logger.SubLogger("GITHUB"),
-		app:    utils.DefaultFiberApp(),
+func New(options options.Options, logger types.Logger) *Github {
+	a := &Github{
+		logger:  logger.SubLogger("GITHUB"),
+		app:     utils.DefaultFiberApp(),
+		options: options,
 	}
 
-	i.app.Get("/login", i.login)
+	a.app.Get("/login", a.login)
+	a.app.Get("/callback", a.callback)
 
-	return i
+	return a
 }
 
 func (a *Github) App() *fiber.App {
@@ -31,19 +41,126 @@ func (a *Github) App() *fiber.App {
 }
 
 // login godoc
-// @Summary      Login logs in a user with Github
-// @Description  Login logs in a user with Github
+// @Summary      login logs in a user with Github
+// @Description  login logs in a user with Github
 // @Tags         github, login
 // @Accept       json
 // @Produce      json
-// @Param        device       query string false "Device Flow Identifier"
-// @Param        next         query string false "Next Redirect URL"
+// @Param        next         query string true  "Next Redirect URL"
+// @Param        code         query string false "Device Flow Code"
 // @Success      307
-// @Header       307 {string} location "Redirects to Github"
+// @Header       307 {string} Location "Redirects to Github"
+// @Failure      400 {string} string
 // @Failure      401 {string} string
+// @Failure      404 {string} string
 // @Failure      500 {string} string
 // @Router       /github/login [get]
 func (a *Github) login(ctx *fiber.Ctx) error {
-	a.logger.Debug().Str("IPAddress", ctx.IP()).Msg("login")
-	return ctx.Redirect("", fiber.StatusTemporaryRedirect)
+	a.logger.Debug().Str("IP", ctx.IP()).Msg("login")
+	if a.options.Manager.Github() == nil {
+		return ctx.Status(fiber.StatusUnauthorized).SendString("github provider is not enabled")
+	}
+
+	nextURL := ctx.Query("next")
+	if nextURL == "" {
+		return ctx.Status(fiber.StatusBadRequest).SendString("next URL is required")
+	}
+
+	var err error
+	var deviceIdentifier string
+	code := ctx.Query("code")
+	if code != "" && len(code) == 8 {
+		if a.options.Manager.Device() == nil {
+			return ctx.Status(fiber.StatusUnauthorized).SendString("device provider is not enabled")
+		}
+		deviceIdentifier, err = a.options.Manager.Device().ExistsFlow(ctx.Context(), code)
+		if err != nil {
+			a.logger.Error().Err(err).Msg("error checking if flow exists")
+			return ctx.SendStatus(fiber.StatusInternalServerError)
+		}
+		if deviceIdentifier == "" {
+			return ctx.Status(fiber.StatusNotFound).SendString("device flow does not exist")
+		}
+	}
+
+	redirect, err := a.options.Manager.Github().CreateFlow(ctx.Context(), deviceIdentifier, "", nextURL)
+	if err != nil {
+		a.logger.Error().Err(err).Msg("failed to get redirect")
+		return ctx.SendStatus(fiber.StatusInternalServerError)
+	}
+	return ctx.Redirect(redirect, fiber.StatusTemporaryRedirect)
+}
+
+// callback godoc
+// @Summary      callback logs in a user with Github
+// @Description  callback logs in a user with Github
+// @Tags         github, callback
+// @Accept       json
+// @Produce      json
+// @Param        code         query string false "Next Redirect URL"
+// @Param        state        query string false "Device Flow Code"
+// @Success      307
+// @Header       307 {string} Location "Redirects to Next URL"
+// @Failure      401 {string} string
+// @Failure      403 {string} string
+// @Failure      404 {string} string
+// @Failure      500 {string} string
+// @Router       /github/callback [get]
+func (a *Github) callback(ctx *fiber.Ctx) error {
+	a.logger.Debug().Str("IP", ctx.IP()).Msg("callback")
+	if a.options.Manager.Github() == nil {
+		return ctx.Status(fiber.StatusUnauthorized).SendString("github provider is not enabled")
+	}
+
+	code := ctx.Query("code")
+	if code == "" {
+		return ctx.Status(fiber.StatusUnauthorized).SendString("code is required")
+	}
+
+	identifier := ctx.Query("state")
+	if identifier == "" {
+		return ctx.Status(fiber.StatusUnauthorized).SendString("state is required")
+	}
+
+	f, err := a.options.Manager.Github().CompleteFlow(ctx.Context(), identifier, code)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ctx.Status(fiber.StatusNotFound).SendString("flow does not exist")
+		}
+		a.logger.Error().Err(err).Msg("failed to complete flow")
+		return ctx.SendStatus(fiber.StatusInternalServerError)
+	}
+
+	if f.DeviceIdentifier != "" {
+		if a.options.Manager.Device() == nil {
+			return ctx.Status(fiber.StatusUnauthorized).SendString("device provider is not enabled")
+		}
+	}
+
+	session, err := a.options.Manager.CreateSession(ctx.Context(), f, flow.GithubProvider)
+	if err != nil {
+		a.logger.Error().Err(err).Msg("failed to create session")
+		return ctx.SendStatus(fiber.StatusInternalServerError)
+	}
+
+	if f.DeviceIdentifier != "" {
+		err = a.options.Manager.Device().CompleteFlow(ctx.Context(), f.DeviceIdentifier, session.Identifier)
+		if err != nil {
+			a.logger.Error().Err(err).Msg("failed to complete flow")
+			return ctx.SendStatus(fiber.StatusInternalServerError)
+		}
+	} else {
+		token, err := a.options.Manager.SignSession(session)
+		if err != nil {
+			a.logger.Error().Err(err).Msg("error signing session")
+			return ctx.SendStatus(fiber.StatusInternalServerError)
+		}
+
+		ctx.Cookie(&fiber.Cookie{
+			Name:  models.SessionCookie,
+			Value: token,
+		})
+	}
+
+	return ctx.Redirect(f.NextURL, fiber.StatusTemporaryRedirect)
 }

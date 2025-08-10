@@ -194,7 +194,7 @@ func TestCreateFlow(t *testing.T) {
 		require.Equal(t, flowID, flow.Identifier)
 		require.NotEmpty(t, flow.Verifier)
 		require.NotEmpty(t, flow.Challenge)
-		require.Equal(t, "http://localhost:3000/dashboard", flow.NextUrl.String)
+		require.Equal(t, "http://localhost:3000/dashboard", flow.NextUrl)
 		require.False(t, flow.DeviceIdentifier.Valid)
 		require.False(t, flow.UserIdentifier.Valid)
 	})
@@ -234,7 +234,7 @@ func TestCreateFlow(t *testing.T) {
 		require.False(t, flow.DeviceIdentifier.Valid)
 		require.True(t, flow.UserIdentifier.Valid)
 		require.Equal(t, userID, flow.UserIdentifier.String)
-		require.Equal(t, "http://example.com/next", flow.NextUrl.String)
+		require.Equal(t, "http://example.com/next", flow.NextUrl)
 	})
 }
 
@@ -278,10 +278,7 @@ func TestCompleteFlow(t *testing.T) {
 			Identifier: flowID,
 			Verifier:   "test-verifier",
 			Challenge:  "test-challenge",
-			NextUrl: sql.NullString{
-				String: "http://localhost:3000/dashboard",
-				Valid:  true,
-			},
+			NextUrl:    "http://localhost:3000/dashboard",
 		})
 		require.NoError(t, err)
 
@@ -348,7 +345,7 @@ func TestCompleteFlow(t *testing.T) {
 		flow, err := g.CompleteFlow(t.Context(), flowID, "test-auth-code")
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrNoVerifiedEmails)
-		require.Nil(t, flow)
+		require.Zero(t, flow)
 	})
 
 	t.Run("CompleteFlowWithEmptyEmail", func(t *testing.T) {
@@ -389,7 +386,7 @@ func TestCompleteFlow(t *testing.T) {
 		flow, err := g.CompleteFlow(t.Context(), flowID, "test-auth-code")
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrNoVerifiedEmails)
-		require.Nil(t, flow)
+		require.Zero(t, flow)
 	})
 
 	t.Run("CompleteFlowWithInvalidCode", func(t *testing.T) {
@@ -432,7 +429,7 @@ func TestCompleteFlow(t *testing.T) {
 		flow, err := g.CompleteFlow(t.Context(), flowID, "invalid-code")
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrCompletingFlow)
-		require.Nil(t, flow)
+		require.Zero(t, flow)
 	})
 
 	t.Run("CompleteFlowWithGoogleAPIError", func(t *testing.T) {
@@ -476,7 +473,7 @@ func TestCompleteFlow(t *testing.T) {
 		flow, err := g.CompleteFlow(t.Context(), flowID, "test-auth-code")
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrInvalidResponse)
-		require.Nil(t, flow)
+		require.Zero(t, flow)
 	})
 
 	t.Run("CompleteFlowWithNetworkError", func(t *testing.T) {
@@ -520,7 +517,7 @@ func TestCompleteFlow(t *testing.T) {
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrCompletingFlow)
 		require.Contains(t, err.Error(), "network timeout")
-		require.Nil(t, flow)
+		require.Zero(t, flow)
 	})
 
 	t.Run("CompleteFlowWithNonexistentFlow", func(t *testing.T) {
@@ -544,7 +541,7 @@ func TestCompleteFlow(t *testing.T) {
 		flow, err := g.CompleteFlow(t.Context(), "nonexistent-flow-id", "test-auth-code")
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrCompletingFlow)
-		require.Nil(t, flow)
+		require.Zero(t, flow)
 
 		// No HTTP requests should have been made
 		mockClient.AssertNumberOfRequests(t, 0)
@@ -595,7 +592,7 @@ func TestCompleteFlow(t *testing.T) {
 		// Check that it's a JSON unmarshal error
 		var jsonErr *json.SyntaxError
 		require.True(t, errors.As(err, &jsonErr) || strings.Contains(err.Error(), "invalid character"))
-		require.Nil(t, flow)
+		require.Zero(t, flow)
 	})
 }
 
@@ -623,7 +620,7 @@ func TestAuthURLGeneration(t *testing.T) {
 	})
 
 	t.Run("ValidateAuthURLParameters", func(t *testing.T) {
-		authURL, err := g.CreateFlow(t.Context(), "", "", "")
+		authURL, err := g.CreateFlow(t.Context(), "", "", "http://localhost:3000/dashboard")
 		require.NoError(t, err)
 
 		// Parse URL and validate OAuth2 parameters
@@ -802,7 +799,7 @@ func TestErrorHandling(t *testing.T) {
 		// oauth2 package wraps the error
 		var oauth2Err *oauth2.RetrieveError
 		require.ErrorAs(t, err, &oauth2Err)
-		require.Nil(t, flow)
+		require.Zero(t, flow)
 	})
 
 	t.Run("GoogleAPIRateLimitError", func(t *testing.T) {
@@ -855,7 +852,7 @@ func TestErrorHandling(t *testing.T) {
 		flow, err := g.CompleteFlow(t.Context(), flowID, "test-auth-code")
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrInvalidResponse)
-		require.Nil(t, flow)
+		require.Zero(t, flow)
 	})
 }
 
@@ -1049,7 +1046,7 @@ func TestGarbageCollection(t *testing.T) {
 
 		var ids []string
 		for i := 0; i < 3; i++ {
-			redirectURL, err := g.CreateFlow(t.Context(), "", "", "")
+			redirectURL, err := g.CreateFlow(t.Context(), "", "", "http://localhost:3000/dashboard")
 			require.NoError(t, err)
 			u, err := url.Parse(redirectURL)
 			require.NoError(t, err)

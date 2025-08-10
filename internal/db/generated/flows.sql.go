@@ -88,7 +88,7 @@ type CreateGithubOAuthFlowParams struct {
 	UserIdentifier   sql.NullString
 	Verifier         string
 	Challenge        string
-	NextUrl          sql.NullString
+	NextUrl          string
 }
 
 func (q *Queries) CreateGithubOAuthFlow(ctx context.Context, arg CreateGithubOAuthFlowParams) error {
@@ -116,7 +116,7 @@ type CreateGoogleOAuthFlowParams struct {
 	UserIdentifier   sql.NullString
 	Verifier         string
 	Challenge        string
-	NextUrl          sql.NullString
+	NextUrl          string
 }
 
 func (q *Queries) CreateGoogleOAuthFlow(ctx context.Context, arg CreateGoogleOAuthFlowParams) error {
@@ -142,7 +142,7 @@ type CreateMagicLinkFlowParams struct {
 	Identifier       string
 	DeviceIdentifier sql.NullString
 	UserIdentifier   sql.NullString
-	NextUrl          sql.NullString
+	NextUrl          string
 	Salt             string
 	Hash             []byte
 	EmailAddress     string
@@ -445,5 +445,21 @@ WHERE poll = ?
 
 func (q *Queries) UpdateDeviceCodeFlowLastPollByPoll(ctx context.Context, poll string) error {
 	_, err := q.db.ExecContext(ctx, updateDeviceCodeFlowLastPollByPoll, poll)
+	return err
+}
+
+const updateDeviceCodeFlowSessionIdentifierByIdentifier = `-- name: UpdateDeviceCodeFlowSessionIdentifierByIdentifier :exec
+UPDATE device_code_flows
+SET session_identifier = ?
+WHERE identifier = ?
+`
+
+type UpdateDeviceCodeFlowSessionIdentifierByIdentifierParams struct {
+	SessionIdentifier sql.NullString
+	Identifier        string
+}
+
+func (q *Queries) UpdateDeviceCodeFlowSessionIdentifierByIdentifier(ctx context.Context, arg UpdateDeviceCodeFlowSessionIdentifierByIdentifierParams) error {
+	_, err := q.db.ExecContext(ctx, updateDeviceCodeFlowSessionIdentifierByIdentifier, arg.SessionIdentifier, arg.Identifier)
 	return err
 }

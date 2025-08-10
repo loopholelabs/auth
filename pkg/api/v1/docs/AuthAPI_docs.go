@@ -185,6 +185,71 @@ const docTemplateAuthAPI = `{
                 }
             }
         },
+        "/github/callback": {
+            "get": {
+                "description": "callback logs in a user with Github",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "github",
+                    "callback"
+                ],
+                "summary": "callback logs in a user with Github",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Next Redirect URL",
+                        "name": "code",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Device Flow Code",
+                        "name": "state",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "307": {
+                        "description": "Temporary Redirect",
+                        "headers": {
+                            "Location": {
+                                "type": "string",
+                                "description": "Redirects to Next URL"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/github/login": {
             "get": {
                 "description": "login logs in a user with Github",
@@ -204,12 +269,13 @@ const docTemplateAuthAPI = `{
                         "type": "string",
                         "description": "Next Redirect URL",
                         "name": "next",
-                        "in": "query"
+                        "in": "query",
+                        "required": true
                     },
                     {
                         "type": "string",
-                        "description": "Device Flow Identifier",
-                        "name": "identifier",
+                        "description": "Device Flow Code",
+                        "name": "code",
                         "in": "query"
                     }
                 ],
@@ -223,8 +289,20 @@ const docTemplateAuthAPI = `{
                             }
                         }
                     },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "type": "string"
                         }

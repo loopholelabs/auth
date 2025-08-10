@@ -31,6 +31,7 @@ var (
 	ErrDBIsRequired     = errors.New("db is required")
 	ErrCreatingFlow     = errors.New("error creating flow")
 	ErrCompletingFlow   = errors.New("error completing flow")
+	ErrInvalidNextURL   = errors.New("invalid next URL")
 	ErrInvalidResponse  = errors.New("invalid response")
 	ErrNoVerifiedEmails = errors.New("no verified emails")
 )
@@ -117,6 +118,9 @@ func (c *Google) Close() error {
 }
 
 func (c *Google) CreateFlow(ctx context.Context, deviceIdentifier string, userIdentifier string, nextURL string) (string, error) {
+	if nextURL == "" {
+		return "", errors.Join(ErrCreatingFlow, ErrInvalidNextURL)
+	}
 	verifier, err := pkce.NewCodeVerifier(-1)
 	if err != nil {
 		return "", errors.Join(ErrCreatingFlow, err)
@@ -134,10 +138,7 @@ func (c *Google) CreateFlow(ctx context.Context, deviceIdentifier string, userId
 			String: userIdentifier,
 			Valid:  userIdentifier != "",
 		},
-		NextUrl: sql.NullString{
-			String: nextURL,
-			Valid:  nextURL != "",
-		},
+		NextUrl: nextURL,
 	}
 
 	c.logger.Debug().Msg("creating flow")
@@ -149,11 +150,11 @@ func (c *Google) CreateFlow(ctx context.Context, deviceIdentifier string, userId
 	return c.config.AuthCodeURL(params.Identifier, oauth2.AccessTypeOnline, oauth2.SetAuthURLParam(pkce.ParamCodeChallenge, params.Challenge), oauth2.SetAuthURLParam(pkce.ParamCodeChallengeMethod, pkce.MethodS256)), nil
 }
 
-func (c *Google) CompleteFlow(ctx context.Context, identifier string, code string) (*flow.Data, error) {
+func (c *Google) CompleteFlow(ctx context.Context, identifier string, code string) (flow.Data, error) {
 	c.logger.Debug().Str("identifier", identifier).Msg("completing flow")
 	tx, err := c.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
-		return nil, errors.Join(ErrCompletingFlow, err)
+		return flow.Data{}, errors.Join(ErrCompletingFlow, err)
 	}
 
 	defer func() {
@@ -167,17 +168,17 @@ func (c *Google) CompleteFlow(ctx context.Context, identifier string, code strin
 
 	f, err := qtx.GetGoogleOAuthFlowByIdentifier(ctx, identifier)
 	if err != nil {
-		return nil, errors.Join(ErrCompletingFlow, err)
+		return flow.Data{}, errors.Join(ErrCompletingFlow, err)
 	}
 
 	err = qtx.DeleteGoogleOAuthFlowByIdentifier(ctx, identifier)
 	if err != nil {
-		return nil, errors.Join(ErrCompletingFlow, err)
+		return flow.Data{}, errors.Join(ErrCompletingFlow, err)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return nil, errors.Join(ErrCompletingFlow, err)
+		return flow.Data{}, errors.Join(ErrCompletingFlow, err)
 	}
 
 	// Use context with custom HTTP client for OAuth2 token exchange
@@ -188,49 +189,49 @@ func (c *Google) CompleteFlow(ctx context.Context, identifier string, code strin
 
 	token, err := c.config.Exchange(oauth2Ctx, code, oauth2.SetAuthURLParam(pkce.ParamCodeVerifier, f.Verifier))
 	if err != nil {
-		return nil, errors.Join(ErrCompletingFlow, err)
+		return flow.Data{}, errors.Join(ErrCompletingFlow, err)
 	}
 
 	// Get User Info
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://www.googleapis.com/oauth2/v3/userinfo", nil)
 	if err != nil {
-		return nil, errors.Join(ErrCompletingFlow, err)
+		return flow.Data{}, errors.Join(ErrCompletingFlow, err)
 	}
 
 	req.Header.Set("Authorization", fmt.Sprintf("token %s", token.AccessToken))
 
 	res, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, errors.Join(ErrCompletingFlow, err)
+		return flow.Data{}, errors.Join(ErrCompletingFlow, err)
 	}
 
 	if res.StatusCode != http.StatusOK {
-		return nil, errors.Join(ErrCompletingFlow, ErrInvalidResponse)
+		return flow.Data{}, errors.Join(ErrCompletingFlow, ErrInvalidResponse)
 	}
 
 	body, err := io.ReadAll(res.Body)
 	_ = res.Body.Close()
 	if err != nil {
-		return nil, errors.Join(ErrCompletingFlow, err)
+		return flow.Data{}, errors.Join(ErrCompletingFlow, err)
 	}
 
 	var u user
 	err = json.Unmarshal(body, &u)
 	if err != nil {
-		return nil, errors.Join(ErrCompletingFlow, err)
+		return flow.Data{}, errors.Join(ErrCompletingFlow, err)
 	}
 
-	data := &flow.Data{
+	data := flow.Data{
 		ProviderIdentifier: strconv.FormatInt(u.ID, 10),
 		UserName:           u.Name,
-		NextURL:            f.NextUrl.String,
+		NextURL:            f.NextUrl,
 		DeviceIdentifier:   f.DeviceIdentifier.String,
 		UserIdentifier:     f.UserIdentifier.String,
 	}
 
 	if !u.Verified || u.Email == "" {
-		return nil, errors.Join(ErrCompletingFlow, ErrNoVerifiedEmails)
+		return flow.Data{}, errors.Join(ErrCompletingFlow, ErrNoVerifiedEmails)
 	}
 
 	data.PrimaryEmail = u.Email
