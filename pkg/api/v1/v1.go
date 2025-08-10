@@ -96,7 +96,14 @@ func (v *V1) public(ctx *fiber.Ctx) error {
 		v.logger.Error().Msg("public key is nil")
 		return ctx.SendStatus(fiber.StatusInternalServerError)
 	}
-	return ctx.Status(fiber.StatusOK).JSON(&models.PublicResponse{Key: base64.StdEncoding.EncodeToString(publicKey)})
+	ret := &models.PublicResponse{
+		PublicKey: base64.StdEncoding.EncodeToString(publicKey),
+	}
+	previousPublicKey := v.options.Manager.Configuration().EncodedPreviousPublicKey()
+	if previousPublicKey != nil {
+		ret.PreviousPublicKey = base64.StdEncoding.EncodeToString(previousPublicKey)
+	}
+	return ctx.Status(fiber.StatusOK).JSON(ret)
 }
 
 // logout godoc

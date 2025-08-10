@@ -17,5 +17,6 @@ type DeviceCallbackResponse struct {
 }
 
 type PublicResponse struct {
-	Key string `json:"key"`
+	PublicKey         string `json:"public_key"`
+	PreviousPublicKey string `json:"previous_public_key"`
 }
