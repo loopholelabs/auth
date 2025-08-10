@@ -25,6 +25,7 @@ var (
 	ErrDBIsRequired   = errors.New("db is required")
 	ErrCreatingFlow   = errors.New("error creating flow")
 	ErrCompletingFlow = errors.New("error completing flow")
+	ErrInvalidNextURL = errors.New("invalid next URL")
 	ErrInvalidToken   = errors.New("invalid token")
 	ErrInvalidSecret  = errors.New("invalid secret")
 )
@@ -74,6 +75,9 @@ func (c *Magic) Close() error {
 }
 
 func (c *Magic) CreateFlow(ctx context.Context, emailAddress string, deviceIdentifier string, userIdentifier string, nextURL string) (string, error) {
+	if nextURL == "" {
+		return "", errors.Join(ErrCreatingFlow, ErrInvalidNextURL)
+	}
 	salt := uuid.New().String()
 	secret := uuid.New().String()
 	hash, err := bcrypt.GenerateFromPassword(append([]byte(salt), []byte(secret)...), bcrypt.DefaultCost)
@@ -94,10 +98,7 @@ func (c *Magic) CreateFlow(ctx context.Context, emailAddress string, deviceIdent
 			String: userIdentifier,
 			Valid:  userIdentifier != "",
 		},
-		NextUrl: sql.NullString{
-			String: nextURL,
-			Valid:  nextURL != "",
-		},
+		NextUrl: nextURL,
 	}
 
 	c.logger.Debug().Msg("creating flow")
@@ -109,33 +110,33 @@ func (c *Magic) CreateFlow(ctx context.Context, emailAddress string, deviceIdent
 	return base64.StdEncoding.EncodeToString([]byte(params.Identifier + "_" + secret)), nil
 }
 
-func (c *Magic) CompleteFlow(ctx context.Context, token string) (*flow.Data, error) {
+func (c *Magic) CompleteFlow(ctx context.Context, token string) (flow.Data, error) {
 	tokenBytes, err := base64.StdEncoding.DecodeString(token)
 	if err != nil {
-		return nil, errors.Join(ErrCompletingFlow, ErrInvalidToken, err)
+		return flow.Data{}, errors.Join(ErrCompletingFlow, ErrInvalidToken, err)
 	}
 
 	underscoreIndex := bytes.IndexByte(tokenBytes, '_')
 	if underscoreIndex == -1 {
-		return nil, errors.Join(ErrCompletingFlow, ErrInvalidToken)
+		return flow.Data{}, errors.Join(ErrCompletingFlow, ErrInvalidToken)
 	}
 
 	identifierBytes := tokenBytes[:underscoreIndex]
 	identifier := string(identifierBytes)
 	if len(identifier) != 36 {
-		return nil, errors.Join(ErrCompletingFlow, ErrInvalidToken)
+		return flow.Data{}, errors.Join(ErrCompletingFlow, ErrInvalidToken)
 	}
 
 	secretBytes := tokenBytes[underscoreIndex+1:]
 	secret := string(secretBytes)
 	if len(secret) != 36 {
-		return nil, errors.Join(ErrCompletingFlow, ErrInvalidToken)
+		return flow.Data{}, errors.Join(ErrCompletingFlow, ErrInvalidToken)
 	}
 
 	c.logger.Debug().Str("identifier", identifier).Msg("completing flow")
 	tx, err := c.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
-		return nil, errors.Join(ErrCompletingFlow, err)
+		return flow.Data{}, errors.Join(ErrCompletingFlow, err)
 	}
 
 	defer func() {
@@ -149,27 +150,27 @@ func (c *Magic) CompleteFlow(ctx context.Context, token string) (*flow.Data, err
 
 	f, err := qtx.GetMagicLinkFlowByIdentifier(ctx, identifier)
 	if err != nil {
-		return nil, errors.Join(ErrCompletingFlow, err)
+		return flow.Data{}, errors.Join(ErrCompletingFlow, err)
 	}
 
 	err = qtx.DeleteMagicLinkFlowByIdentifier(ctx, identifier)
 	if err != nil {
-		return nil, errors.Join(ErrCompletingFlow, err)
+		return flow.Data{}, errors.Join(ErrCompletingFlow, err)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return nil, errors.Join(ErrCompletingFlow, err)
+		return flow.Data{}, errors.Join(ErrCompletingFlow, err)
 	}
 
 	if bcrypt.CompareHashAndPassword(f.Hash, append([]byte(f.Salt), []byte(secret)...)) != nil {
-		return nil, errors.Join(ErrCompletingFlow, ErrInvalidSecret)
+		return flow.Data{}, errors.Join(ErrCompletingFlow, ErrInvalidSecret)
 	}
 
-	return &flow.Data{
+	return flow.Data{
 		ProviderIdentifier: f.EmailAddress,
 		UserName:           "",
-		NextURL:            f.NextUrl.String,
+		NextURL:            f.NextUrl,
 		DeviceIdentifier:   f.DeviceIdentifier.String,
 		UserIdentifier:     f.UserIdentifier.String,
 		PrimaryEmail:       f.EmailAddress,

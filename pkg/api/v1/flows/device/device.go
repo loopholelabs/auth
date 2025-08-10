@@ -102,12 +102,12 @@ func (a *Device) validate(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusBadRequest).SendString("invalid code")
 	}
 
-	valid, err := a.options.Manager.Device().ExistsFlow(ctx.Context(), code)
+	identifier, err := a.options.Manager.Device().ExistsFlow(ctx.Context(), code)
 	if err != nil {
 		a.logger.Error().Err(err).Msg("error checking if flow exists")
 		return ctx.SendStatus(fiber.StatusInternalServerError)
 	}
-	if !valid {
+	if identifier == "" {
 		return ctx.Status(fiber.StatusNotFound).SendString("flow does not exist")
 	}
 	return ctx.SendStatus(fiber.StatusOK)

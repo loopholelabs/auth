@@ -127,7 +127,7 @@ type GithubOauthFlow struct {
 	Challenge        string
 	DeviceIdentifier sql.NullString
 	UserIdentifier   sql.NullString
-	NextUrl          sql.NullString
+	NextUrl          string
 	CreatedAt        time.Time
 }
 
@@ -137,7 +137,7 @@ type GoogleOauthFlow struct {
 	Challenge        string
 	DeviceIdentifier sql.NullString
 	UserIdentifier   sql.NullString
-	NextUrl          sql.NullString
+	NextUrl          string
 	CreatedAt        time.Time
 }
 
@@ -176,7 +176,7 @@ type MagicLinkFlow struct {
 	EmailAddress     string
 	DeviceIdentifier sql.NullString
 	UserIdentifier   sql.NullString
-	NextUrl          sql.NullString
+	NextUrl          string
 	CreatedAt        time.Time
 }
 

@@ -102,7 +102,7 @@ func TestCreateFlow(t *testing.T) {
 		require.NotEmpty(t, flow.Salt)
 		require.NotEmpty(t, flow.Hash)
 		require.Equal(t, "test@example.com", flow.EmailAddress)
-		require.Equal(t, "http://localhost:3000/dashboard", flow.NextUrl.String)
+		require.Equal(t, "http://localhost:3000/dashboard", flow.NextUrl)
 		require.False(t, flow.DeviceIdentifier.Valid)
 		require.False(t, flow.UserIdentifier.Valid)
 
@@ -113,7 +113,7 @@ func TestCreateFlow(t *testing.T) {
 
 	t.Run("CreateFlowWithEmptyDeviceIdentifier", func(t *testing.T) {
 		// Test with empty device identifier - should work fine
-		token, err := m.CreateFlow(t.Context(), "user@example.com", "", "", "")
+		token, err := m.CreateFlow(t.Context(), "user@example.com", "", "", "http://localhost:3000/dashboard")
 		require.NoError(t, err)
 		require.NotEmpty(t, token)
 
@@ -130,7 +130,7 @@ func TestCreateFlow(t *testing.T) {
 		require.Equal(t, "user@example.com", flow.EmailAddress)
 		require.False(t, flow.DeviceIdentifier.Valid)
 		require.False(t, flow.UserIdentifier.Valid)
-		require.False(t, flow.NextUrl.Valid)
+		require.Equal(t, "http://localhost:3000/dashboard", flow.NextUrl)
 	})
 
 	t.Run("CreateFlowWithUserIdentifier", func(t *testing.T) {
@@ -171,7 +171,7 @@ func TestCreateFlow(t *testing.T) {
 		require.False(t, flow.DeviceIdentifier.Valid)
 		require.True(t, flow.UserIdentifier.Valid)
 		require.Equal(t, userID, flow.UserIdentifier.String)
-		require.Equal(t, "http://example.com/next", flow.NextUrl.String)
+		require.Equal(t, "http://example.com/next", flow.NextUrl)
 	})
 
 	t.Run("CreateFlowWithUserAndURL", func(t *testing.T) {
@@ -213,12 +213,12 @@ func TestCreateFlow(t *testing.T) {
 		require.False(t, flow.DeviceIdentifier.Valid)
 		require.True(t, flow.UserIdentifier.Valid)
 		require.Equal(t, userID, flow.UserIdentifier.String)
-		require.Equal(t, "https://app.com/welcome", flow.NextUrl.String)
+		require.Equal(t, "https://app.com/welcome", flow.NextUrl)
 	})
 
 	t.Run("CreateFlowWithEmptyEmail", func(t *testing.T) {
 		// Empty email should still work (no validation at this level)
-		token, err := m.CreateFlow(t.Context(), "", "", "", "")
+		token, err := m.CreateFlow(t.Context(), "", "", "", "http://localhost:3000/dashboard")
 		require.NoError(t, err)
 		require.NotEmpty(t, token)
 
@@ -239,11 +239,11 @@ func TestCreateFlow(t *testing.T) {
 		email := "duplicate@example.com"
 
 		// Should be able to create multiple flows for the same email
-		token1, err := m.CreateFlow(t.Context(), email, "", "", "")
+		token1, err := m.CreateFlow(t.Context(), email, "", "", "http://localhost:3000/dashboard")
 		require.NoError(t, err)
 		require.NotEmpty(t, token1)
 
-		token2, err := m.CreateFlow(t.Context(), email, "", "", "")
+		token2, err := m.CreateFlow(t.Context(), email, "", "", "http://localhost:3000/dashboard")
 		require.NoError(t, err)
 		require.NotEmpty(t, token2)
 
@@ -356,7 +356,7 @@ func TestCompleteFlow(t *testing.T) {
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrCompletingFlow)
 		require.ErrorIs(t, err, ErrInvalidToken)
-		require.Nil(t, flow)
+		require.Zero(t, flow)
 	})
 
 	t.Run("CompleteFlowWithMalformedBase64", func(t *testing.T) {
@@ -365,7 +365,7 @@ func TestCompleteFlow(t *testing.T) {
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrCompletingFlow)
 		require.ErrorIs(t, err, ErrInvalidToken)
-		require.Nil(t, flow)
+		require.Zero(t, flow)
 	})
 
 	t.Run("CompleteFlowWithWrongFormat", func(t *testing.T) {
@@ -375,7 +375,7 @@ func TestCompleteFlow(t *testing.T) {
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrCompletingFlow)
 		require.ErrorIs(t, err, ErrInvalidToken)
-		require.Nil(t, flow)
+		require.Zero(t, flow)
 	})
 
 	t.Run("CompleteFlowWithInvalidIdentifierLength", func(t *testing.T) {
@@ -385,7 +385,7 @@ func TestCompleteFlow(t *testing.T) {
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrCompletingFlow)
 		require.ErrorIs(t, err, ErrInvalidToken)
-		require.Nil(t, flow)
+		require.Zero(t, flow)
 	})
 
 	t.Run("CompleteFlowWithInvalidSecretLength", func(t *testing.T) {
@@ -395,7 +395,7 @@ func TestCompleteFlow(t *testing.T) {
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrCompletingFlow)
 		require.ErrorIs(t, err, ErrInvalidToken)
-		require.Nil(t, flow)
+		require.Zero(t, flow)
 	})
 
 	t.Run("CompleteFlowWithNonexistentFlow", func(t *testing.T) {
@@ -404,12 +404,12 @@ func TestCompleteFlow(t *testing.T) {
 		flow, err := m.CompleteFlow(t.Context(), nonExistentToken)
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrCompletingFlow)
-		require.Nil(t, flow)
+		require.Zero(t, flow)
 	})
 
 	t.Run("CompleteFlowWithWrongSecret", func(t *testing.T) {
 		// Create a valid flow
-		validToken, err := m.CreateFlow(t.Context(), "valid@example.com", "", "", "")
+		validToken, err := m.CreateFlow(t.Context(), "valid@example.com", "", "", "http://localhost:3000/dashboard")
 		require.NoError(t, err)
 
 		// Decode the valid token to get identifier
@@ -425,7 +425,7 @@ func TestCompleteFlow(t *testing.T) {
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrCompletingFlow)
 		require.ErrorIs(t, err, ErrInvalidSecret)
-		require.Nil(t, flow)
+		require.Zero(t, flow)
 
 		// Verify the flow is deleted on failure
 		_, err = database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), identifier)
@@ -434,7 +434,7 @@ func TestCompleteFlow(t *testing.T) {
 
 	t.Run("CompleteFlowIdempotency", func(t *testing.T) {
 		// Create a flow
-		token, err := m.CreateFlow(t.Context(), "idempotent@example.com", "", "", "")
+		token, err := m.CreateFlow(t.Context(), "idempotent@example.com", "", "", "http://localhost:3000/dashboard")
 		require.NoError(t, err)
 
 		// Complete the flow first time
@@ -451,7 +451,7 @@ func TestCompleteFlow(t *testing.T) {
 
 	t.Run("CompleteFlowConcurrency", func(t *testing.T) {
 		// Create a flow
-		token, err := m.CreateFlow(t.Context(), "concurrent@example.com", "", "", "")
+		token, err := m.CreateFlow(t.Context(), "concurrent@example.com", "", "", "http://localhost:3000/dashboard")
 		require.NoError(t, err)
 
 		// Try to complete the flow concurrently
@@ -504,7 +504,7 @@ func TestTokenEncoding(t *testing.T) {
 	})
 
 	t.Run("TokenStructure", func(t *testing.T) {
-		token, err := m.CreateFlow(t.Context(), "token@example.com", "", "", "")
+		token, err := m.CreateFlow(t.Context(), "token@example.com", "", "", "http://localhost:3000/dashboard")
 		require.NoError(t, err)
 
 		// Verify token is valid base64
@@ -533,7 +533,7 @@ func TestTokenEncoding(t *testing.T) {
 		// Create multiple flows and verify tokens are unique
 		tokens := make(map[string]bool)
 		for i := 0; i < 10; i++ {
-			token, err := m.CreateFlow(t.Context(), fmt.Sprintf("user%d@example.com", i), "", "", "")
+			token, err := m.CreateFlow(t.Context(), fmt.Sprintf("user%d@example.com", i), "", "", "http://localhost:3000/dashboard")
 			require.NoError(t, err)
 			require.NotContains(t, tokens, token, "token should be unique")
 			tokens[token] = true
@@ -542,7 +542,7 @@ func TestTokenEncoding(t *testing.T) {
 
 	t.Run("TokenSecurity", func(t *testing.T) {
 		// Create a flow
-		token, err := m.CreateFlow(t.Context(), "secure@example.com", "", "", "")
+		token, err := m.CreateFlow(t.Context(), "secure@example.com", "", "", "http://localhost:3000/dashboard")
 		require.NoError(t, err)
 
 		// Decode token
@@ -747,7 +747,7 @@ func TestGarbageCollection(t *testing.T) {
 
 		var tokens []string
 		for i := 0; i < 3; i++ {
-			token, err := m.CreateFlow(t.Context(), fmt.Sprintf("user%d@example.com", i), "", "", "")
+			token, err := m.CreateFlow(t.Context(), fmt.Sprintf("user%d@example.com", i), "", "", "http://localhost:3000/dashboard")
 			require.NoError(t, err)
 			tokens = append(tokens, token)
 		}
@@ -793,7 +793,7 @@ func TestConcurrency(t *testing.T) {
 		// Create flows concurrently
 		for i := 0; i < numGoroutines; i++ {
 			go func(idx int) {
-				token, err := m.CreateFlow(t.Context(), fmt.Sprintf("concurrent%d@example.com", idx), "", "", "")
+				token, err := m.CreateFlow(t.Context(), fmt.Sprintf("concurrent%d@example.com", idx), "", "", "http://localhost:3000/dashboard")
 				if err != nil {
 					errors <- err
 				} else {
@@ -815,7 +815,7 @@ func TestConcurrency(t *testing.T) {
 
 	t.Run("ConcurrentCompleteFlow", func(t *testing.T) {
 		// Create a single flow
-		token, err := m.CreateFlow(t.Context(), "race@example.com", "", "", "")
+		token, err := m.CreateFlow(t.Context(), "race@example.com", "", "", "http://localhost:3000/dashboard")
 		require.NoError(t, err)
 
 		results := make(chan error, 2)
@@ -868,7 +868,7 @@ func TestErrorScenarios(t *testing.T) {
 
 	t.Run("CompleteFlowAfterDeletion", func(t *testing.T) {
 		// Create a flow
-		token, err := m.CreateFlow(t.Context(), "deleted@example.com", "", "", "")
+		token, err := m.CreateFlow(t.Context(), "deleted@example.com", "", "", "http://localhost:3000/dashboard")
 		require.NoError(t, err)
 
 		// Extract identifier and delete the flow manually
@@ -882,7 +882,7 @@ func TestErrorScenarios(t *testing.T) {
 		flow, err := m.CompleteFlow(t.Context(), token)
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrCompletingFlow)
-		require.Nil(t, flow)
+		require.Zero(t, flow)
 	})
 
 	t.Run("DatabaseError", func(t *testing.T) {
@@ -895,7 +895,7 @@ func TestErrorScenarios(t *testing.T) {
 
 		// Try to create a flow - should fail with database error
 
-		token, err := m2.CreateFlow(t.Context(), "error@example.com", "", "", "")
+		token, err := m2.CreateFlow(t.Context(), "error@example.com", "", "", "http://localhost:3000/dashboard")
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrCreatingFlow)
 		require.Empty(t, token)
@@ -926,7 +926,7 @@ func TestClose(t *testing.T) {
 
 		// After close, operations should not work due to cancelled context
 
-		_, err = m.CreateFlow(t.Context(), "afterclose@example.com", "", "", "")
+		_, err = m.CreateFlow(t.Context(), "afterclose@example.com", "", "", "http://localhost:3000/dashboard")
 		require.NoError(t, err)
 
 		// The flow might still be created since CreateFlow uses the passed context
@@ -1041,7 +1041,7 @@ func TestFlowLifecycle(t *testing.T) {
 		require.Equal(t, email, flow.EmailAddress)
 		require.False(t, flow.DeviceIdentifier.Valid)
 		require.Equal(t, userID, flow.UserIdentifier.String)
-		require.Equal(t, nextURL, flow.NextUrl.String)
+		require.Equal(t, nextURL, flow.NextUrl)
 
 		// Step 3: Complete flow
 		completedFlow, err := m.CompleteFlow(t.Context(), token)
@@ -1092,7 +1092,7 @@ func TestSpecialCharacters(t *testing.T) {
 		}
 
 		for _, email := range specialEmails {
-			token, err := m.CreateFlow(t.Context(), email, "", "", "")
+			token, err := m.CreateFlow(t.Context(), email, "", "", "http://localhost:3000/dashboard")
 			require.NoError(t, err)
 
 			flow, err := m.CompleteFlow(t.Context(), token)
@@ -1139,7 +1139,7 @@ func TestNullableFields(t *testing.T) {
 
 	t.Run("AllFieldsEmpty", func(t *testing.T) {
 		// Create flow with all optional fields empty
-		token, err := m.CreateFlow(t.Context(), "minimal@example.com", "", "", "")
+		token, err := m.CreateFlow(t.Context(), "minimal@example.com", "", "", "http://localhost:3000/dashboard")
 		require.NoError(t, err)
 
 		// Complete flow and verify empty fields
