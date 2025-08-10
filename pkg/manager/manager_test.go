@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/loopholelabs/auth/pkg/manager/credential"
 	"github.com/stretchr/testify/require"
 
 	"github.com/loopholelabs/logging"
@@ -1104,14 +1105,14 @@ func TestRefreshSession(t *testing.T) {
 		})
 
 		// Create a fake session that doesn't exist in DB
-		fakeSession := Session{
+		fakeSession := credential.Session{
 			Identifier: uuid.New().String(),
-			OrganizationInfo: OrganizationInfo{
+			OrganizationInfo: credential.OrganizationInfo{
 				Identifier: uuid.New().String(),
 				IsDefault:  true,
 				Role:       role.OwnerRole,
 			},
-			UserInfo: UserInfo{
+			UserInfo: credential.UserInfo{
 				Identifier: uuid.New().String(),
 				Name:       "Fake User",
 				Email:      "fake@example.com",
@@ -1240,9 +1241,9 @@ func TestRefreshSession(t *testing.T) {
 
 		// Create session object with non-default org
 		// Note: Session's organizations are immutable so we'll just test with the role update
-		sessionWithOrg := Session{
+		sessionWithOrg := credential.Session{
 			Identifier: session.Identifier,
-			OrganizationInfo: OrganizationInfo{
+			OrganizationInfo: credential.OrganizationInfo{
 				Identifier: orgID,
 				IsDefault:  false,
 				Role:       role.MemberRole,
@@ -2072,7 +2073,7 @@ func TestSessionGarbageCollection(t *testing.T) {
 		})
 
 		// Create multiple sessions
-		sessions := make([]Session, 3)
+		sessions := make([]credential.Session, 3)
 		for i := 0; i < 3; i++ {
 			flowData := flow.Data{
 				ProviderIdentifier: fmt.Sprintf("multi-gc-user-%d", i),
