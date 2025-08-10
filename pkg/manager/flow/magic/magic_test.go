@@ -474,8 +474,7 @@ func TestCompleteFlow(t *testing.T) {
 		err1 := <-results
 		err2 := <-results
 
-		// At least one should succeed (both might succeed due to race condition in DB)
-		// or one succeeds and one fails
+		// One should succeed
 		successCount := 0
 		if err1 == nil {
 			successCount++
@@ -485,7 +484,7 @@ func TestCompleteFlow(t *testing.T) {
 		}
 
 		// At least one should succeed
-		require.GreaterOrEqual(t, successCount, 1, "at least one completion should succeed")
+		require.Equal(t, 1, successCount, "at least one completion should succeed")
 	})
 }
 
@@ -881,8 +880,9 @@ func TestErrorScenarios(t *testing.T) {
 		tokenBytes, _ := base64.StdEncoding.DecodeString(token)
 		identifier := string(tokenBytes[:strings.Index(string(tokenBytes), "_")])
 
-		err = database.Queries.DeleteMagicLinkFlowByIdentifier(t.Context(), identifier)
+		num, err := database.Queries.DeleteMagicLinkFlowByIdentifier(t.Context(), identifier)
 		require.NoError(t, err)
+		require.Equal(t, int64(1), num)
 
 		// Try to complete the deleted flow
 		flow, err := m.CompleteFlow(t.Context(), token)

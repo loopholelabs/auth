@@ -9,7 +9,7 @@ SELECT *
 FROM github_oauth_flows
 WHERE identifier = sqlc.arg(identifier) LIMIT 1;
 
--- name: DeleteGithubOAuthFlowByIdentifier :exec
+-- name: DeleteGithubOAuthFlowByIdentifier :execrows
 DELETE
 FROM github_oauth_flows
 WHERE identifier = sqlc.arg(identifier);
@@ -38,7 +38,7 @@ SELECT *
 FROM google_oauth_flows
 WHERE identifier = sqlc.arg(identifier) LIMIT 1;
 
--- name: DeleteGoogleOAuthFlowByIdentifier :exec
+-- name: DeleteGoogleOAuthFlowByIdentifier :execrows
 DELETE
 FROM google_oauth_flows
 WHERE identifier = sqlc.arg(identifier);
@@ -67,7 +67,7 @@ SELECT *
 FROM magic_link_flows
 WHERE identifier = sqlc.arg(identifier) LIMIT 1;
 
--- name: DeleteMagicLinkFlowByIdentifier :exec
+-- name: DeleteMagicLinkFlowByIdentifier :execrows
 DELETE
 FROM magic_link_flows
 WHERE identifier = sqlc.arg(identifier);
@@ -114,7 +114,7 @@ UPDATE device_code_flows
 SET session_identifier = sqlc.arg(session_identifier)
 WHERE identifier = sqlc.arg(identifier);
 
--- name: DeleteDeviceCodeFlowByIdentifier :exec
+-- name: DeleteDeviceCodeFlowByIdentifier :execrows
 DELETE
 FROM device_code_flows
 WHERE identifier = sqlc.arg(identifier);

@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/loopholelabs/auth/pkg/manager/credential"
 	"github.com/stretchr/testify/require"
 
 	"github.com/loopholelabs/logging"
@@ -20,6 +19,7 @@ import (
 	"github.com/loopholelabs/auth/internal/db/generated"
 	"github.com/loopholelabs/auth/internal/testutils"
 	"github.com/loopholelabs/auth/pkg/manager/configuration"
+	"github.com/loopholelabs/auth/pkg/manager/credential"
 	"github.com/loopholelabs/auth/pkg/manager/flow"
 	"github.com/loopholelabs/auth/pkg/manager/role"
 )
@@ -1056,7 +1056,7 @@ func TestRefreshSession(t *testing.T) {
 		opts := Options{
 			Configuration: configuration.Options{
 				PollInterval:  time.Minute,
-				SessionExpiry: time.Millisecond * 100, // Very short expiry
+				SessionExpiry: time.Second, // Very short expiry
 			},
 			Magic: MagicOptions{Enabled: true},
 		}
@@ -1078,7 +1078,7 @@ func TestRefreshSession(t *testing.T) {
 		require.NoError(t, err)
 
 		// Wait for session to expire
-		time.Sleep(time.Second * 1)
+		time.Sleep(time.Second * 2)
 
 		// Try to refresh the expired session
 		_, err = m.RefreshSession(t.Context(), session)
@@ -1598,7 +1598,7 @@ func TestSessionRevocationGarbageCollection(t *testing.T) {
 		opts := Options{
 			Configuration: configuration.Options{
 				PollInterval:  time.Minute,
-				SessionExpiry: time.Millisecond * 100, // Very short for testing
+				SessionExpiry: time.Second, // Very short for testing
 			},
 			Magic: MagicOptions{Enabled: true},
 		}
@@ -1687,7 +1687,7 @@ func TestSessionRevocationGarbageCollection(t *testing.T) {
 		opts := Options{
 			Configuration: configuration.Options{
 				PollInterval:  time.Minute,
-				SessionExpiry: time.Millisecond * 100,
+				SessionExpiry: time.Second,
 			},
 			Magic: MagicOptions{Enabled: true},
 		}
@@ -1737,7 +1737,7 @@ func TestSessionRevocationGarbageCollection(t *testing.T) {
 		opts := Options{
 			Configuration: configuration.Options{
 				PollInterval:  time.Minute,
-				SessionExpiry: time.Millisecond * 500,
+				SessionExpiry: time.Second,
 			},
 			Magic: MagicOptions{Enabled: true},
 		}
@@ -1882,7 +1882,7 @@ func TestSessionRevocationEdgeCases(t *testing.T) {
 		opts := Options{
 			Configuration: configuration.Options{
 				PollInterval:  time.Minute,
-				SessionExpiry: time.Millisecond * 100, // Very short
+				SessionExpiry: time.Second, // Very short
 			},
 			Magic: MagicOptions{Enabled: true},
 		}
@@ -1974,7 +1974,7 @@ func TestSessionGarbageCollection(t *testing.T) {
 		opts := Options{
 			Configuration: configuration.Options{
 				PollInterval:  time.Minute,
-				SessionExpiry: time.Millisecond * 10, // Very short expiry for testing
+				SessionExpiry: time.Second, // Very short expiry for testing
 			},
 			Magic: MagicOptions{Enabled: true},
 		}
@@ -2074,7 +2074,7 @@ func TestSessionGarbageCollection(t *testing.T) {
 		opts := Options{
 			Configuration: configuration.Options{
 				PollInterval:  time.Minute,
-				SessionExpiry: time.Millisecond * 10,
+				SessionExpiry: time.Second,
 			},
 			Magic: MagicOptions{Enabled: true},
 		}

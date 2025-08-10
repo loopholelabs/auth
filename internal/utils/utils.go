@@ -3,6 +3,7 @@
 package utils
 
 import (
+	"crypto"
 	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/subtle"
@@ -19,6 +20,7 @@ import (
 
 var (
 	ErrInvalidPKCS8PrivateKey = errors.New("invalid PKCS8 private key")
+	ErrInvalidPKIXPublicKey   = errors.New("invalid PKIX public key")
 )
 
 const (
@@ -98,6 +100,19 @@ func DecodeED25519PrivateKey(encoded []byte) (ed25519.PrivateKey, error) {
 		return privateKey, nil
 	}
 	return nil, ErrInvalidPKCS8PrivateKey
+}
+
+func EncodePublicKey(publicKey crypto.PublicKey) []byte {
+	marshalled, _ := x509.MarshalPKIXPublicKey(publicKey)
+	return pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: marshalled})
+}
+
+func DecodePublicKey(encoded []byte) (crypto.PublicKey, error) {
+	block, _ := pem.Decode(encoded)
+	if block == nil {
+		return nil, ErrInvalidPKIXPublicKey
+	}
+	return x509.ParsePKIXPublicKey(block.Bytes)
 }
 
 func GenericZero[T any]() T {

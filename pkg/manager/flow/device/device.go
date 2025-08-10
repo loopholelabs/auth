@@ -130,9 +130,12 @@ func (c *Device) PollFlow(ctx context.Context, poll string, pollRate time.Durati
 		if err != nil {
 			return "", errors.Join(ErrPollingFlow, err)
 		}
-		err = qtx.DeleteDeviceCodeFlowByIdentifier(ctx, f.Identifier)
+		num, err := qtx.DeleteDeviceCodeFlowByIdentifier(ctx, f.Identifier)
 		if err != nil {
 			return "", errors.Join(ErrPollingFlow, err)
+		}
+		if num == 0 {
+			return "", errors.Join(ErrPollingFlow, sql.ErrNoRows)
 		}
 
 		err = tx.Commit()

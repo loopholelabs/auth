@@ -15,3 +15,7 @@ type DeviceFlowResponse struct {
 type DeviceCallbackResponse struct {
 	Identifier string `json:"identifier"`
 }
+
+type PublicResponse struct {
+	Key string `json:"key"`
+}

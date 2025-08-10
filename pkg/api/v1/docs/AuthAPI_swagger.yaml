@@ -451,6 +451,33 @@ paths:
       summary: logout logs out a user
       tags:
       - logout
+  /public:
+    get:
+      consumes:
+      - application/json
+      description: public returns the current public ket
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: public returns the current public key
+      tags:
+      - public
 schemes:
 - https
 swagger: "2.0"

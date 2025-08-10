@@ -553,9 +553,12 @@ func (m *Manager) RevokeSession(ctx context.Context, identifier string) error {
 		return errors.Join(ErrRevokingSession, err)
 	}
 
-	err = qtx.DeleteSessionByIdentifier(ctx, session.Identifier)
+	num, err := qtx.DeleteSessionByIdentifier(ctx, session.Identifier)
 	if err != nil {
 		return errors.Join(ErrRevokingSession, err)
+	}
+	if num == 0 {
+		return errors.Join(ErrRevokingSession, sql.ErrNoRows)
 	}
 
 	err = qtx.CreateSessionRevocation(ctx, generated.CreateSessionRevocationParams{

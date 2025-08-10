@@ -175,9 +175,12 @@ func (c *Github) CompleteFlow(ctx context.Context, identifier string, code strin
 		return flow.Data{}, errors.Join(ErrCompletingFlow, err)
 	}
 
-	err = qtx.DeleteGithubOAuthFlowByIdentifier(ctx, identifier)
+	num, err := qtx.DeleteGithubOAuthFlowByIdentifier(ctx, identifier)
 	if err != nil {
 		return flow.Data{}, errors.Join(ErrCompletingFlow, err)
+	}
+	if num == 0 {
+		return flow.Data{}, errors.Join(ErrCompletingFlow, sql.ErrNoRows)
 	}
 
 	err = tx.Commit()
