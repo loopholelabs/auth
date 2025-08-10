@@ -10,13 +10,10 @@ import (
 	"github.com/loopholelabs/auth/internal/utils"
 	"github.com/loopholelabs/auth/pkg/api/options"
 	"github.com/loopholelabs/auth/pkg/api/v1/docs"
+	"github.com/loopholelabs/auth/pkg/api/v1/models"
 )
 
 //go:generate go tool github.com/swaggo/swag/cmd/swag init -g v1.go -o docs --parseDependency --instanceName AuthAPI -d ./
-
-const (
-	SessionCookie = "authentication-session"
-)
 
 type V1 struct {
 	logger types.Logger
@@ -88,7 +85,7 @@ func (v *V1) App() *fiber.App {
 // @Router       /logout [post]
 func (v *V1) logout(ctx *fiber.Ctx) error {
 	v.logger.Debug().Str("IP", ctx.IP()).Msg("logout")
-	cookie := ctx.Cookies(SessionCookie)
+	cookie := ctx.Cookies(models.SessionCookie)
 	if cookie != "" {
 		session, _, err := v.options.Manager.ParseSession(cookie)
 		if err == nil {
@@ -97,7 +94,7 @@ func (v *V1) logout(ctx *fiber.Ctx) error {
 				v.logger.Error().Err(err).Str("IP", ctx.IP()).Msg("revoking session failed")
 			}
 		}
-		ctx.ClearCookie(SessionCookie)
+		ctx.ClearCookie(models.SessionCookie)
 	}
 	return ctx.SendStatus(fiber.StatusOK)
 }

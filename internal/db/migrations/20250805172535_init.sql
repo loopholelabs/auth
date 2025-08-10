@@ -220,22 +220,6 @@ CREATE TABLE machine_keys
 -- ------------------------------------------------------------------
 -- Flows
 -- ------------------------------------------------------------------
-CREATE TABLE device_code_flows
-(
-    identifier         CHAR(36) PRIMARY KEY DEFAULT (uuid()),
-    session_identifier CHAR(36),
-    code               CHAR(8)  NOT NULL,
-    poll               CHAR(36) NOT NULL,
-    last_poll          DATETIME NOT NULL,
-    created_at         DATETIME NOT NULL    DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT fk_device_code_flows_session_identifier_sessions
-        FOREIGN KEY (session_identifier)
-            REFERENCES sessions (identifier)
-            ON DELETE CASCADE
-            ON UPDATE CASCADE
-);
-
 CREATE TABLE google_oauth_flows
 (
     identifier        CHAR(36) PRIMARY KEY  DEFAULT (uuid()),
@@ -302,6 +286,22 @@ CREATE TABLE magic_link_flows
     CONSTRAINT fk_magic_link_flows_user_identifier_users
         FOREIGN KEY (user_identifier)
             REFERENCES users (identifier)
+            ON DELETE CASCADE
+            ON UPDATE CASCADE
+);
+
+CREATE TABLE device_code_flows
+(
+    identifier         CHAR(36) PRIMARY KEY DEFAULT (uuid()),
+    session_identifier CHAR(36) UNIQUE,
+    code               CHAR(8)  NOT NULL UNIQUE,
+    poll               CHAR(36) NOT NULL UNIQUE,
+    last_poll          DATETIME NOT NULL    DEFAULT CURRENT_TIMESTAMP,
+    created_at         DATETIME NOT NULL    DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_device_code_flows_session_identifier_sessions
+        FOREIGN KEY (session_identifier)
+            REFERENCES sessions (identifier)
             ON DELETE CASCADE
             ON UPDATE CASCADE
 );
