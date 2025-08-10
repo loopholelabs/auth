@@ -97,7 +97,9 @@ func (v *V1) public(ctx *fiber.Ctx) error {
 		return ctx.SendStatus(fiber.StatusInternalServerError)
 	}
 	ret := &models.PublicResponse{
-		PublicKey: base64.StdEncoding.EncodeToString(publicKey),
+		PublicKey:           base64.StdEncoding.EncodeToString(publicKey),
+		RevokedSessions:     v.options.Validator.SessionRevocationList(),
+		InvalidatedSessions: v.options.Validator.SessionInvalidationList(),
 	}
 	previousPublicKey := v.options.Manager.Configuration().EncodedPreviousPublicKey()
 	if previousPublicKey != nil {
