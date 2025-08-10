@@ -13,6 +13,7 @@ import (
 	"github.com/loopholelabs/logging/types"
 
 	"github.com/loopholelabs/auth/internal/db"
+	"github.com/loopholelabs/auth/pkg/credential"
 	"github.com/loopholelabs/auth/pkg/manager/configuration"
 )
 
@@ -21,8 +22,11 @@ const (
 )
 
 var (
-	ErrCreatingValidator = errors.New("error creating validator")
-	ErrDBIsRequired      = errors.New("db is required")
+	ErrCreatingValidator  = errors.New("error creating validator")
+	ErrDBIsRequired       = errors.New("db is required")
+	ErrValidatingSession  = errors.New("error validating session")
+	ErrRevokedSession     = errors.New("revoked session")
+	ErrInvalidatedSession = errors.New("invalidated session")
 )
 
 type Options struct {
@@ -75,6 +79,23 @@ func New(options Options, db *db.DB, logger types.Logger) (*Validator, error) {
 	go v.doRefresh()
 
 	return v, nil
+}
+
+func (v *Validator) IsSessionValid(token string) (credential.Session, bool, error) {
+	_, publicKey := v.Configuration().SigningKey()
+	_, previousPublicKey := v.Configuration().PreviousSigningKey()
+	session, replace, err := credential.ParseSession(token, publicKey, previousPublicKey)
+	if err != nil {
+		return credential.Session{}, replace, errors.Join(ErrValidatingSession, err)
+	}
+	if v.IsSessionRevoked(session.Identifier) {
+		return credential.Session{}, replace, errors.Join(ErrValidatingSession, ErrRevokedSession)
+	}
+	if v.IsSessionInvalidated(session.Identifier, session.Generation) {
+		return credential.Session{}, replace, errors.Join(ErrValidatingSession, ErrInvalidatedSession)
+	}
+
+	return session, replace, nil
 }
 
 func (v *Validator) IsSessionRevoked(identifier string) bool {

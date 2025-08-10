@@ -91,14 +91,12 @@ func (v *V1) App() *fiber.App {
 // @Router       /public [get]
 func (v *V1) public(ctx *fiber.Ctx) error {
 	v.logger.Debug().Str("IP", ctx.IP()).Msg("public")
-	_, publicKey := v.options.Manager.Configuration().SigningKey()
+	publicKey := v.options.Manager.Configuration().EncodedPublicKey()
 	if publicKey == nil {
 		v.logger.Error().Msg("public key is nil")
 		return ctx.SendStatus(fiber.StatusInternalServerError)
 	}
-	encodedPublicKey := utils.EncodePublicKey(publicKey)
-
-	return ctx.Status(fiber.StatusOK).JSON(&models.PublicResponse{Key: base64.StdEncoding.EncodeToString(encodedPublicKey)})
+	return ctx.Status(fiber.StatusOK).JSON(&models.PublicResponse{Key: base64.StdEncoding.EncodeToString(publicKey)})
 }
 
 // logout godoc
@@ -139,7 +137,7 @@ func (v *V1) logout(ctx *fiber.Ctx) error {
 // @Router       /health [get]
 func (v *V1) health(ctx *fiber.Ctx) error {
 	v.logger.Trace().Str("IP", ctx.IP()).Msg("health")
-	if v.options.Manager.Healthy() {
+	if v.options.Manager.IsHealthy() {
 		return ctx.SendStatus(fiber.StatusOK)
 	}
 	return ctx.SendStatus(fiber.StatusServiceUnavailable)
