@@ -4,13 +4,13 @@ package v1
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/loopholelabs/auth/pkg/api/v1/flows"
 
 	"github.com/loopholelabs/logging/types"
 
 	"github.com/loopholelabs/auth/internal/utils"
 	"github.com/loopholelabs/auth/pkg/api/options"
 	"github.com/loopholelabs/auth/pkg/api/v1/docs"
+	"github.com/loopholelabs/auth/pkg/api/v1/flows"
 	"github.com/loopholelabs/auth/pkg/api/v1/models"
 )
 
