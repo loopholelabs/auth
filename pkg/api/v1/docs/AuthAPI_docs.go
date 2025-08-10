@@ -25,7 +25,7 @@ const docTemplateAuthAPI = `{
     "paths": {
         "/github/login": {
             "get": {
-                "description": "Login logs in a user with Github",
+                "description": "login logs in a user with Github",
                 "consumes": [
                     "application/json"
                 ],
@@ -36,18 +36,24 @@ const docTemplateAuthAPI = `{
                     "github",
                     "login"
                 ],
-                "summary": "Login logs in a user with Github",
+                "summary": "login logs in a user with Github",
                 "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Device Flow Identifier",
-                        "name": "device",
-                        "in": "query"
-                    },
                     {
                         "type": "string",
                         "description": "Next Redirect URL",
                         "name": "next",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "User",
+                        "name": "user",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Device Flow Identifier",
+                        "name": "identifier",
                         "in": "query"
                     }
                 ],
@@ -55,7 +61,7 @@ const docTemplateAuthAPI = `{
                     "307": {
                         "description": "Temporary Redirect",
                         "headers": {
-                            "location": {
+                            "Location": {
                                 "type": "string",
                                 "description": "Redirects to Github"
                             }
@@ -96,8 +102,8 @@ const docTemplateAuthAPI = `{
                             "type": "string"
                         }
                     },
-                    "500": {
-                        "description": "Internal Server Error",
+                    "503": {
+                        "description": "Service Unavailable",
                         "schema": {
                             "type": "string"
                         }

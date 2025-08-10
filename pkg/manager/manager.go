@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/loopholelabs/auth/pkg/manager/credential"
 
 	"github.com/loopholelabs/logging/types"
 
@@ -20,6 +19,7 @@ import (
 	"github.com/loopholelabs/auth/internal/db/generated"
 	"github.com/loopholelabs/auth/internal/mailer"
 	"github.com/loopholelabs/auth/pkg/manager/configuration"
+	"github.com/loopholelabs/auth/pkg/manager/credential"
 	"github.com/loopholelabs/auth/pkg/manager/flow"
 	"github.com/loopholelabs/auth/pkg/manager/flow/github"
 	"github.com/loopholelabs/auth/pkg/manager/flow/google"
@@ -478,6 +478,10 @@ func (m *Manager) RevokeSession(ctx context.Context, identifier string) error {
 	}
 
 	return nil
+}
+
+func (m *Manager) Healthy() bool {
+	return m.db.DB.PingContext(m.ctx) == nil && m.configuration.IsHealthy() && (m.mailer == nil || m.mailer.TestConnection(m.ctx) == nil)
 }
 
 func (m *Manager) Close() error {
