@@ -21,6 +21,7 @@ import (
 	"github.com/loopholelabs/auth/pkg/manager/configuration"
 	"github.com/loopholelabs/auth/pkg/manager/credential"
 	"github.com/loopholelabs/auth/pkg/manager/flow"
+	"github.com/loopholelabs/auth/pkg/manager/flow/device"
 	"github.com/loopholelabs/auth/pkg/manager/flow/github"
 	"github.com/loopholelabs/auth/pkg/manager/flow/google"
 	"github.com/loopholelabs/auth/pkg/manager/flow/magic"
@@ -63,6 +64,10 @@ type MagicOptions struct {
 	Enabled bool
 }
 
+type DeviceOptions struct {
+	Enabled bool
+}
+
 type MailerOptions struct {
 	Enabled               bool
 	Mailer                mailer.Mailer
@@ -84,6 +89,7 @@ type Options struct {
 	Github        GithubOptions
 	Google        GoogleOptions
 	Magic         MagicOptions
+	Device        DeviceOptions
 	Mailer        MailerOptions
 	Configuration configuration.Options
 	Token         TokenOptions
@@ -98,6 +104,7 @@ type Manager struct {
 	github *github.Github
 	google *google.Google
 	magic  *magic.Magic
+	device *device.Device
 
 	mailer mailer.Mailer
 
@@ -149,6 +156,14 @@ func New(options Options, db *db.DB, logger types.Logger) (*Manager, error) {
 		}
 	}
 
+	var dv *device.Device
+	if options.Device.Enabled {
+		dv, err = device.New(db, logger)
+		if err != nil {
+			return nil, errors.Join(ErrCreatingManager, err)
+		}
+	}
+
 	var ml mailer.Mailer
 	if options.Mailer.Enabled {
 		if options.Mailer.Mailer != nil {
@@ -178,6 +193,7 @@ func New(options Options, db *db.DB, logger types.Logger) (*Manager, error) {
 		github:        gh,
 		google:        gg,
 		magic:         mg,
+		device:        dv,
 		mailer:        ml,
 		ctx:           ctx,
 		cancel:        cancel,
@@ -202,6 +218,10 @@ func (m *Manager) Google() *google.Google {
 
 func (m *Manager) Magic() *magic.Magic {
 	return m.magic
+}
+
+func (m *Manager) Device() *device.Device {
+	return m.device
 }
 
 func (m *Manager) Mailer() mailer.Mailer {
@@ -331,12 +351,83 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 		return credential.Session{}, errors.Join(ErrCreatingSession, err)
 	}
 
-	return credential.Session{
+	s := credential.Session{
 		Identifier: sessionIdentifier,
 		OrganizationInfo: credential.OrganizationInfo{
 			Identifier: session.OrganizationIdentifier,
 			IsDefault:  true,
 			Role:       role.OwnerRole,
+		},
+		UserInfo: credential.UserInfo{
+			Identifier: session.UserIdentifier,
+			Name:       user.Name,
+			Email:      user.PrimaryEmail,
+		},
+		Generation: session.Generation,
+		ExpiresAt:  session.ExpiresAt,
+	}
+
+	if !s.IsValid() {
+		return credential.Session{}, errors.Join(ErrCreatingSession, credential.ErrInvalidSession)
+	}
+
+	return s, nil
+}
+
+func (m *Manager) CreateExistingSession(ctx context.Context, identifier string) (credential.Session, error) {
+	tx, err := m.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
+	if err != nil {
+		return credential.Session{}, errors.Join(ErrCreatingSession, err)
+	}
+
+	defer func() {
+		err := tx.Rollback()
+		if err != nil && !errors.Is(err, sql.ErrTxDone) {
+			m.logger.Error().Err(err).Str("session_identifier", identifier).Msg("failed to rollback transaction")
+		}
+	}()
+
+	qtx := m.db.Queries.WithTx(tx)
+
+	session, err := qtx.GetSessionByIdentifier(ctx, identifier)
+	if err != nil {
+		return credential.Session{}, errors.Join(ErrCreatingSession, err)
+	}
+
+	user, err := qtx.GetUserByIdentifier(ctx, session.UserIdentifier)
+	if err != nil {
+		return credential.Session{}, errors.Join(ErrCreatingSession, err)
+	}
+
+	organization, err := qtx.GetOrganizationByIdentifier(ctx, session.OrganizationIdentifier)
+	if err != nil {
+		return credential.Session{}, errors.Join(ErrCreatingSession, err)
+	}
+
+	membership, err := qtx.GetMembershipByUserIdentifierAndOrganizationIdentifier(ctx, generated.GetMembershipByUserIdentifierAndOrganizationIdentifierParams{
+		UserIdentifier:         session.UserIdentifier,
+		OrganizationIdentifier: session.OrganizationIdentifier,
+	})
+	if err != nil {
+		return credential.Session{}, errors.Join(ErrCreatingSession, err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return credential.Session{}, errors.Join(ErrCreatingSession, err)
+	}
+
+	membershipRole := role.Role(membership.Role)
+	if !membershipRole.IsValid() {
+		return credential.Session{}, errors.Join(ErrCreatingSession, ErrInvalidSessionRole)
+	}
+
+	return credential.Session{
+		Identifier: session.Identifier,
+		OrganizationInfo: credential.OrganizationInfo{
+			Identifier: session.OrganizationIdentifier,
+			IsDefault:  organization.IsDefault,
+			Role:       membershipRole,
 		},
 		UserInfo: credential.UserInfo{
 			Identifier: session.UserIdentifier,

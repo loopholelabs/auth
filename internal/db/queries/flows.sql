@@ -84,3 +84,45 @@ FROM magic_link_flows;
 -- name: CountAllMagicLinkFlows :one
 SELECT COUNT(*)
 FROM magic_link_flows;
+
+-- name: CreateDeviceCodeFlow :exec
+INSERT INTO device_code_flows (identifier, code, poll, last_poll, created_at)
+VALUES (sqlc.arg(identifier), sqlc.arg(code), sqlc.arg(poll), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+-- name: GetDeviceCodeFlowByIdentifier :one
+SELECT *
+FROM device_code_flows
+WHERE identifier = sqlc.arg(identifier) LIMIT 1;
+
+-- name: GetDeviceCodeFlowByPoll :one
+SELECT *
+FROM device_code_flows
+WHERE poll = sqlc.arg(poll) LIMIT 1;
+
+-- name: GetDeviceCodeFlowByCode :one
+SELECT *
+FROM device_code_flows
+WHERE code = sqlc.arg(code) LIMIT 1;
+
+-- name: UpdateDeviceCodeFlowLastPollByPoll :exec
+UPDATE device_code_flows
+SET last_poll = CURRENT_TIMESTAMP
+WHERE poll = sqlc.arg(poll);
+
+-- name: DeleteDeviceCodeFlowByIdentifier :exec
+DELETE
+FROM device_code_flows
+WHERE identifier = sqlc.arg(identifier);
+
+-- name: DeleteDeviceCodeFlowsBeforeCreatedAt :execrows
+DELETE
+FROM device_code_flows
+WHERE created_at < sqlc.arg(created_at);
+
+-- name: DeleteAllDeviceCodeFlows :execrows
+DELETE
+FROM device_code_flows;
+
+-- name: CountAllDeviceCodeFlows :one
+SELECT COUNT(*)
+FROM device_code_flows;
