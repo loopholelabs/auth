@@ -185,7 +185,7 @@ New authentication providers must:
 
 ### Security Considerations
 
-- Magic link tokens use bcrypt hashing
+- Magic link tokens use HMAC with SHA-256 hashing
 - OAuth2 flows use PKCE for security
 - Sessions have generation tracking for revocation
 - All provider identifiers are validated before use

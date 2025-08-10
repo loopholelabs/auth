@@ -3,6 +3,8 @@
 package magic
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/base64"
 	"fmt"
@@ -13,7 +15,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/crypto/bcrypt"
 
 	"github.com/loopholelabs/logging"
 
@@ -106,9 +107,11 @@ func TestCreateFlow(t *testing.T) {
 		require.False(t, flow.DeviceIdentifier.Valid)
 		require.False(t, flow.UserIdentifier.Valid)
 
-		// Verify the hash is valid bcrypt hash
-		err = bcrypt.CompareHashAndPassword(flow.Hash, append([]byte(flow.Salt), []byte(secret)...))
-		require.NoError(t, err)
+		h := hmac.New(sha256.New, []byte(flow.Salt))
+		h.Write([]byte(secret))
+
+		// Verify the hash is valid HMAC hash
+		require.True(t, hmac.Equal(flow.Hash, h.Sum(nil)))
 	})
 
 	t.Run("CreateFlowWithEmptyDeviceIdentifier", func(t *testing.T) {
@@ -555,17 +558,20 @@ func TestTokenEncoding(t *testing.T) {
 		flow, err := database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), identifier)
 		require.NoError(t, err)
 
-		// The hash should be a bcrypt hash
-		require.True(t, strings.HasPrefix(string(flow.Hash), "$2"), "should be bcrypt hash")
+		h := hmac.New(sha256.New, []byte(flow.Salt))
+		h.Write([]byte(secret))
 
-		// Verify the hash validates with correct salt+secret
-		err = bcrypt.CompareHashAndPassword(flow.Hash, append([]byte(flow.Salt), []byte(secret)...))
-		require.NoError(t, err)
+		// Verify the hash is valid HMAC hash
+		require.True(t, hmac.Equal(flow.Hash, h.Sum(nil)))
 
 		// Verify wrong secret doesn't validate
 		wrongSecret := uuid.New().String()
-		err = bcrypt.CompareHashAndPassword(flow.Hash, append([]byte(flow.Salt), []byte(wrongSecret)...))
-		require.Error(t, err)
+
+		h = hmac.New(sha256.New, []byte(flow.Salt))
+		h.Write([]byte(wrongSecret))
+
+		// Verify the hash is invalid HMAC hash
+		require.False(t, hmac.Equal(flow.Hash, h.Sum(nil)))
 	})
 }
 
@@ -943,48 +949,6 @@ func TestClose(t *testing.T) {
 
 		err = m.Close()
 		require.NoError(t, err)
-	})
-}
-
-func TestHashSecurity(t *testing.T) {
-	t.Run("BcryptHashValidation", func(t *testing.T) {
-		salt := uuid.New().String()
-		secret := uuid.New().String()
-
-		// Generate hash the same way CreateFlow does
-		hash, err := bcrypt.GenerateFromPassword(append([]byte(salt), []byte(secret)...), bcrypt.DefaultCost)
-		require.NoError(t, err)
-
-		// Verify correct salt+secret validates
-		err = bcrypt.CompareHashAndPassword(hash, append([]byte(salt), []byte(secret)...))
-		require.NoError(t, err)
-
-		// Verify wrong secret doesn't validate
-		wrongSecret := uuid.New().String()
-		err = bcrypt.CompareHashAndPassword(hash, append([]byte(salt), []byte(wrongSecret)...))
-		require.Error(t, err)
-
-		// Verify wrong salt doesn't validate
-		wrongSalt := uuid.New().String()
-		err = bcrypt.CompareHashAndPassword(hash, append([]byte(wrongSalt), []byte(secret)...))
-		require.Error(t, err)
-
-		// Verify empty values don't validate
-		err = bcrypt.CompareHashAndPassword(hash, []byte{})
-		require.Error(t, err)
-	})
-
-	t.Run("HashCostIsDefault", func(t *testing.T) {
-		salt := uuid.New().String()
-		secret := uuid.New().String()
-
-		hash, err := bcrypt.GenerateFromPassword(append([]byte(salt), []byte(secret)...), bcrypt.DefaultCost)
-		require.NoError(t, err)
-
-		// Verify the hash uses default cost
-		cost, err := bcrypt.Cost(hash)
-		require.NoError(t, err)
-		require.Equal(t, bcrypt.DefaultCost, cost)
 	})
 }
 
