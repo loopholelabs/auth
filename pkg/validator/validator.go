@@ -47,6 +47,10 @@ type Validator struct {
 	sessionRevocationCache   *ttlcache.Cache[string, struct{}]
 	sessionInvalidationCache *ttlcache.Cache[string, uint32]
 
+	sessionRevocationHealthy   bool
+	sessionInvalidationHealthy bool
+	mu                         sync.RWMutex
+
 	wg     sync.WaitGroup
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -135,6 +139,12 @@ func (v *Validator) Configuration() *configuration.Configuration {
 	return v.configuration
 }
 
+func (v *Validator) IsHealthy() bool {
+	v.mu.RLock()
+	defer v.mu.RUnlock()
+	return v.sessionRevocationHealthy && v.sessionInvalidationHealthy
+}
+
 func (v *Validator) Close() error {
 	v.cancel()
 	v.wg.Wait()
@@ -155,6 +165,9 @@ func (v *Validator) sessionRevocationsRefresh() {
 	sessionRevocations, err := v.db.Queries.GetAllSessionRevocations(ctx)
 	if err != nil {
 		v.logger.Error().Err(err).Msg("failed to update session revocations")
+		v.mu.Lock()
+		v.sessionRevocationHealthy = false
+		v.mu.Unlock()
 	} else {
 		for _, sessionRevocation := range sessionRevocations {
 			if sessionRevocation.ExpiresAt.After(time.Now()) {
@@ -163,6 +176,9 @@ func (v *Validator) sessionRevocationsRefresh() {
 			}
 		}
 		v.logger.Info().Msgf("refresh %d session revocations", refreshed)
+		v.mu.Lock()
+		v.sessionRevocationHealthy = true
+		v.mu.Unlock()
 	}
 }
 
@@ -174,6 +190,9 @@ func (v *Validator) sessionInvalidationsRefresh() {
 	sessionInvalidations, err := v.db.Queries.GetAllSessionInvalidations(ctx)
 	if err != nil {
 		v.logger.Error().Err(err).Msg("failed to update session invalidations")
+		v.mu.Lock()
+		v.sessionInvalidationHealthy = false
+		v.mu.Unlock()
 	} else {
 		for _, sessionInvalidation := range sessionInvalidations {
 			if sessionInvalidation.ExpiresAt.After(time.Now()) {
@@ -182,6 +201,9 @@ func (v *Validator) sessionInvalidationsRefresh() {
 			}
 		}
 		v.logger.Info().Msgf("refresh %d session invalidations", refreshed)
+		v.mu.Lock()
+		v.sessionInvalidationHealthy = true
+		v.mu.Unlock()
 	}
 }
 
