@@ -193,7 +193,7 @@ VALIDATE:
 		return Session{}, replace, errors.Join(ErrParsingSession, ErrInvalidClaims)
 	}
 
-	return Session{
+	session := Session{
 		Identifier: identifier,
 		OrganizationInfo: OrganizationInfo{
 			Identifier: organizationIdentifier,
@@ -207,7 +207,13 @@ VALIDATE:
 		},
 		Generation: generation,
 		ExpiresAt:  expirationTime.Time,
-	}, replace, nil
+	}
+
+	if !session.IsValid() {
+		return Session{}, replace, errors.Join(ErrParsingSession, ErrInvalidSession)
+	}
+
+	return session, replace, nil
 }
 
 func keyFunc(publicKey crypto.PublicKey) jwt.Keyfunc {
