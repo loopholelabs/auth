@@ -143,9 +143,12 @@ func (c *Device) PollFlow(ctx context.Context, poll string, pollRate time.Durati
 		return session.Identifier, nil
 	}
 
-	err = qtx.UpdateDeviceCodeFlowLastPollByPoll(ctx, poll)
+	num, err := qtx.UpdateDeviceCodeFlowLastPollByPoll(ctx, poll)
 	if err != nil {
 		return "", errors.Join(ErrPollingFlow, err)
+	}
+	if num == 0 {
+		return "", errors.Join(ErrFlowNotCompleted, sql.ErrNoRows)
 	}
 
 	err = tx.Commit()
@@ -158,7 +161,7 @@ func (c *Device) PollFlow(ctx context.Context, poll string, pollRate time.Durati
 
 func (c *Device) CompleteFlow(ctx context.Context, identifier string, sessionIdentifier string) error {
 	c.logger.Debug().Str("identifier", identifier).Msg("completing flow")
-	err := c.db.Queries.UpdateDeviceCodeFlowSessionIdentifierByIdentifier(ctx, generated.UpdateDeviceCodeFlowSessionIdentifierByIdentifierParams{
+	num, err := c.db.Queries.UpdateDeviceCodeFlowSessionIdentifierByIdentifier(ctx, generated.UpdateDeviceCodeFlowSessionIdentifierByIdentifierParams{
 		SessionIdentifier: sql.NullString{
 			String: sessionIdentifier,
 			Valid:  sessionIdentifier != "",
@@ -167,6 +170,9 @@ func (c *Device) CompleteFlow(ctx context.Context, identifier string, sessionIde
 	})
 	if err != nil {
 		return errors.Join(ErrCompletingFlow, err)
+	}
+	if num == 0 {
+		return errors.Join(ErrCompletingFlow, sql.ErrNoRows)
 	}
 	return nil
 }

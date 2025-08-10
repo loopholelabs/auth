@@ -7,12 +7,12 @@ SELECT *
 FROM users
 WHERE identifier = sqlc.arg(identifier) LIMIT 1;
 
--- name: UpdateUserNameByIdentifier :exec
+-- name: UpdateUserNameByIdentifier :execrows
 UPDATE users
 SET name = sqlc.arg(name)
 WHERE identifier = sqlc.arg(identifier);
 
--- name: UpdateUserPrimaryEmailByIdentifier :exec
+-- name: UpdateUserPrimaryEmailByIdentifier :execrows
 UPDATE users
 SET primary_email = sqlc.arg(primary_email)
 WHERE identifier = sqlc.arg(identifier);
