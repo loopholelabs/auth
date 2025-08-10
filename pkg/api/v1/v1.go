@@ -3,6 +3,8 @@
 package v1
 
 import (
+	"encoding/base64"
+
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/loopholelabs/logging/types"
@@ -55,8 +57,9 @@ func (v *V1) init() {
 		docs.SwaggerInfoAuthAPI.Schemes = []string{"https"}
 	}
 
-	v.app.Get("/health", v.health)
+	v.app.Get("/public", v.public)
 	v.app.Post("/logout", v.logout)
+	v.app.Get("/health", v.health)
 
 	v.app.Get("/swagger.json", func(ctx *fiber.Ctx) error {
 		ctx.Response().Header.SetContentType("application/json")
@@ -73,6 +76,29 @@ func (v *V1) init() {
 
 func (v *V1) App() *fiber.App {
 	return v.app
+}
+
+// public godoc
+// @Summary      public returns the current public key
+// @Description  public returns the current public ket
+// @Tags         public
+// @Accept       json
+// @Produce      json
+// @Success      200 {string} string
+// @Failure      400 {string} string
+// @Failure      401 {string} string
+// @Failure      500 {string} string
+// @Router       /public [get]
+func (v *V1) public(ctx *fiber.Ctx) error {
+	v.logger.Debug().Str("IP", ctx.IP()).Msg("public")
+	_, publicKey := v.options.Manager.Configuration().SigningKey()
+	if publicKey == nil {
+		v.logger.Error().Msg("public key is nil")
+		return ctx.SendStatus(fiber.StatusInternalServerError)
+	}
+	encodedPublicKey := utils.EncodePublicKey(publicKey)
+
+	return ctx.Status(fiber.StatusOK).JSON(&models.PublicResponse{Key: base64.StdEncoding.EncodeToString(encodedPublicKey)})
 }
 
 // logout godoc

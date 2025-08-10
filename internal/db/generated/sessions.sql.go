@@ -49,15 +49,18 @@ func (q *Queries) DeleteExpiredSessions(ctx context.Context) (int64, error) {
 	return result.RowsAffected()
 }
 
-const deleteSessionByIdentifier = `-- name: DeleteSessionByIdentifier :exec
+const deleteSessionByIdentifier = `-- name: DeleteSessionByIdentifier :execrows
 DELETE
 FROM sessions
 WHERE identifier = ?
 `
 
-func (q *Queries) DeleteSessionByIdentifier(ctx context.Context, identifier string) error {
-	_, err := q.db.ExecContext(ctx, deleteSessionByIdentifier, identifier)
-	return err
+func (q *Queries) DeleteSessionByIdentifier(ctx context.Context, identifier string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteSessionByIdentifier, identifier)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const getSessionByIdentifier = `-- name: GetSessionByIdentifier :one

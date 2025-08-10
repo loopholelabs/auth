@@ -22,6 +22,10 @@ type MySQLContainer struct {
 
 func SetupMySQLContainer(t testing.TB) *MySQLContainer {
 	t.Helper()
+	_t, ok := t.(*testing.T)
+	if ok {
+		_t.Parallel()
+	}
 
 	req := testcontainers.ContainerRequest{
 		Image:        "mysql:8.0",

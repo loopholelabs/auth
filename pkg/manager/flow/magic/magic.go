@@ -152,9 +152,12 @@ func (c *Magic) CompleteFlow(ctx context.Context, token string) (flow.Data, erro
 		return flow.Data{}, errors.Join(ErrCompletingFlow, err)
 	}
 
-	err = qtx.DeleteMagicLinkFlowByIdentifier(ctx, identifier)
+	num, err := qtx.DeleteMagicLinkFlowByIdentifier(ctx, identifier)
 	if err != nil {
 		return flow.Data{}, errors.Join(ErrCompletingFlow, err)
+	}
+	if num == 0 {
+		return flow.Data{}, errors.Join(ErrCompletingFlow, sql.ErrNoRows)
 	}
 
 	err = tx.Commit()
@@ -164,7 +167,7 @@ func (c *Magic) CompleteFlow(ctx context.Context, token string) (flow.Data, erro
 
 	h := hmac.New(sha256.New, []byte(f.Salt))
 	h.Write([]byte(secret))
-	if hmac.Equal(f.Hash, h.Sum(nil)) {
+	if !hmac.Equal(f.Hash, h.Sum(nil)) {
 		return flow.Data{}, errors.Join(ErrCompletingFlow, ErrInvalidSecret)
 	}
 

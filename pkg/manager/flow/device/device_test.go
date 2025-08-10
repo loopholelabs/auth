@@ -533,8 +533,9 @@ func TestDevice_PollFlow(t *testing.T) {
 		require.NoError(t, err)
 
 		// Delete the session (to simulate invalid foreign key)
-		err = database.Queries.DeleteSessionByIdentifier(t.Context(), sessionID)
+		num, err := database.Queries.DeleteSessionByIdentifier(t.Context(), sessionID)
 		require.NoError(t, err)
+		assert.Equal(t, int64(1), num)
 
 		// Poll should fail when trying to get session
 		returnedSessionID, err := device.PollFlow(t.Context(), poll, 5*time.Second)
@@ -828,7 +829,7 @@ func TestDevice_EdgeCases(t *testing.T) {
 		// Original flow should still be pollable
 		_, err = device.PollFlow(t.Context(), poll, 5*time.Second)
 		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrFlowNotCompleted)
+		assert.ErrorIs(t, err, sql.ErrNoRows)
 	})
 
 	t.Run("DatabaseConnectionLoss", func(t *testing.T) {

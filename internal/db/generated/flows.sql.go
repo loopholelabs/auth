@@ -213,15 +213,18 @@ func (q *Queries) DeleteAllMagicLinkFlows(ctx context.Context) (int64, error) {
 	return result.RowsAffected()
 }
 
-const deleteDeviceCodeFlowByIdentifier = `-- name: DeleteDeviceCodeFlowByIdentifier :exec
+const deleteDeviceCodeFlowByIdentifier = `-- name: DeleteDeviceCodeFlowByIdentifier :execrows
 DELETE
 FROM device_code_flows
 WHERE identifier = ?
 `
 
-func (q *Queries) DeleteDeviceCodeFlowByIdentifier(ctx context.Context, identifier string) error {
-	_, err := q.db.ExecContext(ctx, deleteDeviceCodeFlowByIdentifier, identifier)
-	return err
+func (q *Queries) DeleteDeviceCodeFlowByIdentifier(ctx context.Context, identifier string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteDeviceCodeFlowByIdentifier, identifier)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const deleteDeviceCodeFlowsBeforeCreatedAt = `-- name: DeleteDeviceCodeFlowsBeforeCreatedAt :execrows
@@ -238,15 +241,18 @@ func (q *Queries) DeleteDeviceCodeFlowsBeforeCreatedAt(ctx context.Context, crea
 	return result.RowsAffected()
 }
 
-const deleteGithubOAuthFlowByIdentifier = `-- name: DeleteGithubOAuthFlowByIdentifier :exec
+const deleteGithubOAuthFlowByIdentifier = `-- name: DeleteGithubOAuthFlowByIdentifier :execrows
 DELETE
 FROM github_oauth_flows
 WHERE identifier = ?
 `
 
-func (q *Queries) DeleteGithubOAuthFlowByIdentifier(ctx context.Context, identifier string) error {
-	_, err := q.db.ExecContext(ctx, deleteGithubOAuthFlowByIdentifier, identifier)
-	return err
+func (q *Queries) DeleteGithubOAuthFlowByIdentifier(ctx context.Context, identifier string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteGithubOAuthFlowByIdentifier, identifier)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const deleteGithubOAuthFlowsBeforeCreatedAt = `-- name: DeleteGithubOAuthFlowsBeforeCreatedAt :execrows
@@ -263,15 +269,18 @@ func (q *Queries) DeleteGithubOAuthFlowsBeforeCreatedAt(ctx context.Context, cre
 	return result.RowsAffected()
 }
 
-const deleteGoogleOAuthFlowByIdentifier = `-- name: DeleteGoogleOAuthFlowByIdentifier :exec
+const deleteGoogleOAuthFlowByIdentifier = `-- name: DeleteGoogleOAuthFlowByIdentifier :execrows
 DELETE
 FROM google_oauth_flows
 WHERE identifier = ?
 `
 
-func (q *Queries) DeleteGoogleOAuthFlowByIdentifier(ctx context.Context, identifier string) error {
-	_, err := q.db.ExecContext(ctx, deleteGoogleOAuthFlowByIdentifier, identifier)
-	return err
+func (q *Queries) DeleteGoogleOAuthFlowByIdentifier(ctx context.Context, identifier string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteGoogleOAuthFlowByIdentifier, identifier)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const deleteGoogleOAuthFlowsBeforeCreatedAt = `-- name: DeleteGoogleOAuthFlowsBeforeCreatedAt :execrows
@@ -288,15 +297,18 @@ func (q *Queries) DeleteGoogleOAuthFlowsBeforeCreatedAt(ctx context.Context, cre
 	return result.RowsAffected()
 }
 
-const deleteMagicLinkFlowByIdentifier = `-- name: DeleteMagicLinkFlowByIdentifier :exec
+const deleteMagicLinkFlowByIdentifier = `-- name: DeleteMagicLinkFlowByIdentifier :execrows
 DELETE
 FROM magic_link_flows
 WHERE identifier = ?
 `
 
-func (q *Queries) DeleteMagicLinkFlowByIdentifier(ctx context.Context, identifier string) error {
-	_, err := q.db.ExecContext(ctx, deleteMagicLinkFlowByIdentifier, identifier)
-	return err
+func (q *Queries) DeleteMagicLinkFlowByIdentifier(ctx context.Context, identifier string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteMagicLinkFlowByIdentifier, identifier)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const deleteMagicLinkFlowsBeforeCreatedAt = `-- name: DeleteMagicLinkFlowsBeforeCreatedAt :execrows
