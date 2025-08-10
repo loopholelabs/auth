@@ -225,7 +225,7 @@ func New(options Options, db *db.DB, logger types.Logger) (*Manager, error) {
 	go m.doSessionRevocationGC()
 
 	m.wg.Add(1)
-	go m.healthCheck()
+	go m.doHealthCheck()
 
 	return m, nil
 }
