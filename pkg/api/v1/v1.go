@@ -79,8 +79,8 @@ func (v *V1) App() *fiber.App {
 }
 
 // public godoc
-// @Summary      public returns the current public key
-// @Description  public returns the current public ket
+// @Summary      public returns the current public key and session information
+// @Description  public returns the current public key and session information
 // @Tags         public
 // @Accept       json
 // @Produce      json

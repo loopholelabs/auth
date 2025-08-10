@@ -455,7 +455,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: public returns the current public ket
+      description: public returns the current public key and session information
       produces:
       - application/json
       responses:
@@ -475,7 +475,7 @@ paths:
           description: Internal Server Error
           schema:
             type: string
-      summary: public returns the current public key
+      summary: public returns the current public key and session information
       tags:
       - public
 schemes:
