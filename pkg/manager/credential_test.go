@@ -20,7 +20,7 @@ import (
 )
 
 // Helper function to create a valid session for testing
-func createValidSession(t *testing.T) Session {
+func createValidSession(_ *testing.T) Session {
 	return Session{
 		Identifier: uuid.New().String(),
 		OrganizationInfo: OrganizationInfo{

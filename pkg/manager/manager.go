@@ -347,6 +347,17 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 	}, nil
 }
 
+func (m *Manager) SignSession(session Session) (string, error) {
+	signingKey, _ := m.Configuration().SigningKey()
+	return session.Sign(signingKey)
+}
+
+func (m *Manager) ParseSession(token string) (Session, bool, error) {
+	_, publicKey := m.Configuration().SigningKey()
+	_, previousPublicKey := m.Configuration().PreviousSigningKey()
+	return ParseSession(token, publicKey, previousPublicKey)
+}
+
 func (m *Manager) RefreshSession(ctx context.Context, session Session) (Session, error) {
 	now := time.Now()
 	if session.ExpiresAt.Before(now) {
