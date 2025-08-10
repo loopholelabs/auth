@@ -51,7 +51,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: Health returns the health check status
+      description: health returns the health check status
       produces:
       - application/json
       responses:
@@ -63,14 +63,14 @@ paths:
           description: Internal Server Error
           schema:
             type: string
-      summary: Health returns the health check status
+      summary: health returns the health check status
       tags:
       - health
   /logout:
     post:
       consumes:
       - application/json
-      description: Logout logs out a user
+      description: logout logs out a user
       produces:
       - application/json
       responses:
@@ -90,7 +90,7 @@ paths:
           description: Internal Server Error
           schema:
             type: string
-      summary: Logout logs out a user
+      summary: logout logs out a user
       tags:
       - logout
 schemes:

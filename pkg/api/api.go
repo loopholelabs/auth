@@ -3,15 +3,23 @@
 package api
 
 import (
+	"errors"
 	"net"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	v1 "github.com/loopholelabs/auth/pkg/api/v1"
 
 	"github.com/loopholelabs/logging/types"
 
-	"github.com/loopholelabs/auth/internal/db"
 	"github.com/loopholelabs/auth/internal/utils"
+	"github.com/loopholelabs/auth/pkg/api/options"
+)
+
+var (
+	ErrCreatingAPI = errors.New("error creating api")
+	ErrStartingAPI = errors.New("error starting API")
+	ErrStoppingAPI = errors.New("error stopping API")
 )
 
 const (
@@ -21,38 +29,39 @@ const (
 type API struct {
 	logger types.Logger
 	app    *fiber.App
-	db     *db.DB
 
-	tls      bool
-	endpoint string
+	options options.Options
 }
 
-func New(endpoint string, tls bool, db *db.DB, logger types.Logger) *API {
+func New(o options.Options, logger types.Logger) (*API, error) {
 	l := logger.SubLogger("API")
+	if !o.IsValid() {
+		return nil, errors.Join(ErrCreatingAPI, options.ErrInvalidOptions)
+	}
 
 	return &API{
-		logger:   l,
-		endpoint: endpoint,
-		tls:      tls,
-		app:      utils.DefaultFiberApp(),
-		db:       db,
-	}
+		logger:  l,
+		options: o,
+		app:     utils.DefaultFiberApp(),
+	}, nil
 }
 
 func (s *API) Start(listenAddress string) error {
 	listener, err := net.Listen("tcp", listenAddress) //nolint:noctx
 	if err != nil {
-		return err
+		return errors.Join(err, ErrStartingAPI)
 	}
 
 	s.app.Use(cors.New())
+	s.app.Mount(V1Path, v1.New(s.options, s.logger).App())
+
 	return s.app.Listener(listener)
 }
 
-func (s *API) Stop() error {
+func (s *API) Close() error {
 	err := s.app.Shutdown()
 	if err != nil {
-		return err
+		return errors.Join(ErrStoppingAPI, err)
 	}
 	return nil
 }
