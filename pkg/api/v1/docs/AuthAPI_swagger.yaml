@@ -16,15 +16,19 @@ paths:
     get:
       consumes:
       - application/json
-      description: Login logs in a user with Github
+      description: login logs in a user with Github
       parameters:
-      - description: Device Flow Identifier
-        in: query
-        name: device
-        type: string
       - description: Next Redirect URL
         in: query
         name: next
+        type: string
+      - description: User
+        in: query
+        name: user
+        type: string
+      - description: Device Flow Identifier
+        in: query
+        name: identifier
         type: string
       produces:
       - application/json
@@ -32,7 +36,7 @@ paths:
         "307":
           description: Temporary Redirect
           headers:
-            location:
+            Location:
               description: Redirects to Github
               type: string
         "401":
@@ -43,7 +47,7 @@ paths:
           description: Internal Server Error
           schema:
             type: string
-      summary: Login logs in a user with Github
+      summary: login logs in a user with Github
       tags:
       - github
       - login
@@ -59,8 +63,8 @@ paths:
           description: OK
           schema:
             type: string
-        "500":
-          description: Internal Server Error
+        "503":
+          description: Service Unavailable
           schema:
             type: string
       summary: health returns the health check status

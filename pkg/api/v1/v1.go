@@ -99,7 +99,7 @@ func (v *V1) logout(ctx *fiber.Ctx) error {
 		}
 		ctx.ClearCookie(SessionCookie)
 	}
-	return ctx.Status(fiber.StatusOK).SendString("logged out")
+	return ctx.SendStatus(fiber.StatusOK)
 }
 
 // health godoc
@@ -109,8 +109,12 @@ func (v *V1) logout(ctx *fiber.Ctx) error {
 // @Accept       json
 // @Produce      json
 // @Success      200 {string} string
-// @Failure      500 {string} string
+// @Failure      503 {string} string
 // @Router       /health [get]
 func (v *V1) health(ctx *fiber.Ctx) error {
-	return ctx.Status(fiber.StatusOK).SendString("OK")
+	v.logger.Trace().Str("IP", ctx.IP()).Msg("health")
+	if v.options.Manager.Healthy() {
+		return ctx.SendStatus(fiber.StatusOK)
+	}
+	return ctx.SendStatus(fiber.StatusServiceUnavailable)
 }

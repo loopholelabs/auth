@@ -63,6 +63,8 @@ type Configuration struct {
 	publicKey          crypto.PublicKey
 	previousPublicKey  crypto.PublicKey
 
+	healthy bool
+
 	mu sync.RWMutex
 
 	wg     sync.WaitGroup
@@ -98,6 +100,12 @@ func New(options Options, db *db.DB, logger types.Logger) (*Configuration, error
 	go g.doUpdate()
 
 	return g, nil
+}
+
+func (c *Configuration) IsHealthy() bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.healthy
 }
 
 func (c *Configuration) PollInterval() time.Duration {
@@ -381,11 +389,13 @@ func (c *Configuration) init(options Options) error {
 func (c *Configuration) update() {
 	ctx, cancel := context.WithTimeout(c.ctx, Timeout)
 	defer cancel()
+	healthy := true
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	configurations, err := c.db.Queries.GetAllConfigurations(ctx)
 	if err != nil {
 		c.logger.Error().Err(err).Msg("failed to update configurations")
+		healthy = false
 	} else {
 		for _, configuration := range configurations {
 			switch Key(configuration.ConfigurationKey) {
@@ -394,6 +404,7 @@ func (c *Configuration) update() {
 				pollInterval, err = time.ParseDuration(configuration.ConfigurationValue)
 				if err != nil {
 					c.logger.Error().Err(err).Msg("failed to parse poll interval configuration")
+					healthy = false
 					continue
 				}
 				c.pollInterval = pollInterval
@@ -402,6 +413,7 @@ func (c *Configuration) update() {
 				sessionExpiry, err = time.ParseDuration(configuration.ConfigurationValue)
 				if err != nil {
 					c.logger.Error().Err(err).Msg("failed to parse session expiry configuration")
+					healthy = false
 					continue
 				}
 				c.sessionExpiry = sessionExpiry
@@ -409,12 +421,14 @@ func (c *Configuration) update() {
 				pemSigningKey, err := base64.StdEncoding.DecodeString(configuration.ConfigurationValue)
 				if err != nil {
 					c.logger.Error().Err(err).Msg("failed to decode base64 signing key")
+					healthy = false
 					continue
 				}
 
 				signingKey, err := utils.DecodeED25519PrivateKey(pemSigningKey)
 				if err != nil {
 					c.logger.Error().Err(err).Msg("failed to decode PEM signing key")
+					healthy = false
 					continue
 				}
 
@@ -424,12 +438,14 @@ func (c *Configuration) update() {
 				pemPreviousSigningKey, err := base64.StdEncoding.DecodeString(configuration.ConfigurationValue)
 				if err != nil {
 					c.logger.Error().Err(err).Msg("failed to decode base64 previous signing key")
+					healthy = false
 					continue
 				}
 
 				previousSigningKey, err := utils.DecodeED25519PrivateKey(pemPreviousSigningKey)
 				if err != nil {
 					c.logger.Error().Err(err).Msg("failed to decode PEM previous signing key")
+					healthy = false
 					continue
 				}
 
@@ -437,9 +453,11 @@ func (c *Configuration) update() {
 				c.previousPublicKey = previousSigningKey.Public()
 			default:
 				c.logger.Info().Msgf("update skipped for unknown configuration key: %s", configuration.ConfigurationKey)
+				healthy = false
 			}
 		}
 	}
+	c.healthy = healthy
 }
 
 func (c *Configuration) doUpdate() {
