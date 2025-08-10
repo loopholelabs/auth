@@ -14,10 +14,6 @@ type DeviceFlowResponse struct {
 	PollingRateSeconds uint64 `json:"polling_rate_seconds"`
 }
 
-type DeviceCallbackResponse struct {
-	Identifier string `json:"identifier"`
-}
-
 type PublicResponse struct {
 	PublicKey           string                         `json:"public_key"`
 	PreviousPublicKey   string                         `json:"previous_public_key"`
