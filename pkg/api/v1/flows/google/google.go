@@ -1,6 +1,6 @@
 //SPDX-License-Identifier: Apache-2.0
 
-package github
+package google
 
 import (
 	"database/sql"
@@ -16,16 +16,16 @@ import (
 	"github.com/loopholelabs/auth/pkg/api/options"
 )
 
-type Github struct {
+type Google struct {
 	logger types.Logger
 	app    *fiber.App
 
 	options options.Options
 }
 
-func New(options options.Options, logger types.Logger) *Github {
-	a := &Github{
-		logger:  logger.SubLogger("GITHUB"),
+func New(options options.Options, logger types.Logger) *Google {
+	a := &Google{
+		logger:  logger.SubLogger("GOOGLE"),
 		app:     utils.DefaultFiberApp(),
 		options: options,
 	}
@@ -36,29 +36,29 @@ func New(options options.Options, logger types.Logger) *Github {
 	return a
 }
 
-func (a *Github) App() *fiber.App {
+func (a *Google) App() *fiber.App {
 	return a.app
 }
 
 // login godoc
-// @Summary      login logs in a user with Github
-// @Description  login logs in a user with Github
-// @Tags         github, login
+// @Summary      login logs in a user with Google
+// @Description  login logs in a user with Google
+// @Tags         google, login
 // @Accept       json
 // @Produce      json
 // @Param        next         query string true  "Next Redirect URL"
 // @Param        code         query string false "Device Flow Code"
 // @Success      307
-// @Header       307 {string} Location "Redirects to Github"
+// @Header       307 {string} Location "Redirects to Google"
 // @Failure      400 {string} string
 // @Failure      401 {string} string
 // @Failure      404 {string} string
 // @Failure      500 {string} string
-// @Router       /flows/github/login [get]
-func (a *Github) login(ctx *fiber.Ctx) error {
+// @Router       /flows/google/login [get]
+func (a *Google) login(ctx *fiber.Ctx) error {
 	a.logger.Debug().Str("IP", ctx.IP()).Msg("login")
-	if a.options.Manager.Github() == nil {
-		return ctx.Status(fiber.StatusUnauthorized).SendString("github provider is not enabled")
+	if a.options.Manager.Google() == nil {
+		return ctx.Status(fiber.StatusUnauthorized).SendString("google provider is not enabled")
 	}
 
 	nextURL := ctx.Query("next")
@@ -83,7 +83,7 @@ func (a *Github) login(ctx *fiber.Ctx) error {
 		}
 	}
 
-	redirect, err := a.options.Manager.Github().CreateFlow(ctx.Context(), deviceIdentifier, "", nextURL)
+	redirect, err := a.options.Manager.Google().CreateFlow(ctx.Context(), deviceIdentifier, "", nextURL)
 	if err != nil {
 		a.logger.Error().Err(err).Msg("failed to get redirect")
 		return ctx.SendStatus(fiber.StatusInternalServerError)
@@ -92,9 +92,9 @@ func (a *Github) login(ctx *fiber.Ctx) error {
 }
 
 // callback godoc
-// @Summary      callback logs in a user with Github
-// @Description  callback logs in a user with Github
-// @Tags         github, callback
+// @Summary      callback logs in a user with Google
+// @Description  callback logs in a user with Google
+// @Tags         google, callback
 // @Accept       json
 // @Produce      json
 // @Param        code         query string false "Next Redirect URL"
@@ -105,11 +105,11 @@ func (a *Github) login(ctx *fiber.Ctx) error {
 // @Failure      403 {string} string
 // @Failure      404 {string} string
 // @Failure      500 {string} string
-// @Router       /flows/github/callback [get]
-func (a *Github) callback(ctx *fiber.Ctx) error {
+// @Router       /flows/google/callback [get]
+func (a *Google) callback(ctx *fiber.Ctx) error {
 	a.logger.Debug().Str("IP", ctx.IP()).Msg("callback")
-	if a.options.Manager.Github() == nil {
-		return ctx.Status(fiber.StatusUnauthorized).SendString("github provider is not enabled")
+	if a.options.Manager.Google() == nil {
+		return ctx.Status(fiber.StatusUnauthorized).SendString("google provider is not enabled")
 	}
 
 	code := ctx.Query("code")
@@ -122,7 +122,7 @@ func (a *Github) callback(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusUnauthorized).SendString("state is required")
 	}
 
-	f, err := a.options.Manager.Github().CompleteFlow(ctx.Context(), identifier, code)
+	f, err := a.options.Manager.Google().CompleteFlow(ctx.Context(), identifier, code)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return ctx.Status(fiber.StatusNotFound).SendString("flow does not exist")
@@ -137,7 +137,7 @@ func (a *Github) callback(ctx *fiber.Ctx) error {
 		}
 	}
 
-	session, err := a.options.Manager.CreateSession(ctx.Context(), f, flow.GithubProvider)
+	session, err := a.options.Manager.CreateSession(ctx.Context(), f, flow.GoogleProvider)
 	if err != nil {
 		a.logger.Error().Err(err).Msg("failed to create session")
 		return ctx.SendStatus(fiber.StatusInternalServerError)

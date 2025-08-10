@@ -55,7 +55,7 @@ func (a *Device) App() *fiber.App {
 // @Success      200 {object} models.DeviceFlowResponse
 // @Failure      401 {string} string
 // @Failure      500 {string} string
-// @Router       /device/login [get]
+// @Router       /flows/device/login [get]
 func (a *Device) login(ctx *fiber.Ctx) error {
 	a.logger.Debug().Str("IP", ctx.IP()).Msg("login")
 	if a.options.Manager.Device() == nil {
@@ -87,7 +87,7 @@ func (a *Device) login(ctx *fiber.Ctx) error {
 // @Failure      401 {string} string
 // @Failure      404 {string} string
 // @Failure      500 {string} string
-// @Router       /device/validate [get]
+// @Router       /flows/device/validate [get]
 func (a *Device) validate(ctx *fiber.Ctx) error {
 	a.logger.Debug().Str("IP", ctx.IP()).Msg("validate")
 	if a.options.Manager.Device() == nil {
@@ -127,7 +127,7 @@ func (a *Device) validate(ctx *fiber.Ctx) error {
 // @Failure      404 {string} string
 // @Failure      429 {string} string
 // @Failure      500 {string} string
-// @Router       /device/poll [get]
+// @Router       /flows/device/poll [get]
 func (a *Device) poll(ctx *fiber.Ctx) error {
 	a.logger.Debug().Str("IP", ctx.IP()).Msg("poll")
 	if a.options.Manager.Device() == nil {
