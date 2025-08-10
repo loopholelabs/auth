@@ -153,6 +153,10 @@ paths:
             Location:
               description: Redirects to Next URL
               type: string
+        "400":
+          description: Bad Request
+          schema:
+            type: string
         "401":
           description: Unauthorized
           schema:
@@ -240,6 +244,10 @@ paths:
             Location:
               description: Redirects to Next URL
               type: string
+        "400":
+          description: Bad Request
+          schema:
+            type: string
         "401":
           description: Unauthorized
           schema:
@@ -303,6 +311,99 @@ paths:
       summary: login logs in a user with Google
       tags:
       - google
+      - login
+  /flows/magic/callback:
+    get:
+      consumes:
+      - application/json
+      description: callback logs in a user with a Magic Link
+      parameters:
+      - description: magic link token
+        in: query
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "307":
+          description: Temporary Redirect
+          headers:
+            Location:
+              description: Redirects to Next URL
+              type: string
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "403":
+          description: Forbidden
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: callback logs in a user with a Magic Link
+      tags:
+      - magic
+      - callback
+  /flows/magic/login:
+    get:
+      consumes:
+      - application/json
+      description: login logs in a user with a Magic Link
+      parameters:
+      - description: Email Address
+        in: query
+        name: email
+        required: true
+        type: string
+      - description: Next Redirect URL
+        in: query
+        name: next
+        required: true
+        type: string
+      - description: Device Flow Code
+        in: query
+        name: code
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "307":
+          description: Temporary Redirect
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: login logs in a user with a Magic Link
+      tags:
+      - magic
       - login
   /health:
     get:

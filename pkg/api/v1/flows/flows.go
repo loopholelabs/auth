@@ -12,6 +12,7 @@ import (
 	"github.com/loopholelabs/auth/pkg/api/v1/flows/device"
 	"github.com/loopholelabs/auth/pkg/api/v1/flows/github"
 	"github.com/loopholelabs/auth/pkg/api/v1/flows/google"
+	"github.com/loopholelabs/auth/pkg/api/v1/flows/magic"
 )
 
 type Flows struct {
@@ -31,6 +32,7 @@ func New(options options.Options, logger types.Logger) *Flows {
 	a.app.Mount("/device", device.New(options, a.logger).App())
 	a.app.Mount("/google", google.New(options, a.logger).App())
 	a.app.Mount("/github", github.New(options, a.logger).App())
+	a.app.Mount("/magic", magic.New(options, a.logger).App())
 
 	return a
 }

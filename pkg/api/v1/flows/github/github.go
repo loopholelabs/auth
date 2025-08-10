@@ -101,6 +101,7 @@ func (a *Github) login(ctx *fiber.Ctx) error {
 // @Param        state        query string false "Device Flow Code"
 // @Success      307
 // @Header       307 {string} Location "Redirects to Next URL"
+// @Failure      400 {string} string
 // @Failure      401 {string} string
 // @Failure      403 {string} string
 // @Failure      404 {string} string
@@ -114,12 +115,12 @@ func (a *Github) callback(ctx *fiber.Ctx) error {
 
 	code := ctx.Query("code")
 	if code == "" {
-		return ctx.Status(fiber.StatusUnauthorized).SendString("code is required")
+		return ctx.Status(fiber.StatusBadRequest).SendString("code is required")
 	}
 
 	identifier := ctx.Query("state")
 	if identifier == "" {
-		return ctx.Status(fiber.StatusUnauthorized).SendString("state is required")
+		return ctx.Status(fiber.StatusBadRequest).SendString("state is required")
 	}
 
 	f, err := a.options.Manager.Github().CompleteFlow(ctx.Context(), identifier, code)
