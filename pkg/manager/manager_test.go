@@ -58,9 +58,12 @@ func TestNew(t *testing.T) {
 				PollInterval:  time.Minute,
 				SessionExpiry: time.Minute,
 			},
+			API: APIOptions{
+				TLS:      false,
+				Endpoint: "localhost:8080",
+			},
 			Github: GithubOptions{
 				Enabled:      true,
-				RedirectURL:  "http://localhost:8080/callback",
 				ClientID:     "test-client-id",
 				ClientSecret: "test-client-secret",
 			},
@@ -82,9 +85,12 @@ func TestNew(t *testing.T) {
 				PollInterval:  time.Minute,
 				SessionExpiry: time.Minute,
 			},
+			API: APIOptions{
+				TLS:      false,
+				Endpoint: "localhost:8080",
+			},
 			Google: GoogleOptions{
 				Enabled:      true,
-				RedirectURL:  "http://localhost:8080/callback",
 				ClientID:     "test-client-id",
 				ClientSecret: "test-client-secret",
 			},
@@ -127,15 +133,17 @@ func TestNew(t *testing.T) {
 				PollInterval:  time.Minute,
 				SessionExpiry: time.Minute,
 			},
+			API: APIOptions{
+				TLS:      false,
+				Endpoint: "localhost:8080",
+			},
 			Github: GithubOptions{
 				Enabled:      true,
-				RedirectURL:  "http://localhost:8080/callback",
 				ClientID:     "github-client",
 				ClientSecret: "github-secret",
 			},
 			Google: GoogleOptions{
 				Enabled:      true,
-				RedirectURL:  "http://localhost:8080/callback",
 				ClientID:     "google-client",
 				ClientSecret: "google-secret",
 			},
@@ -171,15 +179,17 @@ func TestCreateSession(t *testing.T) {
 			PollInterval:  time.Minute,
 			SessionExpiry: time.Minute,
 		},
+		API: APIOptions{
+			TLS:      false,
+			Endpoint: "localhost:8080",
+		},
 		Github: GithubOptions{
 			Enabled:      true,
-			RedirectURL:  "http://localhost:8080/callback",
 			ClientID:     "github-client",
 			ClientSecret: "github-secret",
 		},
 		Google: GoogleOptions{
 			Enabled:      true,
-			RedirectURL:  "http://localhost:8080/callback",
 			ClientID:     "google-client",
 			ClientSecret: "google-secret",
 		},
