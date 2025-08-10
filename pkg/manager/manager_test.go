@@ -1323,8 +1323,16 @@ func TestRevokeSession(t *testing.T) {
 		require.ErrorIs(t, err, sql.ErrNoRows)
 
 		// Verify revocation entry was created
-		// Note: We can't directly query session_revocations without adding a query,
-		// but we can test the GC behavior later
+		revocation, err := database.Queries.GetSessionRevocationBySessionIdentifier(t.Context(), session.Identifier)
+		require.NoError(t, err)
+		require.Equal(t, session.Identifier, revocation.SessionIdentifier)
+
+		// Verify that the revocation expiry is correctly set
+		// It should be the session's original expiry time plus the Jitter
+		expectedRevocationExpiry := session.ExpiresAt.Add(Jitter)
+		// Allow for small time differences due to execution
+		require.WithinDuration(t, expectedRevocationExpiry, revocation.ExpiresAt, time.Second,
+			"Revocation expiry should be session expiry + jitter")
 	})
 
 	t.Run("RevokeNonExistentSession", func(t *testing.T) {
