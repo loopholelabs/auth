@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/loopholelabs/auth/pkg/manager/credential"
 
 	"github.com/loopholelabs/logging/types"
 
@@ -211,16 +212,16 @@ func (m *Manager) Configuration() *configuration.Configuration {
 	return m.configuration
 }
 
-func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider flow.Provider) (Session, error) {
+func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider flow.Provider) (credential.Session, error) {
 	if data.ProviderIdentifier == "" {
-		return Session{}, errors.Join(ErrCreatingSession, ErrInvalidFlowData)
+		return credential.Session{}, errors.Join(ErrCreatingSession, ErrInvalidFlowData)
 	}
 	if len(data.VerifiedEmails) < 1 {
-		return Session{}, errors.Join(ErrCreatingSession, ErrInvalidFlowData)
+		return credential.Session{}, errors.Join(ErrCreatingSession, ErrInvalidFlowData)
 	}
 	verifiedEmails, err := json.Marshal(data.VerifiedEmails)
 	if err != nil {
-		return Session{}, errors.Join(ErrCreatingSession, err)
+		return credential.Session{}, errors.Join(ErrCreatingSession, err)
 	}
 	params := generated.GetIdentityByProviderAndProviderIdentifierParams{
 		ProviderIdentifier: data.ProviderIdentifier,
@@ -233,12 +234,12 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 	case flow.MagicProvider:
 		params.Provider = generated.IdentitiesProviderMAGIC
 	default:
-		return Session{}, errors.Join(ErrCreatingSession, ErrInvalidProvider)
+		return credential.Session{}, errors.Join(ErrCreatingSession, ErrInvalidProvider)
 	}
 
 	tx, err := m.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
-		return Session{}, errors.Join(ErrCreatingSession, err)
+		return credential.Session{}, errors.Join(ErrCreatingSession, err)
 	}
 
 	defer func() {
@@ -253,7 +254,7 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 	providerIdentity, err := qtx.GetIdentityByProviderAndProviderIdentifier(ctx, params)
 	if err != nil {
 		if !errors.Is(err, sql.ErrNoRows) {
-			return Session{}, errors.Join(ErrCreatingSession, err)
+			return credential.Session{}, errors.Join(ErrCreatingSession, err)
 		}
 		// This identity doesn't exist, we need to create it
 		if data.UserIdentifier == "" {
@@ -269,7 +270,7 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 				IsDefault:  true,
 			})
 			if err != nil {
-				return Session{}, errors.Join(ErrCreatingSession, err)
+				return credential.Session{}, errors.Join(ErrCreatingSession, err)
 			}
 			userIdentifier := uuid.New().String()
 			err = qtx.CreateUser(ctx, generated.CreateUserParams{
@@ -279,7 +280,7 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 				DefaultOrganizationIdentifier: organizationIdentifier,
 			})
 			if err != nil {
-				return Session{}, errors.Join(ErrCreatingSession, err)
+				return credential.Session{}, errors.Join(ErrCreatingSession, err)
 			}
 			data.UserIdentifier = userIdentifier
 		}
@@ -291,23 +292,23 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 			VerifiedEmails:     verifiedEmails,
 		})
 		if err != nil {
-			return Session{}, errors.Join(ErrCreatingSession, err)
+			return credential.Session{}, errors.Join(ErrCreatingSession, err)
 		}
 
 		providerIdentity, err = qtx.GetIdentityByProviderAndProviderIdentifier(ctx, params)
 		if err != nil {
-			return Session{}, errors.Join(ErrCreatingSession, err)
+			return credential.Session{}, errors.Join(ErrCreatingSession, err)
 		}
 	}
 
 	user, err := qtx.GetUserByIdentifier(ctx, providerIdentity.UserIdentifier)
 	if err != nil {
-		return Session{}, errors.Join(ErrCreatingSession, err)
+		return credential.Session{}, errors.Join(ErrCreatingSession, err)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return Session{}, errors.Join(ErrCreatingSession, err)
+		return credential.Session{}, errors.Join(ErrCreatingSession, err)
 	}
 
 	sessionIdentifier := uuid.New().String()
@@ -322,22 +323,22 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 		ExpiresAt:              expiresAt,
 	})
 	if err != nil {
-		return Session{}, errors.Join(ErrCreatingSession, err)
+		return credential.Session{}, errors.Join(ErrCreatingSession, err)
 	}
 
 	session, err := m.db.Queries.GetSessionByIdentifier(ctx, sessionIdentifier)
 	if err != nil {
-		return Session{}, errors.Join(ErrCreatingSession, err)
+		return credential.Session{}, errors.Join(ErrCreatingSession, err)
 	}
 
-	return Session{
+	return credential.Session{
 		Identifier: sessionIdentifier,
-		OrganizationInfo: OrganizationInfo{
+		OrganizationInfo: credential.OrganizationInfo{
 			Identifier: session.OrganizationIdentifier,
 			IsDefault:  true,
 			Role:       role.OwnerRole,
 		},
-		UserInfo: UserInfo{
+		UserInfo: credential.UserInfo{
 			Identifier: session.UserIdentifier,
 			Name:       user.Name,
 			Email:      user.PrimaryEmail,
@@ -347,26 +348,26 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 	}, nil
 }
 
-func (m *Manager) SignSession(session Session) (string, error) {
+func (m *Manager) SignSession(session credential.Session) (string, error) {
 	signingKey, _ := m.Configuration().SigningKey()
 	return session.Sign(signingKey)
 }
 
-func (m *Manager) ParseSession(token string) (Session, bool, error) {
+func (m *Manager) ParseSession(token string) (credential.Session, bool, error) {
 	_, publicKey := m.Configuration().SigningKey()
 	_, previousPublicKey := m.Configuration().PreviousSigningKey()
-	return ParseSession(token, publicKey, previousPublicKey)
+	return credential.ParseSession(token, publicKey, previousPublicKey)
 }
 
-func (m *Manager) RefreshSession(ctx context.Context, session Session) (Session, error) {
+func (m *Manager) RefreshSession(ctx context.Context, session credential.Session) (credential.Session, error) {
 	now := time.Now()
 	if session.ExpiresAt.Before(now) {
-		return Session{}, errors.Join(ErrRefreshingSession, ErrSessionIsExpired)
+		return credential.Session{}, errors.Join(ErrRefreshingSession, ErrSessionIsExpired)
 	}
 
 	tx, err := m.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
-		return Session{}, errors.Join(ErrRefreshingSession, err)
+		return credential.Session{}, errors.Join(ErrRefreshingSession, err)
 	}
 
 	defer func() {
@@ -380,11 +381,11 @@ func (m *Manager) RefreshSession(ctx context.Context, session Session) (Session,
 
 	s, err := qtx.GetSessionByIdentifier(ctx, session.Identifier)
 	if err != nil {
-		return Session{}, errors.Join(ErrRefreshingSession, err)
+		return credential.Session{}, errors.Join(ErrRefreshingSession, err)
 	}
 
 	if s.ExpiresAt.Before(now) {
-		return Session{}, errors.Join(ErrRefreshingSession, ErrSessionIsExpired)
+		return credential.Session{}, errors.Join(ErrRefreshingSession, ErrSessionIsExpired)
 	}
 
 	if s.Generation != session.Generation {
@@ -392,7 +393,7 @@ func (m *Manager) RefreshSession(ctx context.Context, session Session) (Session,
 
 		user, err := qtx.GetUserByIdentifier(ctx, session.UserInfo.Identifier)
 		if err != nil {
-			return Session{}, errors.Join(ErrRefreshingSession, err)
+			return credential.Session{}, errors.Join(ErrRefreshingSession, err)
 		}
 
 		session.UserInfo.Name = user.Name
@@ -405,11 +406,11 @@ func (m *Manager) RefreshSession(ctx context.Context, session Session) (Session,
 				OrganizationIdentifier: session.OrganizationInfo.Identifier,
 			})
 			if err != nil {
-				return Session{}, errors.Join(ErrRefreshingSession, err)
+				return credential.Session{}, errors.Join(ErrRefreshingSession, err)
 			}
 			membershipRole := role.Role(membership.Role)
 			if !membershipRole.IsValid() {
-				return Session{}, errors.Join(ErrRefreshingSession, ErrInvalidSessionRole)
+				return credential.Session{}, errors.Join(ErrRefreshingSession, ErrInvalidSessionRole)
 			}
 			session.OrganizationInfo.Role = membershipRole
 		}
@@ -424,7 +425,7 @@ func (m *Manager) RefreshSession(ctx context.Context, session Session) (Session,
 			Identifier: session.Identifier,
 		})
 		if err != nil {
-			return Session{}, errors.Join(ErrRefreshingSession, err)
+			return credential.Session{}, errors.Join(ErrRefreshingSession, err)
 		}
 	} else {
 		session.ExpiresAt = s.ExpiresAt
@@ -432,7 +433,7 @@ func (m *Manager) RefreshSession(ctx context.Context, session Session) (Session,
 
 	err = tx.Commit()
 	if err != nil {
-		return Session{}, errors.Join(ErrRefreshingSession, err)
+		return credential.Session{}, errors.Join(ErrRefreshingSession, err)
 	}
 
 	return session, nil
