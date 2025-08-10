@@ -78,7 +78,7 @@ const docTemplateAuthAPI = `{
         },
         "/health": {
             "get": {
-                "description": "Health returns the health check status",
+                "description": "health returns the health check status",
                 "consumes": [
                     "application/json"
                 ],
@@ -88,7 +88,7 @@ const docTemplateAuthAPI = `{
                 "tags": [
                     "health"
                 ],
-                "summary": "Health returns the health check status",
+                "summary": "health returns the health check status",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -107,7 +107,7 @@ const docTemplateAuthAPI = `{
         },
         "/logout": {
             "post": {
-                "description": "Logout logs out a user",
+                "description": "logout logs out a user",
                 "consumes": [
                     "application/json"
                 ],
@@ -117,7 +117,7 @@ const docTemplateAuthAPI = `{
                 "tags": [
                     "logout"
                 ],
-                "summary": "Logout logs out a user",
+                "summary": "logout logs out a user",
                 "responses": {
                     "200": {
                         "description": "OK",
