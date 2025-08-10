@@ -9,6 +9,28 @@ definitions:
       polling_rate_seconds:
         type: integer
     type: object
+  models.PublicResponse:
+    properties:
+      invalidated_sessions:
+        items:
+          $ref: '#/definitions/validator.InvalidatedSession'
+        type: array
+      previous_public_key:
+        type: string
+      public_key:
+        type: string
+      revoked_sessions:
+        items:
+          type: string
+        type: array
+    type: object
+  validator.InvalidatedSession:
+    properties:
+      generation:
+        type: integer
+      identifier:
+        type: string
+    type: object
 host: localhost:8080
 info:
   contact:
@@ -462,7 +484,7 @@ paths:
         "200":
           description: OK
           schema:
-            type: string
+            $ref: '#/definitions/models.PublicResponse'
         "400":
           description: Bad Request
           schema:

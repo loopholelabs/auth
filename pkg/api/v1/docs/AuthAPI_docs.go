@@ -685,7 +685,7 @@ const docTemplateAuthAPI = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/models.PublicResponse"
                         }
                     },
                     "400": {
@@ -722,6 +722,40 @@ const docTemplateAuthAPI = `{
                 },
                 "polling_rate_seconds": {
                     "type": "integer"
+                }
+            }
+        },
+        "models.PublicResponse": {
+            "type": "object",
+            "properties": {
+                "invalidated_sessions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/validator.InvalidatedSession"
+                    }
+                },
+                "previous_public_key": {
+                    "type": "string"
+                },
+                "public_key": {
+                    "type": "string"
+                },
+                "revoked_sessions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "validator.InvalidatedSession": {
+            "type": "object",
+            "properties": {
+                "generation": {
+                    "type": "integer"
+                },
+                "identifier": {
+                    "type": "string"
                 }
             }
         }

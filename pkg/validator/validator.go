@@ -34,8 +34,8 @@ type Options struct {
 }
 
 type InvalidatedSession struct {
-	Identifier string
-	Generation uint32
+	Identifier string `json:"identifier"`
+	Generation uint32 `json:"generation"`
 }
 
 type Validator struct {

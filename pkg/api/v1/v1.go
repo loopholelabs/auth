@@ -84,7 +84,7 @@ func (v *V1) App() *fiber.App {
 // @Tags         public
 // @Accept       json
 // @Produce      json
-// @Success      200 {string} string
+// @Success      200 {object} models.PublicResponse
 // @Failure      400 {string} string
 // @Failure      401 {string} string
 // @Failure      500 {string} string
