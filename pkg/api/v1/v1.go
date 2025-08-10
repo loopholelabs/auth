@@ -146,7 +146,7 @@ func (v *V1) logout(ctx *fiber.Ctx) error {
 // @Router       /health [get]
 func (v *V1) health(ctx *fiber.Ctx) error {
 	v.logger.Trace().Str("IP", ctx.IP()).Msg("health")
-	if v.options.Manager.IsHealthy() {
+	if v.options.Manager.IsHealthy() && v.options.Validator.IsHealthy() {
 		return ctx.SendStatus(fiber.StatusOK)
 	}
 	return ctx.SendStatus(fiber.StatusServiceUnavailable)
