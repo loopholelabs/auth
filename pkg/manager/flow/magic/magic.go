@@ -5,6 +5,8 @@ package magic
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/base64"
 	"errors"
@@ -12,8 +14,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"golang.org/x/crypto/bcrypt"
-
 	"github.com/loopholelabs/logging/types"
 
 	"github.com/loopholelabs/auth/internal/db"
@@ -80,10 +80,9 @@ func (c *Magic) CreateFlow(ctx context.Context, emailAddress string, deviceIdent
 	}
 	salt := uuid.New().String()
 	secret := uuid.New().String()
-	hash, err := bcrypt.GenerateFromPassword(append([]byte(salt), []byte(secret)...), bcrypt.DefaultCost)
-	if err != nil {
-		return "", errors.Join(ErrCreatingFlow, err)
-	}
+	h := hmac.New(sha256.New, []byte(salt))
+	h.Write([]byte(secret))
+	hash := h.Sum(nil)
 
 	params := generated.CreateMagicLinkFlowParams{
 		Identifier:   uuid.New().String(),
@@ -102,7 +101,7 @@ func (c *Magic) CreateFlow(ctx context.Context, emailAddress string, deviceIdent
 	}
 
 	c.logger.Debug().Msg("creating flow")
-	err = c.db.Queries.CreateMagicLinkFlow(ctx, params)
+	err := c.db.Queries.CreateMagicLinkFlow(ctx, params)
 	if err != nil {
 		return "", errors.Join(ErrCreatingFlow, err)
 	}
@@ -163,7 +162,9 @@ func (c *Magic) CompleteFlow(ctx context.Context, token string) (flow.Data, erro
 		return flow.Data{}, errors.Join(ErrCompletingFlow, err)
 	}
 
-	if bcrypt.CompareHashAndPassword(f.Hash, append([]byte(f.Salt), []byte(secret)...)) != nil {
+	h := hmac.New(sha256.New, []byte(f.Salt))
+	h.Write([]byte(secret))
+	if hmac.Equal(f.Hash, h.Sum(nil)) {
 		return flow.Data{}, errors.Join(ErrCompletingFlow, ErrInvalidSecret)
 	}
 

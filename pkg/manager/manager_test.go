@@ -1072,6 +1072,7 @@ func TestRefreshSession(t *testing.T) {
 			UserName:           "Expired Test",
 			PrimaryEmail:       "expired@example.com",
 			VerifiedEmails:     []string{"expired@example.com"},
+			NextURL:            "http://localhost:3000/dashboard",
 		}
 		session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
 		require.NoError(t, err)
@@ -1613,6 +1614,7 @@ func TestSessionRevocationGarbageCollection(t *testing.T) {
 			UserName:           "GC Revocation Test",
 			PrimaryEmail:       "gc-revocation@example.com",
 			VerifiedEmails:     []string{"gc-revocation@example.com"},
+			NextURL:            "http://localhost:3000/dashboard",
 		}
 		session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
 		require.NoError(t, err)
@@ -1703,6 +1705,7 @@ func TestSessionRevocationGarbageCollection(t *testing.T) {
 				UserName:           fmt.Sprintf("Multi GC %d", i),
 				PrimaryEmail:       fmt.Sprintf("multi-gc-%d@example.com", i),
 				VerifiedEmails:     []string{fmt.Sprintf("multi-gc-%d@example.com", i)},
+				NextURL:            "http://localhost:3000/dashboard",
 			}
 			session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
 			require.NoError(t, err)
@@ -1750,6 +1753,7 @@ func TestSessionRevocationGarbageCollection(t *testing.T) {
 			UserName:           "Interaction 1",
 			PrimaryEmail:       "interaction1@example.com",
 			VerifiedEmails:     []string{"interaction1@example.com"},
+			NextURL:            "http://localhost:3000/dashboard",
 		}
 		session1, err := m.CreateSession(t.Context(), flowData1, flow.MagicProvider)
 		require.NoError(t, err)
@@ -1894,6 +1898,7 @@ func TestSessionRevocationEdgeCases(t *testing.T) {
 			UserName:           "Old Session",
 			PrimaryEmail:       "old@example.com",
 			VerifiedEmails:     []string{"old@example.com"},
+			NextURL:            "http://localhost:3000/dashboard",
 		}
 		session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
 		require.NoError(t, err)
@@ -1985,6 +1990,7 @@ func TestSessionGarbageCollection(t *testing.T) {
 			UserName:           "GC Test",
 			PrimaryEmail:       "gc@example.com",
 			VerifiedEmails:     []string{"gc@example.com"},
+			NextURL:            "http://localhost:3000/dashboard",
 		}
 
 		session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
@@ -2086,6 +2092,7 @@ func TestSessionGarbageCollection(t *testing.T) {
 				UserName:           fmt.Sprintf("Multi GC User %d", i),
 				PrimaryEmail:       fmt.Sprintf("multi%d@example.com", i),
 				VerifiedEmails:     []string{fmt.Sprintf("multi%d@example.com", i)},
+				NextURL:            "http://localhost:3000/dashboard",
 			}
 
 			session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)

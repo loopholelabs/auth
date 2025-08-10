@@ -148,7 +148,7 @@ func (c *Device) PollFlow(ctx context.Context, poll string, pollRate time.Durati
 		return "", errors.Join(ErrPollingFlow, err)
 	}
 	if num == 0 {
-		return "", errors.Join(ErrFlowNotCompleted, sql.ErrNoRows)
+		return "", errors.Join(ErrPollingFlow, sql.ErrNoRows)
 	}
 
 	err = tx.Commit()
