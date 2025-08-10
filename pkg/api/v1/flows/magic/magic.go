@@ -6,7 +6,7 @@ import (
 	"database/sql"
 	"errors"
 
-	"github.com/AfterShip/email-verifier"
+	emailverifier "github.com/AfterShip/email-verifier"
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/loopholelabs/logging/types"
@@ -178,7 +178,7 @@ func (a *Magic) callback(ctx *fiber.Ctx) error {
 			return ctx.SendStatus(fiber.StatusInternalServerError)
 		}
 	} else {
-		token, err := a.options.Manager.SignSession(session)
+		signedToken, err := a.options.Manager.SignSession(session)
 		if err != nil {
 			a.logger.Error().Err(err).Msg("error signing session")
 			return ctx.SendStatus(fiber.StatusInternalServerError)
@@ -186,7 +186,7 @@ func (a *Magic) callback(ctx *fiber.Ctx) error {
 
 		ctx.Cookie(&fiber.Cookie{
 			Name:  models.SessionCookie,
-			Value: token,
+			Value: signedToken,
 		})
 	}
 

@@ -80,7 +80,7 @@ func (q *Queries) GetSessionByIdentifier(ctx context.Context, identifier string)
 	return i, err
 }
 
-const updateSessionExpiryByIdentifier = `-- name: UpdateSessionExpiryByIdentifier :exec
+const updateSessionExpiryByIdentifier = `-- name: UpdateSessionExpiryByIdentifier :execrows
 UPDATE sessions
 SET expires_at = ?
 WHERE identifier = ?
@@ -91,12 +91,15 @@ type UpdateSessionExpiryByIdentifierParams struct {
 	Identifier string
 }
 
-func (q *Queries) UpdateSessionExpiryByIdentifier(ctx context.Context, arg UpdateSessionExpiryByIdentifierParams) error {
-	_, err := q.db.ExecContext(ctx, updateSessionExpiryByIdentifier, arg.ExpiresAt, arg.Identifier)
-	return err
+func (q *Queries) UpdateSessionExpiryByIdentifier(ctx context.Context, arg UpdateSessionExpiryByIdentifierParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateSessionExpiryByIdentifier, arg.ExpiresAt, arg.Identifier)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
-const updateSessionGenerationByIdentifier = `-- name: UpdateSessionGenerationByIdentifier :exec
+const updateSessionGenerationByIdentifier = `-- name: UpdateSessionGenerationByIdentifier :execrows
 UPDATE sessions
 SET generation = ?
 WHERE identifier = ?
@@ -107,7 +110,10 @@ type UpdateSessionGenerationByIdentifierParams struct {
 	Identifier string
 }
 
-func (q *Queries) UpdateSessionGenerationByIdentifier(ctx context.Context, arg UpdateSessionGenerationByIdentifierParams) error {
-	_, err := q.db.ExecContext(ctx, updateSessionGenerationByIdentifier, arg.Generation, arg.Identifier)
-	return err
+func (q *Queries) UpdateSessionGenerationByIdentifier(ctx context.Context, arg UpdateSessionGenerationByIdentifierParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateSessionGenerationByIdentifier, arg.Generation, arg.Identifier)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

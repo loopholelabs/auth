@@ -511,12 +511,15 @@ func (m *Manager) RefreshSession(ctx context.Context, session credential.Session
 	// This ensures consistency between Go's nanosecond precision and MySQL's second precision
 	session.ExpiresAt = time.Now().Add(m.Configuration().SessionExpiry()).Truncate(time.Second)
 	if session.ExpiresAt.After(s.ExpiresAt) {
-		err = qtx.UpdateSessionExpiryByIdentifier(ctx, generated.UpdateSessionExpiryByIdentifierParams{
+		num, err := qtx.UpdateSessionExpiryByIdentifier(ctx, generated.UpdateSessionExpiryByIdentifierParams{
 			ExpiresAt:  session.ExpiresAt,
 			Identifier: session.Identifier,
 		})
 		if err != nil {
 			return credential.Session{}, errors.Join(ErrRefreshingSession, err)
+		}
+		if num == 0 {
+			return credential.Session{}, errors.Join(ErrRefreshingSession, sql.ErrNoRows)
 		}
 	} else {
 		session.ExpiresAt = s.ExpiresAt

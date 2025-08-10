@@ -437,18 +437,21 @@ func (q *Queries) GetMagicLinkFlowByIdentifier(ctx context.Context, identifier s
 	return i, err
 }
 
-const updateDeviceCodeFlowLastPollByPoll = `-- name: UpdateDeviceCodeFlowLastPollByPoll :exec
+const updateDeviceCodeFlowLastPollByPoll = `-- name: UpdateDeviceCodeFlowLastPollByPoll :execrows
 UPDATE device_code_flows
 SET last_poll = CURRENT_TIMESTAMP
 WHERE poll = ?
 `
 
-func (q *Queries) UpdateDeviceCodeFlowLastPollByPoll(ctx context.Context, poll string) error {
-	_, err := q.db.ExecContext(ctx, updateDeviceCodeFlowLastPollByPoll, poll)
-	return err
+func (q *Queries) UpdateDeviceCodeFlowLastPollByPoll(ctx context.Context, poll string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateDeviceCodeFlowLastPollByPoll, poll)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
-const updateDeviceCodeFlowSessionIdentifierByIdentifier = `-- name: UpdateDeviceCodeFlowSessionIdentifierByIdentifier :exec
+const updateDeviceCodeFlowSessionIdentifierByIdentifier = `-- name: UpdateDeviceCodeFlowSessionIdentifierByIdentifier :execrows
 UPDATE device_code_flows
 SET session_identifier = ?
 WHERE identifier = ?
@@ -459,7 +462,10 @@ type UpdateDeviceCodeFlowSessionIdentifierByIdentifierParams struct {
 	Identifier        string
 }
 
-func (q *Queries) UpdateDeviceCodeFlowSessionIdentifierByIdentifier(ctx context.Context, arg UpdateDeviceCodeFlowSessionIdentifierByIdentifierParams) error {
-	_, err := q.db.ExecContext(ctx, updateDeviceCodeFlowSessionIdentifierByIdentifier, arg.SessionIdentifier, arg.Identifier)
-	return err
+func (q *Queries) UpdateDeviceCodeFlowSessionIdentifierByIdentifier(ctx context.Context, arg UpdateDeviceCodeFlowSessionIdentifierByIdentifierParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateDeviceCodeFlowSessionIdentifierByIdentifier, arg.SessionIdentifier, arg.Identifier)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

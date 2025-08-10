@@ -51,7 +51,7 @@ func (q *Queries) GetUserByIdentifier(ctx context.Context, identifier string) (U
 	return i, err
 }
 
-const updateUserNameByIdentifier = `-- name: UpdateUserNameByIdentifier :exec
+const updateUserNameByIdentifier = `-- name: UpdateUserNameByIdentifier :execrows
 UPDATE users
 SET name = ?
 WHERE identifier = ?
@@ -62,12 +62,15 @@ type UpdateUserNameByIdentifierParams struct {
 	Identifier string
 }
 
-func (q *Queries) UpdateUserNameByIdentifier(ctx context.Context, arg UpdateUserNameByIdentifierParams) error {
-	_, err := q.db.ExecContext(ctx, updateUserNameByIdentifier, arg.Name, arg.Identifier)
-	return err
+func (q *Queries) UpdateUserNameByIdentifier(ctx context.Context, arg UpdateUserNameByIdentifierParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateUserNameByIdentifier, arg.Name, arg.Identifier)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
-const updateUserPrimaryEmailByIdentifier = `-- name: UpdateUserPrimaryEmailByIdentifier :exec
+const updateUserPrimaryEmailByIdentifier = `-- name: UpdateUserPrimaryEmailByIdentifier :execrows
 UPDATE users
 SET primary_email = ?
 WHERE identifier = ?
@@ -78,7 +81,10 @@ type UpdateUserPrimaryEmailByIdentifierParams struct {
 	Identifier   string
 }
 
-func (q *Queries) UpdateUserPrimaryEmailByIdentifier(ctx context.Context, arg UpdateUserPrimaryEmailByIdentifierParams) error {
-	_, err := q.db.ExecContext(ctx, updateUserPrimaryEmailByIdentifier, arg.PrimaryEmail, arg.Identifier)
-	return err
+func (q *Queries) UpdateUserPrimaryEmailByIdentifier(ctx context.Context, arg UpdateUserPrimaryEmailByIdentifierParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateUserPrimaryEmailByIdentifier, arg.PrimaryEmail, arg.Identifier)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

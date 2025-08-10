@@ -949,24 +949,27 @@ func TestRefreshSession(t *testing.T) {
 		require.NoError(t, err)
 
 		// Simulate a generation update in the database (e.g., from another service)
-		err = database.Queries.UpdateSessionGenerationByIdentifier(t.Context(), generated.UpdateSessionGenerationByIdentifierParams{
+		num, err := database.Queries.UpdateSessionGenerationByIdentifier(t.Context(), generated.UpdateSessionGenerationByIdentifierParams{
 			Generation: session.Generation + 1,
 			Identifier: session.Identifier,
 		})
 		require.NoError(t, err)
+		require.Equal(t, int64(1), num)
 
 		// Update user info in database to simulate profile changes
-		err = database.Queries.UpdateUserNameByIdentifier(t.Context(), generated.UpdateUserNameByIdentifierParams{
+		num, err = database.Queries.UpdateUserNameByIdentifier(t.Context(), generated.UpdateUserNameByIdentifierParams{
 			Identifier: session.UserInfo.Identifier,
 			Name:       "Updated Name",
 		})
 		require.NoError(t, err)
+		require.Equal(t, int64(1), num)
 
-		err = database.Queries.UpdateUserPrimaryEmailByIdentifier(t.Context(), generated.UpdateUserPrimaryEmailByIdentifierParams{
+		num, err = database.Queries.UpdateUserPrimaryEmailByIdentifier(t.Context(), generated.UpdateUserPrimaryEmailByIdentifierParams{
 			Identifier:   session.UserInfo.Identifier,
 			PrimaryEmail: "updated@example.com",
 		})
 		require.NoError(t, err)
+		require.Equal(t, int64(1), num)
 
 		// Refresh the session with old generation
 		refreshedSession, err := m.RefreshSession(t.Context(), session)
@@ -1016,11 +1019,12 @@ func TestRefreshSession(t *testing.T) {
 		// Manually extend the session expiry in the database to be longer than what configuration would set
 		// Truncate to match MySQL DATETIME precision
 		futureExpiry := time.Now().Add(time.Hour).Truncate(time.Second)
-		err = database.Queries.UpdateSessionExpiryByIdentifier(t.Context(), generated.UpdateSessionExpiryByIdentifierParams{
+		num, err := database.Queries.UpdateSessionExpiryByIdentifier(t.Context(), generated.UpdateSessionExpiryByIdentifierParams{
 			ExpiresAt:  futureExpiry,
 			Identifier: session.Identifier,
 		})
 		require.NoError(t, err)
+		require.Equal(t, int64(1), num)
 
 		// Refresh the session - it should NOT reduce the expiry time
 		refreshedSession, err := m.RefreshSession(t.Context(), session)
@@ -1254,19 +1258,21 @@ func TestRefreshSession(t *testing.T) {
 		}
 
 		// Update the generation to trigger user data refresh
-		err = database.Queries.UpdateSessionGenerationByIdentifier(t.Context(), generated.UpdateSessionGenerationByIdentifierParams{
+		num, err := database.Queries.UpdateSessionGenerationByIdentifier(t.Context(), generated.UpdateSessionGenerationByIdentifierParams{
 			Generation: session.Generation + 1,
 			Identifier: session.Identifier,
 		})
 		require.NoError(t, err)
+		require.Equal(t, int64(1), num)
 
 		// Update the membership role
-		err = database.Queries.UpdateMembershipRoleByUserIdentifierAndOrganizationIdentifier(t.Context(), generated.UpdateMembershipRoleByUserIdentifierAndOrganizationIdentifierParams{
+		num, err = database.Queries.UpdateMembershipRoleByUserIdentifierAndOrganizationIdentifier(t.Context(), generated.UpdateMembershipRoleByUserIdentifierAndOrganizationIdentifierParams{
 			UserIdentifier:         session.UserInfo.Identifier,
 			OrganizationIdentifier: orgID,
 			Role:                   role.AdminRole.String(),
 		})
 		require.NoError(t, err)
+		require.Equal(t, int64(1), num)
 
 		// Refresh the session - should update role due to generation mismatch
 		refreshedSession, err := m.RefreshSession(t.Context(), sessionWithOrg)

@@ -494,18 +494,20 @@ func TestValidator(t *testing.T) {
 			assert.False(t, v.IsSessionInvalidated(session.Identifier, session.Generation))
 
 			// Update user's name (this should increment generation)
-			err = database.Queries.UpdateUserNameByIdentifier(t.Context(), generated.UpdateUserNameByIdentifierParams{
+			num, err := database.Queries.UpdateUserNameByIdentifier(t.Context(), generated.UpdateUserNameByIdentifierParams{
 				Name:       "Updated User",
 				Identifier: session.UserInfo.Identifier,
 			})
 			require.NoError(t, err)
+			require.Equal(t, int64(1), num)
 
 			// Update session generation
-			err = database.Queries.UpdateSessionGenerationByIdentifier(t.Context(), generated.UpdateSessionGenerationByIdentifierParams{
+			num, err = database.Queries.UpdateSessionGenerationByIdentifier(t.Context(), generated.UpdateSessionGenerationByIdentifierParams{
 				Generation: session.Generation + 1,
 				Identifier: session.Identifier,
 			})
 			require.NoError(t, err)
+			require.Equal(t, int64(1), num)
 
 			// Create invalidation entry
 			expiresAt := time.Now().Add(time.Minute * 30).Truncate(time.Second)
