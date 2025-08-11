@@ -175,7 +175,7 @@ func (v *Validator) sessionRevocationsRefresh() {
 				refreshed++
 			}
 		}
-		v.logger.Info().Msgf("refresh %d session revocations", refreshed)
+		v.logger.Debug().Msgf("refresh %d session revocations", refreshed)
 		v.mu.Lock()
 		v.sessionRevocationHealthy = true
 		v.mu.Unlock()
@@ -200,7 +200,7 @@ func (v *Validator) sessionInvalidationsRefresh() {
 				refreshed++
 			}
 		}
-		v.logger.Info().Msgf("refresh %d session invalidations", refreshed)
+		v.logger.Debug().Msgf("refresh %d session invalidations", refreshed)
 		v.mu.Lock()
 		v.sessionInvalidationHealthy = true
 		v.mu.Unlock()
