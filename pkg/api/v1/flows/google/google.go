@@ -157,10 +157,18 @@ func (a *Google) callback(ctx *fiber.Ctx) error {
 			return ctx.SendStatus(fiber.StatusInternalServerError)
 		}
 
-		ctx.Cookie(&fiber.Cookie{
-			Name:  models.SessionCookie,
-			Value: token,
-		})
+		cookie := &fiber.Cookie{
+			Name:     models.SessionCookie,
+			Value:    token,
+			Expires:  session.ExpiresAt,
+			Domain:   a.options.Endpoint,
+			Secure:   false,
+			HTTPOnly: true,
+			SameSite: fiber.CookieSameSiteLaxMode,
+		}
+		if a.options.TLS {
+			cookie.Secure = true
+		}
 	}
 
 	return ctx.Redirect(f.NextURL, fiber.StatusTemporaryRedirect)
