@@ -16,7 +16,7 @@ import (
 	"github.com/loopholelabs/auth/pkg/api/v1/models"
 )
 
-//go:generate go tool github.com/swaggo/swag/cmd/swag init -g v1.go -o docs --parseDependency --instanceName AuthAPI -d ./
+//go:generate go tool github.com/swaggo/swag/v2/cmd/swag init -g v1.go -o docs --parseDependency --instanceName AuthAPI -d ./
 
 type V1 struct {
 	logger types.Logger

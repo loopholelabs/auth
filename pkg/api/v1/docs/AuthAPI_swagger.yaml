@@ -1,4 +1,8 @@
 basePath: /v1
+consumes:
+- application/json
+- application/json
+- application/json
 definitions:
   models.DeviceFlowResponse:
     properties:
@@ -36,7 +40,7 @@ info:
   contact:
     email: admin@loopholelabs.io
     name: API Support
-  description: Auth API, v1
+  description: health returns the health check status
   license:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
@@ -203,17 +207,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: login logs in a user with Github
-      parameters:
-      - description: Next Redirect URL
-        in: query
-        name: next
-        required: true
-        type: string
-      - description: Device Flow Code
-        in: query
-        name: code
-        type: string
+      description: info returns the information about a logged-in User
       produces:
       - application/json
       responses:
@@ -221,7 +215,7 @@ paths:
           description: Temporary Redirect
           headers:
             Location:
-              description: Redirects to Github
+              description: Redirects to User
               type: string
         "400":
           description: Bad Request
@@ -239,10 +233,10 @@ paths:
           description: Internal Server Error
           schema:
             type: string
-      summary: login logs in a user with Github
+      summary: info returns the information about a logged-in User
       tags:
-      - github
-      - login
+      - user
+      - info
   /flows/google/callback:
     get:
       consumes:
@@ -500,6 +494,10 @@ paths:
       summary: public returns the current public key and session information
       tags:
       - public
+produces:
+- application/json
+- application/json
+- application/json
 schemes:
 - https
 swagger: "2.0"
