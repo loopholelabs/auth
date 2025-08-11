@@ -3,17 +3,19 @@
 package magic
 
 import (
+	"context"
 	"database/sql"
 	"errors"
+	"net/http"
 	"net/url"
 
 	emailverifier "github.com/AfterShip/email-verifier"
-	"github.com/gofiber/fiber/v2"
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humafiber"
 
 	"github.com/loopholelabs/logging/types"
 
 	"github.com/loopholelabs/auth/internal/mailer"
-	"github.com/loopholelabs/auth/internal/utils"
 	"github.com/loopholelabs/auth/pkg/api/options"
 	"github.com/loopholelabs/auth/pkg/api/v1/models"
 	"github.com/loopholelabs/auth/pkg/manager/flow"
@@ -21,194 +23,215 @@ import (
 )
 
 type Magic struct {
-	logger types.Logger
-	app    *fiber.App
-
+	logger        types.Logger
 	emailVerifier *emailverifier.Verifier
-
-	options options.Options
+	options       options.Options
 }
 
-func New(options options.Options, logger types.Logger) *Magic {
-	a := &Magic{
+// Request and Response types
+
+type LoginInput struct {
+	Email string `query:"email" required:"true" doc:"Email address"`
+	Next  string `query:"next" required:"true" doc:"Redirect URL after authentication"`
+	Code  string `query:"code" maxLength:"8" doc:"Optional device flow code"`
+}
+
+type LoginOutput struct {
+	StatusCode int `json:"-" default:"200"`
+}
+
+type CallbackInput struct {
+	Token string `query:"token" required:"true" doc:"Magic link token"`
+}
+
+type MagicCallbackHeaders struct {
+	SetCookie *http.Cookie `header:"Set-Cookie,omitempty" doc:"Session cookie"`
+	Location  string       `header:"Location" doc:"Redirect to next URL"`
+}
+
+type CallbackOutput struct {
+	StatusCode int `json:"-" default:"307"`
+	Headers    MagicCallbackHeaders
+}
+
+// RegisterEndpoints registers the Magic Link endpoints with Huma
+func RegisterEndpoints(api huma.API, options options.Options, logger types.Logger) {
+	m := &Magic{
 		logger:        logger.SubLogger("MAGIC"),
-		app:           utils.DefaultFiberApp(),
 		emailVerifier: emailverifier.NewVerifier(),
 		options:       options,
 	}
 
-	a.app.Get("/login", a.login)
-	a.app.Get("/callback", a.callback)
+	huma.Register(api, huma.Operation{
+		OperationID: "magic-login",
+		Method:      "GET",
+		Path:        "/flows/magic/login",
+		Summary:     "Send magic link",
+		Description: "Sends a magic link to the specified email address",
+		Tags:        []string{"magic", "login"},
+		Responses: map[string]*huma.Response{
+			"200": {
+				Description: "Magic link sent successfully",
+			},
+		},
+	}, m.login)
 
-	return a
+	huma.Register(api, huma.Operation{
+		OperationID: "magic-callback",
+		Method:      "GET",
+		Path:        "/flows/magic/callback",
+		Summary:     "Magic link callback",
+		Description: "Handles the magic link callback and creates a session",
+		Tags:        []string{"magic", "callback"},
+		Responses: map[string]*huma.Response{
+			"307": {
+				Description: "Redirect to application",
+				Headers: map[string]*huma.Param{
+					"Location": {
+						Description: "Application redirect URL",
+						Required:    true,
+					},
+					"Set-Cookie": {
+						Description: "Session cookie (set for non-device flows)",
+						Required:    false,
+					},
+				},
+			},
+		},
+	}, m.callback)
 }
 
-func (a *Magic) App() *fiber.App {
-	return a.app
-}
+// Handler implementations
 
-// login godoc
-// @Summary      login logs in a user with a Magic Link
-// @Description  login logs in a user with a Magic Link
-// @Tags         magic, login
-// @Accept       json
-// @Produce      json
-// @Param        email        query string true  "Email Address"
-// @Param        next         query string true  "Next Redirect URL"
-// @Param        code         query string false "Device Flow Code"
-// @Success      307
-// @Success      200 {string} string
-// @Failure      400 {string} string
-// @Failure      401 {string} string
-// @Failure      404 {string} string
-// @Failure      500 {string} string
-// @Router       /flows/magic/login [get]
-func (a *Magic) login(ctx *fiber.Ctx) error {
-	a.logger.Debug().Str("IP", ctx.IP()).Msg("login")
-	if a.options.Manager.Magic() == nil {
-		return ctx.Status(fiber.StatusUnauthorized).SendString("magic provider is not enabled")
+func (m *Magic) login(ctx context.Context, input *LoginInput) (*LoginOutput, error) {
+	// Extract Fiber context for IP logging
+	humaCtx := ctx.(huma.Context)
+	fiberCtx := humafiber.Unwrap(humaCtx)
+	m.logger.Debug().Str("IP", fiberCtx.IP()).Msg("login")
+
+	if m.options.Manager.Magic() == nil {
+		return nil, huma.Error401Unauthorized("magic provider is not enabled")
 	}
 
-	if a.options.Manager.Mailer() == nil {
-		return ctx.Status(fiber.StatusUnauthorized).SendString("email provider is not enabled")
+	if m.options.Manager.Mailer() == nil {
+		return nil, huma.Error401Unauthorized("email provider is not enabled")
 	}
 
-	nextURL := ctx.Query("next")
-	if nextURL == "" {
-		return ctx.Status(fiber.StatusBadRequest).SendString("next URL is required")
-	}
-
-	email := ctx.Query("email")
-	if email == "" {
-		return ctx.Status(fiber.StatusBadRequest).SendString("email is required")
-	}
-
-	ret, err := a.emailVerifier.Verify(email)
+	ret, err := m.emailVerifier.Verify(input.Email)
 	if err != nil || !ret.Syntax.Valid || !ret.HasMxRecords {
-		return ctx.Status(fiber.StatusBadRequest).SendString("invalid email address")
+		return nil, huma.Error400BadRequest("invalid email address")
 	}
 
 	var deviceIdentifier string
-	code := ctx.Query("code")
-	if code != "" && len(code) == 8 {
-		if a.options.Manager.Device() == nil {
-			return ctx.Status(fiber.StatusUnauthorized).SendString("device provider is not enabled")
+	if input.Code != "" && len(input.Code) == 8 {
+		if m.options.Manager.Device() == nil {
+			return nil, huma.Error401Unauthorized("device provider is not enabled")
 		}
-		deviceIdentifier, err = a.options.Manager.Device().ExistsFlow(ctx.Context(), code)
+		deviceIdentifier, err = m.options.Manager.Device().ExistsFlow(ctx, input.Code)
 		if err != nil {
-			a.logger.Error().Err(err).Msg("error checking if flow exists")
-			return ctx.SendStatus(fiber.StatusInternalServerError)
+			m.logger.Error().Err(err).Msg("error checking if flow exists")
+			return nil, huma.Error500InternalServerError("internal server error")
 		}
 		if deviceIdentifier == "" {
-			return ctx.Status(fiber.StatusNotFound).SendString("device flow does not exist")
+			return nil, huma.Error404NotFound("device flow does not exist")
 		}
 	}
 
-	token, err := a.options.Manager.Magic().CreateFlow(ctx.Context(), email, deviceIdentifier, "", nextURL)
+	token, err := m.options.Manager.Magic().CreateFlow(ctx, input.Email, deviceIdentifier, "", input.Next)
 	if err != nil {
-		a.logger.Error().Err(err).Msg("failed to get token")
-		return ctx.SendStatus(fiber.StatusInternalServerError)
+		m.logger.Error().Err(err).Msg("failed to get token")
+		return nil, huma.Error500InternalServerError("internal server error")
 	}
 
 	var callback url.URL
 	callback.Scheme = "http"
-	if a.options.TLS {
+	if m.options.TLS {
 		callback.Scheme = "https"
 	}
-	callback.Host = a.options.Endpoint
+	callback.Host = m.options.Endpoint
 	callback.Path = "/v1/flows/magic/callback"
-	callback.Query().Add("token", token)
+	q := callback.Query()
+	q.Add("token", token)
+	callback.RawQuery = q.Encode()
 
-	err = a.options.Manager.Mailer().SendMagicLink(ctx.Context(), mailer.Email{
-		To: email,
+	err = m.options.Manager.Mailer().SendMagicLink(ctx, mailer.Email{
+		To: input.Email,
 	}, callback.String(), magic.Expiry)
 	if err != nil {
-		a.logger.Error().Err(err).Msg("failed to send magic link")
-		return ctx.SendStatus(fiber.StatusInternalServerError)
+		m.logger.Error().Err(err).Msg("failed to send magic link")
+		return nil, huma.Error500InternalServerError("internal server error")
 	}
 
-	return ctx.SendStatus(fiber.StatusOK)
+	return &LoginOutput{StatusCode: 200}, nil
 }
 
-// callback godoc
-// @Summary      callback logs in a user with a Magic Link
-// @Description  callback logs in a user with a Magic Link
-// @Tags         magic, callback
-// @Accept       json
-// @Produce      json
-// @Param        token        query string true "magic link token"
-// @Success      307
-// @Header       307 {string} Location "Redirects to Next URL"
-// @Header       307 {string} Set-Cookie "authentication_session=jwt_token; HttpOnly; SameSite=lax;"
-// @Failure      400 {string} string
-// @Failure      401 {string} string
-// @Failure      403 {string} string
-// @Failure      404 {string} string
-// @Failure      500 {string} string
-// @Router       /flows/magic/callback [get]
-func (a *Magic) callback(ctx *fiber.Ctx) error {
-	a.logger.Debug().Str("IP", ctx.IP()).Msg("callback")
-	if a.options.Manager.Magic() == nil {
-		return ctx.Status(fiber.StatusUnauthorized).SendString("magic provider is not enabled")
+func (m *Magic) callback(ctx context.Context, input *CallbackInput) (*CallbackOutput, error) {
+	// Extract Fiber context for IP logging
+	humaCtx := ctx.(huma.Context)
+	fiberCtx := humafiber.Unwrap(humaCtx)
+	m.logger.Debug().Str("IP", fiberCtx.IP()).Msg("callback")
+
+	if m.options.Manager.Magic() == nil {
+		return nil, huma.Error401Unauthorized("magic provider is not enabled")
 	}
 
-	token := ctx.Query("token")
-	if token == "" {
-		return ctx.Status(fiber.StatusBadRequest).SendString("token is required")
-	}
-
-	f, err := a.options.Manager.Magic().CompleteFlow(ctx.Context(), token)
+	f, err := m.options.Manager.Magic().CompleteFlow(ctx, input.Token)
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
-			return ctx.Status(fiber.StatusNotFound).SendString("flow does not exist")
+			return nil, huma.Error404NotFound("flow does not exist")
 		case errors.Is(err, magic.ErrInvalidToken):
-			return ctx.Status(fiber.StatusUnauthorized).SendString("invalid token")
+			return nil, huma.Error401Unauthorized("invalid token")
 		default:
-			a.logger.Error().Err(err).Msg("failed to complete flow")
-			return ctx.SendStatus(fiber.StatusInternalServerError)
+			m.logger.Error().Err(err).Msg("failed to complete flow")
+			return nil, huma.Error500InternalServerError("internal server error")
 		}
 	}
 
 	if f.DeviceIdentifier != "" {
-		if a.options.Manager.Device() == nil {
-			return ctx.Status(fiber.StatusUnauthorized).SendString("device provider is not enabled")
+		if m.options.Manager.Device() == nil {
+			return nil, huma.Error401Unauthorized("device provider is not enabled")
 		}
 	}
 
-	session, err := a.options.Manager.CreateSession(ctx.Context(), f, flow.MagicProvider)
+	session, err := m.options.Manager.CreateSession(ctx, f, flow.MagicProvider)
 	if err != nil {
-		a.logger.Error().Err(err).Msg("failed to create session")
-		return ctx.SendStatus(fiber.StatusInternalServerError)
+		m.logger.Error().Err(err).Msg("failed to create session")
+		return nil, huma.Error500InternalServerError("internal server error")
+	}
+
+	output := &CallbackOutput{
+		StatusCode: 307,
+		Headers: MagicCallbackHeaders{
+			Location: f.NextURL,
+		},
 	}
 
 	if f.DeviceIdentifier != "" {
-		err = a.options.Manager.Device().CompleteFlow(ctx.Context(), f.DeviceIdentifier, session.Identifier)
+		// Device flow - complete the device flow but don't set cookie
+		err = m.options.Manager.Device().CompleteFlow(ctx, f.DeviceIdentifier, session.Identifier)
 		if err != nil {
-			a.logger.Error().Err(err).Msg("failed to complete flow")
-			return ctx.SendStatus(fiber.StatusInternalServerError)
+			m.logger.Error().Err(err).Msg("failed to complete flow")
+			return nil, huma.Error500InternalServerError("internal server error")
 		}
 	} else {
-		signedToken, err := a.options.Manager.SignSession(session)
+		// Regular flow - set session cookie
+		token, err := m.options.Manager.SignSession(session)
 		if err != nil {
-			a.logger.Error().Err(err).Msg("error signing session")
-			return ctx.SendStatus(fiber.StatusInternalServerError)
+			m.logger.Error().Err(err).Msg("error signing session")
+			return nil, huma.Error500InternalServerError("internal server error")
 		}
 
-		cookie := &fiber.Cookie{
+		output.Headers.SetCookie = &http.Cookie{
 			Name:     models.SessionCookie,
-			Value:    signedToken,
+			Value:    token,
 			Expires:  session.ExpiresAt,
-			Domain:   a.options.Endpoint,
-			Secure:   false,
-			HTTPOnly: true,
-			SameSite: fiber.CookieSameSiteLaxMode,
+			Domain:   m.options.Endpoint,
+			Secure:   m.options.TLS,
+			HttpOnly: true,
+			SameSite: http.SameSiteLaxMode,
 		}
-		if a.options.TLS {
-			cookie.Secure = true
-		}
-		ctx.Cookie(cookie)
 	}
 
-	return ctx.Redirect(f.NextURL, fiber.StatusTemporaryRedirect)
+	return output, nil
 }

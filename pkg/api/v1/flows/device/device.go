@@ -3,15 +3,17 @@
 package device
 
 import (
+	"context"
 	"database/sql"
 	"errors"
+	"net/http"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humafiber"
 
 	"github.com/loopholelabs/logging/types"
 
-	"github.com/loopholelabs/auth/internal/utils"
 	"github.com/loopholelabs/auth/pkg/api/options"
 	"github.com/loopholelabs/auth/pkg/api/v1/models"
 	"github.com/loopholelabs/auth/pkg/manager/flow/device"
@@ -22,167 +24,186 @@ const (
 )
 
 type Device struct {
-	logger types.Logger
-	app    *fiber.App
-
+	logger  types.Logger
 	options options.Options
 }
 
-func New(options options.Options, logger types.Logger) *Device {
-	a := &Device{
+// Request and Response types
+
+type DeviceLoginBody struct {
+	Code               string `json:"code" doc:"Device flow code"`
+	Poll               string `json:"poll" doc:"Poll code for checking status"`
+	PollingRateSeconds uint64 `json:"polling_rate_seconds" doc:"Polling rate in seconds"`
+}
+
+type LoginOutput struct {
+	Body DeviceLoginBody
+}
+
+type ValidateInput struct {
+	Code string `query:"code" required:"true" minLength:"8" maxLength:"8" doc:"Device flow code"`
+}
+
+type ValidateOutput struct {
+	StatusCode int `json:"-" default:"200"`
+}
+
+type PollInput struct {
+	Code string `query:"code" required:"true" minLength:"36" maxLength:"36" doc:"Poll code"`
+}
+
+type DevicePollHeaders struct {
+	SetCookie *http.Cookie `header:"Set-Cookie" doc:"Session cookie"`
+}
+
+type PollOutput struct {
+	StatusCode int `json:"-" default:"200"`
+	Headers    DevicePollHeaders
+}
+
+// RegisterEndpoints registers the Device flow endpoints with Huma
+func RegisterEndpoints(api huma.API, options options.Options, logger types.Logger) {
+	d := &Device{
 		logger:  logger.SubLogger("DEVICE"),
-		app:     utils.DefaultFiberApp(),
 		options: options,
 	}
 
-	a.app.Get("/login", a.login)
-	a.app.Get("/validate", a.validate)
-	a.app.Get("/poll", a.poll)
+	huma.Register(api, huma.Operation{
+		OperationID: "device-login",
+		Method:      "GET",
+		Path:        "/flows/device/login",
+		Summary:     "Initiate device flow",
+		Description: "Initiates the device code flow and returns codes for authentication",
+		Tags:        []string{"device", "login"},
+	}, d.login)
 
-	return a
+	huma.Register(api, huma.Operation{
+		OperationID: "device-validate",
+		Method:      "GET",
+		Path:        "/flows/device/validate",
+		Summary:     "Validate device code",
+		Description: "Validates that a device code exists and is valid",
+		Tags:        []string{"device", "validate"},
+	}, d.validate)
+
+	huma.Register(api, huma.Operation{
+		OperationID: "device-poll",
+		Method:      "GET",
+		Path:        "/flows/device/poll",
+		Summary:     "Poll for completion",
+		Description: "Polls the device flow to check if authentication is complete",
+		Tags:        []string{"device", "poll"},
+		Responses: map[string]*huma.Response{
+			"200": {
+				Description: "Authentication complete",
+				Headers: map[string]*huma.Param{
+					"Set-Cookie": {
+						Description: "Session cookie",
+						Required:    true,
+					},
+				},
+			},
+		},
+	}, d.poll)
 }
 
-func (a *Device) App() *fiber.App {
-	return a.app
-}
+// Handler implementations
 
-// login godoc
-// @Summary      login logs in a user with the Device Code Flow
-// @Description  login logs in a user with the Device Code Flow
-// @Tags         device, login
-// @Accept       json
-// @Produce      json
-// @Success      200 {object} models.DeviceFlowResponse
-// @Failure      401 {string} string
-// @Failure      500 {string} string
-// @Router       /flows/device/login [get]
-func (a *Device) login(ctx *fiber.Ctx) error {
-	a.logger.Debug().Str("IP", ctx.IP()).Msg("login")
-	if a.options.Manager.Device() == nil {
-		return ctx.Status(fiber.StatusUnauthorized).SendString("device provider is not enabled")
+func (d *Device) login(ctx context.Context, _ *struct{}) (*LoginOutput, error) {
+	// Extract Fiber context for IP logging
+	humaCtx := ctx.(huma.Context)
+	fiberCtx := humafiber.Unwrap(humaCtx)
+	d.logger.Debug().Str("IP", fiberCtx.IP()).Msg("login")
+
+	if d.options.Manager.Device() == nil {
+		return nil, huma.Error401Unauthorized("device provider is not enabled")
 	}
 
-	code, poll, err := a.options.Manager.Device().CreateFlow(ctx.Context())
+	code, poll, err := d.options.Manager.Device().CreateFlow(ctx)
 	if err != nil {
-		a.logger.Error().Err(err).Msg("error creating flow")
-		return ctx.SendStatus(fiber.StatusInternalServerError)
+		d.logger.Error().Err(err).Msg("error creating flow")
+		return nil, huma.Error500InternalServerError("internal server error")
 	}
 
-	return ctx.Status(fiber.StatusOK).JSON(&models.DeviceFlowResponse{
-		Code:               code,
-		Poll:               poll,
-		PollingRateSeconds: uint64(PollingRate.Truncate(time.Second).Seconds()),
-	})
+	output := &LoginOutput{}
+	output.Body.Code = code
+	output.Body.Poll = poll
+	output.Body.PollingRateSeconds = uint64(PollingRate.Truncate(time.Second).Seconds())
+
+	return output, nil
 }
 
-// validate godoc
-// @Summary      validate validates the code
-// @Description  validate validates the code
-// @Tags         device, validate
-// @Accept       json
-// @Produce      json
-// @Param        code query string true "code"
-// @Success      200 {string} string
-// @Failure      400 {string} string
-// @Failure      401 {string} string
-// @Failure      404 {string} string
-// @Failure      500 {string} string
-// @Router       /flows/device/validate [get]
-func (a *Device) validate(ctx *fiber.Ctx) error {
-	a.logger.Debug().Str("IP", ctx.IP()).Msg("validate")
-	if a.options.Manager.Device() == nil {
-		return ctx.Status(fiber.StatusUnauthorized).SendString("device provider is not enabled")
+func (d *Device) validate(ctx context.Context, input *ValidateInput) (*ValidateOutput, error) {
+	// Extract Fiber context for IP logging
+	humaCtx := ctx.(huma.Context)
+	fiberCtx := humafiber.Unwrap(humaCtx)
+	d.logger.Debug().Str("IP", fiberCtx.IP()).Msg("validate")
+
+	if d.options.Manager.Device() == nil {
+		return nil, huma.Error401Unauthorized("device provider is not enabled")
 	}
 
-	code := ctx.Query("code")
-	if code == "" {
-		return ctx.Status(fiber.StatusBadRequest).SendString("code is required")
-	}
-	if len(code) != 8 {
-		return ctx.Status(fiber.StatusBadRequest).SendString("invalid code")
-	}
-
-	identifier, err := a.options.Manager.Device().ExistsFlow(ctx.Context(), code)
+	identifier, err := d.options.Manager.Device().ExistsFlow(ctx, input.Code)
 	if err != nil {
-		a.logger.Error().Err(err).Msg("error checking if flow exists")
-		return ctx.SendStatus(fiber.StatusInternalServerError)
+		d.logger.Error().Err(err).Msg("error checking if flow exists")
+		return nil, huma.Error500InternalServerError("internal server error")
 	}
 	if identifier == "" {
-		return ctx.Status(fiber.StatusNotFound).SendString("flow does not exist")
+		return nil, huma.Error404NotFound("flow does not exist")
 	}
-	return ctx.SendStatus(fiber.StatusOK)
+
+	return &ValidateOutput{StatusCode: 200}, nil
 }
 
-// poll godoc
-// @Summary      poll polls the device code flow using the poll code
-// @Description  poll polls the device code flow using the poll code
-// @Tags         device, poll
-// @Accept       json
-// @Produce      json
-// @Param        poll query string true "poll"
-// @Success      200 {string} string
-// @Header       200 {string} Set-Cookie "authentication_session=jwt_token; HttpOnly; SameSite=lax;"
-// @Failure      400 {string} string
-// @Failure      401 {string} string
-// @Failure      403 {string} string
-// @Failure      404 {string} string
-// @Failure      429 {string} string
-// @Failure      500 {string} string
-// @Router       /flows/device/poll [get]
-func (a *Device) poll(ctx *fiber.Ctx) error {
-	a.logger.Debug().Str("IP", ctx.IP()).Msg("poll")
-	if a.options.Manager.Device() == nil {
-		return ctx.Status(fiber.StatusUnauthorized).SendString("device provider is not enabled")
+func (d *Device) poll(ctx context.Context, input *PollInput) (*PollOutput, error) {
+	// Extract Fiber context for IP logging
+	humaCtx := ctx.(huma.Context)
+	fiberCtx := humafiber.Unwrap(humaCtx)
+	d.logger.Debug().Str("IP", fiberCtx.IP()).Msg("poll")
+
+	if d.options.Manager.Device() == nil {
+		return nil, huma.Error401Unauthorized("device provider is not enabled")
 	}
 
-	code := ctx.Query("code")
-	if code == "" {
-		return ctx.Status(fiber.StatusBadRequest).SendString("code is required")
-	}
-	if len(code) != 36 {
-		return ctx.Status(fiber.StatusBadRequest).SendString("invalid code")
-	}
-
-	sessionIdentifier, err := a.options.Manager.Device().PollFlow(ctx.Context(), code, PollingRate)
+	sessionIdentifier, err := d.options.Manager.Device().PollFlow(ctx, input.Code, PollingRate)
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
-			return ctx.Status(fiber.StatusNotFound).SendString("flow does not exist")
+			return nil, huma.Error404NotFound("flow does not exist")
 		case errors.Is(err, device.ErrRateLimitFlow):
-			return ctx.Status(fiber.StatusTooManyRequests).SendString("polling rate exceeded")
+			return nil, huma.Error429TooManyRequests("polling rate exceeded")
 		case errors.Is(err, device.ErrFlowNotCompleted):
-			return ctx.Status(fiber.StatusForbidden).SendString("incomplete flow")
+			return nil, huma.Error403Forbidden("incomplete flow")
 		default:
-			a.logger.Error().Err(err).Msg("error polling flow")
-			return ctx.SendStatus(fiber.StatusInternalServerError)
+			d.logger.Error().Err(err).Msg("error polling flow")
+			return nil, huma.Error500InternalServerError("internal server error")
 		}
 	}
 
-	session, err := a.options.Manager.CreateExistingSession(ctx.Context(), sessionIdentifier)
+	session, err := d.options.Manager.CreateExistingSession(ctx, sessionIdentifier)
 	if err != nil {
-		a.logger.Error().Err(err).Msg("error creating session")
-		return ctx.SendStatus(fiber.StatusInternalServerError)
+		d.logger.Error().Err(err).Msg("error creating session")
+		return nil, huma.Error500InternalServerError("internal server error")
 	}
 
-	token, err := a.options.Manager.SignSession(session)
+	token, err := d.options.Manager.SignSession(session)
 	if err != nil {
-		a.logger.Error().Err(err).Msg("error signing session")
-		return ctx.SendStatus(fiber.StatusInternalServerError)
+		d.logger.Error().Err(err).Msg("error signing session")
+		return nil, huma.Error500InternalServerError("internal server error")
 	}
 
-	cookie := &fiber.Cookie{
-		Name:     models.SessionCookie,
-		Value:    token,
-		Expires:  session.ExpiresAt,
-		Domain:   a.options.Endpoint,
-		Secure:   false,
-		HTTPOnly: true,
-		SameSite: fiber.CookieSameSiteLaxMode,
-	}
-	if a.options.TLS {
-		cookie.Secure = true
-	}
-	ctx.Cookie(cookie)
-
-	return ctx.SendStatus(fiber.StatusOK)
+	return &PollOutput{
+		StatusCode: 200,
+		Headers: DevicePollHeaders{
+			SetCookie: &http.Cookie{
+				Name:     models.SessionCookie,
+				Value:    token,
+				Expires:  session.ExpiresAt,
+				Domain:   d.options.Endpoint,
+				Secure:   d.options.TLS,
+				HttpOnly: true,
+				SameSite: http.SameSiteLaxMode,
+			},
+		},
+	}, nil
 }

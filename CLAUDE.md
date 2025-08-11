@@ -78,6 +78,15 @@ make lint
 # Note: Always sets GOOS=linux for consistency
 ```
 
+### Running the API Server
+```bash
+# Start the API server (compiles and runs)
+go run cmd/main.go api --log "" --log-level debug --config .config.yaml
+
+# The server listens on 127.0.0.1:8080 by default
+# Note: Ask the user to run this command in the background if you need to test the API
+```
+
 ## Architecture Overview
 
 For complete architecture details, see [docs/SPECIFICATION.md](docs/SPECIFICATION.md).
