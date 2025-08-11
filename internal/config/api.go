@@ -80,11 +80,6 @@ func (c *API) RequiredFlags(cmd *cobra.Command) error {
 	cmd.Flags().DurationVar(&c.PollInterval, "poll_interval", DefaultPollInterval, "the default polling interval")
 	cmd.Flags().DurationVar(&c.SessionExpiry, "session_expiry", DefaultSessionExpiry, "the session expiration time")
 
-	err := cmd.MarkFlagRequired("database")
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 

@@ -3,175 +3,215 @@
 package google
 
 import (
+	"context"
 	"database/sql"
 	"errors"
+	"net/http"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/loopholelabs/auth/pkg/api/v1/models"
-	"github.com/loopholelabs/auth/pkg/manager/flow"
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humafiber"
 
 	"github.com/loopholelabs/logging/types"
 
-	"github.com/loopholelabs/auth/internal/utils"
 	"github.com/loopholelabs/auth/pkg/api/options"
+	"github.com/loopholelabs/auth/pkg/api/v1/models"
+	"github.com/loopholelabs/auth/pkg/manager/flow"
 )
 
 type Google struct {
-	logger types.Logger
-	app    *fiber.App
-
+	logger  types.Logger
 	options options.Options
 }
 
-func New(options options.Options, logger types.Logger) *Google {
-	a := &Google{
+// Request and Response types
+
+type LoginInput struct {
+	Next string `query:"next" required:"true" doc:"Redirect URL after authentication"`
+	Code string `query:"code" maxLength:"8" doc:"Optional device flow code"`
+}
+
+type GoogleLoginHeaders struct {
+	Location string `header:"Location" doc:"Redirect to Google OAuth"`
+}
+
+type LoginOutput struct {
+	StatusCode int `json:"-" default:"307"`
+	Headers    GoogleLoginHeaders
+}
+
+type CallbackInput struct {
+	Code  string `query:"code" required:"true" doc:"OAuth authorization code"`
+	State string `query:"state" required:"true" doc:"OAuth state parameter"`
+}
+
+type GoogleCallbackHeaders struct {
+	SetCookie *http.Cookie `header:"Set-Cookie,omitempty" doc:"Session cookie"`
+	Location  string       `header:"Location" doc:"Redirect to next URL"`
+}
+
+type CallbackOutput struct {
+	StatusCode int `json:"-" default:"307"`
+	Headers    GoogleCallbackHeaders
+}
+
+// RegisterEndpoints registers the Google OAuth endpoints with Huma
+func RegisterEndpoints(api huma.API, options options.Options, logger types.Logger) {
+	g := &Google{
 		logger:  logger.SubLogger("GOOGLE"),
-		app:     utils.DefaultFiberApp(),
 		options: options,
 	}
 
-	a.app.Get("/login", a.login)
-	a.app.Get("/callback", a.callback)
+	huma.Register(api, huma.Operation{
+		OperationID: "google-login",
+		Method:      "GET",
+		Path:        "/flows/google/login",
+		Summary:     "Initiate Google OAuth login",
+		Description: "Redirects the user to Google for OAuth authentication",
+		Tags:        []string{"google", "login"},
+		Responses: map[string]*huma.Response{
+			"307": {
+				Description: "Redirect to Google OAuth",
+				Headers: map[string]*huma.Param{
+					"Location": {
+						Description: "Google OAuth URL",
+						Required:    true,
+					},
+				},
+			},
+		},
+	}, g.login)
 
-	return a
+	huma.Register(api, huma.Operation{
+		OperationID: "google-callback",
+		Method:      "GET",
+		Path:        "/flows/google/callback",
+		Summary:     "Google OAuth callback",
+		Description: "Handles the OAuth callback from Google and creates a session",
+		Tags:        []string{"google", "callback"},
+		Responses: map[string]*huma.Response{
+			"307": {
+				Description: "Redirect to application",
+				Headers: map[string]*huma.Param{
+					"Location": {
+						Description: "Application redirect URL",
+						Required:    true,
+					},
+					"Set-Cookie": {
+						Description: "Session cookie (set for non-device flows)",
+						Required:    false,
+					},
+				},
+			},
+		},
+	}, g.callback)
 }
 
-func (a *Google) App() *fiber.App {
-	return a.app
-}
+// Handler implementations
 
-// login godoc
-// @Summary      login logs in a user with Google
-// @Description  login logs in a user with Google
-// @Tags         google, login
-// @Accept       json
-// @Produce      json
-// @Param        next         query string true  "Next Redirect URL"
-// @Param        code         query string false "Device Flow Code"
-// @Success      307
-// @Header       307 {string} Location "Redirects to Google"
-// @Failure      400 {string} string
-// @Failure      401 {string} string
-// @Failure      404 {string} string
-// @Failure      500 {string} string
-// @Router       /flows/google/login [get]
-func (a *Google) login(ctx *fiber.Ctx) error {
-	a.logger.Debug().Str("IP", ctx.IP()).Msg("login")
-	if a.options.Manager.Google() == nil {
-		return ctx.Status(fiber.StatusUnauthorized).SendString("google provider is not enabled")
-	}
+func (g *Google) login(ctx context.Context, input *LoginInput) (*LoginOutput, error) {
+	// Extract Fiber context for IP logging
+	humaCtx := ctx.(huma.Context)
+	fiberCtx := humafiber.Unwrap(humaCtx)
+	g.logger.Debug().Str("IP", fiberCtx.IP()).Msg("login")
 
-	nextURL := ctx.Query("next")
-	if nextURL == "" {
-		return ctx.Status(fiber.StatusBadRequest).SendString("next URL is required")
+	if g.options.Manager.Google() == nil {
+		return nil, huma.Error401Unauthorized("google provider is not enabled")
 	}
 
 	var err error
 	var deviceIdentifier string
-	code := ctx.Query("code")
-	if code != "" && len(code) == 8 {
-		if a.options.Manager.Device() == nil {
-			return ctx.Status(fiber.StatusUnauthorized).SendString("device provider is not enabled")
+
+	if input.Code != "" && len(input.Code) == 8 {
+		if g.options.Manager.Device() == nil {
+			return nil, huma.Error401Unauthorized("device provider is not enabled")
 		}
-		deviceIdentifier, err = a.options.Manager.Device().ExistsFlow(ctx.Context(), code)
+		deviceIdentifier, err = g.options.Manager.Device().ExistsFlow(ctx, input.Code)
 		if err != nil {
-			a.logger.Error().Err(err).Msg("error checking if flow exists")
-			return ctx.SendStatus(fiber.StatusInternalServerError)
+			g.logger.Error().Err(err).Msg("error checking if flow exists")
+			return nil, huma.Error500InternalServerError("internal server error")
 		}
 		if deviceIdentifier == "" {
-			return ctx.Status(fiber.StatusNotFound).SendString("device flow does not exist")
+			return nil, huma.Error404NotFound("device flow does not exist")
 		}
 	}
 
-	redirect, err := a.options.Manager.Google().CreateFlow(ctx.Context(), deviceIdentifier, "", nextURL)
+	redirect, err := g.options.Manager.Google().CreateFlow(ctx, deviceIdentifier, "", input.Next)
 	if err != nil {
-		a.logger.Error().Err(err).Msg("failed to get redirect")
-		return ctx.SendStatus(fiber.StatusInternalServerError)
+		g.logger.Error().Err(err).Msg("failed to get redirect")
+		return nil, huma.Error500InternalServerError("internal server error")
 	}
-	return ctx.Redirect(redirect, fiber.StatusTemporaryRedirect)
+
+	return &LoginOutput{
+		StatusCode: 307,
+		Headers: GoogleLoginHeaders{
+			Location: redirect,
+		},
+	}, nil
 }
 
-// callback godoc
-// @Summary      callback logs in a user with Google
-// @Description  callback logs in a user with Google
-// @Tags         google, callback
-// @Accept       json
-// @Produce      json
-// @Param        code         query string false "Next Redirect URL"
-// @Param        state        query string false "Device Flow Code"
-// @Success      307
-// @Header       307 {string} Location "Redirects to Next URL"
-// @Header       307 {string} Set-Cookie "authentication_session=jwt_token; HttpOnly; SameSite=lax;"
-// @Failure      400 {string} string
-// @Failure      401 {string} string
-// @Failure      403 {string} string
-// @Failure      404 {string} string
-// @Failure      500 {string} string
-// @Router       /flows/google/callback [get]
-func (a *Google) callback(ctx *fiber.Ctx) error {
-	a.logger.Debug().Str("IP", ctx.IP()).Msg("callback")
-	if a.options.Manager.Google() == nil {
-		return ctx.Status(fiber.StatusUnauthorized).SendString("google provider is not enabled")
+func (g *Google) callback(ctx context.Context, input *CallbackInput) (*CallbackOutput, error) {
+	// Extract Fiber context for IP logging
+	humaCtx := ctx.(huma.Context)
+	fiberCtx := humafiber.Unwrap(humaCtx)
+	g.logger.Debug().Str("IP", fiberCtx.IP()).Msg("callback")
+
+	if g.options.Manager.Google() == nil {
+		return nil, huma.Error401Unauthorized("google provider is not enabled")
 	}
 
-	code := ctx.Query("code")
-	if code == "" {
-		return ctx.Status(fiber.StatusBadRequest).SendString("code is required")
-	}
-
-	identifier := ctx.Query("state")
-	if identifier == "" {
-		return ctx.Status(fiber.StatusBadRequest).SendString("state is required")
-	}
-
-	f, err := a.options.Manager.Google().CompleteFlow(ctx.Context(), identifier, code)
+	f, err := g.options.Manager.Google().CompleteFlow(ctx, input.State, input.Code)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return ctx.Status(fiber.StatusNotFound).SendString("flow does not exist")
+			return nil, huma.Error404NotFound("flow does not exist")
 		}
-		a.logger.Error().Err(err).Msg("failed to complete flow")
-		return ctx.SendStatus(fiber.StatusInternalServerError)
+		g.logger.Error().Err(err).Msg("failed to complete flow")
+		return nil, huma.Error500InternalServerError("internal server error")
 	}
 
 	if f.DeviceIdentifier != "" {
-		if a.options.Manager.Device() == nil {
-			return ctx.Status(fiber.StatusUnauthorized).SendString("device provider is not enabled")
+		if g.options.Manager.Device() == nil {
+			return nil, huma.Error401Unauthorized("device provider is not enabled")
 		}
 	}
 
-	session, err := a.options.Manager.CreateSession(ctx.Context(), f, flow.GoogleProvider)
+	session, err := g.options.Manager.CreateSession(ctx, f, flow.GoogleProvider)
 	if err != nil {
-		a.logger.Error().Err(err).Msg("failed to create session")
-		return ctx.SendStatus(fiber.StatusInternalServerError)
+		g.logger.Error().Err(err).Msg("failed to create session")
+		return nil, huma.Error500InternalServerError("internal server error")
+	}
+
+	output := &CallbackOutput{
+		StatusCode: 307,
+		Headers: GoogleCallbackHeaders{
+			Location: f.NextURL,
+		},
 	}
 
 	if f.DeviceIdentifier != "" {
-		err = a.options.Manager.Device().CompleteFlow(ctx.Context(), f.DeviceIdentifier, session.Identifier)
+		// Device flow - complete the device flow but don't set cookie
+		err = g.options.Manager.Device().CompleteFlow(ctx, f.DeviceIdentifier, session.Identifier)
 		if err != nil {
-			a.logger.Error().Err(err).Msg("failed to complete flow")
-			return ctx.SendStatus(fiber.StatusInternalServerError)
+			g.logger.Error().Err(err).Msg("failed to complete flow")
+			return nil, huma.Error500InternalServerError("internal server error")
 		}
 	} else {
-		token, err := a.options.Manager.SignSession(session)
+		// Regular flow - set session cookie
+		token, err := g.options.Manager.SignSession(session)
 		if err != nil {
-			a.logger.Error().Err(err).Msg("error signing session")
-			return ctx.SendStatus(fiber.StatusInternalServerError)
+			g.logger.Error().Err(err).Msg("error signing session")
+			return nil, huma.Error500InternalServerError("internal server error")
 		}
 
-		cookie := &fiber.Cookie{
+		output.Headers.SetCookie = &http.Cookie{
 			Name:     models.SessionCookie,
 			Value:    token,
 			Expires:  session.ExpiresAt,
-			Domain:   a.options.Endpoint,
-			Secure:   false,
-			HTTPOnly: true,
-			SameSite: fiber.CookieSameSiteLaxMode,
+			Domain:   g.options.Endpoint,
+			Secure:   g.options.TLS,
+			HttpOnly: true,
+			SameSite: http.SameSiteLaxMode,
 		}
-		if a.options.TLS {
-			cookie.Secure = true
-		}
-		ctx.Cookie(cookie)
 	}
 
-	return ctx.Redirect(f.NextURL, fiber.StatusTemporaryRedirect)
+	return output, nil
 }
