@@ -3,6 +3,7 @@ package api
 import (
 	"os"
 	"os/signal"
+	"syscall"
 
 	"github.com/spf13/cobra"
 
@@ -122,7 +123,7 @@ func Cmd() command.SetupCommand[*config.Config] {
 
 				errCh := make(chan error, 1)
 				done := make(chan os.Signal, 1)
-				signal.Notify(done, os.Interrupt, os.Kill)
+				signal.Notify(done, os.Interrupt, syscall.SIGTERM)
 
 				go func() {
 					err := a.Start(ch.Config.API.ListenAddress)

@@ -13,7 +13,7 @@ import (
 
 	"github.com/loopholelabs/auth/internal/utils"
 	"github.com/loopholelabs/auth/pkg/api/options"
-	"github.com/loopholelabs/auth/pkg/api/v1"
+	v1 "github.com/loopholelabs/auth/pkg/api/v1"
 )
 
 var (

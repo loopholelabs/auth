@@ -169,6 +169,7 @@ func (a *Google) callback(ctx *fiber.Ctx) error {
 		if a.options.TLS {
 			cookie.Secure = true
 		}
+		ctx.Cookie(cookie)
 	}
 
 	return ctx.Redirect(f.NextURL, fiber.StatusTemporaryRedirect)

@@ -181,6 +181,7 @@ func (a *Device) poll(ctx *fiber.Ctx) error {
 	if a.options.TLS {
 		cookie.Secure = true
 	}
+	ctx.Cookie(cookie)
 
 	return ctx.SendStatus(fiber.StatusOK)
 }
