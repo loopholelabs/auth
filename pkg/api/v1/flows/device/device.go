@@ -121,6 +121,7 @@ func (a *Device) validate(ctx *fiber.Ctx) error {
 // @Produce      json
 // @Param        poll query string true "poll"
 // @Success      200 {string} string
+// @Header       200 {string} Set-Cookie "authentication_session=jwt_token; HttpOnly; SameSite=lax;"
 // @Failure      400 {string} string
 // @Failure      401 {string} string
 // @Failure      403 {string} string

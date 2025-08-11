@@ -1,41 +1,47 @@
-basePath: /v1
-consumes:
-- application/json
-- application/json
-- application/json
-definitions:
-  models.DeviceFlowResponse:
-    properties:
-      code:
-        type: string
-      poll:
-        type: string
-      polling_rate_seconds:
-        type: integer
-    type: object
-  models.PublicResponse:
-    properties:
-      invalidated_sessions:
-        items:
-          $ref: '#/definitions/validator.InvalidatedSession'
-        type: array
-      previous_public_key:
-        type: string
-      public_key:
-        type: string
-      revoked_sessions:
-        items:
+components:
+  schemas:
+    models.DeviceFlowResponse:
+      properties:
+        code:
           type: string
-        type: array
-    type: object
-  validator.InvalidatedSession:
-    properties:
-      generation:
-        type: integer
-      identifier:
-        type: string
-    type: object
-host: localhost:8080
+        poll:
+          type: string
+        polling_rate_seconds:
+          type: integer
+      type: object
+    models.PublicResponse:
+      properties:
+        invalidated_sessions:
+          items:
+            $ref: '#/components/schemas/validator.InvalidatedSession'
+          type: array
+          uniqueItems: false
+        previous_public_key:
+          type: string
+        public_key:
+          type: string
+        revoked_sessions:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+      type: object
+    validator.InvalidatedSession:
+      properties:
+        generation:
+          type: integer
+        identifier:
+          type: string
+      type: object
+  securitySchemes:
+    "":
+      description: User Session Cookie
+      in: cookie
+      name: authentication_session
+      type: apiKey
+externalDocs:
+  description: ""
+  url: ""
 info:
   contact:
     email: admin@loopholelabs.io
@@ -47,457 +53,661 @@ info:
   termsOfService: https://loopholelabs.io/privacy
   title: Auth API v1
   version: "1.0"
+openapi: 3.1.0
 paths:
   /flows/device/login:
     get:
-      consumes:
-      - application/json
       description: login logs in a user with the Device Code Flow
-      produces:
-      - application/json
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/models.DeviceFlowResponse'
           description: OK
-          schema:
-            $ref: '#/definitions/models.DeviceFlowResponse'
         "401":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Unauthorized
-          schema:
-            type: string
         "500":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Internal Server Error
-          schema:
-            type: string
       summary: login logs in a user with the Device Code Flow
       tags:
       - device
       - login
   /flows/device/poll:
     get:
-      consumes:
-      - application/json
       description: poll polls the device code flow using the poll code
       parameters:
       - description: poll
         in: query
         name: poll
         required: true
-        type: string
-      produces:
-      - application/json
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                type: string
           description: OK
-          schema:
-            type: string
+          headers:
+            Set-Cookie:
+              description: authentication_session=jwt_token; HttpOnly; SameSite=lax;
+              schema:
+                type: string
         "400":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Bad Request
-          schema:
-            type: string
         "401":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Unauthorized
-          schema:
-            type: string
         "403":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Forbidden
-          schema:
-            type: string
         "404":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Not Found
-          schema:
-            type: string
         "429":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Too Many Requests
-          schema:
-            type: string
         "500":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Internal Server Error
-          schema:
-            type: string
       summary: poll polls the device code flow using the poll code
       tags:
       - device
       - poll
   /flows/device/validate:
     get:
-      consumes:
-      - application/json
       description: validate validates the code
       parameters:
       - description: code
         in: query
         name: code
         required: true
-        type: string
-      produces:
-      - application/json
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                type: string
           description: OK
-          schema:
-            type: string
         "400":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Bad Request
-          schema:
-            type: string
         "401":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Unauthorized
-          schema:
-            type: string
         "404":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Not Found
-          schema:
-            type: string
         "500":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Internal Server Error
-          schema:
-            type: string
       summary: validate validates the code
       tags:
       - device
       - validate
   /flows/github/callback:
     get:
-      consumes:
-      - application/json
       description: callback logs in a user with Github
       parameters:
       - description: Next Redirect URL
         in: query
         name: code
-        type: string
+        schema:
+          type: string
       - description: Device Flow Code
         in: query
         name: state
-        type: string
-      produces:
-      - application/json
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
       responses:
         "307":
           description: Temporary Redirect
           headers:
             Location:
               description: Redirects to Next URL
-              type: string
+              schema:
+                type: string
+            Set-Cookie:
+              description: authentication_session=jwt_token; HttpOnly; SameSite=lax;
+              schema:
+                type: string
         "400":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Bad Request
-          schema:
-            type: string
         "401":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Unauthorized
-          schema:
-            type: string
         "403":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Forbidden
-          schema:
-            type: string
         "404":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Not Found
-          schema:
-            type: string
         "500":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Internal Server Error
-          schema:
-            type: string
       summary: callback logs in a user with Github
       tags:
       - github
       - callback
-  /flows/github/login:
+  /flows/github/info:
     get:
-      consumes:
-      - application/json
       description: info returns the information about a logged-in User
-      produces:
-      - application/json
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
       responses:
         "307":
           description: Temporary Redirect
           headers:
             Location:
               description: Redirects to User
-              type: string
+              schema:
+                type: string
         "400":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Bad Request
-          schema:
-            type: string
         "401":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Unauthorized
-          schema:
-            type: string
         "404":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Not Found
-          schema:
-            type: string
         "500":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Internal Server Error
-          schema:
-            type: string
       summary: info returns the information about a logged-in User
       tags:
       - user
       - info
+  /flows/github/login:
+    get:
+      description: login logs in a user with Github
+      parameters:
+      - description: Next Redirect URL
+        in: query
+        name: next
+        required: true
+        schema:
+          type: string
+      - description: Device Flow Code
+        in: query
+        name: code
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "307":
+          description: Temporary Redirect
+          headers:
+            Location:
+              description: Redirects to Github
+              schema:
+                type: string
+        "400":
+          content:
+            application/json:
+              schema:
+                type: string
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                type: string
+          description: Unauthorized
+        "404":
+          content:
+            application/json:
+              schema:
+                type: string
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                type: string
+          description: Internal Server Error
+      summary: login logs in a user with Github
+      tags:
+      - github
+      - login
   /flows/google/callback:
     get:
-      consumes:
-      - application/json
       description: callback logs in a user with Google
       parameters:
       - description: Next Redirect URL
         in: query
         name: code
-        type: string
+        schema:
+          type: string
       - description: Device Flow Code
         in: query
         name: state
-        type: string
-      produces:
-      - application/json
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
       responses:
         "307":
           description: Temporary Redirect
           headers:
             Location:
               description: Redirects to Next URL
-              type: string
+              schema:
+                type: string
+            Set-Cookie:
+              description: authentication_session=jwt_token; HttpOnly; SameSite=lax;
+              schema:
+                type: string
         "400":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Bad Request
-          schema:
-            type: string
         "401":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Unauthorized
-          schema:
-            type: string
         "403":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Forbidden
-          schema:
-            type: string
         "404":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Not Found
-          schema:
-            type: string
         "500":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Internal Server Error
-          schema:
-            type: string
       summary: callback logs in a user with Google
       tags:
       - google
       - callback
   /flows/google/login:
     get:
-      consumes:
-      - application/json
       description: login logs in a user with Google
       parameters:
       - description: Next Redirect URL
         in: query
         name: next
         required: true
-        type: string
+        schema:
+          type: string
       - description: Device Flow Code
         in: query
         name: code
-        type: string
-      produces:
-      - application/json
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
       responses:
         "307":
           description: Temporary Redirect
           headers:
             Location:
               description: Redirects to Google
-              type: string
+              schema:
+                type: string
         "400":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Bad Request
-          schema:
-            type: string
         "401":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Unauthorized
-          schema:
-            type: string
         "404":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Not Found
-          schema:
-            type: string
         "500":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Internal Server Error
-          schema:
-            type: string
       summary: login logs in a user with Google
       tags:
       - google
       - login
   /flows/magic/callback:
     get:
-      consumes:
-      - application/json
       description: callback logs in a user with a Magic Link
       parameters:
       - description: magic link token
         in: query
         name: token
         required: true
-        type: string
-      produces:
-      - application/json
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
       responses:
         "307":
           description: Temporary Redirect
           headers:
             Location:
               description: Redirects to Next URL
-              type: string
+              schema:
+                type: string
+            Set-Cookie:
+              description: authentication_session=jwt_token; HttpOnly; SameSite=lax;
+              schema:
+                type: string
         "400":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Bad Request
-          schema:
-            type: string
         "401":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Unauthorized
-          schema:
-            type: string
         "403":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Forbidden
-          schema:
-            type: string
         "404":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Not Found
-          schema:
-            type: string
         "500":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Internal Server Error
-          schema:
-            type: string
       summary: callback logs in a user with a Magic Link
       tags:
       - magic
       - callback
   /flows/magic/login:
     get:
-      consumes:
-      - application/json
       description: login logs in a user with a Magic Link
       parameters:
       - description: Email Address
         in: query
         name: email
         required: true
-        type: string
+        schema:
+          type: string
       - description: Next Redirect URL
         in: query
         name: next
         required: true
-        type: string
+        schema:
+          type: string
       - description: Device Flow Code
         in: query
         name: code
-        type: string
-      produces:
-      - application/json
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                type: string
           description: OK
-          schema:
-            type: string
         "307":
           description: Temporary Redirect
         "400":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Bad Request
-          schema:
-            type: string
         "401":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Unauthorized
-          schema:
-            type: string
         "404":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Not Found
-          schema:
-            type: string
         "500":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Internal Server Error
-          schema:
-            type: string
       summary: login logs in a user with a Magic Link
       tags:
       - magic
       - login
   /health:
     get:
-      consumes:
-      - application/json
       description: health returns the health check status
-      produces:
-      - application/json
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                type: string
           description: OK
-          schema:
-            type: string
         "503":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Service Unavailable
-          schema:
-            type: string
       summary: health returns the health check status
       tags:
       - health
   /logout:
     post:
-      consumes:
-      - application/json
       description: logout logs out a user
-      produces:
-      - application/json
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                type: string
           description: OK
-          schema:
-            type: string
         "400":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Bad Request
-          schema:
-            type: string
         "401":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Unauthorized
-          schema:
-            type: string
         "500":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Internal Server Error
-          schema:
-            type: string
       summary: logout logs out a user
       tags:
       - logout
   /public:
     get:
-      consumes:
-      - application/json
       description: public returns the current public key and session information
-      produces:
-      - application/json
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/models.PublicResponse'
           description: OK
-          schema:
-            $ref: '#/definitions/models.PublicResponse'
         "400":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Bad Request
-          schema:
-            type: string
         "401":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Unauthorized
-          schema:
-            type: string
         "500":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Internal Server Error
-          schema:
-            type: string
       summary: public returns the current public key and session information
       tags:
       - public
-produces:
-- application/json
-- application/json
-- application/json
-schemes:
-- https
-swagger: "2.0"
+servers:
+- url: localhost:8080

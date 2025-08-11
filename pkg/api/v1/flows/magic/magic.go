@@ -139,6 +139,7 @@ func (a *Magic) login(ctx *fiber.Ctx) error {
 // @Param        token        query string true "magic link token"
 // @Success      307
 // @Header       307 {string} Location "Redirects to Next URL"
+// @Header       307 {string} Set-Cookie "authentication_session=jwt_token; HttpOnly; SameSite=lax;"
 // @Failure      400 {string} string
 // @Failure      401 {string} string
 // @Failure      403 {string} string

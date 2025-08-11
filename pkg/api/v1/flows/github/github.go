@@ -101,6 +101,7 @@ func (a *Github) login(ctx *fiber.Ctx) error {
 // @Param        state        query string false "Device Flow Code"
 // @Success      307
 // @Header       307 {string} Location "Redirects to Next URL"
+// @Header       307 {string} Set-Cookie "authentication_session=jwt_token; HttpOnly; SameSite=lax;"
 // @Failure      400 {string} string
 // @Failure      401 {string} string
 // @Failure      403 {string} string

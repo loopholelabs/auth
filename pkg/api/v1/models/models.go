@@ -5,7 +5,7 @@ package models
 import "github.com/loopholelabs/auth/pkg/validator"
 
 const (
-	SessionCookie = "authentication-session"
+	SessionCookie = "authentication_session"
 )
 
 type DeviceFlowResponse struct {
