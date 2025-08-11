@@ -16,7 +16,7 @@ import (
 	"github.com/loopholelabs/auth/pkg/api/v1/models"
 )
 
-//go:generate go tool github.com/swaggo/swag/v2/cmd/swag init -g v1.go -o docs --parseDependency --instanceName AuthAPI -d ./
+//go:generate go tool github.com/swaggo/swag/v2/cmd/swag init --v3.1 -g v1.go -o docs --parseDependency --instanceName AuthAPI -d ./
 
 type V1 struct {
 	logger types.Logger
@@ -47,6 +47,12 @@ func New(options options.Options, logger types.Logger) *V1 {
 // @license.url https://www.apache.org/licenses/LICENSE-2.0.html
 // @host localhost:8080
 // @schemes https
+//
+//	@securityDefinitions.apikey	cookieAuth
+//	@in							cookie
+//	@name						authentication_session
+//	@description				User Session Cookie
+//
 // @BasePath /v1
 func (v *V1) init() {
 	v.logger.Debug().Msg("initializing")

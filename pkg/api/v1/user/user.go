@@ -46,39 +46,39 @@ func (a *User) App() *fiber.App {
 // @Failure      401 {string} string
 // @Failure      404 {string} string
 // @Failure      500 {string} string
-// @Router       /flows/github/login [get]
+// @Router       /flows/github/info [get]
 func (a *User) info(ctx *fiber.Ctx) error {
 	a.logger.Debug().Str("IP", ctx.IP()).Msg("info")
-	if a.options.Manager.User() == nil {
-		return ctx.Status(fiber.StatusUnauthorized).SendString("github provider is not enabled")
-	}
-
-	nextURL := ctx.Query("next")
-	if nextURL == "" {
-		return ctx.Status(fiber.StatusBadRequest).SendString("next URL is required")
-	}
-
-	var err error
-	var deviceIdentifier string
-	code := ctx.Query("code")
-	if code != "" && len(code) == 8 {
-		if a.options.Manager.Device() == nil {
-			return ctx.Status(fiber.StatusUnauthorized).SendString("device provider is not enabled")
-		}
-		deviceIdentifier, err = a.options.Manager.Device().ExistsFlow(ctx.Context(), code)
-		if err != nil {
-			a.logger.Error().Err(err).Msg("error checking if flow exists")
-			return ctx.SendStatus(fiber.StatusInternalServerError)
-		}
-		if deviceIdentifier == "" {
-			return ctx.Status(fiber.StatusNotFound).SendString("device flow does not exist")
-		}
-	}
-
-	redirect, err := a.options.Manager.User().CreateFlow(ctx.Context(), deviceIdentifier, "", nextURL)
-	if err != nil {
-		a.logger.Error().Err(err).Msg("failed to get redirect")
-		return ctx.SendStatus(fiber.StatusInternalServerError)
-	}
-	return ctx.Redirect(redirect, fiber.StatusTemporaryRedirect)
+	//if a.options.Manager.User() == nil {
+	//	return ctx.Status(fiber.StatusUnauthorized).SendString("github provider is not enabled")
+	//}
+	//
+	//nextURL := ctx.Query("next")
+	//if nextURL == "" {
+	//	return ctx.Status(fiber.StatusBadRequest).SendString("next URL is required")
+	//}
+	//
+	//var err error
+	//var deviceIdentifier string
+	//code := ctx.Query("code")
+	//if code != "" && len(code) == 8 {
+	//	if a.options.Manager.Device() == nil {
+	//		return ctx.Status(fiber.StatusUnauthorized).SendString("device provider is not enabled")
+	//	}
+	//	deviceIdentifier, err = a.options.Manager.Device().ExistsFlow(ctx.Context(), code)
+	//	if err != nil {
+	//		a.logger.Error().Err(err).Msg("error checking if flow exists")
+	//		return ctx.SendStatus(fiber.StatusInternalServerError)
+	//	}
+	//	if deviceIdentifier == "" {
+	//		return ctx.Status(fiber.StatusNotFound).SendString("device flow does not exist")
+	//	}
+	//}
+	//
+	//redirect, err := a.options.Manager.User().CreateFlow(ctx.Context(), deviceIdentifier, "", nextURL)
+	//if err != nil {
+	//	a.logger.Error().Err(err).Msg("failed to get redirect")
+	//	return ctx.SendStatus(fiber.StatusInternalServerError)
+	//}
+	return ctx.SendStatus(fiber.StatusUnauthorized)
 }
