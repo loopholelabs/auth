@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a standalone authentication service for Loophole Labs that implements a multi-tenant SaaS authentication system. It provides OAuth2 (GitHub, Google), Magic Link authentication, and comprehensive session/credential management with a MySQL 8+ backend. The service maintains complete data isolation from business logic services and uses JWT-based authentication.
+This is a standalone authentication service for Loophole Labs that implements a multi-tenant SaaS authentication system. It provides OAuth2 (GitHub, Google), Magic Link authentication, Device Code flow, and comprehensive session management with a MySQL 8+ backend. The service maintains complete data isolation from business logic services and uses JWT-based authentication with EdDSA (Ed25519) signing.
+
+**Current Status**: Core authentication flows and session management are implemented. Organization/membership management and credential (API/Service keys) APIs are pending. See [docs/SPECIFICATION.md](docs/SPECIFICATION.md) for complete details.
 
 ## Quick Start
 
@@ -24,6 +26,11 @@ make generate
 # Run tests
 make test
 ```
+
+### API Documentation
+- Swagger docs available at `/v1/swagger.json` when service is running
+- See [Section 6](docs/SPECIFICATION.md#section-6-current-api-endpoints) for endpoint details
+- Base path: `/v1`
 
 ## Essential Commands
 
@@ -73,10 +80,13 @@ make lint
 
 ## Architecture Overview
 
+For complete architecture details, see [docs/SPECIFICATION.md](docs/SPECIFICATION.md).
+
 ### Core Package Structure
 
 **Authentication Flow System** (`pkg/manager/flow/`)
 - Each provider (GitHub, Google, Magic) implements the flow interface
+- Device Code flow for CLI/headless authentication
 - PKCE flow for OAuth2 providers with code verifier/challenge
 - Flows are stored in database with automatic garbage collection
 - Time-based cleanup using `now` variable for test mocking
@@ -85,13 +95,21 @@ make lint
 - `CreateSession` is the central authentication endpoint
 - Creates users, organizations, and identities in a transaction
 - Sessions expire after configurable duration (default 30 min)
-- Role-based access with organization memberships
+- JWT tokens signed with EdDSA (Ed25519) for performance
+- Generation-based invalidation for role updates
 
 **Configuration System** (`pkg/manager/configuration/`)
 - Database-backed dynamic configuration
 - Polling-based updates without restart
 - Thread-safe access with RWMutex
+- Manages signing keys and rotation
 - Supports session expiry and poll interval configuration
+
+**Validator System** (`pkg/validator/`)
+- In-memory caching of revocations and invalidations
+- TTL-based cache with automatic expiration
+- Background polling for cache refresh
+- Health monitoring for cache status
 
 ### Database Layer
 
@@ -100,17 +118,21 @@ make lint
 - SQLC for type-safe query generation from `internal/db/queries/`
 - MySQL with serializable transaction isolation for critical operations
 
-**Key Tables**
+**Key Tables** (see [Section 2](docs/SPECIFICATION.md#section-2-data-model--current-implementation) of specification)
 - `users`: Primary user accounts with unique email constraint
-- `identities`: Provider-specific identities (GitHub, Google, Magic)
+- `identities`: Unified table for all provider types (GitHub, Google, Magic)
 - `organizations`: User organizations with default organization
 - `sessions`: Active user sessions with generation tracking
+- `session_revocations`: Blacklist for revoked sessions
+- `session_invalidations`: Generation tracking for token refresh
 - `configurations`: Dynamic runtime configuration
+- `machine_keys`: Reserved for future reporting-only access
 
 **Important Constraints**
-- `users.primary_email` has UNIQUE constraint
+- `users.primary_email` has UNIQUE constraint (stored lowercase)
 - Foreign keys enforce referential integrity
 - Identity primary key is composite: (provider, provider_identifier)
+- Session invalidations have unique constraint on session_identifier
 
 ### Testing Infrastructure
 
@@ -179,17 +201,22 @@ ON DUPLICATE KEY UPDATE
 New authentication providers must:
 1. Implement flow creation and completion methods
 2. Include garbage collection for expired flows
-3. Return `flow.Data` with all required fields except `UserName`. 
+3. Return `flow.Data` with all required fields except `UserName`
 4. Add provider enum to database identities table
 5. Handle PKCE for OAuth2 flows
 
+For implementation examples, see existing providers in `pkg/manager/flow/`
+
 ### Security Considerations
 
-- Magic link tokens use HMAC with SHA-256 hashing
+- JWT tokens signed with EdDSA (Ed25519) keys
+- Magic link tokens use HMAC with SHA-256 hashing  
 - OAuth2 flows use PKCE for security
-- Sessions have generation tracking for revocation
+- Sessions have generation tracking for invalidation
 - All provider identifiers are validated before use
-- Transactions use serializable isolation for consistency
+- Transactions use appropriate isolation levels for consistency
+
+See [Section 10](docs/SPECIFICATION.md#section-10-security-considerations) for complete security details.
 
 ## Common Development Tasks
 
@@ -254,6 +281,35 @@ make generate
 
 5. Add comprehensive tests following existing patterns
 
+## Current Implementation Status
+
+### ✅ Implemented
+- OAuth2 flows (GitHub, Google) with PKCE
+- Magic Link email authentication  
+- Device Code flow for CLI authentication
+- Session management with JWT (EdDSA signing)
+- Session revocation and invalidation
+- Validator with in-memory caching
+- Configuration management system
+- Automatic garbage collection
+- Health monitoring
+
+### ❌ Not Yet Implemented
+See [Section 6.2](docs/SPECIFICATION.md#62-pending-implementation) for complete list:
+- Session refresh and organization switching endpoints
+- User account management APIs
+- Organization and membership management
+- Invitation system
+- API keys and service keys
+- JWKS endpoint for public key distribution
+- Rate limiting and audit logging
+
+### 📝 Implementation Notes
+- Uses EdDSA (Ed25519) instead of ES256 for JWT signing
+- Single `identities` table for all providers (not separate tables)
+- `machine_keys` table exists for future reporting-only access
+- Session invalidations have unique constraint preventing duplicates
+
 ## Debugging Tips
 
 ### Test Failures
@@ -305,7 +361,7 @@ make generate
 
 ## Important Files
 
-- `docs/SPECIFICATION.md`: Complete system specification
+- `docs/SPECIFICATION.md`: Complete system specification (MUST READ)
 - `Makefile`: Build and test automation
 - `sqlc.yaml`: SQLC configuration
 - `.goose.yaml`: Database migration configuration
@@ -313,3 +369,5 @@ make generate
 - `internal/db/queries/`: SQL query definitions
 - `internal/testutils/`: Testing utilities
 - `pkg/manager/`: Core authentication logic
+- `pkg/validator/`: Session validation and caching
+- `pkg/api/v1/`: API endpoint implementations
