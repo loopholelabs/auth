@@ -81,10 +81,6 @@ type MailerOptions struct {
 	MagicLinkTemplatePath string
 }
 
-type TokenOptions struct {
-	Issuer string
-}
-
 type APIOptions struct {
 	TLS      bool
 	Endpoint string
@@ -97,7 +93,6 @@ type Options struct {
 	Device        DeviceOptions
 	Mailer        MailerOptions
 	Configuration configuration.Options
-	Token         TokenOptions
 	API           APIOptions
 }
 

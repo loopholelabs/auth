@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/loopholelabs/auth/cmd/api"
 	"github.com/loopholelabs/cmdutils/pkg/command"
 	"github.com/loopholelabs/cmdutils/pkg/version"
 
@@ -19,7 +20,9 @@ var cmd = command.New(
 	true,
 	version.New[*config.Config](authVersion.GitCommit, authVersion.GoVersion, authVersion.Platform, authVersion.Version, authVersion.BuildDate),
 	config.New,
-	[]command.SetupCommand[*config.Config]{},
+	[]command.SetupCommand[*config.Config]{
+		api.Cmd(),
+	},
 )
 
 func main() {

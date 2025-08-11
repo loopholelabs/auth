@@ -6,11 +6,10 @@ import (
 	"errors"
 
 	"github.com/adrg/xdg"
+	"github.com/loopholelabs/cmdutils/pkg/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
-
-	"github.com/loopholelabs/cmdutils/pkg/config"
 )
 
 var _ config.Config = (*Config)(nil)
@@ -22,30 +21,32 @@ var (
 
 var (
 	ErrFailedToUnmarshalConfig = errors.New("failed to unmarshal config")
+	ErrFailedToValidateConfig  = errors.New("failed to validate config")
 )
 
 type Config struct {
+	API *API `mapstructure:"api"`
 }
 
 func New() *Config {
-	return &Config{}
+	return &Config{
+		API: NewAPI(),
+	}
 }
 
-func (c *Config) RootPersistentFlags(_ *pflag.FlagSet) {
-	// Add flags here as needed
-}
+func (c *Config) RootPersistentFlags(_ *pflag.FlagSet) {}
 
 func (c *Config) GlobalRequiredFlags(_ *cobra.Command) error {
-	return nil
-}
-
-func (c *Config) Parse() error {
 	return nil
 }
 
 func (c *Config) Validate() error {
 	if err := viper.Unmarshal(c); err != nil {
 		return errors.Join(ErrFailedToUnmarshalConfig, err)
+	}
+
+	if err := c.API.Validate(); err != nil {
+		return errors.Join(ErrFailedToValidateConfig, err)
 	}
 
 	return nil
@@ -56,7 +57,7 @@ func (c *Config) DefaultConfigDir() (string, error) {
 }
 
 func (c *Config) DefaultConfigFile() string {
-	return "conduit.yaml"
+	return "auth.yaml"
 }
 
 func (c *Config) DefaultLogDir() (string, error) {
@@ -64,7 +65,7 @@ func (c *Config) DefaultLogDir() (string, error) {
 }
 
 func (c *Config) DefaultLogFile() string {
-	return "conduit.log"
+	return "auth.log"
 }
 
 func (c *Config) SetConfigFile(file string) {
