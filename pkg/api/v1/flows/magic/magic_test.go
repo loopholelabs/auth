@@ -145,7 +145,7 @@ func TestMagicLogin(t *testing.T) {
 		var errorResp map[string]interface{}
 		err := json.Unmarshal(resp.Body.Bytes(), &errorResp)
 		require.NoError(t, err)
-		assert.Equal(t, "mailer is not configured", errorResp["detail"])
+		assert.Equal(t, "email provider is not enabled", errorResp["detail"])
 	})
 
 	t.Run("WithDeviceCode", func(t *testing.T) {
