@@ -1,6 +1,6 @@
 //SPDX-License-Identifier: Apache-2.0
 
-package models
+package credential
 
 const (
 	SessionCookie = "authentication_session"
