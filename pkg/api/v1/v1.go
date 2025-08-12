@@ -5,27 +5,28 @@ package v1
 import (
 	"context"
 	"encoding/base64"
-	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humafiber"
 	"github.com/gofiber/fiber/v2"
-
+	"github.com/loopholelabs/auth/pkg/api/v1/flows"
 	"github.com/loopholelabs/logging/types"
 
 	"github.com/loopholelabs/auth/internal/utils"
 	"github.com/loopholelabs/auth/pkg/api/options"
-	"github.com/loopholelabs/auth/pkg/api/v1/flows"
-	"github.com/loopholelabs/auth/pkg/api/v1/models"
+	"github.com/loopholelabs/auth/pkg/credential"
 )
 
-// SessionCookie is now in models package
+const (
+	Path = "/v1"
+)
 
 type V1 struct {
 	logger types.Logger
 	app    *fiber.App
-	api    huma.API
 
 	options options.Options
 }
@@ -45,10 +46,10 @@ func New(options options.Options, logger types.Logger) *V1 {
 func (v *V1) init() {
 	v.logger.Debug().Msg("initializing")
 
-	// Configure Huma API
-	config := huma.DefaultConfig("Auth API v1", "1.0")
+	// Configure OpenAPI
+	config := huma.DefaultConfig("Authentication API", "1.0")
 	config.DocsPath = ""
-	config.Info.Description = "Authentication API, v1"
+	config.Info.Description = "Authentication API"
 	config.Info.TermsOfService = "https://loopholelabs.io/privacy"
 	config.Info.Contact = &huma.Contact{
 		Name:  "API Support",
@@ -59,14 +60,18 @@ func (v *V1) init() {
 		URL:  "https://www.apache.org/licenses/LICENSE-2.0.html",
 	}
 
-	// Configure servers
-	scheme := "http"
-	if v.options.TLS {
-		scheme = "https"
+	server := &url.URL{
+		Scheme: "http",
+		Host:   v.options.Endpoint,
+		Path:   Path,
 	}
+	if v.options.TLS {
+		server.Scheme = "https"
+	}
+
 	config.Servers = []*huma.Server{
 		{
-			URL: fmt.Sprintf("%s://%s/v1", scheme, v.options.Endpoint),
+			URL: server.String(),
 		},
 	}
 
@@ -75,98 +80,73 @@ func (v *V1) init() {
 		"cookieAuth": {
 			Type:        "apiKey",
 			In:          "cookie",
-			Name:        models.SessionCookie,
-			Description: "User Session Cookie",
+			Name:        credential.SessionCookie,
+			Description: "session cookie",
 		},
 	}
 
-	// Create Huma API with Fiber adapter
-	v.api = humafiber.New(v.app, config)
+	prefixes := []string{"v1"}
+	api := humafiber.New(v.app, config)
 
-	// Register core endpoints
-	v.registerCoreEndpoints()
-
-	// Register flow endpoints
-	flows.RegisterEndpoints(v.api, v.options, v.logger)
-}
-
-func (v *V1) registerCoreEndpoints() {
-	// Health endpoint
-	huma.Register(v.api, huma.Operation{
-		OperationID: "health",
-		Method:      "GET",
-		Path:        "/health",
-		Summary:     "Health check",
-		Description: "Returns the health check status",
-		Tags:        []string{"health"},
+	healthPrefix := append(prefixes, "health")
+	huma.Register(api, huma.Operation{
+		OperationID:   strings.Join(healthPrefix, "-"),
+		Method:        http.MethodGet,
+		Path:          "/health",
+		Summary:       "health check",
+		Description:   "returns the health check status",
+		Tags:          healthPrefix,
+		DefaultStatus: 200,
+		Errors:        []int{503},
 	}, v.health)
 
-	// Public endpoint
-	huma.Register(v.api, huma.Operation{
-		OperationID: "public",
-		Method:      "GET",
-		Path:        "/public",
-		Summary:     "Get public keys and session information",
-		Description: "Returns the current public key and session information",
-		Tags:        []string{"public"},
+	publicPrefix := append(prefixes, "public")
+	huma.Register(api, huma.Operation{
+		OperationID:   strings.Join(publicPrefix, "-"),
+		Method:        http.MethodGet,
+		Path:          "/public",
+		Summary:       "get public keys and session information",
+		Description:   "returns the current public key and session information",
+		Tags:          publicPrefix,
+		DefaultStatus: 200,
+		Errors:        []int{500},
 	}, v.public)
 
-	// Logout endpoint
-	huma.Register(v.api, huma.Operation{
-		OperationID: "logout",
-		Method:      "POST",
-		Path:        "/logout",
-		Summary:     "Logout user",
-		Description: "Logs out a user by revoking their session",
-		Tags:        []string{"logout"},
+	logoutPrefix := append(prefixes, "logout")
+	huma.Register(api, huma.Operation{
+		OperationID:   strings.Join(logoutPrefix, "-"),
+		Method:        http.MethodPost,
+		Path:          "/logout",
+		Summary:       "logout user",
+		Description:   "logs out a user by revoking their session",
+		Tags:          logoutPrefix,
+		DefaultStatus: 200,
 	}, v.logout)
 
-	v.app.Get("/docs", v.docs)
+	flows.New(v.options, v.logger).Register(prefixes, api)
 }
 
 func (v *V1) App() *fiber.App {
 	return v.app
 }
 
-func (v *V1) docs(ctx *fiber.Ctx) error {
-	ctx.Set("content-type", "text/html; charset=utf-8")
-	return ctx.SendString(`<!doctype html>
-<html>
-  <head>
-    <title>API Reference</title>
-    <meta charset="utf-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1" />
-  </head>
-  <body>
-    <script
-      id="api-reference"
-      data-url="/v1/openapi.json"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
-  </body>
-</html>`)
-}
-
-func (v *V1) health(_ context.Context, _ *struct{}) (*HealthResponse, error) {
+func (v *V1) health(_ context.Context, _ *struct{}) (*struct{}, error) {
 	v.logger.Trace().Msg("health")
-	if v.options.Manager.IsHealthy() && v.options.Validator.IsHealthy() {
-		return &HealthResponse{StatusCode: 200}, nil
+	if !v.options.Manager.IsHealthy() || !v.options.Validator.IsHealthy() {
+		return nil, huma.Error503ServiceUnavailable("service unhealthy")
 	}
-	return &HealthResponse{StatusCode: 503}, nil
+	return nil, nil
 }
 
-func (v *V1) public(_ context.Context, _ *struct{}) (*PublicResponse, error) {
-	v.logger.Debug().Msg("public")
-
+func (v *V1) public(_ context.Context, _ *struct{}) (*V1PublicResponse, error) {
 	publicKey := v.options.Manager.Configuration().EncodedPublicKey()
 	if publicKey == nil {
 		v.logger.Error().Msg("public key is nil")
-		return nil, huma.Error500InternalServerError("internal server error")
+		return nil, huma.Error500InternalServerError("public key is nil")
 	}
 
-	response := &PublicResponse{
-		Body: PublicResponseBody{
+	response := &V1PublicResponse{
+		Body: V1PublicResponseBody{
 			PublicKey:           base64.StdEncoding.EncodeToString(publicKey),
 			RevokedSessions:     v.options.Validator.SessionRevocationList(),
 			InvalidatedSessions: v.options.Validator.SessionInvalidationList(),
@@ -181,18 +161,12 @@ func (v *V1) public(_ context.Context, _ *struct{}) (*PublicResponse, error) {
 	return response, nil
 }
 
-func (v *V1) logout(ctx context.Context, _ *LogoutRequest) (*LogoutResponse, error) {
-	v.logger.Debug().Msg("logout")
+func (v *V1) logout(ctx context.Context, input *V1LogoutRequest) (*V1LogoutResponse, error) {
+	response := &V1LogoutResponse{}
 
-	// Extract the Fiber context to access cookies
-	humaCtx := ctx.(huma.Context)
-	fiberCtx := humafiber.Unwrap(humaCtx)
-
-	output := &LogoutResponse{StatusCode: 200}
-
-	cookie := fiberCtx.Cookies(models.SessionCookie)
-	if cookie != "" {
-		session, _, err := v.options.Manager.ParseSession(cookie)
+	// Try to get cookie from Fiber context if available
+	if input.Cookie != "" {
+		session, _, err := v.options.Manager.ParseSession(input.Cookie)
 		if err == nil {
 			err = v.options.Manager.RevokeSession(ctx, session.Identifier)
 			if err != nil {
@@ -201,8 +175,8 @@ func (v *V1) logout(ctx context.Context, _ *LogoutRequest) (*LogoutResponse, err
 		}
 
 		// Clear the cookie by setting it with MaxAge 0
-		output.Headers.SetCookie = &http.Cookie{
-			Name:     models.SessionCookie,
+		response.Headers.SetCookie = &http.Cookie{
+			Name:     credential.SessionCookie,
 			Value:    "",
 			MaxAge:   0,
 			Path:     "/",
@@ -213,5 +187,5 @@ func (v *V1) logout(ctx context.Context, _ *LogoutRequest) (*LogoutResponse, err
 		}
 	}
 
-	return output, nil
+	return response, nil
 }

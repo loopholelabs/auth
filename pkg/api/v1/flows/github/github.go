@@ -7,14 +7,15 @@ import (
 	"database/sql"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/danielgtaylor/huma/v2/adapters/humafiber"
 
 	"github.com/loopholelabs/logging/types"
 
+	"github.com/loopholelabs/auth/pkg/api/models"
 	"github.com/loopholelabs/auth/pkg/api/options"
-	"github.com/loopholelabs/auth/pkg/api/v1/models"
+	"github.com/loopholelabs/auth/pkg/credential"
 	"github.com/loopholelabs/auth/pkg/manager/flow"
 )
 
@@ -23,97 +24,43 @@ type Github struct {
 	options options.Options
 }
 
-// Request and Response types
-
-type LoginInput struct {
-	Next string `query:"next" required:"true" doc:"Redirect URL after authentication"`
-	Code string `query:"code" maxLength:"8" doc:"Optional device flow code"`
-}
-
-type GithubLoginHeaders struct {
-	Location string `header:"Location" doc:"Redirect to GitHub OAuth"`
-}
-
-type LoginOutput struct {
-	StatusCode int `json:"-" default:"307"`
-	Headers    GithubLoginHeaders
-}
-
-type CallbackInput struct {
-	Code  string `query:"code" required:"true" doc:"OAuth authorization code"`
-	State string `query:"state" required:"true" doc:"OAuth state parameter"`
-}
-
-type GithubCallbackHeaders struct {
-	SetCookie *http.Cookie `header:"Set-Cookie,omitempty" doc:"Session cookie"`
-	Location  string       `header:"Location" doc:"Redirect to next URL"`
-}
-
-type CallbackOutput struct {
-	StatusCode int `json:"-" default:"307"`
-	Headers    GithubCallbackHeaders
-}
-
-// RegisterEndpoints registers the GitHub OAuth endpoints with Huma
-func RegisterEndpoints(api huma.API, options options.Options, logger types.Logger) {
-	g := &Github{
+func New(options options.Options, logger types.Logger) *Github {
+	return &Github{
 		logger:  logger.SubLogger("GITHUB"),
 		options: options,
 	}
+}
 
-	huma.Register(api, huma.Operation{
-		OperationID: "github-login",
-		Method:      "GET",
-		Path:        "/flows/github/login",
-		Summary:     "Initiate GitHub OAuth login",
-		Description: "Redirects the user to GitHub for OAuth authentication",
-		Tags:        []string{"github", "login"},
-		Responses: map[string]*huma.Response{
-			"307": {
-				Description: "Redirect to GitHub OAuth",
-				Headers: map[string]*huma.Param{
-					"Location": {
-						Description: "GitHub OAuth URL",
-						Required:    true,
-					},
-				},
-			},
-		},
+func (g *Github) Register(prefixes []string, group huma.API) {
+	prefixes = append(prefixes, "github")
+	group = huma.NewGroup(group, "/github")
+
+	loginPrefix := append(prefixes, "login")
+	huma.Register(group, huma.Operation{
+		OperationID:   strings.Join(loginPrefix, "-"),
+		Method:        http.MethodGet,
+		Path:          "/login",
+		Summary:       "initiate github OAuth flow",
+		Description:   "initiates the github OAuth flow and redirects github for authentication",
+		Tags:          loginPrefix,
+		DefaultStatus: 307,
+		Errors:        []int{400, 401, 404, 500},
 	}, g.login)
 
-	huma.Register(api, huma.Operation{
-		OperationID: "github-callback",
-		Method:      "GET",
-		Path:        "/flows/github/callback",
-		Summary:     "GitHub OAuth callback",
-		Description: "Handles the OAuth callback from GitHub and creates a session",
-		Tags:        []string{"github", "callback"},
-		Responses: map[string]*huma.Response{
-			"307": {
-				Description: "Redirect to application",
-				Headers: map[string]*huma.Param{
-					"Location": {
-						Description: "Application redirect URL",
-						Required:    true,
-					},
-					"Set-Cookie": {
-						Description: "Session cookie (set for non-device flows)",
-						Required:    false,
-					},
-				},
-			},
-		},
+	callbackPrefix := append(prefixes, "callback")
+	huma.Register(group, huma.Operation{
+		OperationID:   strings.Join(callbackPrefix, "-"),
+		Method:        http.MethodGet,
+		Path:          "/callback",
+		Summary:       "github OAuth callback",
+		Description:   "handles the OAuth callback from github and creates a session",
+		Tags:          callbackPrefix,
+		DefaultStatus: 307,
+		Errors:        []int{401, 404, 500},
 	}, g.callback)
 }
 
-// Handler implementations
-
-func (g *Github) login(ctx context.Context, input *LoginInput) (*LoginOutput, error) {
-	// Extract Fiber context for IP logging
-	humaCtx := ctx.(huma.Context)
-	fiberCtx := humafiber.Unwrap(humaCtx)
-	g.logger.Debug().Str("IP", fiberCtx.IP()).Msg("login")
-
+func (g *Github) login(ctx context.Context, input *GithubLoginRequest) (*GithubLoginResponse, error) {
 	if g.options.Manager.Github() == nil {
 		return nil, huma.Error401Unauthorized("github provider is not enabled")
 	}
@@ -128,7 +75,7 @@ func (g *Github) login(ctx context.Context, input *LoginInput) (*LoginOutput, er
 		deviceIdentifier, err = g.options.Manager.Device().ExistsFlow(ctx, input.Code)
 		if err != nil {
 			g.logger.Error().Err(err).Msg("error checking if flow exists")
-			return nil, huma.Error500InternalServerError("internal server error")
+			return nil, huma.Error500InternalServerError("error checking if flow exists")
 		}
 		if deviceIdentifier == "" {
 			return nil, huma.Error404NotFound("device flow does not exist")
@@ -138,23 +85,17 @@ func (g *Github) login(ctx context.Context, input *LoginInput) (*LoginOutput, er
 	redirect, err := g.options.Manager.Github().CreateFlow(ctx, deviceIdentifier, "", input.Next)
 	if err != nil {
 		g.logger.Error().Err(err).Msg("failed to get redirect")
-		return nil, huma.Error500InternalServerError("internal server error")
+		return nil, huma.Error500InternalServerError("failed to get redirect")
 	}
 
-	return &LoginOutput{
-		StatusCode: 307,
+	return &GithubLoginResponse{
 		Headers: GithubLoginHeaders{
 			Location: redirect,
 		},
 	}, nil
 }
 
-func (g *Github) callback(ctx context.Context, input *CallbackInput) (*CallbackOutput, error) {
-	// Extract Fiber context for IP logging
-	humaCtx := ctx.(huma.Context)
-	fiberCtx := humafiber.Unwrap(humaCtx)
-	g.logger.Debug().Str("IP", fiberCtx.IP()).Msg("callback")
-
+func (g *Github) callback(ctx context.Context, input *GithubCallbackRequest) (*GithubCallbackResponse, error) {
 	if g.options.Manager.Github() == nil {
 		return nil, huma.Error401Unauthorized("github provider is not enabled")
 	}
@@ -165,7 +106,7 @@ func (g *Github) callback(ctx context.Context, input *CallbackInput) (*CallbackO
 			return nil, huma.Error404NotFound("flow does not exist")
 		}
 		g.logger.Error().Err(err).Msg("failed to complete flow")
-		return nil, huma.Error500InternalServerError("internal server error")
+		return nil, huma.Error500InternalServerError("failed to complete flow")
 	}
 
 	if f.DeviceIdentifier != "" {
@@ -177,12 +118,11 @@ func (g *Github) callback(ctx context.Context, input *CallbackInput) (*CallbackO
 	session, err := g.options.Manager.CreateSession(ctx, f, flow.GithubProvider)
 	if err != nil {
 		g.logger.Error().Err(err).Msg("failed to create session")
-		return nil, huma.Error500InternalServerError("internal server error")
+		return nil, huma.Error500InternalServerError("failed to create session")
 	}
 
-	output := &CallbackOutput{
-		StatusCode: 307,
-		Headers: GithubCallbackHeaders{
+	response := &GithubCallbackResponse{
+		Headers: models.SessionWithRedirectHeaders{
 			Location: f.NextURL,
 		},
 	}
@@ -192,18 +132,18 @@ func (g *Github) callback(ctx context.Context, input *CallbackInput) (*CallbackO
 		err = g.options.Manager.Device().CompleteFlow(ctx, f.DeviceIdentifier, session.Identifier)
 		if err != nil {
 			g.logger.Error().Err(err).Msg("failed to complete flow")
-			return nil, huma.Error500InternalServerError("internal server error")
+			return nil, huma.Error500InternalServerError("failed to complete flow")
 		}
 	} else {
 		// Regular flow - set session cookie
 		token, err := g.options.Manager.SignSession(session)
 		if err != nil {
 			g.logger.Error().Err(err).Msg("error signing session")
-			return nil, huma.Error500InternalServerError("internal server error")
+			return nil, huma.Error500InternalServerError("error signing session")
 		}
 
-		output.Headers.SetCookie = &http.Cookie{
-			Name:     models.SessionCookie,
+		response.Headers.SetCookie = &http.Cookie{
+			Name:     credential.SessionCookie,
 			Value:    token,
 			Expires:  session.ExpiresAt,
 			Domain:   g.options.Endpoint,
@@ -213,5 +153,5 @@ func (g *Github) callback(ctx context.Context, input *CallbackInput) (*CallbackO
 		}
 	}
 
-	return output, nil
+	return response, nil
 }

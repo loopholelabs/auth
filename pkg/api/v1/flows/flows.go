@@ -14,13 +14,23 @@ import (
 	"github.com/loopholelabs/auth/pkg/api/v1/flows/magic"
 )
 
-// RegisterEndpoints registers all flow endpoints with Huma
-func RegisterEndpoints(api huma.API, options options.Options, logger types.Logger) {
-	flowLogger := logger.SubLogger("FLOWS")
+type Flows struct {
+	logger  types.Logger
+	options options.Options
+}
 
-	// Register each flow's endpoints
-	device.RegisterEndpoints(api, options, flowLogger)
-	google.RegisterEndpoints(api, options, flowLogger)
-	github.RegisterEndpoints(api, options, flowLogger)
-	magic.RegisterEndpoints(api, options, flowLogger)
+func New(options options.Options, logger types.Logger) *Flows {
+	return &Flows{
+		logger:  logger.SubLogger("FLOWS"),
+		options: options,
+	}
+}
+
+func (f *Flows) Register(prefixes []string, group huma.API) {
+	prefixes = append(prefixes, "flows")
+	group = huma.NewGroup(group, "/flows")
+	device.New(f.options, f.logger).Register(prefixes, group)
+	github.New(f.options, f.logger).Register(prefixes, group)
+	google.New(f.options, f.logger).Register(prefixes, group)
+	magic.New(f.options, f.logger).Register(prefixes, group)
 }

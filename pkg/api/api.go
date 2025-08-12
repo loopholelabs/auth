@@ -22,10 +22,6 @@ var (
 	ErrStoppingAPI = errors.New("error stopping API")
 )
 
-const (
-	V1Path = "/v1"
-)
-
 type API struct {
 	logger types.Logger
 	app    *fiber.App
@@ -53,7 +49,7 @@ func (s *API) Start(listenAddress string) error {
 	}
 
 	s.app.Use(cors.New())
-	s.app.Mount(V1Path, v1.New(s.options, s.logger).App())
+	s.app.Mount(v1.Path, v1.New(s.options, s.logger).App())
 
 	return s.app.Listener(listener)
 }

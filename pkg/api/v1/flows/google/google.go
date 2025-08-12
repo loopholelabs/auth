@@ -7,14 +7,15 @@ import (
 	"database/sql"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/danielgtaylor/huma/v2/adapters/humafiber"
 
 	"github.com/loopholelabs/logging/types"
 
+	"github.com/loopholelabs/auth/pkg/api/models"
 	"github.com/loopholelabs/auth/pkg/api/options"
-	"github.com/loopholelabs/auth/pkg/api/v1/models"
+	"github.com/loopholelabs/auth/pkg/credential"
 	"github.com/loopholelabs/auth/pkg/manager/flow"
 )
 
@@ -23,97 +24,43 @@ type Google struct {
 	options options.Options
 }
 
-// Request and Response types
-
-type LoginInput struct {
-	Next string `query:"next" required:"true" doc:"Redirect URL after authentication"`
-	Code string `query:"code" maxLength:"8" doc:"Optional device flow code"`
-}
-
-type GoogleLoginHeaders struct {
-	Location string `header:"Location" doc:"Redirect to Google OAuth"`
-}
-
-type LoginOutput struct {
-	StatusCode int `json:"-" default:"307"`
-	Headers    GoogleLoginHeaders
-}
-
-type CallbackInput struct {
-	Code  string `query:"code" required:"true" doc:"OAuth authorization code"`
-	State string `query:"state" required:"true" doc:"OAuth state parameter"`
-}
-
-type GoogleCallbackHeaders struct {
-	SetCookie *http.Cookie `header:"Set-Cookie,omitempty" doc:"Session cookie"`
-	Location  string       `header:"Location" doc:"Redirect to next URL"`
-}
-
-type CallbackOutput struct {
-	StatusCode int `json:"-" default:"307"`
-	Headers    GoogleCallbackHeaders
-}
-
-// RegisterEndpoints registers the Google OAuth endpoints with Huma
-func RegisterEndpoints(api huma.API, options options.Options, logger types.Logger) {
-	g := &Google{
+func New(options options.Options, logger types.Logger) *Google {
+	return &Google{
 		logger:  logger.SubLogger("GOOGLE"),
 		options: options,
 	}
+}
 
-	huma.Register(api, huma.Operation{
-		OperationID: "google-login",
-		Method:      "GET",
-		Path:        "/flows/google/login",
-		Summary:     "Initiate Google OAuth login",
-		Description: "Redirects the user to Google for OAuth authentication",
-		Tags:        []string{"google", "login"},
-		Responses: map[string]*huma.Response{
-			"307": {
-				Description: "Redirect to Google OAuth",
-				Headers: map[string]*huma.Param{
-					"Location": {
-						Description: "Google OAuth URL",
-						Required:    true,
-					},
-				},
-			},
-		},
+func (g *Google) Register(prefixes []string, group huma.API) {
+	prefixes = append(prefixes, "google")
+	group = huma.NewGroup(group, "/google")
+
+	loginPrefix := append(prefixes, "login")
+	huma.Register(group, huma.Operation{
+		OperationID:   strings.Join(loginPrefix, "-"),
+		Method:        http.MethodGet,
+		Path:          "/login",
+		Summary:       "initiate google OAuth login",
+		Description:   "initiates the google OAuth flow and redirects google for authentication",
+		Tags:          loginPrefix,
+		DefaultStatus: 307,
+		Errors:        []int{400, 401, 404, 500},
 	}, g.login)
 
-	huma.Register(api, huma.Operation{
-		OperationID: "google-callback",
-		Method:      "GET",
-		Path:        "/flows/google/callback",
-		Summary:     "Google OAuth callback",
-		Description: "Handles the OAuth callback from Google and creates a session",
-		Tags:        []string{"google", "callback"},
-		Responses: map[string]*huma.Response{
-			"307": {
-				Description: "Redirect to application",
-				Headers: map[string]*huma.Param{
-					"Location": {
-						Description: "Application redirect URL",
-						Required:    true,
-					},
-					"Set-Cookie": {
-						Description: "Session cookie (set for non-device flows)",
-						Required:    false,
-					},
-				},
-			},
-		},
+	callbackPrefix := append(prefixes, "callback")
+	huma.Register(group, huma.Operation{
+		OperationID:   strings.Join(callbackPrefix, "-"),
+		Method:        http.MethodGet,
+		Path:          "/callback",
+		Summary:       "google OAuth callback",
+		Description:   "handles the OAuth callback from google and creates a session",
+		Tags:          callbackPrefix,
+		DefaultStatus: 307,
+		Errors:        []int{401, 404, 500},
 	}, g.callback)
 }
 
-// Handler implementations
-
-func (g *Google) login(ctx context.Context, input *LoginInput) (*LoginOutput, error) {
-	// Extract Fiber context for IP logging
-	humaCtx := ctx.(huma.Context)
-	fiberCtx := humafiber.Unwrap(humaCtx)
-	g.logger.Debug().Str("IP", fiberCtx.IP()).Msg("login")
-
+func (g *Google) login(ctx context.Context, input *GoogleLoginRequest) (*GoogleLoginResponse, error) {
 	if g.options.Manager.Google() == nil {
 		return nil, huma.Error401Unauthorized("google provider is not enabled")
 	}
@@ -128,7 +75,7 @@ func (g *Google) login(ctx context.Context, input *LoginInput) (*LoginOutput, er
 		deviceIdentifier, err = g.options.Manager.Device().ExistsFlow(ctx, input.Code)
 		if err != nil {
 			g.logger.Error().Err(err).Msg("error checking if flow exists")
-			return nil, huma.Error500InternalServerError("internal server error")
+			return nil, huma.Error500InternalServerError("error checking if flow exists")
 		}
 		if deviceIdentifier == "" {
 			return nil, huma.Error404NotFound("device flow does not exist")
@@ -138,23 +85,15 @@ func (g *Google) login(ctx context.Context, input *LoginInput) (*LoginOutput, er
 	redirect, err := g.options.Manager.Google().CreateFlow(ctx, deviceIdentifier, "", input.Next)
 	if err != nil {
 		g.logger.Error().Err(err).Msg("failed to get redirect")
-		return nil, huma.Error500InternalServerError("internal server error")
+		return nil, huma.Error500InternalServerError("failed to get redirect")
 	}
 
-	return &LoginOutput{
-		StatusCode: 307,
-		Headers: GoogleLoginHeaders{
-			Location: redirect,
-		},
-	}, nil
+	response := &GoogleLoginResponse{}
+	response.Headers.Location = redirect
+	return response, nil
 }
 
-func (g *Google) callback(ctx context.Context, input *CallbackInput) (*CallbackOutput, error) {
-	// Extract Fiber context for IP logging
-	humaCtx := ctx.(huma.Context)
-	fiberCtx := humafiber.Unwrap(humaCtx)
-	g.logger.Debug().Str("IP", fiberCtx.IP()).Msg("callback")
-
+func (g *Google) callback(ctx context.Context, input *GoogleCallbackRequest) (*GoogleCallbackResponse, error) {
 	if g.options.Manager.Google() == nil {
 		return nil, huma.Error401Unauthorized("google provider is not enabled")
 	}
@@ -165,7 +104,7 @@ func (g *Google) callback(ctx context.Context, input *CallbackInput) (*CallbackO
 			return nil, huma.Error404NotFound("flow does not exist")
 		}
 		g.logger.Error().Err(err).Msg("failed to complete flow")
-		return nil, huma.Error500InternalServerError("internal server error")
+		return nil, huma.Error500InternalServerError("failed to complete flow")
 	}
 
 	if f.DeviceIdentifier != "" {
@@ -177,12 +116,11 @@ func (g *Google) callback(ctx context.Context, input *CallbackInput) (*CallbackO
 	session, err := g.options.Manager.CreateSession(ctx, f, flow.GoogleProvider)
 	if err != nil {
 		g.logger.Error().Err(err).Msg("failed to create session")
-		return nil, huma.Error500InternalServerError("internal server error")
+		return nil, huma.Error500InternalServerError("failed to create session")
 	}
 
-	output := &CallbackOutput{
-		StatusCode: 307,
-		Headers: GoogleCallbackHeaders{
+	response := &GoogleCallbackResponse{
+		Headers: models.SessionWithRedirectHeaders{
 			Location: f.NextURL,
 		},
 	}
@@ -202,8 +140,8 @@ func (g *Google) callback(ctx context.Context, input *CallbackInput) (*CallbackO
 			return nil, huma.Error500InternalServerError("internal server error")
 		}
 
-		output.Headers.SetCookie = &http.Cookie{
-			Name:     models.SessionCookie,
+		response.Headers.SetCookie = &http.Cookie{
+			Name:     credential.SessionCookie,
 			Value:    token,
 			Expires:  session.ExpiresAt,
 			Domain:   g.options.Endpoint,
@@ -213,5 +151,5 @@ func (g *Google) callback(ctx context.Context, input *CallbackInput) (*CallbackO
 		}
 	}
 
-	return output, nil
+	return response, nil
 }
