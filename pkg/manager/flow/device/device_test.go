@@ -296,8 +296,6 @@ func TestDevice_CompleteFlow(t *testing.T) {
 		sessionID := createTestSession(t)
 		nonExistentID := uuid.New().String()
 
-		// Note: MySQL UPDATE doesn't error when no rows match
-		// The implementation doesn't check affected rows, so this won't error
 		err := device.CompleteFlow(t.Context(), nonExistentID, sessionID)
 		assert.ErrorIs(t, err, sql.ErrNoRows)
 	})
