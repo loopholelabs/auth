@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jellydator/ttlcache/v3"
 
 	"github.com/loopholelabs/logging/types"
 
@@ -46,7 +47,15 @@ var (
 	ErrInvalidFlowData    = errors.New("invalid flow data")
 	ErrSessionIsExpired   = errors.New("session is expired")
 	ErrInvalidSessionRole = errors.New("invalid session role")
+	ErrValidatingSession  = errors.New("error validating session")
+	ErrRevokedSession     = errors.New("revoked session")
+	ErrInvalidatedSession = errors.New("invalidated session")
 )
+
+type InvalidatedSession struct {
+	Identifier string `json:"identifier"`
+	Generation uint32 `json:"generation"`
+}
 
 type GithubOptions struct {
 	Enabled      bool
@@ -108,6 +117,12 @@ type Manager struct {
 	device *device.Device
 
 	mailer mailer.Mailer
+
+	sessionRevocationCache   *ttlcache.Cache[string, struct{}]
+	sessionInvalidationCache *ttlcache.Cache[string, uint32]
+
+	sessionRevocationHealthy   bool
+	sessionInvalidationHealthy bool
 
 	healthy bool
 	mu      sync.RWMutex
@@ -197,19 +212,27 @@ func New(options Options, db *db.DB, logger types.Logger) (*Manager, error) {
 		}
 	}
 
+	sessionRevocationCache := ttlcache.New[string, struct{}](ttlcache.WithTTL[string, struct{}](c.SessionExpiry()))
+	sessionInvalidationCache := ttlcache.New[string, uint32](ttlcache.WithTTL[string, uint32](c.SessionExpiry()))
+
 	ctx, cancel := context.WithCancel(context.Background())
 	m := &Manager{
-		logger:        logger,
-		db:            db,
-		configuration: c,
-		github:        gh,
-		google:        gg,
-		magic:         mg,
-		device:        dv,
-		mailer:        ml,
-		ctx:           ctx,
-		cancel:        cancel,
+		logger:                   logger,
+		db:                       db,
+		configuration:            c,
+		github:                   gh,
+		google:                   gg,
+		magic:                    mg,
+		device:                   dv,
+		mailer:                   ml,
+		sessionRevocationCache:   sessionRevocationCache,
+		sessionInvalidationCache: sessionInvalidationCache,
+		ctx:                      ctx,
+		cancel:                   cancel,
 	}
+
+	m.sessionRevocationsRefresh()
+	m.sessionInvalidationsRefresh()
 
 	m.healthCheck()
 
@@ -218,6 +241,9 @@ func New(options Options, db *db.DB, logger types.Logger) (*Manager, error) {
 
 	m.wg.Add(1)
 	go m.doSessionRevocationGC()
+
+	m.wg.Add(1)
+	go m.doRefresh()
 
 	m.wg.Add(1)
 	go m.doHealthCheck()
@@ -594,10 +620,54 @@ func (m *Manager) RevokeSession(ctx context.Context, identifier string) error {
 	return nil
 }
 
+func (m *Manager) SessionRevocationList() []string {
+	return m.sessionRevocationCache.Keys()
+}
+
+func (m *Manager) SessionInvalidationList() []InvalidatedSession {
+	items := m.sessionInvalidationCache.Items()
+	sessions := make([]InvalidatedSession, 0, len(items))
+	for _, item := range items {
+		sessions = append(sessions, InvalidatedSession{
+			Identifier: item.Key(),
+			Generation: item.Value(),
+		})
+	}
+	return sessions
+}
+
+func (m *Manager) IsSessionRevoked(identifier string) bool {
+	return m.sessionRevocationCache.Get(identifier, ttlcache.WithDisableTouchOnHit[string, struct{}]()) != nil
+}
+
+func (m *Manager) IsSessionInvalidated(identifier string, generation uint32) bool {
+	item := m.sessionInvalidationCache.Get(identifier, ttlcache.WithDisableTouchOnHit[string, uint32]())
+	if item == nil {
+		return false
+	}
+	return item.Value() >= generation
+}
+
+func (m *Manager) IsSessionValid(token string) (credential.Session, bool, error) {
+	_, publicKey := m.Configuration().SigningKey()
+	_, previousPublicKey := m.Configuration().PreviousSigningKey()
+	session, replace, err := credential.ParseSession(token, publicKey, previousPublicKey)
+	if err != nil {
+		return credential.Session{}, replace, errors.Join(ErrValidatingSession, err)
+	}
+	if m.IsSessionRevoked(session.Identifier) {
+		return credential.Session{}, replace, errors.Join(ErrValidatingSession, ErrRevokedSession)
+	}
+	if m.IsSessionInvalidated(session.Identifier, session.Generation) {
+		return credential.Session{}, replace, errors.Join(ErrValidatingSession, ErrInvalidatedSession)
+	}
+	return session, replace, nil
+}
+
 func (m *Manager) IsHealthy() bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	return m.healthy
+	return m.healthy && m.sessionRevocationHealthy && m.sessionInvalidationHealthy
 }
 
 func (m *Manager) Close() error {
@@ -677,6 +747,70 @@ func (m *Manager) doSessionRevocationGC() {
 			} else {
 				m.logger.Debug().Msgf("garbage collected %d expired session revocations", deleted)
 			}
+		}
+	}
+}
+
+func (m *Manager) sessionRevocationsRefresh() {
+	m.sessionRevocationCache.DeleteExpired()
+	ctx, cancel := context.WithTimeout(m.ctx, Timeout)
+	defer cancel()
+	refreshed := 0
+	sessionRevocations, err := m.db.Queries.GetAllSessionRevocations(ctx)
+	if err != nil {
+		m.logger.Error().Err(err).Msg("failed to update session revocations")
+		m.mu.Lock()
+		m.sessionRevocationHealthy = false
+		m.mu.Unlock()
+	} else {
+		for _, sessionRevocation := range sessionRevocations {
+			if sessionRevocation.ExpiresAt.After(time.Now()) {
+				m.sessionRevocationCache.Set(sessionRevocation.SessionIdentifier, struct{}{}, time.Until(sessionRevocation.ExpiresAt))
+				refreshed++
+			}
+		}
+		m.logger.Debug().Msgf("refresh %d session revocations", refreshed)
+		m.mu.Lock()
+		m.sessionRevocationHealthy = true
+		m.mu.Unlock()
+	}
+}
+
+func (m *Manager) sessionInvalidationsRefresh() {
+	m.sessionInvalidationCache.DeleteExpired()
+	ctx, cancel := context.WithTimeout(m.ctx, Timeout)
+	defer cancel()
+	refreshed := 0
+	sessionInvalidations, err := m.db.Queries.GetAllSessionInvalidations(ctx)
+	if err != nil {
+		m.logger.Error().Err(err).Msg("failed to update session invalidations")
+		m.mu.Lock()
+		m.sessionInvalidationHealthy = false
+		m.mu.Unlock()
+	} else {
+		for _, sessionInvalidation := range sessionInvalidations {
+			if sessionInvalidation.ExpiresAt.After(time.Now()) {
+				m.sessionInvalidationCache.Set(sessionInvalidation.SessionIdentifier, sessionInvalidation.Generation, time.Until(sessionInvalidation.ExpiresAt))
+				refreshed++
+			}
+		}
+		m.logger.Debug().Msgf("refresh %d session invalidations", refreshed)
+		m.mu.Lock()
+		m.sessionInvalidationHealthy = true
+		m.mu.Unlock()
+	}
+}
+
+func (m *Manager) doRefresh() {
+	defer m.wg.Done()
+	for {
+		select {
+		case <-m.ctx.Done():
+			m.logger.Info().Msg("refresh stopped")
+			return
+		case <-time.After(m.Configuration().PollInterval()):
+			m.sessionRevocationsRefresh()
+			m.sessionInvalidationsRefresh()
 		}
 	}
 }
