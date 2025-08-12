@@ -2244,3 +2244,643 @@ func TestSessionGarbageCollection(t *testing.T) {
 		require.Equal(t, int64(0), deleted, "Expected no sessions to be deleted")
 	})
 }
+
+func TestSessionValidation(t *testing.T) {
+	t.Run("SessionRevocation", func(t *testing.T) {
+		t.Run("EmptyCache", func(t *testing.T) {
+			container := testutils.SetupMySQLContainer(t)
+			logger := logging.Test(t, logging.Zerolog, "test")
+			database, err := db.New(container.URL, logger)
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				require.NoError(t, database.Close())
+			})
+
+			m, err := New(Options{
+				Configuration: configuration.Options{
+					SessionExpiry: time.Minute,
+					PollInterval:  time.Hour, // Long poll interval to control refresh
+				},
+			}, database, logger)
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				err := m.Close()
+				require.NoError(t, err)
+			})
+
+			// Check non-existent session
+			sessionID := uuid.New().String()
+			require.False(t, m.IsSessionRevoked(sessionID))
+		})
+
+		t.Run("CacheRefresh", func(t *testing.T) {
+			container := testutils.SetupMySQLContainer(t)
+			logger := logging.Test(t, logging.Zerolog, "test")
+			database, err := db.New(container.URL, logger)
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				require.NoError(t, database.Close())
+			})
+
+			m, err := New(Options{
+				Configuration: configuration.Options{
+					SessionExpiry: time.Minute,
+					PollInterval:  time.Millisecond * 100, // Short poll interval for test
+				},
+			}, database, logger)
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				err := m.Close()
+				require.NoError(t, err)
+			})
+
+			// Add revocation to database
+			sessionID := uuid.New().String()
+			expiresAt := time.Now().Add(time.Minute).Truncate(time.Second)
+			err = database.Queries.CreateSessionRevocation(t.Context(), generated.CreateSessionRevocationParams{
+				SessionIdentifier: sessionID,
+				ExpiresAt:         expiresAt,
+			})
+			require.NoError(t, err)
+
+			// Initially not in cache
+			require.False(t, m.IsSessionRevoked(sessionID))
+
+			// Force refresh
+			m.sessionRevocationsRefresh()
+
+			// Now should be in cache
+			require.True(t, m.IsSessionRevoked(sessionID))
+		})
+
+		t.Run("MultipleSessions", func(t *testing.T) {
+			container := testutils.SetupMySQLContainer(t)
+			logger := logging.Test(t, logging.Zerolog, "test")
+			database, err := db.New(container.URL, logger)
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				require.NoError(t, database.Close())
+			})
+
+			m, err := New(Options{
+				Configuration: configuration.Options{
+					SessionExpiry: time.Minute,
+					PollInterval:  time.Millisecond * 100,
+				},
+			}, database, logger)
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				err := m.Close()
+				require.NoError(t, err)
+			})
+
+			// Add multiple revocations
+			sessionID1 := uuid.New().String()
+			sessionID2 := uuid.New().String()
+			sessionID3 := uuid.New().String()
+			expiresAt := time.Now().Add(time.Minute).Truncate(time.Second)
+
+			err = database.Queries.CreateSessionRevocation(t.Context(), generated.CreateSessionRevocationParams{
+				SessionIdentifier: sessionID1,
+				ExpiresAt:         expiresAt,
+			})
+			require.NoError(t, err)
+
+			err = database.Queries.CreateSessionRevocation(t.Context(), generated.CreateSessionRevocationParams{
+				SessionIdentifier: sessionID2,
+				ExpiresAt:         expiresAt,
+			})
+			require.NoError(t, err)
+
+			// Force refresh
+			m.sessionRevocationsRefresh()
+
+			// Check cache state
+			require.True(t, m.IsSessionRevoked(sessionID1))
+			require.True(t, m.IsSessionRevoked(sessionID2))
+			require.False(t, m.IsSessionRevoked(sessionID3)) // Not revoked
+		})
+
+		t.Run("ExpiredRevocation", func(t *testing.T) {
+			container := testutils.SetupMySQLContainer(t)
+			logger := logging.Test(t, logging.Zerolog, "test")
+			database, err := db.New(container.URL, logger)
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				require.NoError(t, database.Close())
+			})
+
+			m, err := New(Options{
+				Configuration: configuration.Options{
+					SessionExpiry: time.Second * 2, // Short expiry for test (must be >= 1 second for MySQL)
+					PollInterval:  time.Millisecond * 100,
+				},
+			}, database, logger)
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				err := m.Close()
+				require.NoError(t, err)
+			})
+
+			// Add revocation with short expiry
+			sessionID := uuid.New().String()
+			expiresAt := time.Now().Add(time.Second * 2).Truncate(time.Second)
+			err = database.Queries.CreateSessionRevocation(t.Context(), generated.CreateSessionRevocationParams{
+				SessionIdentifier: sessionID,
+				ExpiresAt:         expiresAt,
+			})
+			require.NoError(t, err)
+
+			// Force refresh to populate cache
+			m.sessionRevocationsRefresh()
+			require.True(t, m.IsSessionRevoked(sessionID))
+
+			// Wait for expiry and cache cleanup
+			time.Sleep(time.Second * 3)
+
+			// Should be expired and removed from cache
+			require.False(t, m.IsSessionRevoked(sessionID))
+		})
+	})
+
+	t.Run("SessionInvalidation", func(t *testing.T) {
+		t.Run("EmptyCache", func(t *testing.T) {
+			container := testutils.SetupMySQLContainer(t)
+			logger := logging.Test(t, logging.Zerolog, "test")
+			database, err := db.New(container.URL, logger)
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				require.NoError(t, database.Close())
+			})
+
+			m, err := New(Options{
+				Configuration: configuration.Options{
+					SessionExpiry: time.Minute,
+					PollInterval:  time.Hour,
+				},
+			}, database, logger)
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				err := m.Close()
+				require.NoError(t, err)
+			})
+
+			// Check non-existent session
+			sessionID := uuid.New().String()
+			require.False(t, m.IsSessionInvalidated(sessionID, 0))
+			require.False(t, m.IsSessionInvalidated(sessionID, 10))
+		})
+
+		t.Run("GenerationComparison", func(t *testing.T) {
+			container := testutils.SetupMySQLContainer(t)
+			logger := logging.Test(t, logging.Zerolog, "test")
+			database, err := db.New(container.URL, logger)
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				require.NoError(t, database.Close())
+			})
+
+			m, err := New(Options{
+				Configuration: configuration.Options{
+					SessionExpiry: time.Minute,
+					PollInterval:  time.Millisecond * 100,
+				},
+				Magic: MagicOptions{Enabled: true},
+			}, database, logger)
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				err := m.Close()
+				require.NoError(t, err)
+			})
+
+			// Create a session first
+			flowData := flow.Data{
+				ProviderIdentifier: "test-provider-id",
+				UserName:           "Test User",
+				PrimaryEmail:       "test@example.com",
+				VerifiedEmails:     []string{"test@example.com"},
+			}
+			session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
+			require.NoError(t, err)
+
+			// Add invalidation with generation 5
+			expiresAt := time.Now().Add(time.Minute).Truncate(time.Second)
+			err = database.Queries.CreateSessionInvalidation(t.Context(), generated.CreateSessionInvalidationParams{
+				SessionIdentifier: session.Identifier,
+				Generation:        5,
+				ExpiresAt:         expiresAt,
+			})
+			require.NoError(t, err)
+
+			// Force refresh
+			m.sessionInvalidationsRefresh()
+
+			// IsSessionInvalidated returns true if cached generation >= passed generation
+			// Cached generation is 5, so:
+			require.True(t, m.IsSessionInvalidated(session.Identifier, 4))    // 5 >= 4, invalidation needed
+			require.True(t, m.IsSessionInvalidated(session.Identifier, 5))    // 5 >= 5, invalidation needed
+			require.False(t, m.IsSessionInvalidated(session.Identifier, 6))   // 5 < 6, no invalidation needed
+			require.False(t, m.IsSessionInvalidated(session.Identifier, 100)) // 5 < 100, no invalidation needed
+		})
+
+		t.Run("UpdateUserData", func(t *testing.T) {
+			container := testutils.SetupMySQLContainer(t)
+			logger := logging.Test(t, logging.Zerolog, "test")
+			database, err := db.New(container.URL, logger)
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				require.NoError(t, database.Close())
+			})
+
+			// Create manager
+			m, err := New(Options{
+				Configuration: configuration.Options{
+					SessionExpiry: time.Minute * 30,
+					PollInterval:  time.Millisecond * 100,
+				},
+				Magic: MagicOptions{Enabled: true},
+			}, database, logger)
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				require.NoError(t, m.Close())
+			})
+
+			// Create a session
+			flowData := flow.Data{
+				UserIdentifier:     "",
+				UserName:           "Test User",
+				PrimaryEmail:       "test@example.com",
+				ProviderIdentifier: "test-provider-id",
+				VerifiedEmails:     []string{"test@example.com"},
+			}
+			session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
+			require.NoError(t, err)
+
+			// Initially, no invalidation needed
+			require.False(t, m.IsSessionInvalidated(session.Identifier, session.Generation))
+
+			// Update user's name (this should increment generation)
+			num, err := database.Queries.UpdateUserNameByIdentifier(t.Context(), generated.UpdateUserNameByIdentifierParams{
+				Name:       "Updated User",
+				Identifier: session.UserInfo.Identifier,
+			})
+			require.NoError(t, err)
+			require.Equal(t, int64(1), num)
+
+			// Update session generation
+			num, err = database.Queries.UpdateSessionGenerationByIdentifier(t.Context(), generated.UpdateSessionGenerationByIdentifierParams{
+				Generation: session.Generation + 1,
+				Identifier: session.Identifier,
+			})
+			require.NoError(t, err)
+			require.Equal(t, int64(1), num)
+
+			// Create invalidation entry
+			expiresAt := time.Now().Add(time.Minute * 30).Truncate(time.Second)
+			err = database.Queries.CreateSessionInvalidation(t.Context(), generated.CreateSessionInvalidationParams{
+				SessionIdentifier: session.Identifier,
+				Generation:        session.Generation + 1,
+				ExpiresAt:         expiresAt,
+			})
+			require.NoError(t, err)
+
+			// Manually refresh the cache
+			m.sessionInvalidationsRefresh()
+
+			// The cached generation is session.Generation + 1
+			// IsSessionInvalidated returns true if cached generation >= passed generation
+			// So checking with old generation returns true (cached gen+1 >= gen)
+			require.True(t, m.IsSessionInvalidated(session.Identifier, session.Generation))
+			// New generation should also be valid (cached gen+1 >= gen+1)
+			require.True(t, m.IsSessionInvalidated(session.Identifier, session.Generation+1))
+		})
+
+		t.Run("RevokedSessionCheck", func(t *testing.T) {
+			container := testutils.SetupMySQLContainer(t)
+			logger := logging.Test(t, logging.Zerolog, "test")
+			database, err := db.New(container.URL, logger)
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				require.NoError(t, database.Close())
+			})
+
+			// Create manager
+			m, err := New(Options{
+				Configuration: configuration.Options{
+					SessionExpiry: time.Minute * 30,
+					PollInterval:  time.Millisecond * 100,
+				},
+				Magic: MagicOptions{Enabled: true},
+			}, database, logger)
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				require.NoError(t, m.Close())
+			})
+
+			// Create a session
+			flowData := flow.Data{
+				UserIdentifier:     "",
+				UserName:           "Test User",
+				PrimaryEmail:       "test2@example.com",
+				ProviderIdentifier: "test-provider-id-2",
+				VerifiedEmails:     []string{"test2@example.com"},
+			}
+			session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
+			require.NoError(t, err)
+
+			// Initially not revoked
+			require.False(t, m.IsSessionRevoked(session.Identifier))
+
+			// Revoke the session
+			err = m.RevokeSession(t.Context(), session.Identifier)
+			require.NoError(t, err)
+
+			// Manually refresh the cache
+			m.sessionRevocationsRefresh()
+
+			// Now should be revoked
+			require.True(t, m.IsSessionRevoked(session.Identifier))
+		})
+	})
+
+	t.Run("CombinedCaches", func(t *testing.T) {
+		t.Run("BothCachesActive", func(t *testing.T) {
+			container := testutils.SetupMySQLContainer(t)
+			logger := logging.Test(t, logging.Zerolog, "test")
+			database, err := db.New(container.URL, logger)
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				require.NoError(t, database.Close())
+			})
+
+			m, err := New(Options{
+				Configuration: configuration.Options{
+					SessionExpiry: time.Minute,
+					PollInterval:  time.Millisecond * 100,
+				},
+				Magic: MagicOptions{Enabled: true},
+			}, database, logger)
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				err := m.Close()
+				require.NoError(t, err)
+			})
+
+			// Create sessions for different scenarios
+			expiresAt := time.Now().Add(time.Minute).Truncate(time.Second)
+
+			// Revoked session (doesn't need to be in sessions table)
+			revokedSession := uuid.New().String()
+
+			// Invalidated session (create via manager)
+			flowData1 := flow.Data{
+				ProviderIdentifier: "invalidated-provider",
+				UserName:           "Invalidated User",
+				PrimaryEmail:       "invalidated@example.com",
+				VerifiedEmails:     []string{"invalidated@example.com"},
+			}
+			invalidatedSessionObj, err := m.CreateSession(t.Context(), flowData1, flow.MagicProvider)
+			require.NoError(t, err)
+			invalidatedSession := invalidatedSessionObj.Identifier
+
+			// Both revoked and invalidated (create via manager)
+			flowData2 := flow.Data{
+				ProviderIdentifier: "both-provider",
+				UserName:           "Both User",
+				PrimaryEmail:       "both@example.com",
+				VerifiedEmails:     []string{"both@example.com"},
+			}
+			bothSessionObj, err := m.CreateSession(t.Context(), flowData2, flow.MagicProvider)
+			require.NoError(t, err)
+			bothSession := bothSessionObj.Identifier
+
+			// Neither session (not in any cache)
+			neitherSession := uuid.New().String()
+
+			// Add to revocation cache
+			err = database.Queries.CreateSessionRevocation(t.Context(), generated.CreateSessionRevocationParams{
+				SessionIdentifier: revokedSession,
+				ExpiresAt:         expiresAt,
+			})
+			require.NoError(t, err)
+
+			err = database.Queries.CreateSessionRevocation(t.Context(), generated.CreateSessionRevocationParams{
+				SessionIdentifier: bothSession,
+				ExpiresAt:         expiresAt,
+			})
+			require.NoError(t, err)
+
+			// Add to invalidation cache
+			err = database.Queries.CreateSessionInvalidation(t.Context(), generated.CreateSessionInvalidationParams{
+				SessionIdentifier: invalidatedSession,
+				Generation:        7,
+				ExpiresAt:         expiresAt,
+			})
+			require.NoError(t, err)
+
+			err = database.Queries.CreateSessionInvalidation(t.Context(), generated.CreateSessionInvalidationParams{
+				SessionIdentifier: bothSession,
+				Generation:        3,
+				ExpiresAt:         expiresAt,
+			})
+			require.NoError(t, err)
+
+			// Wait for refresh
+			time.Sleep(time.Millisecond * 200)
+
+			// Verify cache states
+			require.True(t, m.IsSessionRevoked(revokedSession))
+			require.False(t, m.IsSessionInvalidated(revokedSession, 1))
+
+			require.False(t, m.IsSessionRevoked(invalidatedSession))
+			require.True(t, m.IsSessionInvalidated(invalidatedSession, 7))
+
+			require.True(t, m.IsSessionRevoked(bothSession))
+			require.True(t, m.IsSessionInvalidated(bothSession, 3))
+
+			require.False(t, m.IsSessionRevoked(neitherSession))
+			require.False(t, m.IsSessionInvalidated(neitherSession, 1))
+		})
+	})
+
+	t.Run("IsSessionValid", func(t *testing.T) {
+		t.Run("ValidSession", func(t *testing.T) {
+			container := testutils.SetupMySQLContainer(t)
+			logger := logging.Test(t, logging.Zerolog, "test")
+			database, err := db.New(container.URL, logger)
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				require.NoError(t, database.Close())
+			})
+
+			m, err := New(Options{
+				Configuration: configuration.Options{
+					SessionExpiry: time.Minute * 30,
+					PollInterval:  time.Millisecond * 100,
+				},
+				Magic: MagicOptions{Enabled: true},
+			}, database, logger)
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				require.NoError(t, m.Close())
+			})
+
+			// Create a session
+			flowData := flow.Data{
+				ProviderIdentifier: "valid-session-provider",
+				UserName:           "Valid Session User",
+				PrimaryEmail:       "valid@example.com",
+				VerifiedEmails:     []string{"valid@example.com"},
+			}
+			session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
+			require.NoError(t, err)
+
+			// Sign the session
+			token, err := m.SignSession(session)
+			require.NoError(t, err)
+
+			// Check if session is valid
+			validSession, needsRotation, err := m.IsSessionValid(token)
+			require.NoError(t, err)
+			require.False(t, needsRotation)
+			require.Equal(t, session.Identifier, validSession.Identifier)
+			require.False(t, m.IsSessionRevoked(session.Identifier))
+			require.False(t, m.IsSessionInvalidated(session.Identifier, session.Generation))
+		})
+
+		t.Run("RevokedSession", func(t *testing.T) {
+			container := testutils.SetupMySQLContainer(t)
+			logger := logging.Test(t, logging.Zerolog, "test")
+			database, err := db.New(container.URL, logger)
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				require.NoError(t, database.Close())
+			})
+
+			m, err := New(Options{
+				Configuration: configuration.Options{
+					SessionExpiry: time.Minute * 30,
+					PollInterval:  time.Millisecond * 100,
+				},
+				Magic: MagicOptions{Enabled: true},
+			}, database, logger)
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				require.NoError(t, m.Close())
+			})
+
+			// Create a session
+			flowData := flow.Data{
+				ProviderIdentifier: "revoked-session-provider",
+				UserName:           "Revoked Session User",
+				PrimaryEmail:       "revoked@example.com",
+				VerifiedEmails:     []string{"revoked@example.com"},
+			}
+			session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
+			require.NoError(t, err)
+
+			// Revoke the session
+			err = m.RevokeSession(t.Context(), session.Identifier)
+			require.NoError(t, err)
+
+			// Force cache refresh
+			m.sessionRevocationsRefresh()
+
+			// Sign the session
+			token, err := m.SignSession(session)
+			require.NoError(t, err)
+
+			// Check if session is valid - it should return an error for revoked session
+			_, needsRotation, err := m.IsSessionValid(token)
+			require.Error(t, err)
+			require.ErrorIs(t, err, ErrValidatingSession)
+			require.ErrorIs(t, err, ErrRevokedSession)
+			require.False(t, needsRotation)
+
+			// Check revocation status
+			require.True(t, m.IsSessionRevoked(session.Identifier))
+		})
+
+		t.Run("InvalidatedSession", func(t *testing.T) {
+			container := testutils.SetupMySQLContainer(t)
+			logger := logging.Test(t, logging.Zerolog, "test")
+			database, err := db.New(container.URL, logger)
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				require.NoError(t, database.Close())
+			})
+
+			m, err := New(Options{
+				Configuration: configuration.Options{
+					SessionExpiry: time.Minute * 30,
+					PollInterval:  time.Millisecond * 100,
+				},
+				Magic: MagicOptions{Enabled: true},
+			}, database, logger)
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				require.NoError(t, m.Close())
+			})
+
+			// Create a session
+			flowData := flow.Data{
+				ProviderIdentifier: "invalidated-session-provider",
+				UserName:           "Invalidated Session User",
+				PrimaryEmail:       "invalidated2@example.com",
+				VerifiedEmails:     []string{"invalidated2@example.com"},
+			}
+			session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
+			require.NoError(t, err)
+
+			// Create invalidation entry with higher generation
+			expiresAt := time.Now().Add(time.Minute * 30).Truncate(time.Second)
+			err = database.Queries.CreateSessionInvalidation(t.Context(), generated.CreateSessionInvalidationParams{
+				SessionIdentifier: session.Identifier,
+				Generation:        session.Generation + 1,
+				ExpiresAt:         expiresAt,
+			})
+			require.NoError(t, err)
+
+			// Force cache refresh
+			m.sessionInvalidationsRefresh()
+
+			// Sign the session
+			token, err := m.SignSession(session)
+			require.NoError(t, err)
+
+			// Check if session is valid - it should return an error for invalidated session
+			_, needsRotation, err := m.IsSessionValid(token)
+			require.Error(t, err)
+			require.ErrorIs(t, err, ErrValidatingSession)
+			require.ErrorIs(t, err, ErrInvalidatedSession)
+			require.False(t, needsRotation)
+
+			// Check invalidation status - old generation should be invalidated
+			require.True(t, m.IsSessionInvalidated(session.Identifier, session.Generation))
+		})
+	})
+}

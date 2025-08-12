@@ -132,7 +132,7 @@ func (v *V1) App() *fiber.App {
 
 func (v *V1) health(_ context.Context, _ *struct{}) (*struct{}, error) {
 	v.logger.Trace().Msg("health")
-	if !v.options.Manager.IsHealthy() || !v.options.Validator.IsHealthy() {
+	if !v.options.Manager.IsHealthy() {
 		return nil, huma.Error503ServiceUnavailable("service unhealthy")
 	}
 	return nil, nil
@@ -148,8 +148,8 @@ func (v *V1) public(_ context.Context, _ *struct{}) (*V1PublicResponse, error) {
 	response := &V1PublicResponse{
 		Body: V1PublicResponseBody{
 			PublicKey:           base64.StdEncoding.EncodeToString(publicKey),
-			RevokedSessions:     v.options.Validator.SessionRevocationList(),
-			InvalidatedSessions: v.options.Validator.SessionInvalidationList(),
+			RevokedSessions:     v.options.Manager.SessionRevocationList(),
+			InvalidatedSessions: v.options.Manager.SessionInvalidationList(),
 		},
 	}
 

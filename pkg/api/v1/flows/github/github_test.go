@@ -18,7 +18,6 @@ import (
 	"github.com/loopholelabs/auth/pkg/api/options"
 	"github.com/loopholelabs/auth/pkg/manager"
 	"github.com/loopholelabs/auth/pkg/manager/configuration"
-	"github.com/loopholelabs/auth/pkg/validator"
 )
 
 func setupTestEnvironment(t *testing.T, enableGitHub bool) (*Github, humatest.TestAPI) {
@@ -60,25 +59,11 @@ func setupTestEnvironment(t *testing.T, enableGitHub bool) (*Github, humatest.Te
 		require.NoError(t, mgr.Close())
 	})
 
-	// Create validator
-	val, err := validator.New(validator.Options{
-		Configuration: configuration.Options{
-			PollInterval:  time.Second * 5,
-			SessionExpiry: time.Hour,
-		},
-	}, database, logger)
-	require.NoError(t, err)
-
-	t.Cleanup(func() {
-		require.NoError(t, val.Close())
-	})
-
 	// Create options for the GitHub handler
 	opts := options.Options{
-		Manager:   mgr,
-		Validator: val,
-		Endpoint:  "localhost:8080",
-		TLS:       false,
+		Manager:  mgr,
+		Endpoint: "localhost:8080",
+		TLS:      false,
 	}
 
 	// Create GitHub handler

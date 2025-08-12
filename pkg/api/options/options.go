@@ -6,7 +6,6 @@ import (
 	"errors"
 
 	"github.com/loopholelabs/auth/pkg/manager"
-	"github.com/loopholelabs/auth/pkg/validator"
 )
 
 var (
@@ -14,12 +13,11 @@ var (
 )
 
 type Options struct {
-	Endpoint  string
-	TLS       bool
-	Manager   *manager.Manager
-	Validator *validator.Validator
+	Endpoint string
+	TLS      bool
+	Manager  *manager.Manager
 }
 
 func (o Options) IsValid() bool {
-	return o.Manager != nil && o.Validator != nil
+	return o.Manager != nil
 }

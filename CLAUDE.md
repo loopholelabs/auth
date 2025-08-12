@@ -142,12 +142,13 @@ For complete architecture details, see [docs/SPECIFICATION.md](docs/SPECIFICATIO
 - Manages signing keys and rotation
 - Supports session expiry and poll interval configuration
 
-**Validator System** (`pkg/validator/`)
+**Session Validation** (integrated into `pkg/manager/`)
 
 - In-memory caching of revocations and invalidations
 - TTL-based cache with automatic expiration
 - Background polling for cache refresh
-- Health monitoring for cache status
+- Health monitoring integrated with Manager health status
+- Methods: `IsSessionValid()`, `IsSessionRevoked()`, `IsSessionInvalidated()`
 
 ### Database Layer
 
@@ -364,7 +365,7 @@ make generate
 - Device Code flow for CLI authentication
 - Session management with JWT (EdDSA signing)
 - Session revocation and invalidation
-- Validator with in-memory caching
+- Session validation with in-memory caching (integrated into Manager)
 - Configuration management system
 - Automatic garbage collection
 - Health monitoring
@@ -451,7 +452,6 @@ See [Section 6.2](docs/SPECIFICATION.md#62-pending-implementation) for complete 
 - `internal/db/migrations/`: Database schema files
 - `internal/db/queries/`: SQL query definitions
 - `internal/testutils/`: Testing utilities
-- `pkg/manager/`: Core authentication logic
-- `pkg/validator/`: Session validation and caching
+- `pkg/manager/`: Core authentication logic with integrated session validation and caching
 - `pkg/api/v1/`: API endpoint implementations using Huma v2
 - `pkg/api/v1/flows/*/`: Individual flow handlers with Register pattern

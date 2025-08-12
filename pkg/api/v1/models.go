@@ -5,7 +5,7 @@ package v1
 import (
 	"net/http"
 
-	"github.com/loopholelabs/auth/pkg/validator"
+	"github.com/loopholelabs/auth/pkg/manager"
 )
 
 type V1LogoutRequest struct {
@@ -13,10 +13,10 @@ type V1LogoutRequest struct {
 }
 
 type V1PublicResponseBody struct {
-	PublicKey           string                         `json:"public_key" doc:"base64 encoded public key"`
-	PreviousPublicKey   string                         `json:"previous_public_key,omitempty" doc:"base64 encoded previous public key"`
-	RevokedSessions     []string                       `json:"revoked_sessions" doc:"list of revoked session IDs"`
-	InvalidatedSessions []validator.InvalidatedSession `json:"invalidated_sessions" doc:"list of invalidated sessions"`
+	PublicKey           string                       `json:"public_key" doc:"base64 encoded public key"`
+	PreviousPublicKey   string                       `json:"previous_public_key,omitempty" doc:"base64 encoded previous public key"`
+	RevokedSessions     []string                     `json:"revoked_sessions" doc:"list of revoked session IDs"`
+	InvalidatedSessions []manager.InvalidatedSession `json:"invalidated_sessions" doc:"list of invalidated sessions"`
 }
 
 type V1PublicResponse struct {

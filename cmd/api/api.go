@@ -16,7 +16,6 @@ import (
 	"github.com/loopholelabs/auth/pkg/api/options"
 	"github.com/loopholelabs/auth/pkg/manager"
 	"github.com/loopholelabs/auth/pkg/manager/configuration"
-	"github.com/loopholelabs/auth/pkg/validator"
 )
 
 func Cmd() command.SetupCommand[*config.Config] {
@@ -87,28 +86,10 @@ func Cmd() command.SetupCommand[*config.Config] {
 					}
 				}()
 
-				v, err := validator.New(validator.Options{
-					Configuration: configuration.Options{
-						PollInterval:  ch.Config.API.PollInterval,
-						SessionExpiry: ch.Config.API.SessionExpiry,
-					},
-				}, d, ch.Logger)
-				if err != nil {
-					return err
-				}
-
-				defer func() {
-					err := v.Close()
-					if err != nil {
-						ch.Printer.Printf("failed to cleanup validator: %v\n", err)
-					}
-				}()
-
 				a, err := api.New(options.Options{
-					Endpoint:  ch.Config.API.Endpoint,
-					TLS:       ch.Config.API.TLS,
-					Manager:   m,
-					Validator: v,
+					Endpoint: ch.Config.API.Endpoint,
+					TLS:      ch.Config.API.TLS,
+					Manager:  m,
 				}, ch.Logger)
 				if err != nil {
 					return err

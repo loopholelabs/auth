@@ -31,7 +31,7 @@ organization/membership management and credential management APIs are pending im
   deletes, `RESTRICT` on `users.default_organization_identifier`)
 - **External Isolation**: Business services store `organization_identifier` and `user_identifier` values but have no
   foreign key constraints to authentication tables
-- **Trust Model**: Services validate JWTs through the embedded validator library; they never query authentication tables
+- **Trust Model**: Services validate JWTs through the Manager's validation methods; they never query authentication tables directly
   directly
 
 #### 1.2.2 Credential Immutability
@@ -43,7 +43,7 @@ organization/membership management and credential management APIs are pending im
 
 #### 1.2.3 Efficient Validation Through Caching
 
-- **In-Memory Caches**: Validators maintain local caches for revocations and invalidations
+- **In-Memory Caches**: Manager maintains local caches for revocations and invalidations
 - **Configurable Polling**: Poll interval configured via database configuration table
 - **TTL-Based Cache**: Uses `ttlcache` library with automatic expiration matching session TTL
 
@@ -187,7 +187,7 @@ organization/membership management and credential management APIs are pending im
 - Created when `Manager.RevokeSession()` is called
 - Expires at original session expiry + 5 second jitter
 - Automatic garbage collection of expired revocations
-- Cached in validator's in-memory cache
+- Cached in Manager's in-memory cache
 
 #### 2.3.3 Session Invalidations (Fully Implemented)
 
@@ -206,7 +206,7 @@ organization/membership management and credential management APIs are pending im
 **Current Implementation**:
 
 - Support for generation-based invalidation
-- Cached in validator's in-memory cache
+- Cached in Manager's in-memory cache
 - Automatic garbage collection of expired invalidations
 
 #### 2.3.4 API Keys
@@ -398,7 +398,7 @@ When a new user signs up via any provider:
 
 - Deletes session from database
 - Creates revocation record
-- Cached by validators
+- Cached by Manager
 
 #### ParseSession
 
@@ -422,17 +422,18 @@ When a new user signs up via any provider:
 
 ---
 
-## Section 5: Validator Implementation (Current)
+## Section 5: Session Validation (Current)
 
-### 5.1 Validator Architecture
+### 5.1 Validation Architecture
 
-**Package**: `pkg/validator`
+**Integrated into**: `pkg/manager`
 
 **Core Components**:
 
 - TTL-based in-memory caches for revocations and invalidations
 - Background goroutine for periodic refresh
 - Thread-safe with RWMutex protection
+- Validation methods integrated directly into Manager
 
 ### 5.2 Caching Strategy
 
@@ -451,18 +452,21 @@ When a new user signs up via any provider:
 ### 5.3 Validation Flow
 
 ```go
-func IsSessionValid(token string) (Session, needsRotation, error):
+func (m *Manager) IsSessionValid(token string) (Session, needsRotation, error):
 1. Parse JWT and validate signature
 2. Check if session is revoked (cache lookup)
 3. Check if generation is outdated (cache lookup)
 4. Return session with rotation flag if needed
+
+func (m *Manager) IsSessionRevoked(identifier string) bool
+func (m *Manager) IsSessionInvalidated(identifier string, generation uint32) bool
 ```
 
 ### 5.4 Health Monitoring
 
-- Separate health tracking for revocation and invalidation caches
-- Health check endpoint at `/v1/health`
-- Unhealthy if cache refresh fails
+- Health tracking integrated into Manager's health status
+- Health check endpoint at `/v1/health` checks Manager health
+- Unhealthy if cache refresh fails or configuration update fails
 
 ---
 
@@ -605,11 +609,13 @@ The following endpoints are specified but not yet implemented:
 - Session data structures
 - EdDSA signing and verification
 
-#### pkg/validator
+#### pkg/manager (includes validation)
 
+- Core authentication logic
 - Session validation logic
 - Revocation/invalidation caching
 - Health monitoring
+- Configuration management
 
 #### pkg/api/v1
 
@@ -649,7 +655,7 @@ The following endpoints are specified but not yet implemented:
 - Configuration polling and updates
 - Provider flow implementations
 - Session creation and validation
-- Validator caching logic
+- Manager validation and caching logic
 
 **Areas Needing Tests**:
 
@@ -768,10 +774,10 @@ The following endpoints are specified but not yet implemented:
 ### 12.1 What's Ready
 
 - Core authentication flows (OAuth, Magic Link, Device)
-- Session management and validation
+- Session management and validation (integrated into Manager)
 - Database schema and migrations
 - Configuration management
-- Validator library for embedded use
+- Manager provides validation methods for embedded use
 
 ### 12.2 What's Missing
 
