@@ -346,6 +346,14 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 				return credential.Session{}, errors.Join(ErrCreatingSession, err)
 			}
 			data.UserIdentifier = userIdentifier
+		} else {
+			num, err := qtx.UpdateUserLastLoginByIdentifier(ctx, data.UserIdentifier)
+			if err != nil {
+				return credential.Session{}, errors.Join(ErrCreatingSession, err)
+			}
+			if num == 0 {
+				return credential.Session{}, errors.Join(ErrCreatingSession, sql.ErrNoRows)
+			}
 		}
 		// This identity must be associated with the given user
 		err = qtx.CreateIdentity(ctx, generated.CreateIdentityParams{
@@ -367,14 +375,6 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 	user, err := qtx.GetUserByIdentifier(ctx, providerIdentity.UserIdentifier)
 	if err != nil {
 		return credential.Session{}, errors.Join(ErrCreatingSession, err)
-	}
-
-	num, err := qtx.UpdateUserLastLoginByIdentifier(ctx, providerIdentity.UserIdentifier)
-	if err != nil {
-		return credential.Session{}, errors.Join(ErrCreatingSession, err)
-	}
-	if num == 0 {
-		return credential.Session{}, errors.Join(ErrCreatingSession, sql.ErrNoRows)
 	}
 
 	organization, err := qtx.GetOrganizationByIdentifier(ctx, user.DefaultOrganizationIdentifier)
