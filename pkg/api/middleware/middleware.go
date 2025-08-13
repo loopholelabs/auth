@@ -8,16 +8,17 @@ import (
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/loopholelabs/auth/pkg/api/options"
-	"github.com/loopholelabs/auth/pkg/credential"
-	"github.com/loopholelabs/auth/pkg/credential/cookies"
 
 	"github.com/loopholelabs/logging/types"
 
+	"github.com/loopholelabs/auth/pkg/api/options"
+	"github.com/loopholelabs/auth/pkg/credential"
+	"github.com/loopholelabs/auth/pkg/credential/cookies"
 	"github.com/loopholelabs/auth/pkg/manager"
 )
 
 type sessionKey struct{}
+type sessionReSignKey struct{}
 
 func ValidateSession(api huma.API, options options.Options, logger types.Logger) func(ctx huma.Context, next func(huma.Context)) {
 	return func(ctx huma.Context, next func(huma.Context)) {
@@ -36,9 +37,10 @@ func ValidateSession(api huma.API, options options.Options, logger types.Logger)
 			return
 		}
 
-		var cookie *http.Cookie
+		ctx = huma.WithValue(ctx, sessionReSignKey{}, reSign)
+
 		if reSign {
-			cookie, err = cookies.Create(session, options)
+			cookie, err := cookies.Create(session, options)
 			if err != nil {
 				logger.Error().Err(err).Msg("error creating cookie")
 				_ = huma.WriteErr(api, ctx, http.StatusInternalServerError, huma.Error500InternalServerError("error creating cookie").Error())
@@ -58,4 +60,16 @@ func GetSession(ctx context.Context) (credential.Session, bool) {
 	}
 	session, ok := sessionInterface.(credential.Session)
 	return session, ok
+}
+
+func GetSessionReSign(ctx context.Context) bool {
+	reSignInterface := ctx.Value(sessionReSignKey{})
+	if reSignInterface == nil {
+		return false
+	}
+	reSign, ok := reSignInterface.(bool)
+	if !ok {
+		return false
+	}
+	return reSign
 }

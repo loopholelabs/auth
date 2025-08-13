@@ -4,6 +4,7 @@
 package session
 
 import (
+	"net/http"
 	"time"
 )
 
@@ -18,4 +19,8 @@ type SessionInfoResponseBody struct {
 
 type SessionInfoResponse struct {
 	Body SessionInfoResponseBody
+}
+
+type SessionRefreshResponse struct {
+	SessionCookie *http.Cookie `header:"Set-Cookie" doc:"session cookie"`
 }
