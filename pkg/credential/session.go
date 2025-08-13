@@ -85,99 +85,99 @@ func ParseSession(token string, publicKey crypto.PublicKey, previousPublicKey cr
 		return Session{}, false, errors.Join(ErrParsingSession, err)
 	}
 
-	replace := false
+	reSign := false
 VALIDATE:
 	switch {
 	case parsedToken.Valid && err == nil:
-	case errors.Is(err, jwt.ErrTokenSignatureInvalid) && !replace:
+	case errors.Is(err, jwt.ErrTokenSignatureInvalid) && !reSign:
 		parsedToken, err = jwt.Parse(token, keyFunc(previousPublicKey),
 			jwt.WithValidMethods([]string{jwt.SigningMethodEdDSA.Alg()}),
 			jwt.WithExpirationRequired(),
 			jwt.WithStrictDecoding(),
 		)
 		if err != nil {
-			return Session{}, replace, errors.Join(ErrParsingSession, err)
+			return Session{}, reSign, errors.Join(ErrParsingSession, err)
 		}
-		replace = true
+		reSign = true
 		goto VALIDATE
-	case replace:
-		return Session{}, replace, errors.Join(ErrParsingSession, jwt.ErrTokenSignatureInvalid)
+	case reSign:
+		return Session{}, reSign, errors.Join(ErrParsingSession, jwt.ErrTokenSignatureInvalid)
 	case errors.Is(err, jwt.ErrTokenExpired) || errors.Is(err, jwt.ErrTokenMalformed) || errors.Is(err, jwt.ErrTokenNotValidYet):
 		fallthrough
 	default:
-		return Session{}, replace, errors.Join(ErrParsingSession, err)
+		return Session{}, reSign, errors.Join(ErrParsingSession, err)
 	}
 
 	if parsedToken.Claims == nil {
-		return Session{}, replace, errors.Join(ErrParsingSession, ErrInvalidClaims)
+		return Session{}, reSign, errors.Join(ErrParsingSession, ErrInvalidClaims)
 	}
 
 	claims, ok := parsedToken.Claims.(jwt.MapClaims)
 	if !ok {
-		return Session{}, replace, errors.Join(ErrParsingSession, ErrInvalidClaims)
+		return Session{}, reSign, errors.Join(ErrParsingSession, ErrInvalidClaims)
 	}
 
 	identifier, ok := parseClaims[string]("sub", claims)
 	if len(identifier) != 36 || !ok {
-		return Session{}, replace, errors.Join(ErrParsingSession, ErrInvalidClaims)
+		return Session{}, reSign, errors.Join(ErrParsingSession, ErrInvalidClaims)
 	}
 
 	organizationIdentifier, ok := parseClaims[string]("organization_identifier", claims)
 	if len(organizationIdentifier) != 36 || !ok {
-		return Session{}, replace, errors.Join(ErrParsingSession, ErrInvalidClaims)
+		return Session{}, reSign, errors.Join(ErrParsingSession, ErrInvalidClaims)
 	}
 
 	iss, ok := parseClaims[string]("iss", claims)
 	if iss == "" || !ok || iss != organizationIdentifier {
-		return Session{}, replace, errors.Join(ErrParsingSession, ErrInvalidClaims)
+		return Session{}, reSign, errors.Join(ErrParsingSession, ErrInvalidClaims)
 	}
 
 	organizationIsDefault, ok := parseClaims[bool]("organization_is_default", claims)
 	if !ok {
-		return Session{}, replace, errors.Join(ErrParsingSession, ErrInvalidClaims)
+		return Session{}, reSign, errors.Join(ErrParsingSession, ErrInvalidClaims)
 	}
 
 	organizationRoleString, ok := parseClaims[string]("organization_role", claims)
 	if organizationRoleString == "" || !ok {
-		return Session{}, replace, errors.Join(ErrParsingSession, ErrInvalidClaims)
+		return Session{}, reSign, errors.Join(ErrParsingSession, ErrInvalidClaims)
 	}
 	organizationRole := role.Role(organizationRoleString)
 	if !organizationRole.IsValid() {
-		return Session{}, replace, errors.Join(ErrParsingSession, ErrInvalidClaims)
+		return Session{}, reSign, errors.Join(ErrParsingSession, ErrInvalidClaims)
 	}
 
 	userIdentifier, ok := parseClaims[string]("user_identifier", claims)
 	if len(userIdentifier) != 36 || !ok {
-		return Session{}, replace, errors.Join(ErrParsingSession, ErrInvalidClaims)
+		return Session{}, reSign, errors.Join(ErrParsingSession, ErrInvalidClaims)
 	}
 
 	aud, ok := parseClaims[string]("aud", claims)
 	if aud == "" || !ok || aud != userIdentifier {
-		return Session{}, replace, errors.Join(ErrParsingSession, ErrInvalidClaims)
+		return Session{}, reSign, errors.Join(ErrParsingSession, ErrInvalidClaims)
 	}
 
 	userName, ok := parseClaims[string]("user_name", claims)
 	if !ok {
-		return Session{}, replace, errors.Join(ErrParsingSession, ErrInvalidClaims)
+		return Session{}, reSign, errors.Join(ErrParsingSession, ErrInvalidClaims)
 	}
 
 	userEmail, ok := parseClaims[string]("user_email", claims)
 	if userEmail == "" || !ok {
-		return Session{}, replace, errors.Join(ErrParsingSession, ErrInvalidClaims)
+		return Session{}, reSign, errors.Join(ErrParsingSession, ErrInvalidClaims)
 	}
 
 	generationFloat64, ok := parseClaims[float64]("generation", claims)
 	if !ok || generationFloat64 > math.MaxUint32 || generationFloat64 < 0 {
-		return Session{}, replace, errors.Join(ErrParsingSession, ErrInvalidClaims)
+		return Session{}, reSign, errors.Join(ErrParsingSession, ErrInvalidClaims)
 	}
 	generation := uint32(generationFloat64)
 
 	expirationTime, err := claims.GetExpirationTime()
 	if err != nil {
-		return Session{}, replace, errors.Join(ErrParsingSession, err)
+		return Session{}, reSign, errors.Join(ErrParsingSession, err)
 	}
 	if expirationTime == nil {
-		return Session{}, replace, errors.Join(ErrParsingSession, ErrInvalidClaims)
+		return Session{}, reSign, errors.Join(ErrParsingSession, ErrInvalidClaims)
 	}
 
 	session := Session{
@@ -197,8 +197,8 @@ VALIDATE:
 	}
 
 	if !session.IsValid() {
-		return Session{}, replace, errors.Join(ErrParsingSession, ErrInvalidSession)
+		return Session{}, reSign, errors.Join(ErrParsingSession, ErrInvalidSession)
 	}
 
-	return session, replace, nil
+	return session, reSign, nil
 }

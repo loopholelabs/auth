@@ -41,7 +41,7 @@ func (m *Magic) Register(prefixes []string, group huma.API) {
 	prefixes = append(prefixes, "magic")
 	group = huma.NewGroup(group, "/magic")
 
-	loginPrefix := append(prefixes, "login")
+	loginPrefix := append(prefixes, "login") //nolint:gocritic
 	huma.Register(group, huma.Operation{
 		OperationID:   strings.Join(loginPrefix, "-"),
 		Method:        http.MethodGet,
@@ -53,7 +53,7 @@ func (m *Magic) Register(prefixes []string, group huma.API) {
 		Errors:        []int{400, 401, 404, 500},
 	}, m.login)
 
-	callbackPrefix := append(prefixes, "callback")
+	callbackPrefix := append(prefixes, "callback") //nolint:gocritic
 	huma.Register(group, huma.Operation{
 		OperationID:   strings.Join(callbackPrefix, "-"),
 		Method:        "GET",
@@ -120,7 +120,7 @@ func (m *Magic) login(ctx context.Context, input *MagicLoginRequest) (*struct{},
 		return nil, huma.Error500InternalServerError("failed to send magic link")
 	}
 
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (m *Magic) callback(ctx context.Context, input *MagicCallbackRequest) (*MagicCallbackResponse, error) {

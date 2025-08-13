@@ -20,7 +20,7 @@ import (
 	"github.com/loopholelabs/auth/pkg/manager/configuration"
 )
 
-func setupTestEnvironment(t *testing.T, enableGoogle bool) (*Google, humatest.TestAPI) {
+func setupTestEnvironment(t *testing.T, enableGoogle bool) humatest.TestAPI {
 	// Setup MySQL container
 	container := testutils.SetupMySQLContainer(t)
 	logger := logging.Test(t, logging.Zerolog, "test")
@@ -75,12 +75,12 @@ func setupTestEnvironment(t *testing.T, enableGoogle bool) (*Google, humatest.Te
 	// Register Google endpoints
 	g.Register([]string{"flows"}, api)
 
-	return g, api
+	return api
 }
 
 func TestGoogleLogin(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		_, api := setupTestEnvironment(t, true)
+		api := setupTestEnvironment(t, true)
 
 		resp := api.Get("/google/login?next=/")
 		assert.Equal(t, 307, resp.Result().StatusCode)
@@ -90,14 +90,14 @@ func TestGoogleLogin(t *testing.T) {
 	})
 
 	t.Run("WithNext", func(t *testing.T) {
-		_, api := setupTestEnvironment(t, true)
+		api := setupTestEnvironment(t, true)
 
 		resp := api.Get("/google/login?next=/dashboard")
 		assert.Equal(t, 307, resp.Result().StatusCode)
 	})
 
 	t.Run("GoogleNotEnabled", func(t *testing.T) {
-		_, api := setupTestEnvironment(t, false)
+		api := setupTestEnvironment(t, false)
 
 		resp := api.Get("/google/login?next=/")
 		assert.Equal(t, 401, resp.Result().StatusCode)
@@ -110,7 +110,7 @@ func TestGoogleLogin(t *testing.T) {
 	})
 
 	t.Run("MissingNext", func(t *testing.T) {
-		_, api := setupTestEnvironment(t, true)
+		api := setupTestEnvironment(t, true)
 
 		resp := api.Get("/google/login")
 		assert.Equal(t, 422, resp.Result().StatusCode)
@@ -125,28 +125,28 @@ func TestGoogleLogin(t *testing.T) {
 
 func TestGoogleCallback(t *testing.T) {
 	t.Run("MissingState", func(t *testing.T) {
-		_, api := setupTestEnvironment(t, true)
+		api := setupTestEnvironment(t, true)
 
 		resp := api.Get("/google/callback?code=test-code")
 		assert.Equal(t, 422, resp.Result().StatusCode)
 	})
 
 	t.Run("MissingCode", func(t *testing.T) {
-		_, api := setupTestEnvironment(t, true)
+		api := setupTestEnvironment(t, true)
 
 		resp := api.Get("/google/callback?state=test-state")
 		assert.Equal(t, 422, resp.Result().StatusCode)
 	})
 
 	t.Run("InvalidState", func(t *testing.T) {
-		_, api := setupTestEnvironment(t, true)
+		api := setupTestEnvironment(t, true)
 
 		resp := api.Get("/google/callback?state=invalid-state&code=test-code")
 		assert.Equal(t, 404, resp.Result().StatusCode)
 	})
 
 	t.Run("GoogleNotEnabled", func(t *testing.T) {
-		_, api := setupTestEnvironment(t, false)
+		api := setupTestEnvironment(t, false)
 
 		resp := api.Get("/google/callback?state=test-state&code=test-code")
 		assert.Equal(t, 401, resp.Result().StatusCode)

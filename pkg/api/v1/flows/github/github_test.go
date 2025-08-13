@@ -20,7 +20,7 @@ import (
 	"github.com/loopholelabs/auth/pkg/manager/configuration"
 )
 
-func setupTestEnvironment(t *testing.T, enableGitHub bool) (*Github, humatest.TestAPI) {
+func setupTestEnvironment(t *testing.T, enableGitHub bool) humatest.TestAPI {
 	// Setup MySQL container
 	container := testutils.SetupMySQLContainer(t)
 	logger := logging.Test(t, logging.Zerolog, "test")
@@ -75,12 +75,12 @@ func setupTestEnvironment(t *testing.T, enableGitHub bool) (*Github, humatest.Te
 	// Register GitHub endpoints
 	gh.Register([]string{"flows"}, api)
 
-	return gh, api
+	return api
 }
 
 func TestGitHubLogin(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		_, api := setupTestEnvironment(t, true)
+		api := setupTestEnvironment(t, true)
 
 		resp := api.Get("/github/login?next=/")
 		assert.Equal(t, 307, resp.Result().StatusCode)
@@ -90,14 +90,14 @@ func TestGitHubLogin(t *testing.T) {
 	})
 
 	t.Run("WithNext", func(t *testing.T) {
-		_, api := setupTestEnvironment(t, true)
+		api := setupTestEnvironment(t, true)
 
 		resp := api.Get("/github/login?next=/dashboard")
 		assert.Equal(t, 307, resp.Result().StatusCode)
 	})
 
 	t.Run("GitHubNotEnabled", func(t *testing.T) {
-		_, api := setupTestEnvironment(t, false)
+		api := setupTestEnvironment(t, false)
 
 		resp := api.Get("/github/login?next=/")
 		assert.Equal(t, 401, resp.Result().StatusCode)
@@ -112,28 +112,28 @@ func TestGitHubLogin(t *testing.T) {
 
 func TestGitHubCallback(t *testing.T) {
 	t.Run("MissingState", func(t *testing.T) {
-		_, api := setupTestEnvironment(t, true)
+		api := setupTestEnvironment(t, true)
 
 		resp := api.Get("/github/callback?code=test-code")
 		assert.Equal(t, 422, resp.Result().StatusCode)
 	})
 
 	t.Run("MissingCode", func(t *testing.T) {
-		_, api := setupTestEnvironment(t, true)
+		api := setupTestEnvironment(t, true)
 
 		resp := api.Get("/github/callback?state=test-state")
 		assert.Equal(t, 422, resp.Result().StatusCode)
 	})
 
 	t.Run("InvalidState", func(t *testing.T) {
-		_, api := setupTestEnvironment(t, true)
+		api := setupTestEnvironment(t, true)
 
 		resp := api.Get("/github/callback?state=invalid-state&code=test-code")
 		assert.Equal(t, 404, resp.Result().StatusCode)
 	})
 
 	t.Run("GitHubNotEnabled", func(t *testing.T) {
-		_, api := setupTestEnvironment(t, false)
+		api := setupTestEnvironment(t, false)
 
 		resp := api.Get("/github/callback?state=test-state&code=test-code")
 		assert.Equal(t, 401, resp.Result().StatusCode)

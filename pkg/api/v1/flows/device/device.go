@@ -40,7 +40,7 @@ func (d *Device) Register(prefixes []string, group huma.API) {
 	prefixes = append(prefixes, "device")
 	group = huma.NewGroup(group, "/device")
 
-	loginPrefix := append(prefixes, "login")
+	loginPrefix := append(prefixes, "login") //nolint:gocritic
 	huma.Register(group, huma.Operation{
 		OperationID:   strings.Join(loginPrefix, "-"),
 		Method:        http.MethodGet,
@@ -52,7 +52,7 @@ func (d *Device) Register(prefixes []string, group huma.API) {
 		Errors:        []int{401, 500},
 	}, d.login)
 
-	validatePrefix := append(prefixes, "validate")
+	validatePrefix := append(prefixes, "validate") //nolint:gocritic
 	huma.Register(group, huma.Operation{
 		OperationID:   strings.Join(validatePrefix, "-"),
 		Method:        http.MethodGet,
@@ -64,7 +64,7 @@ func (d *Device) Register(prefixes []string, group huma.API) {
 		Errors:        []int{401, 404, 500},
 	}, d.validate)
 
-	pollPrefix := append(prefixes, "poll")
+	pollPrefix := append(prefixes, "poll") //nolint:gocritic
 	huma.Register(group, huma.Operation{
 		OperationID:   strings.Join(pollPrefix, "-"),
 		Method:        http.MethodGet,
@@ -111,7 +111,7 @@ func (d *Device) validate(ctx context.Context, input *DeviceValidateRequest) (*s
 		return nil, huma.Error404NotFound("flow does not exist")
 	}
 
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (d *Device) poll(ctx context.Context, input *DevicePollRequest) (*DevicePollResponse, error) {

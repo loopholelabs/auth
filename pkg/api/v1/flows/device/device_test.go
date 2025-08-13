@@ -20,7 +20,7 @@ import (
 	"github.com/loopholelabs/auth/pkg/manager/configuration"
 )
 
-func setupTestEnvironment(t *testing.T) (*Device, humatest.TestAPI) {
+func setupTestEnvironment(t *testing.T) humatest.TestAPI {
 	// Setup MySQL container
 	container := testutils.SetupMySQLContainer(t)
 	logger := logging.Test(t, logging.Zerolog, "test")
@@ -67,11 +67,11 @@ func setupTestEnvironment(t *testing.T) (*Device, humatest.TestAPI) {
 	// Register device endpoints
 	device.Register([]string{"flows"}, api)
 
-	return device, api
+	return api
 }
 
 func TestDeviceLogin(t *testing.T) {
-	_, api := setupTestEnvironment(t)
+	api := setupTestEnvironment(t)
 
 	t.Run("Success", func(t *testing.T) {
 		resp := api.Get("/device/login")
@@ -87,11 +87,10 @@ func TestDeviceLogin(t *testing.T) {
 		assert.NotEmpty(t, result.Poll)
 		assert.Equal(t, uint64(5), result.PollingRateSeconds)
 	})
-
 }
 
 func TestDeviceValidate(t *testing.T) {
-	_, api := setupTestEnvironment(t)
+	api := setupTestEnvironment(t)
 
 	t.Run("ValidCode", func(t *testing.T) {
 		// First create a device flow
@@ -120,7 +119,7 @@ func TestDeviceValidate(t *testing.T) {
 }
 
 func TestDevicePoll(t *testing.T) {
-	_, api := setupTestEnvironment(t)
+	api := setupTestEnvironment(t)
 
 	t.Run("InvalidPollCode", func(t *testing.T) {
 		resp := api.Get("/device/poll?poll=00000000-0000-0000-0000-000000000000")

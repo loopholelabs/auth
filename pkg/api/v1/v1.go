@@ -88,7 +88,7 @@ func (v *V1) init() {
 	prefixes := []string{"v1"}
 	api := humafiber.New(v.app, config)
 
-	healthPrefix := append(prefixes, "health")
+	healthPrefix := append(prefixes, "health") //nolint:gocritic
 	huma.Register(api, huma.Operation{
 		OperationID:   strings.Join(healthPrefix, "-"),
 		Method:        http.MethodGet,
@@ -100,7 +100,7 @@ func (v *V1) init() {
 		Errors:        []int{503},
 	}, v.health)
 
-	publicPrefix := append(prefixes, "public")
+	publicPrefix := append(prefixes, "public") //nolint:gocritic
 	huma.Register(api, huma.Operation{
 		OperationID:   strings.Join(publicPrefix, "-"),
 		Method:        http.MethodGet,
@@ -112,7 +112,7 @@ func (v *V1) init() {
 		Errors:        []int{500},
 	}, v.public)
 
-	logoutPrefix := append(prefixes, "logout")
+	logoutPrefix := append(prefixes, "logout") //nolint:gocritic
 	huma.Register(api, huma.Operation{
 		OperationID:   strings.Join(logoutPrefix, "-"),
 		Method:        http.MethodPost,
@@ -135,7 +135,7 @@ func (v *V1) health(_ context.Context, _ *struct{}) (*struct{}, error) {
 	if !v.options.Manager.IsHealthy() {
 		return nil, huma.Error503ServiceUnavailable("service unhealthy")
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (v *V1) public(_ context.Context, _ *struct{}) (*V1PublicResponse, error) {

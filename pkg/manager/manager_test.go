@@ -2721,7 +2721,7 @@ func TestSessionValidation(t *testing.T) {
 		})
 	})
 
-	t.Run("IsSessionValid", func(t *testing.T) {
+	t.Run("ValidateSession", func(t *testing.T) {
 		t.Run("ValidSession", func(t *testing.T) {
 			container := testutils.SetupMySQLContainer(t)
 			logger := logging.Test(t, logging.Zerolog, "test")
@@ -2760,9 +2760,9 @@ func TestSessionValidation(t *testing.T) {
 			require.NoError(t, err)
 
 			// Check if session is valid
-			validSession, needsRotation, err := m.IsSessionValid(token)
+			validSession, needsReSign, err := m.ValidateSession(t.Context(), token)
 			require.NoError(t, err)
-			require.False(t, needsRotation)
+			require.False(t, needsReSign)
 			require.Equal(t, session.Identifier, validSession.Identifier)
 			require.False(t, m.IsSessionRevoked(session.Identifier))
 			require.False(t, m.IsSessionInvalidated(session.Identifier, session.Generation))
@@ -2813,11 +2813,11 @@ func TestSessionValidation(t *testing.T) {
 			require.NoError(t, err)
 
 			// Check if session is valid - it should return an error for revoked session
-			_, needsRotation, err := m.IsSessionValid(token)
+			_, needsReSign, err := m.ValidateSession(t.Context(), token)
 			require.Error(t, err)
 			require.ErrorIs(t, err, ErrValidatingSession)
 			require.ErrorIs(t, err, ErrRevokedSession)
-			require.False(t, needsRotation)
+			require.False(t, needsReSign)
 
 			// Check revocation status
 			require.True(t, m.IsSessionRevoked(session.Identifier))
@@ -2856,7 +2856,15 @@ func TestSessionValidation(t *testing.T) {
 			session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
 			require.NoError(t, err)
 
-			// Create invalidation entry with higher generation
+			// Update the session's generation in the database to simulate an invalidation
+			num, err := database.Queries.UpdateSessionGenerationByIdentifier(t.Context(), generated.UpdateSessionGenerationByIdentifierParams{
+				Generation: session.Generation + 1,
+				Identifier: session.Identifier,
+			})
+			require.NoError(t, err)
+			require.Equal(t, int64(1), num)
+
+			// Create invalidation entry with the new generation
 			expiresAt := time.Now().Add(time.Minute * 30).Truncate(time.Second)
 			err = database.Queries.CreateSessionInvalidation(t.Context(), generated.CreateSessionInvalidationParams{
 				SessionIdentifier: session.Identifier,
@@ -2872,15 +2880,128 @@ func TestSessionValidation(t *testing.T) {
 			token, err := m.SignSession(session)
 			require.NoError(t, err)
 
-			// Check if session is valid - it should return an error for invalidated session
-			_, needsRotation, err := m.IsSessionValid(token)
-			require.Error(t, err)
-			require.ErrorIs(t, err, ErrValidatingSession)
-			require.ErrorIs(t, err, ErrInvalidatedSession)
-			require.False(t, needsRotation)
+			// Check if session is valid - it should automatically refresh the invalidated session
+			validSession, needsReSign, err := m.ValidateSession(t.Context(), token)
+			require.NoError(t, err)
+			require.False(t, needsReSign) // reSign is false because refresh succeeded
+			require.Equal(t, session.Identifier, validSession.Identifier)
+			// The session should have been refreshed with the new generation from the database
+			require.Equal(t, session.Generation+1, validSession.Generation)
+			// The expiry should be the same or extended (since session was just created, it might be the same)
+			require.GreaterOrEqual(t, validSession.ExpiresAt.Unix(), session.ExpiresAt.Unix(), "Expiry should be the same or extended. Original: %v, New: %v", session.ExpiresAt, validSession.ExpiresAt)
 
-			// Check invalidation status - old generation should be invalidated
+			// Check invalidation status - old generation should still be invalidated
 			require.True(t, m.IsSessionInvalidated(session.Identifier, session.Generation))
+		})
+
+		t.Run("SessionCloseToExpiry", func(t *testing.T) {
+			container := testutils.SetupMySQLContainer(t)
+			logger := logging.Test(t, logging.Zerolog, "test")
+			database, err := db.New(container.URL, logger)
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				require.NoError(t, database.Close())
+			})
+
+			// Create manager with session expiry > ForcedRefresh (1 hour)
+			m, err := New(Options{
+				Configuration: configuration.Options{
+					SessionExpiry: time.Hour * 2, // 2 hours > ForcedRefresh
+					PollInterval:  time.Millisecond * 100,
+				},
+				Magic: MagicOptions{Enabled: true},
+			}, database, logger)
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				require.NoError(t, m.Close())
+			})
+
+			// Create a session
+			flowData := flow.Data{
+				ProviderIdentifier: "close-to-expiry-provider",
+				UserName:           "Close To Expiry User",
+				PrimaryEmail:       "closetoexpiry@example.com",
+				VerifiedEmails:     []string{"closetoexpiry@example.com"},
+			}
+			session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
+			require.NoError(t, err)
+
+			// Manually update the session to expire in less than ForcedRefresh
+			// This simulates a session that's been alive for over an hour
+			_, err = database.Queries.UpdateSessionExpiryByIdentifier(t.Context(), generated.UpdateSessionExpiryByIdentifierParams{
+				ExpiresAt:  time.Now().Add(time.Minute * 30), // 30 minutes from now
+				Identifier: session.Identifier,
+			})
+			require.NoError(t, err)
+
+			// Sign the session
+			token, err := m.SignSession(session)
+			require.NoError(t, err)
+
+			// Session now expires in 30 minutes (less than ForcedRefresh)
+			// Since SessionExpiry (2 hours) > ForcedRefresh, it should refresh
+			validSession, needsReSign, err := m.ValidateSession(t.Context(), token)
+			require.NoError(t, err)
+			require.False(t, needsReSign)
+			require.Equal(t, session.Identifier, validSession.Identifier)
+			// The expiry should be extended
+			require.True(t, validSession.ExpiresAt.After(time.Now().Add(time.Minute*30)))
+
+			// Verify the new expiry is approximately 2 hours from now
+			expectedExpiry := time.Now().Add(time.Hour * 2)
+			timeDiff := validSession.ExpiresAt.Sub(expectedExpiry).Abs()
+			require.Less(t, timeDiff, time.Second*5, "New expiry should be approximately 2 hours from now")
+		})
+
+		t.Run("ShortSessionNoForceRefresh", func(t *testing.T) {
+			container := testutils.SetupMySQLContainer(t)
+			logger := logging.Test(t, logging.Zerolog, "test")
+			database, err := db.New(container.URL, logger)
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				require.NoError(t, database.Close())
+			})
+
+			// Create manager with session expiry < ForcedRefresh
+			m, err := New(Options{
+				Configuration: configuration.Options{
+					SessionExpiry: time.Minute * 30, // 30 minutes < ForcedRefresh (1 hour)
+					PollInterval:  time.Millisecond * 100,
+				},
+				Magic: MagicOptions{Enabled: true},
+			}, database, logger)
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				require.NoError(t, m.Close())
+			})
+
+			// Create a session
+			flowData := flow.Data{
+				ProviderIdentifier: "short-session-provider",
+				UserName:           "Short Session User",
+				PrimaryEmail:       "short@example.com",
+				VerifiedEmails:     []string{"short@example.com"},
+			}
+			session, err := m.CreateSession(t.Context(), flowData, flow.MagicProvider)
+			require.NoError(t, err)
+
+			// Sign the session
+			token, err := m.SignSession(session)
+			require.NoError(t, err)
+
+			// Session has 30 minutes expiry, which is less than ForcedRefresh
+			// So ValidateSession should NOT refresh the session
+			validSession, needsReSign, err := m.ValidateSession(t.Context(), token)
+			require.NoError(t, err)
+			require.False(t, needsReSign)
+			require.Equal(t, session.Identifier, validSession.Identifier)
+			require.Equal(t, session.Generation, validSession.Generation)
+			// The expiry should NOT be changed
+			require.Equal(t, session.ExpiresAt.Unix(), validSession.ExpiresAt.Unix())
 		})
 	})
 }

@@ -35,7 +35,7 @@ func (g *Github) Register(prefixes []string, group huma.API) {
 	prefixes = append(prefixes, "github")
 	group = huma.NewGroup(group, "/github")
 
-	loginPrefix := append(prefixes, "login")
+	loginPrefix := append(prefixes, "login") //nolint:gocritic
 	huma.Register(group, huma.Operation{
 		OperationID:   strings.Join(loginPrefix, "-"),
 		Method:        http.MethodGet,
@@ -47,7 +47,7 @@ func (g *Github) Register(prefixes []string, group huma.API) {
 		Errors:        []int{400, 401, 404, 500},
 	}, g.login)
 
-	callbackPrefix := append(prefixes, "callback")
+	callbackPrefix := append(prefixes, "callback") //nolint:gocritic
 	huma.Register(group, huma.Operation{
 		OperationID:   strings.Join(callbackPrefix, "-"),
 		Method:        http.MethodGet,

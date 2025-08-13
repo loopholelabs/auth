@@ -35,6 +35,7 @@ const (
 	GCInterval     = time.Minute
 	HealthInterval = time.Second * 30
 	Jitter         = time.Second * 5
+	ForcedRefresh  = time.Hour
 )
 
 var (
@@ -648,20 +649,23 @@ func (m *Manager) IsSessionInvalidated(identifier string, generation uint32) boo
 	return item.Value() >= generation
 }
 
-func (m *Manager) IsSessionValid(token string) (credential.Session, bool, error) {
+func (m *Manager) ValidateSession(ctx context.Context, token string) (credential.Session, bool, error) {
 	_, publicKey := m.Configuration().SigningKey()
 	_, previousPublicKey := m.Configuration().PreviousSigningKey()
-	session, replace, err := credential.ParseSession(token, publicKey, previousPublicKey)
+	session, reSign, err := credential.ParseSession(token, publicKey, previousPublicKey)
 	if err != nil {
-		return credential.Session{}, replace, errors.Join(ErrValidatingSession, err)
+		return credential.Session{}, false, errors.Join(ErrValidatingSession, err)
 	}
 	if m.IsSessionRevoked(session.Identifier) {
-		return credential.Session{}, replace, errors.Join(ErrValidatingSession, ErrRevokedSession)
+		return credential.Session{}, false, errors.Join(ErrValidatingSession, ErrRevokedSession)
 	}
-	if m.IsSessionInvalidated(session.Identifier, session.Generation) {
-		return credential.Session{}, replace, errors.Join(ErrValidatingSession, ErrInvalidatedSession)
+	if m.IsSessionInvalidated(session.Identifier, session.Generation) || (m.Configuration().SessionExpiry() > ForcedRefresh && session.ExpiresAt.Before(time.Now().Add(ForcedRefresh))) {
+		session, err = m.RefreshSession(ctx, session)
+		if err != nil {
+			return credential.Session{}, true, errors.Join(ErrValidatingSession, err)
+		}
 	}
-	return session, replace, nil
+	return session, reSign, nil
 }
 
 func (m *Manager) IsHealthy() bool {

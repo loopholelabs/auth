@@ -20,7 +20,7 @@ import (
 	"github.com/loopholelabs/auth/pkg/manager/configuration"
 )
 
-func setupTestEnvironment(t *testing.T, enableMagic bool) (*Magic, humatest.TestAPI) {
+func setupTestEnvironment(t *testing.T, enableMagic bool) humatest.TestAPI {
 	// Setup MySQL container
 	container := testutils.SetupMySQLContainer(t)
 	logger := logging.Test(t, logging.Zerolog, "test")
@@ -73,12 +73,12 @@ func setupTestEnvironment(t *testing.T, enableMagic bool) (*Magic, humatest.Test
 	// Register Magic endpoints
 	m.Register([]string{"flows"}, api)
 
-	return m, api
+	return api
 }
 
 func TestMagicLogin(t *testing.T) {
 	t.Run("MissingEmail", func(t *testing.T) {
-		_, api := setupTestEnvironment(t, true)
+		api := setupTestEnvironment(t, true)
 
 		resp := api.Get("/magic/login?next=/")
 		assert.Equal(t, 422, resp.Result().StatusCode)
@@ -91,14 +91,14 @@ func TestMagicLogin(t *testing.T) {
 	})
 
 	t.Run("MissingNext", func(t *testing.T) {
-		_, api := setupTestEnvironment(t, true)
+		api := setupTestEnvironment(t, true)
 
 		resp := api.Get("/magic/login?email=test@example.com")
 		assert.Equal(t, 422, resp.Result().StatusCode)
 	})
 
 	t.Run("InvalidEmail", func(t *testing.T) {
-		_, api := setupTestEnvironment(t, true)
+		api := setupTestEnvironment(t, true)
 
 		resp := api.Get("/magic/login?email=invalid-email&next=/")
 		// The email validation happens in the handler, not in Huma validation
@@ -107,7 +107,7 @@ func TestMagicLogin(t *testing.T) {
 	})
 
 	t.Run("MagicNotEnabled", func(t *testing.T) {
-		_, api := setupTestEnvironment(t, false)
+		api := setupTestEnvironment(t, false)
 
 		resp := api.Get("/magic/login?email=test@example.com&next=/")
 		assert.Equal(t, 401, resp.Result().StatusCode)
@@ -120,7 +120,7 @@ func TestMagicLogin(t *testing.T) {
 	})
 
 	t.Run("WithValidEmail", func(t *testing.T) {
-		_, api := setupTestEnvironment(t, true)
+		api := setupTestEnvironment(t, true)
 
 		resp := api.Get("/magic/login?email=test@example.com&next=/dashboard")
 		// Without a mailer configured, this would return 401
@@ -188,14 +188,14 @@ func TestMagicLogin(t *testing.T) {
 
 func TestMagicCallback(t *testing.T) {
 	t.Run("MissingToken", func(t *testing.T) {
-		_, api := setupTestEnvironment(t, true)
+		api := setupTestEnvironment(t, true)
 
 		resp := api.Get("/magic/callback")
 		assert.Equal(t, 422, resp.Result().StatusCode)
 	})
 
 	t.Run("InvalidToken", func(t *testing.T) {
-		_, api := setupTestEnvironment(t, true)
+		api := setupTestEnvironment(t, true)
 
 		resp := api.Get("/magic/callback?token=invalid-token")
 		assert.Equal(t, 401, resp.Result().StatusCode)
@@ -208,7 +208,7 @@ func TestMagicCallback(t *testing.T) {
 	})
 
 	t.Run("MagicNotEnabled", func(t *testing.T) {
-		_, api := setupTestEnvironment(t, false)
+		api := setupTestEnvironment(t, false)
 
 		resp := api.Get("/magic/callback?token=test-token")
 		assert.Equal(t, 401, resp.Result().StatusCode)
