@@ -13,7 +13,7 @@ import (
 
 	"github.com/loopholelabs/auth/internal/config"
 	"github.com/loopholelabs/auth/pkg/api/options"
-	"github.com/loopholelabs/auth/pkg/api/v1"
+	v1 "github.com/loopholelabs/auth/pkg/api/v1"
 )
 
 func Cmd() command.SetupCommand[*config.Config] {
@@ -22,13 +22,13 @@ func Cmd() command.SetupCommand[*config.Config] {
 		c := &cobra.Command{
 			Use:   "openapi",
 			Short: "Generate OpenAPI Specification",
-			PreRunE: func(cmd *cobra.Command, args []string) error {
+			PreRunE: func(_ *cobra.Command, _ []string) error {
 				if output == "" {
 					return errors.New("no output file specified")
 				}
 				return nil
 			},
-			RunE: func(c *cobra.Command, _ []string) error {
+			RunE: func(_ *cobra.Command, _ []string) error {
 				ch.Printer.Printf("Generating OpenAPI Specification...\n")
 				v1API := v1.New(options.Options{
 					Endpoint: ch.Config.API.Endpoint,
@@ -40,7 +40,7 @@ func Cmd() command.SetupCommand[*config.Config] {
 					return err
 				}
 
-				err = os.WriteFile(output, v1OpenAPIBytes, 0644)
+				err = os.WriteFile(output, v1OpenAPIBytes, 0644) //nolint:gosec
 				if err != nil {
 					return err
 				}
