@@ -1,0 +1,196 @@
+//SPDX-License-Identifier: Apache-2.0
+
+package v1
+
+import (
+	"context"
+	"encoding/base64"
+	"net/http"
+	"net/url"
+	"strings"
+
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humafiber"
+	"github.com/gofiber/fiber/v2"
+	"github.com/loopholelabs/auth/pkg/api/v1/user"
+
+	"github.com/loopholelabs/logging/types"
+
+	"github.com/loopholelabs/auth/internal/utils"
+	fiberMiddleware "github.com/loopholelabs/auth/pkg/api/middleware/fiber"
+	"github.com/loopholelabs/auth/pkg/api/options"
+	"github.com/loopholelabs/auth/pkg/api/v1/flows"
+	"github.com/loopholelabs/auth/pkg/api/v1/session"
+	"github.com/loopholelabs/auth/pkg/credential/cookies"
+)
+
+const (
+	Path = "/v1"
+)
+
+type V1 struct {
+	logger  types.Logger
+	app     *fiber.App
+	openAPI *huma.OpenAPI
+	options options.Options
+}
+
+func New(options options.Options, logger types.Logger) *V1 {
+	v := &V1{
+		logger:  logger.SubLogger("V1"),
+		app:     utils.DefaultFiberApp(),
+		options: options,
+	}
+
+	v.init()
+
+	return v
+}
+
+func (v *V1) init() {
+	v.logger.Debug().Msg("initializing")
+
+	v.app.Get("/docs", v.docs)
+
+	// Configure OpenAPI
+	config := huma.DefaultConfig("Authentication API", "1.0")
+	config.DocsPath = ""
+	config.Info.Description = "Authentication API"
+	config.Info.TermsOfService = "https://loopholelabs.io/privacy"
+	config.Info.Contact = &huma.Contact{
+		Name:  "API Support",
+		Email: "admin@loopholelabs.io",
+	}
+	config.Info.License = &huma.License{
+		Name: "Apache 2.0",
+		URL:  "https://www.apache.org/licenses/LICENSE-2.0.html",
+	}
+
+	server := &url.URL{
+		Scheme: "http",
+		Host:   v.options.Endpoint,
+		Path:   Path,
+	}
+	if v.options.TLS {
+		server.Scheme = "https"
+	}
+
+	config.Servers = []*huma.Server{
+		{
+			URL: server.String(),
+		},
+	}
+
+	// Configure security schemes
+	config.Components.SecuritySchemes = map[string]*huma.SecurityScheme{
+		"cookieAuth": {
+			Type:        "apiKey",
+			In:          "cookie",
+			Name:        cookies.SessionCookie,
+			Description: "session cookie",
+		},
+	}
+
+	prefixes := []string{"v1"}
+	api := humafiber.New(v.app, config)
+
+	healthPrefix := append(prefixes, "health") //nolint:gocritic
+	huma.Register(api, huma.Operation{
+		OperationID:   strings.Join(healthPrefix, "-"),
+		Method:        http.MethodGet,
+		Path:          "/health",
+		Summary:       "health check",
+		Description:   "returns the health check status",
+		Tags:          healthPrefix,
+		DefaultStatus: 200,
+		Errors:        []int{503},
+	}, v.health)
+
+	publicPrefix := append(prefixes, "public") //nolint:gocritic
+	huma.Register(api, huma.Operation{
+		OperationID:   strings.Join(publicPrefix, "-"),
+		Method:        http.MethodGet,
+		Path:          "/public",
+		Summary:       "get public keys and session information",
+		Description:   "returns the current public key and session information",
+		Tags:          publicPrefix,
+		DefaultStatus: 200,
+		Errors:        []int{500},
+	}, v.public)
+
+	logoutPrefix := append(prefixes, "logout") //nolint:gocritic
+	huma.Register(api, huma.Operation{
+		OperationID:   strings.Join(logoutPrefix, "-"),
+		Method:        http.MethodPost,
+		Path:          "/logout",
+		Summary:       "logout user",
+		Description:   "logs out a user by revoking their session",
+		Tags:          logoutPrefix,
+		DefaultStatus: 200,
+		Middlewares:   huma.Middlewares{fiberMiddleware.LogIP("logout", v.logger)},
+	}, v.logout)
+
+	flows.New(v.options, v.logger).Register(prefixes, api)
+	session.New(v.options, v.logger).Register(prefixes, api)
+	user.New(v.options, v.logger).Register(prefixes, api)
+
+	v.openAPI = api.OpenAPI()
+}
+
+func (v *V1) App() *fiber.App {
+	return v.app
+}
+
+func (v *V1) OpenAPI() *huma.OpenAPI {
+	return v.openAPI
+}
+
+func (v *V1) health(_ context.Context, _ *struct{}) (*struct{}, error) {
+	v.logger.Trace().Msg("health")
+	if !v.options.Manager.IsHealthy() {
+		return nil, huma.Error503ServiceUnavailable("service unhealthy")
+	}
+	return nil, nil //nolint:nilnil
+}
+
+func (v *V1) public(_ context.Context, _ *struct{}) (*V1PublicResponse, error) {
+	publicKey := v.options.Manager.Configuration().EncodedPublicKey()
+	if publicKey == nil {
+		v.logger.Error().Msg("public key is nil")
+		return nil, huma.Error500InternalServerError("public key is nil")
+	}
+
+	response := &V1PublicResponse{
+		Body: V1PublicResponseBody{
+			PublicKey:           base64.StdEncoding.EncodeToString(publicKey),
+			RevokedSessions:     v.options.Manager.SessionRevocationList(),
+			InvalidatedSessions: v.options.Manager.SessionInvalidationList(),
+		},
+	}
+
+	previousPublicKey := v.options.Manager.Configuration().EncodedPreviousPublicKey()
+	if previousPublicKey != nil {
+		response.Body.PreviousPublicKey = base64.StdEncoding.EncodeToString(previousPublicKey)
+	}
+
+	return response, nil
+}
+
+func (v *V1) logout(ctx context.Context, request *V1LogoutRequest) (*V1LogoutResponse, error) {
+	response := new(V1LogoutResponse)
+
+	// Try to get cookie from Fiber context if available
+	if request.SessionCookie != "" {
+		s, _, err := v.options.Manager.ParseSession(request.SessionCookie)
+		if err == nil {
+			err = v.options.Manager.RevokeSession(ctx, s.Identifier)
+			if err != nil {
+				v.logger.Error().Err(err).Msg("revoking session failed")
+			}
+		}
+
+		response.SessionCookie = cookies.Remove(v.options)
+	}
+
+	return response, nil
+}

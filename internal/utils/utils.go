@@ -1,36 +1,37 @@
-/*
-	Copyright 2023 Loophole Labs
-
-	Licensed under the Apache License, Version 2.0 (the "License");
-	you may not use this file except in compliance with the License.
-	You may obtain a copy of the License at
-
-		   http://www.apache.org/licenses/LICENSE-2.0
-
-	Unless required by applicable law or agreed to in writing, software
-	distributed under the License is distributed on an "AS IS" BASIS,
-	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-	See the License for the specific language governing permissions and
-	limitations under the License.
-*/
+//SPDX-License-Identifier: Apache-2.0
 
 package utils
 
 import (
+	"crypto"
+	"crypto/ed25519"
 	"crypto/rand"
+	"crypto/subtle"
+	"crypto/x509"
 	"encoding/json"
-	"github.com/gofiber/fiber/v2"
+	"encoding/pem"
+	"errors"
 	"math/big"
+	"net"
 	"time"
 	"unsafe"
-)
 
-const (
-	letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	"github.com/gofiber/fiber/v2"
 )
 
 var (
-	maxLetterBytes = big.NewInt(int64(len(letterBytes)))
+	ErrInvalidPKCS8PrivateKey = errors.New("invalid PKCS8 private key")
+	ErrInvalidPKIXPublicKey   = errors.New("invalid PKIX public key")
+)
+
+const (
+	letterBytes       = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	base32LetterBytes = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+)
+
+var (
+	maxLetterBytes       = big.NewInt(int64(len(letterBytes)))
+	maxBase32LetterBytes = big.NewInt(int64(len(base32LetterBytes)))
 )
 
 // RandomBytes generates a random byte slice of length n
@@ -40,7 +41,16 @@ func RandomBytes(n int) []byte {
 		num, _ := rand.Int(rand.Reader, maxLetterBytes)
 		b[i] = letterBytes[num.Int64()]
 	}
+	return b
+}
 
+// RandomBase32Bytes generates a random byte slice length n of base32 characters
+func RandomBase32Bytes(length int) []byte {
+	b := make([]byte, length)
+	for i := 0; i < length; i++ {
+		num, _ := rand.Int(rand.Reader, maxBase32LetterBytes)
+		b[i] = base32LetterBytes[num.Int64()]
+	}
 	return b
 }
 
@@ -48,6 +58,17 @@ func RandomBytes(n int) []byte {
 func RandomString(n int) string {
 	b := RandomBytes(n)
 	return *(*string)(unsafe.Pointer(&b))
+}
+
+// RandomBase32String generates a random base32 string of length n
+func RandomBase32String(n int) string {
+	b := RandomBase32Bytes(n)
+	return *(*string)(unsafe.Pointer(&b))
+}
+
+// ConstantTimeCompareBytes compares two byte slices in constant time
+func ConstantTimeCompareBytes(a []byte, b []byte) bool {
+	return subtle.ConstantTimeCompare(a, b) == 1
 }
 
 // DefaultFiberApp returns a new fiber app with sensible defaults
@@ -60,4 +81,50 @@ func DefaultFiberApp() *fiber.App {
 		JSONEncoder:           json.Marshal,
 		JSONDecoder:           json.Unmarshal,
 	})
+}
+
+func EncodeED25519PrivateKey(privateKey ed25519.PrivateKey) []byte {
+	marshalled, _ := x509.MarshalPKCS8PrivateKey(privateKey)
+	return pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: marshalled})
+}
+
+func DecodeED25519PrivateKey(encoded []byte) (ed25519.PrivateKey, error) {
+	block, _ := pem.Decode(encoded)
+	if block == nil {
+		return nil, ErrInvalidPKCS8PrivateKey
+	}
+	key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+	if privateKey, ok := key.(ed25519.PrivateKey); ok {
+		return privateKey, nil
+	}
+	return nil, ErrInvalidPKCS8PrivateKey
+}
+
+func EncodePublicKey(publicKey crypto.PublicKey) []byte {
+	marshalled, _ := x509.MarshalPKIXPublicKey(publicKey)
+	return pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: marshalled})
+}
+
+func DecodePublicKey(encoded []byte) (crypto.PublicKey, error) {
+	block, _ := pem.Decode(encoded)
+	if block == nil {
+		return nil, ErrInvalidPKIXPublicKey
+	}
+	return x509.ParsePKIXPublicKey(block.Bytes)
+}
+
+func GenericZero[T any]() T {
+	var zero T
+	return zero
+}
+
+func RemovePortFromHostPort(hostport string) string {
+	host, _, err := net.SplitHostPort(hostport)
+	if err != nil {
+		return hostport
+	}
+	return host
 }

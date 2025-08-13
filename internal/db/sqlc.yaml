@@ -1,0 +1,10 @@
+version: "2"
+sql:
+  - engine: "mysql"
+    queries: "queries"
+    schema: "migrations"
+    gen:
+      go:
+        package: "generated"
+        out: "generated"
+        sql_package: "database/sql"

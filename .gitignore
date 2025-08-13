@@ -1,3 +1,7 @@
 .idea
 env
 .env
+coverage*
+.config.yaml
+openapi.yaml
+build/
