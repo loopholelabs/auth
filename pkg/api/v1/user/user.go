@@ -244,7 +244,7 @@ func (g *User) update(ctx context.Context, request *UserUpdateRequest) (*struct{
 		return nil, huma.Error500InternalServerError("error incrementing session generation")
 	}
 	if numInvalidations != numSessions {
-		g.logger.Error().Msg("session invalidations don't match session invalidations")
+		g.logger.Error().Msg("session invalidations don't match session count")
 		return nil, huma.Error500InternalServerError("invalid session state")
 	}
 
