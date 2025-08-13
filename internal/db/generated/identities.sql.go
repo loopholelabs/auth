@@ -33,6 +33,41 @@ func (q *Queries) CreateIdentity(ctx context.Context, arg CreateIdentityParams) 
 	return err
 }
 
+const getAllIdentitiesByUserIdentifier = `-- name: GetAllIdentitiesByUserIdentifier :many
+SELECT provider, provider_identifier, user_identifier, verified_emails, created_at
+FROM identities
+WHERE user_identifier = ?
+`
+
+func (q *Queries) GetAllIdentitiesByUserIdentifier(ctx context.Context, userIdentifier string) ([]Identity, error) {
+	rows, err := q.db.QueryContext(ctx, getAllIdentitiesByUserIdentifier, userIdentifier)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Identity
+	for rows.Next() {
+		var i Identity
+		if err := rows.Scan(
+			&i.Provider,
+			&i.ProviderIdentifier,
+			&i.UserIdentifier,
+			&i.VerifiedEmails,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getIdentityByProviderAndProviderIdentifier = `-- name: GetIdentityByProviderAndProviderIdentifier :one
 SELECT provider, provider_identifier, user_identifier, verified_emails, created_at
 FROM identities

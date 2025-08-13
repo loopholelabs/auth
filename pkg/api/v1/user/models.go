@@ -5,6 +5,12 @@ package user
 
 import "time"
 
+type IdentityInfo struct {
+	Provider       string    `json:"provider" doc:"identity provider"`
+	VerifiedEmails []string  `json:"verified_emails" doc:"verified emails"`
+	CreatedAt      time.Time `json:"created_at" doc:"created at time"`
+}
+
 type OrganizationInfo struct {
 	Name      string    `json:"name" doc:"organization name"`
 	CreatedAt time.Time `json:"created_at" doc:"organization creation time"`
@@ -19,6 +25,7 @@ type UserInfoResponseBody struct {
 	CreatedAt           time.Time          `json:"created_at" doc:"user's creation time"`
 	DefaultOrganization OrganizationInfo   `json:"default_organization" doc:"user's default organization"`
 	Organizations       []OrganizationInfo `json:"organizations" doc:"user's organizations"`
+	Identities          []IdentityInfo     `json:"identities" doc:"user's identities"`
 }
 
 type UserInfoResponse struct {

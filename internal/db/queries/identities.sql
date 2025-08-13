@@ -8,3 +8,8 @@ SELECT *
 FROM identities
 WHERE provider = sqlc.arg(provider)
   AND provider_identifier = sqlc.arg(provider_identifier) LIMIT 1;
+
+-- name: GetAllIdentitiesByUserIdentifier :many
+SELECT *
+FROM identities
+WHERE user_identifier = sqlc.arg(user_identifier);

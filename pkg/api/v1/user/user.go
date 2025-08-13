@@ -4,16 +4,18 @@ package user
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/loopholelabs/auth/pkg/manager/role"
+
+	"github.com/loopholelabs/logging/types"
 
 	"github.com/loopholelabs/auth/pkg/api/middleware"
 	"github.com/loopholelabs/auth/pkg/api/middleware/fiber"
 	"github.com/loopholelabs/auth/pkg/api/options"
-	"github.com/loopholelabs/logging/types"
+	"github.com/loopholelabs/auth/pkg/manager/role"
 )
 
 type User struct {
@@ -73,6 +75,12 @@ func (g *User) info(ctx context.Context, _ *struct{}) (*UserInfoResponse, error)
 		return nil, huma.Error500InternalServerError("error retrieving default organization")
 	}
 
+	identities, err := g.options.Manager.Database().Queries.GetAllIdentitiesByUserIdentifier(ctx, session.UserInfo.Identifier)
+	if err != nil {
+		g.logger.Error().Err(err).Msg("error retrieving user identities")
+		return nil, huma.Error500InternalServerError("error retrieving user identities")
+	}
+
 	var organizationInfo []OrganizationInfo
 	for _, organization := range organizations {
 		organizationInfo = append(organizationInfo, OrganizationInfo{
@@ -80,6 +88,21 @@ func (g *User) info(ctx context.Context, _ *struct{}) (*UserInfoResponse, error)
 			CreatedAt: organization.CreatedAt,
 			Role:      organization.MembershipRole,
 			JoinedAt:  organization.MembershipCreatedAt,
+		})
+	}
+
+	var identityInfos []IdentityInfo
+	for _, identity := range identities {
+		var verifiedEmails []string
+		err = json.Unmarshal(identity.VerifiedEmails, &verifiedEmails)
+		if err != nil {
+			g.logger.Error().Err(err).Msg("error retrieving user verified emails")
+			return nil, huma.Error500InternalServerError("error retrieving user verified emails")
+		}
+		identityInfos = append(identityInfos, IdentityInfo{
+			Provider:       string(identity.Provider),
+			VerifiedEmails: verifiedEmails,
+			CreatedAt:      identity.CreatedAt,
 		})
 	}
 
@@ -96,6 +119,7 @@ func (g *User) info(ctx context.Context, _ *struct{}) (*UserInfoResponse, error)
 				JoinedAt:  user.CreatedAt,
 			},
 			Organizations: organizationInfo,
+			Identities:    identityInfos,
 		},
 	}, nil
 }
