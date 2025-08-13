@@ -12,7 +12,7 @@ import (
 const (
 	DefaultListenAddress = "127.0.0.1:8080"
 	DefaultEndpoint      = "localhost:8080"
-	DefaultPollInterval  = time.Second * 30
+	DefaultPollInterval  = time.Second * 5
 	DefaultSessionExpiry = time.Hour * 24
 )
 

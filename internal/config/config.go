@@ -6,10 +6,11 @@ import (
 	"errors"
 
 	"github.com/adrg/xdg"
-	"github.com/loopholelabs/cmdutils/pkg/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+
+	"github.com/loopholelabs/cmdutils/pkg/config"
 )
 
 var _ config.Config = (*Config)(nil)
@@ -25,12 +26,14 @@ var (
 )
 
 type Config struct {
-	API *API `mapstructure:"api"`
+	API    *API    `mapstructure:"api"`
+	Rotate *Rotate `mapstructure:"rotate"`
 }
 
 func New() *Config {
 	return &Config{
-		API: NewAPI(),
+		API:    NewAPI(),
+		Rotate: NewRotate(),
 	}
 }
 
@@ -43,10 +46,6 @@ func (c *Config) GlobalRequiredFlags(_ *cobra.Command) error {
 func (c *Config) Validate() error {
 	if err := viper.Unmarshal(c); err != nil {
 		return errors.Join(ErrFailedToUnmarshalConfig, err)
-	}
-
-	if err := c.API.Validate(); err != nil {
-		return errors.Join(ErrFailedToValidateConfig, err)
 	}
 
 	return nil

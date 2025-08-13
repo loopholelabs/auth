@@ -1,3 +1,5 @@
+//SPDX-License-Identifier: Apache-2.0
+
 package main
 
 import (
@@ -5,10 +7,11 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/loopholelabs/auth/cmd/api"
 	"github.com/loopholelabs/cmdutils/pkg/command"
 	"github.com/loopholelabs/cmdutils/pkg/version"
 
+	"github.com/loopholelabs/auth/cmd/api"
+	"github.com/loopholelabs/auth/cmd/rotate"
 	"github.com/loopholelabs/auth/internal/config"
 	authVersion "github.com/loopholelabs/auth/version"
 )
@@ -22,6 +25,7 @@ var cmd = command.New(
 	config.New,
 	[]command.SetupCommand[*config.Config]{
 		api.Cmd(),
+		rotate.Cmd(),
 	},
 )
 

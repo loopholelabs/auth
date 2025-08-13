@@ -1,6 +1,9 @@
+//SPDX-License-Identifier: Apache-2.0
+
 package api
 
 import (
+	"errors"
 	"os"
 	"os/signal"
 	"syscall"
@@ -23,6 +26,12 @@ func Cmd() command.SetupCommand[*config.Config] {
 		c := &cobra.Command{
 			Use:   "api",
 			Short: "Run Authentication API",
+			PreRunE: func(_ *cobra.Command, _ []string) error {
+				if err := ch.Config.API.Validate(); err != nil {
+					return errors.Join(config.ErrFailedToValidateConfig, err)
+				}
+				return nil
+			},
 			RunE: func(c *cobra.Command, _ []string) error {
 				ch.Printer.Printf("running Authentication API...\n")
 
@@ -130,6 +139,7 @@ func Cmd() command.SetupCommand[*config.Config] {
 		if err := ch.Config.API.RequiredFlags(c); err != nil {
 			panic(err)
 		}
+
 		cmd.AddCommand(c)
 	}
 }
