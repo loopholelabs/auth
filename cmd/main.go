@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/loopholelabs/auth/cmd/openapi"
 	"github.com/loopholelabs/cmdutils/pkg/command"
 	"github.com/loopholelabs/cmdutils/pkg/version"
 
@@ -26,6 +27,7 @@ var cmd = command.New(
 	[]command.SetupCommand[*config.Config]{
 		api.Cmd(),
 		rotate.Cmd(),
+		openapi.Cmd(),
 	},
 )
 

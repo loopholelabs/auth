@@ -29,9 +29,9 @@ const (
 )
 
 type V1 struct {
-	logger types.Logger
-	app    *fiber.App
-
+	logger  types.Logger
+	app     *fiber.App
+	openAPI *huma.OpenAPI
 	options options.Options
 }
 
@@ -133,10 +133,16 @@ func (v *V1) init() {
 	flows.New(v.options, v.logger).Register(prefixes, api)
 	session.New(v.options, v.logger).Register(prefixes, api)
 	user.New(v.options, v.logger).Register(prefixes, api)
+
+	v.openAPI = api.OpenAPI()
 }
 
 func (v *V1) App() *fiber.App {
 	return v.app
+}
+
+func (v *V1) OpenAPI() *huma.OpenAPI {
+	return v.openAPI
 }
 
 func (v *V1) health(_ context.Context, _ *struct{}) (*struct{}, error) {
