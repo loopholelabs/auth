@@ -44,15 +44,12 @@ func ValidateSession(api huma.API, options options.Options, logger types.Logger)
 				_ = huma.WriteErr(api, ctx, http.StatusInternalServerError, huma.Error500InternalServerError("error creating cookie").Error())
 				return
 			}
+			ctx.AppendHeader("Set-Cookie", cookie.String())
 		}
 
 		huma.WithValue(ctx, sessionKey{}, session)
 
 		next(ctx)
-
-		if reSign {
-			ctx.AppendHeader("Set-Cookie", cookie.String())
-		}
 	}
 }
 
