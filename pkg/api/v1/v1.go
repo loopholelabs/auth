@@ -12,6 +12,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humafiber"
 	"github.com/gofiber/fiber/v2"
+	"github.com/loopholelabs/auth/pkg/credential/cookies"
 
 	"github.com/loopholelabs/logging/types"
 
@@ -19,7 +20,6 @@ import (
 	fiberMiddleware "github.com/loopholelabs/auth/pkg/api/middleware/fiber"
 	"github.com/loopholelabs/auth/pkg/api/options"
 	"github.com/loopholelabs/auth/pkg/api/v1/flows"
-	"github.com/loopholelabs/auth/pkg/credential"
 )
 
 const (
@@ -82,7 +82,7 @@ func (v *V1) init() {
 		"cookieAuth": {
 			Type:        "apiKey",
 			In:          "cookie",
-			Name:        credential.SessionCookie,
+			Name:        cookies.SessionCookie,
 			Description: "session cookie",
 		},
 	}
@@ -179,10 +179,9 @@ func (v *V1) logout(ctx context.Context, input *V1LogoutRequest) (*V1LogoutRespo
 
 		// Clear the cookie by setting it with MaxAge 0
 		response.Headers.SetCookie = &http.Cookie{
-			Name:     credential.SessionCookie,
+			Name:     cookies.SessionCookie,
 			Value:    "",
 			MaxAge:   0,
-			Path:     "/",
 			Domain:   v.options.Endpoint,
 			Secure:   v.options.TLS,
 			HttpOnly: true,

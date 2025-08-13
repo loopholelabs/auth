@@ -12,12 +12,12 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/loopholelabs/auth/pkg/api/middleware/fiber"
+	"github.com/loopholelabs/auth/pkg/credential/cookies"
 
 	"github.com/loopholelabs/logging/types"
 
 	"github.com/loopholelabs/auth/pkg/api/models"
 	"github.com/loopholelabs/auth/pkg/api/options"
-	"github.com/loopholelabs/auth/pkg/credential"
 	"github.com/loopholelabs/auth/pkg/manager/flow/device"
 )
 
@@ -144,23 +144,15 @@ func (d *Device) poll(ctx context.Context, input *DevicePollRequest) (*DevicePol
 		return nil, huma.Error500InternalServerError("error creating session")
 	}
 
-	token, err := d.options.Manager.SignSession(session)
+	cookie, err := cookies.Create(session, d.options)
 	if err != nil {
-		d.logger.Error().Err(err).Msg("error signing session")
-		return nil, huma.Error500InternalServerError("error signing session")
+		d.logger.Error().Err(err).Msg("error creating cookie")
+		return nil, huma.Error500InternalServerError("error creating cookie")
 	}
 
 	return &DevicePollResponse{
 		Headers: models.SessionHeaders{
-			SetCookie: &http.Cookie{
-				Name:     credential.SessionCookie,
-				Value:    token,
-				Expires:  session.ExpiresAt,
-				Domain:   d.options.Endpoint,
-				Secure:   d.options.TLS,
-				HttpOnly: true,
-				SameSite: http.SameSiteLaxMode,
-			},
+			SetCookie: cookie,
 		},
 	}, nil
 }

@@ -50,7 +50,6 @@ var (
 	ErrInvalidSessionRole = errors.New("invalid session role")
 	ErrValidatingSession  = errors.New("error validating session")
 	ErrRevokedSession     = errors.New("revoked session")
-	ErrInvalidatedSession = errors.New("invalidated session")
 )
 
 type InvalidatedSession struct {

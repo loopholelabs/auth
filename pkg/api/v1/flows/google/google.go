@@ -11,12 +11,12 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/loopholelabs/auth/pkg/api/middleware/fiber"
+	"github.com/loopholelabs/auth/pkg/credential/cookies"
 
 	"github.com/loopholelabs/logging/types"
 
 	"github.com/loopholelabs/auth/pkg/api/models"
 	"github.com/loopholelabs/auth/pkg/api/options"
-	"github.com/loopholelabs/auth/pkg/credential"
 	"github.com/loopholelabs/auth/pkg/manager/flow"
 )
 
@@ -136,21 +136,10 @@ func (g *Google) callback(ctx context.Context, input *GoogleCallbackRequest) (*G
 			return nil, huma.Error500InternalServerError("internal server error")
 		}
 	} else {
-		// Regular flow - set session cookie
-		token, err := g.options.Manager.SignSession(session)
+		response.Headers.SetCookie, err = cookies.Create(session, g.options)
 		if err != nil {
-			g.logger.Error().Err(err).Msg("error signing session")
-			return nil, huma.Error500InternalServerError("internal server error")
-		}
-
-		response.Headers.SetCookie = &http.Cookie{
-			Name:     credential.SessionCookie,
-			Value:    token,
-			Expires:  session.ExpiresAt,
-			Domain:   g.options.Endpoint,
-			Secure:   g.options.TLS,
-			HttpOnly: true,
-			SameSite: http.SameSiteLaxMode,
+			g.logger.Error().Err(err).Msg("error creating cookie")
+			return nil, huma.Error500InternalServerError("error creating cookie")
 		}
 	}
 
