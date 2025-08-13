@@ -13,3 +13,13 @@ UPDATE memberships
 SET role = LOWER(sqlc.arg(role))
 WHERE user_identifier = sqlc.arg(user_identifier)
   AND organization_identifier = sqlc.arg(organization_identifier);
+
+-- name: GetMembershipsByUserIdentifier :many
+SELECT *
+from memberships
+WHERE user_identifier = sqlc.arg(user_identifier);
+
+-- name: GetMembershipsByOrganizationIdentifier :many
+SELECT *
+from memberships
+WHERE organization_identifier = sqlc.arg(organization_identifier);

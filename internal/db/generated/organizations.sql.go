@@ -7,6 +7,7 @@ package generated
 
 import (
 	"context"
+	"time"
 )
 
 const createOrganization = `-- name: CreateOrganization :exec
@@ -41,4 +42,53 @@ func (q *Queries) GetOrganizationByIdentifier(ctx context.Context, identifier st
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const getOrganizationsForUserIdentifier = `-- name: GetOrganizationsForUserIdentifier :many
+SELECT o.identifier, o.name, o.is_default, o.created_at,
+       m.role       as membership_role,
+       m.created_at AS membership_created_at
+FROM memberships m
+         INNER JOIN organizations o ON m.organization_identifier = o.identifier
+WHERE m.user_identifier = ?
+ORDER BY o.created_at DESC
+`
+
+type GetOrganizationsForUserIdentifierRow struct {
+	Identifier          string
+	Name                string
+	IsDefault           bool
+	CreatedAt           time.Time
+	MembershipRole      string
+	MembershipCreatedAt time.Time
+}
+
+func (q *Queries) GetOrganizationsForUserIdentifier(ctx context.Context, userIdentifier string) ([]GetOrganizationsForUserIdentifierRow, error) {
+	rows, err := q.db.QueryContext(ctx, getOrganizationsForUserIdentifier, userIdentifier)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetOrganizationsForUserIdentifierRow
+	for rows.Next() {
+		var i GetOrganizationsForUserIdentifierRow
+		if err := rows.Scan(
+			&i.Identifier,
+			&i.Name,
+			&i.IsDefault,
+			&i.CreatedAt,
+			&i.MembershipRole,
+			&i.MembershipCreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

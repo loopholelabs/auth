@@ -233,6 +233,6 @@ type User struct {
 	Name                          string
 	PrimaryEmail                  string
 	DefaultOrganizationIdentifier string
-	LastSeen                      time.Time
+	LastLogin                     time.Time
 	CreatedAt                     time.Time
 }

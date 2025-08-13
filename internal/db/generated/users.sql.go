@@ -11,7 +11,8 @@ import (
 
 const createUser = `-- name: CreateUser :exec
 INSERT INTO users (identifier, name, primary_email, default_organization_identifier, created_at)
-VALUES (?, ?, LOWER(?), ?, CURRENT_TIMESTAMP)
+VALUES (?, ?, LOWER(?), ?,
+        CURRENT_TIMESTAMP)
 `
 
 type CreateUserParams struct {
@@ -32,7 +33,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
 }
 
 const getUserByIdentifier = `-- name: GetUserByIdentifier :one
-SELECT identifier, name, primary_email, default_organization_identifier, last_seen, created_at
+SELECT identifier, name, primary_email, default_organization_identifier, last_login, created_at
 FROM users
 WHERE identifier = ? LIMIT 1
 `
@@ -45,10 +46,24 @@ func (q *Queries) GetUserByIdentifier(ctx context.Context, identifier string) (U
 		&i.Name,
 		&i.PrimaryEmail,
 		&i.DefaultOrganizationIdentifier,
-		&i.LastSeen,
+		&i.LastLogin,
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const updateUserLastLoginByIdentifier = `-- name: UpdateUserLastLoginByIdentifier :execrows
+UPDATE users
+SET last_login = CURRENT_TIMESTAMP
+WHERE identifier = ?
+`
+
+func (q *Queries) UpdateUserLastLoginByIdentifier(ctx context.Context, identifier string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateUserLastLoginByIdentifier, identifier)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const updateUserNameByIdentifier = `-- name: UpdateUserNameByIdentifier :execrows

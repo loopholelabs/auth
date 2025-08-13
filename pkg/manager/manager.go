@@ -369,6 +369,14 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 		return credential.Session{}, errors.Join(ErrCreatingSession, err)
 	}
 
+	num, err := qtx.UpdateUserLastLoginByIdentifier(ctx, providerIdentity.UserIdentifier)
+	if err != nil {
+		return credential.Session{}, errors.Join(ErrCreatingSession, err)
+	}
+	if num == 0 {
+		return credential.Session{}, errors.Join(ErrCreatingSession, sql.ErrNoRows)
+	}
+
 	organization, err := qtx.GetOrganizationByIdentifier(ctx, user.DefaultOrganizationIdentifier)
 	if err != nil {
 		return credential.Session{}, errors.Join(ErrCreatingSession, err)
@@ -684,6 +692,10 @@ func (m *Manager) IsHealthy() bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.healthy && m.sessionRevocationHealthy && m.sessionInvalidationHealthy
+}
+
+func (m *Manager) Database() *db.DB {
+	return m.db
 }
 
 func (m *Manager) Close() error {

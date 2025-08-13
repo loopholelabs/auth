@@ -49,6 +49,74 @@ func (q *Queries) GetMembershipByUserIdentifierAndOrganizationIdentifier(ctx con
 	return i, err
 }
 
+const getMembershipsByOrganizationIdentifier = `-- name: GetMembershipsByOrganizationIdentifier :many
+SELECT user_identifier, organization_identifier, role, created_at
+from memberships
+WHERE organization_identifier = ?
+`
+
+func (q *Queries) GetMembershipsByOrganizationIdentifier(ctx context.Context, organizationIdentifier string) ([]Membership, error) {
+	rows, err := q.db.QueryContext(ctx, getMembershipsByOrganizationIdentifier, organizationIdentifier)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Membership
+	for rows.Next() {
+		var i Membership
+		if err := rows.Scan(
+			&i.UserIdentifier,
+			&i.OrganizationIdentifier,
+			&i.Role,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getMembershipsByUserIdentifier = `-- name: GetMembershipsByUserIdentifier :many
+SELECT user_identifier, organization_identifier, role, created_at
+from memberships
+WHERE user_identifier = ?
+`
+
+func (q *Queries) GetMembershipsByUserIdentifier(ctx context.Context, userIdentifier string) ([]Membership, error) {
+	rows, err := q.db.QueryContext(ctx, getMembershipsByUserIdentifier, userIdentifier)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Membership
+	for rows.Next() {
+		var i Membership
+		if err := rows.Scan(
+			&i.UserIdentifier,
+			&i.OrganizationIdentifier,
+			&i.Role,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateMembershipRoleByUserIdentifierAndOrganizationIdentifier = `-- name: UpdateMembershipRoleByUserIdentifierAndOrganizationIdentifier :execrows
 UPDATE memberships
 SET role = LOWER(?)

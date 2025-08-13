@@ -20,7 +20,7 @@ CREATE TABLE users
     name                            VARCHAR(255) NOT NULL,
     primary_email                   VARCHAR(255) NOT NULL UNIQUE,
     default_organization_identifier CHAR(36)     NOT NULL,
-    last_seen                       DATETIME     NOT NULL             DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    last_login                      DATETIME     NOT NULL             DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     created_at                      DATETIME     NOT NULL             DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_users_default_org

@@ -12,6 +12,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humafiber"
 	"github.com/gofiber/fiber/v2"
+	"github.com/loopholelabs/auth/pkg/api/v1/user"
 
 	"github.com/loopholelabs/logging/types"
 
@@ -129,6 +130,7 @@ func (v *V1) init() {
 
 	flows.New(v.options, v.logger).Register(prefixes, api)
 	session.New(v.options, v.logger).Register(prefixes, api)
+	user.New(v.options, v.logger).Register(prefixes, api)
 }
 
 func (v *V1) App() *fiber.App {
