@@ -25,6 +25,7 @@ func createValidSession(_ *testing.T) Session {
 		Identifier: uuid.New().String(),
 		OrganizationInfo: OrganizationInfo{
 			Identifier: uuid.New().String(),
+			Name:       "Test Organization",
 			IsDefault:  true,
 			Role:       role.AdminRole,
 		},
@@ -805,6 +806,7 @@ func TestParseSession(t *testing.T) {
 				"exp":                     session.ExpiresAt.Unix(),
 				"iat":                     time.Now().Unix(),
 				"organization_identifier": session.OrganizationInfo.Identifier,
+				"organization_name":       session.OrganizationInfo.Name,
 				"organization_is_default": session.OrganizationInfo.IsDefault,
 				"organization_role":       session.OrganizationInfo.Role,
 				"user_identifier":         session.UserInfo.Identifier,
@@ -850,6 +852,7 @@ func TestParseSession(t *testing.T) {
 						"exp":                     session.ExpiresAt.Unix(),
 						"iat":                     time.Now().Unix(),
 						"organization_identifier": session.OrganizationInfo.Identifier,
+						"organization_name":       session.OrganizationInfo.Name,
 						"organization_is_default": session.OrganizationInfo.IsDefault,
 						"organization_role":       session.OrganizationInfo.Role,
 						"user_identifier":         session.UserInfo.Identifier,

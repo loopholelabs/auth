@@ -369,6 +369,11 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 		return credential.Session{}, errors.Join(ErrCreatingSession, err)
 	}
 
+	organization, err := qtx.GetOrganizationByIdentifier(ctx, user.DefaultOrganizationIdentifier)
+	if err != nil {
+		return credential.Session{}, errors.Join(ErrCreatingSession, err)
+	}
+
 	err = tx.Commit()
 	if err != nil {
 		return credential.Session{}, errors.Join(ErrCreatingSession, err)
@@ -398,6 +403,7 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 		Identifier: sessionIdentifier,
 		OrganizationInfo: credential.OrganizationInfo{
 			Identifier: session.OrganizationIdentifier,
+			Name:       organization.Name,
 			IsDefault:  true,
 			Role:       role.OwnerRole,
 		},
@@ -469,6 +475,7 @@ func (m *Manager) CreateExistingSession(ctx context.Context, identifier string) 
 		Identifier: session.Identifier,
 		OrganizationInfo: credential.OrganizationInfo{
 			Identifier: session.OrganizationIdentifier,
+			Name:       organization.Name,
 			IsDefault:  organization.IsDefault,
 			Role:       membershipRole,
 		},
@@ -548,6 +555,12 @@ func (m *Manager) RefreshSession(ctx context.Context, session credential.Session
 			}
 			session.OrganizationInfo.Role = membershipRole
 		}
+
+		organization, err := qtx.GetOrganizationByIdentifier(ctx, session.OrganizationInfo.Identifier)
+		if err != nil {
+			return credential.Session{}, errors.Join(ErrRefreshingSession, err)
+		}
+		session.OrganizationInfo.Name = organization.Name
 	}
 
 	// Truncate expiry time to nearest second to match MySQL DATETIME precision

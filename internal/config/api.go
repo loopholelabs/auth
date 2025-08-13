@@ -11,6 +11,7 @@ import (
 
 const (
 	DefaultListenAddress = "127.0.0.1:8080"
+	DefaultEndpoint      = "localhost:8080"
 	DefaultPollInterval  = time.Second * 30
 	DefaultSessionExpiry = time.Hour * 24
 )
@@ -65,7 +66,7 @@ func NewAPI() *API {
 	return &API{
 		ListenAddress: DefaultListenAddress,
 		TLS:           false,
-		Endpoint:      DefaultListenAddress,
+		Endpoint:      DefaultEndpoint,
 		PollInterval:  DefaultPollInterval,
 		SessionExpiry: DefaultSessionExpiry,
 	}
@@ -75,7 +76,7 @@ func (c *API) RequiredFlags(cmd *cobra.Command) error {
 	cmd.Flags().StringVar(&c.ListenAddress, "listen_address", DefaultListenAddress, "the address to listen on")
 	cmd.Flags().StringVar(&c.Database, "database", "", "the database to connect to")
 	cmd.Flags().BoolVar(&c.TLS, "tls", false, "whether or not to use TLS")
-	cmd.Flags().StringVar(&c.Endpoint, "endpoint", DefaultListenAddress, "the api endpoint")
+	cmd.Flags().StringVar(&c.Endpoint, "endpoint", DefaultEndpoint, "the api endpoint")
 	cmd.Flags().StringVar(&c.Issuer, "issuer", "authentication-service", "the issuer")
 	cmd.Flags().DurationVar(&c.PollInterval, "poll_interval", DefaultPollInterval, "the default polling interval")
 	cmd.Flags().DurationVar(&c.SessionExpiry, "session_expiry", DefaultSessionExpiry, "the session expiration time")

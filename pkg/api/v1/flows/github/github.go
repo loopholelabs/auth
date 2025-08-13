@@ -10,13 +10,12 @@ import (
 	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/loopholelabs/auth/pkg/api/middleware/fiber"
-	"github.com/loopholelabs/auth/pkg/credential/cookies"
 
 	"github.com/loopholelabs/logging/types"
 
-	"github.com/loopholelabs/auth/pkg/api/models"
+	"github.com/loopholelabs/auth/pkg/api/middleware/fiber"
 	"github.com/loopholelabs/auth/pkg/api/options"
+	"github.com/loopholelabs/auth/pkg/credential/cookies"
 	"github.com/loopholelabs/auth/pkg/manager/flow"
 )
 
@@ -92,9 +91,7 @@ func (g *Github) login(ctx context.Context, input *GithubLoginRequest) (*GithubL
 	}
 
 	return &GithubLoginResponse{
-		Headers: GithubLoginHeaders{
-			Location: redirect,
-		},
+		Location: redirect,
 	}, nil
 }
 
@@ -125,9 +122,7 @@ func (g *Github) callback(ctx context.Context, input *GithubCallbackRequest) (*G
 	}
 
 	response := &GithubCallbackResponse{
-		Headers: models.SessionWithRedirectHeaders{
-			Location: f.NextURL,
-		},
+		Location: f.NextURL,
 	}
 
 	if f.DeviceIdentifier != "" {
@@ -138,7 +133,7 @@ func (g *Github) callback(ctx context.Context, input *GithubCallbackRequest) (*G
 			return nil, huma.Error500InternalServerError("failed to complete flow")
 		}
 	} else {
-		response.Headers.SetCookie, err = cookies.Create(session, g.options)
+		response.SessionCookie, err = cookies.Create(session, g.options)
 		if err != nil {
 			g.logger.Error().Err(err).Msg("error creating cookie")
 			return nil, huma.Error500InternalServerError("error creating cookie")

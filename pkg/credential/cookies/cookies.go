@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/loopholelabs/auth/internal/utils"
 	"github.com/loopholelabs/auth/pkg/api/options"
 	"github.com/loopholelabs/auth/pkg/credential"
 )
@@ -23,13 +24,28 @@ func Create(session credential.Session, options options.Options) (*http.Cookie, 
 	if err != nil {
 		return nil, errors.Join(ErrCreatingCookie, err)
 	}
+
 	return &http.Cookie{
 		Name:     SessionCookie,
 		Value:    token,
 		Expires:  session.ExpiresAt,
-		Domain:   options.Endpoint,
+		Path:     "/",
+		Domain:   utils.RemovePortFromHostPort(options.Endpoint),
 		Secure:   options.TLS,
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 	}, nil
+}
+
+func Remove(options options.Options) *http.Cookie {
+	return &http.Cookie{
+		Name:     SessionCookie,
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		Domain:   utils.RemovePortFromHostPort(options.Endpoint),
+		Secure:   options.TLS,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	}
 }

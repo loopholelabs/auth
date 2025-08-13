@@ -12,14 +12,13 @@ import (
 
 	emailverifier "github.com/AfterShip/email-verifier"
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/loopholelabs/auth/pkg/api/middleware/fiber"
-	"github.com/loopholelabs/auth/pkg/credential/cookies"
 
 	"github.com/loopholelabs/logging/types"
 
 	"github.com/loopholelabs/auth/internal/mailer"
-	"github.com/loopholelabs/auth/pkg/api/models"
+	"github.com/loopholelabs/auth/pkg/api/middleware/fiber"
 	"github.com/loopholelabs/auth/pkg/api/options"
+	"github.com/loopholelabs/auth/pkg/credential/cookies"
 	"github.com/loopholelabs/auth/pkg/manager/flow"
 	"github.com/loopholelabs/auth/pkg/manager/flow/magic"
 )
@@ -157,9 +156,7 @@ func (m *Magic) callback(ctx context.Context, input *MagicCallbackRequest) (*Mag
 	}
 
 	response := &MagicCallbackResponse{
-		Headers: models.SessionWithRedirectHeaders{
-			Location: f.NextURL,
-		},
+		Location: f.NextURL,
 	}
 
 	if f.DeviceIdentifier != "" {
@@ -170,7 +167,7 @@ func (m *Magic) callback(ctx context.Context, input *MagicCallbackRequest) (*Mag
 			return nil, huma.Error500InternalServerError("failed to complete flow")
 		}
 	} else {
-		response.Headers.SetCookie, err = cookies.Create(session, m.options)
+		response.SessionCookie, err = cookies.Create(session, m.options)
 		if err != nil {
 			m.logger.Error().Err(err).Msg("error creating cookie")
 			return nil, huma.Error500InternalServerError("error creating cookie")

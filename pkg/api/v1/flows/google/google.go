@@ -10,13 +10,12 @@ import (
 	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/loopholelabs/auth/pkg/api/middleware/fiber"
-	"github.com/loopholelabs/auth/pkg/credential/cookies"
 
 	"github.com/loopholelabs/logging/types"
 
-	"github.com/loopholelabs/auth/pkg/api/models"
+	"github.com/loopholelabs/auth/pkg/api/middleware/fiber"
 	"github.com/loopholelabs/auth/pkg/api/options"
+	"github.com/loopholelabs/auth/pkg/credential/cookies"
 	"github.com/loopholelabs/auth/pkg/manager/flow"
 )
 
@@ -91,9 +90,9 @@ func (g *Google) login(ctx context.Context, input *GoogleLoginRequest) (*GoogleL
 		return nil, huma.Error500InternalServerError("failed to get redirect")
 	}
 
-	response := &GoogleLoginResponse{}
-	response.Headers.Location = redirect
-	return response, nil
+	return &GoogleLoginResponse{
+		Location: redirect,
+	}, nil
 }
 
 func (g *Google) callback(ctx context.Context, input *GoogleCallbackRequest) (*GoogleCallbackResponse, error) {
@@ -123,9 +122,7 @@ func (g *Google) callback(ctx context.Context, input *GoogleCallbackRequest) (*G
 	}
 
 	response := &GoogleCallbackResponse{
-		Headers: models.SessionWithRedirectHeaders{
-			Location: f.NextURL,
-		},
+		Location: f.NextURL,
 	}
 
 	if f.DeviceIdentifier != "" {
@@ -136,7 +133,7 @@ func (g *Google) callback(ctx context.Context, input *GoogleCallbackRequest) (*G
 			return nil, huma.Error500InternalServerError("internal server error")
 		}
 	} else {
-		response.Headers.SetCookie, err = cookies.Create(session, g.options)
+		response.SessionCookie, err = cookies.Create(session, g.options)
 		if err != nil {
 			g.logger.Error().Err(err).Msg("error creating cookie")
 			return nil, huma.Error500InternalServerError("error creating cookie")

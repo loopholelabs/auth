@@ -4,7 +4,7 @@
 package github
 
 import (
-	"github.com/loopholelabs/auth/pkg/api/models"
+	"net/http"
 )
 
 type GithubLoginRequest struct {
@@ -17,14 +17,11 @@ type GithubCallbackRequest struct {
 	State string `query:"state" required:"true" doc:"OAuth state parameter"`
 }
 
-type GithubLoginHeaders struct {
+type GithubLoginResponse struct {
 	Location string `header:"Location" required:"true" doc:"redirect to github OAuth"`
 }
 
-type GithubLoginResponse struct {
-	Headers GithubLoginHeaders
-}
-
 type GithubCallbackResponse struct {
-	Headers models.SessionWithRedirectHeaders
+	SessionCookie *http.Cookie `header:"Set-Cookie" doc:"session cookie"`
+	Location      string       `header:"Location" required:"true" doc:"redirect to next URL"`
 }

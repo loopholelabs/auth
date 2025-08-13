@@ -47,9 +47,7 @@ func ValidateSession(api huma.API, options options.Options, logger types.Logger)
 			ctx.AppendHeader("Set-Cookie", cookie.String())
 		}
 
-		huma.WithValue(ctx, sessionKey{}, session)
-
-		next(ctx)
+		next(huma.WithValue(ctx, sessionKey{}, session))
 	}
 }
 

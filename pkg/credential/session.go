@@ -33,6 +33,7 @@ type Session struct {
 func (s Session) IsValid() bool {
 	return len(s.Identifier) == 36 &&
 		len(s.OrganizationInfo.Identifier) == 36 &&
+		s.OrganizationInfo.Name != "" &&
 		s.OrganizationInfo.Role.IsValid() &&
 		len(s.UserInfo.Identifier) == 36 &&
 		s.UserInfo.Email != "" &&
@@ -56,6 +57,7 @@ func (s Session) Sign(signingKey ed25519.PrivateKey) (string, error) {
 		"iat": time.Now().Unix(),             // Signing time
 
 		"organization_identifier": s.OrganizationInfo.Identifier,
+		"organization_name":       s.OrganizationInfo.Name,
 		"organization_is_default": s.OrganizationInfo.IsDefault,
 		"organization_role":       s.OrganizationInfo.Role,
 
@@ -132,6 +134,11 @@ VALIDATE:
 		return Session{}, reSign, errors.Join(ErrParsingSession, ErrInvalidClaims)
 	}
 
+	organizationName, ok := parseClaims[string]("organization_name", claims)
+	if !ok || organizationName == "" {
+		return Session{}, reSign, errors.Join(ErrParsingSession, ErrInvalidClaims)
+	}
+
 	organizationIsDefault, ok := parseClaims[bool]("organization_is_default", claims)
 	if !ok {
 		return Session{}, reSign, errors.Join(ErrParsingSession, ErrInvalidClaims)
@@ -184,6 +191,7 @@ VALIDATE:
 		Identifier: identifier,
 		OrganizationInfo: OrganizationInfo{
 			Identifier: organizationIdentifier,
+			Name:       organizationName,
 			IsDefault:  organizationIsDefault,
 			Role:       organizationRole,
 		},

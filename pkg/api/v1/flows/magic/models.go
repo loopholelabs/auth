@@ -4,7 +4,7 @@
 package magic
 
 import (
-	"github.com/loopholelabs/auth/pkg/api/models"
+	"net/http"
 )
 
 type MagicLoginRequest struct {
@@ -18,5 +18,6 @@ type MagicCallbackRequest struct {
 }
 
 type MagicCallbackResponse struct {
-	Headers models.SessionWithRedirectHeaders
+	SessionCookie *http.Cookie `header:"Set-Cookie" doc:"session cookie"`
+	Location      string       `header:"Location" required:"true" doc:"redirect to next URL"`
 }

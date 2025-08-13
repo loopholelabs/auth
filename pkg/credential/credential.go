@@ -13,6 +13,7 @@ import (
 
 type OrganizationInfo struct {
 	Identifier string    `json:"identifier"`
+	Name       string    `json:"name"`
 	IsDefault  bool      `json:"is_default"`
 	Role       role.Role `json:"role"`
 }

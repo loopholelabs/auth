@@ -11,13 +11,12 @@ import (
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/loopholelabs/auth/pkg/api/middleware/fiber"
-	"github.com/loopholelabs/auth/pkg/credential/cookies"
 
 	"github.com/loopholelabs/logging/types"
 
-	"github.com/loopholelabs/auth/pkg/api/models"
+	"github.com/loopholelabs/auth/pkg/api/middleware/fiber"
 	"github.com/loopholelabs/auth/pkg/api/options"
+	"github.com/loopholelabs/auth/pkg/credential/cookies"
 	"github.com/loopholelabs/auth/pkg/manager/flow/device"
 )
 
@@ -93,7 +92,7 @@ func (d *Device) login(ctx context.Context, _ *struct{}) (*DeviceLoginResponse, 
 	}
 
 	return &DeviceLoginResponse{
-		Body: DeviceLoginBody{
+		Body: DeviceLoginResponseBody{
 			Code:               code,
 			Poll:               poll,
 			PollingRateSeconds: uint64(PollingRate.Truncate(time.Second).Seconds()),
@@ -151,8 +150,6 @@ func (d *Device) poll(ctx context.Context, input *DevicePollRequest) (*DevicePol
 	}
 
 	return &DevicePollResponse{
-		Headers: models.SessionHeaders{
-			SetCookie: cookie,
-		},
+		SessionCookie: cookie,
 	}, nil
 }

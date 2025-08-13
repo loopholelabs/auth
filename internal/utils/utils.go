@@ -12,6 +12,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"math/big"
+	"net"
 	"time"
 	"unsafe"
 
@@ -118,4 +119,12 @@ func DecodePublicKey(encoded []byte) (crypto.PublicKey, error) {
 func GenericZero[T any]() T {
 	var zero T
 	return zero
+}
+
+func RemovePortFromHostPort(hostport string) string {
+	host, _, err := net.SplitHostPort(hostport)
+	if err != nil {
+		return hostport
+	}
+	return host
 }

@@ -12,7 +12,6 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humafiber"
 	"github.com/gofiber/fiber/v2"
-	"github.com/loopholelabs/auth/pkg/credential/cookies"
 
 	"github.com/loopholelabs/logging/types"
 
@@ -20,6 +19,8 @@ import (
 	fiberMiddleware "github.com/loopholelabs/auth/pkg/api/middleware/fiber"
 	"github.com/loopholelabs/auth/pkg/api/options"
 	"github.com/loopholelabs/auth/pkg/api/v1/flows"
+	"github.com/loopholelabs/auth/pkg/api/v1/session"
+	"github.com/loopholelabs/auth/pkg/credential/cookies"
 )
 
 const (
@@ -127,6 +128,7 @@ func (v *V1) init() {
 	}, v.logout)
 
 	flows.New(v.options, v.logger).Register(prefixes, api)
+	session.New(v.options, v.logger).Register(prefixes, api)
 }
 
 func (v *V1) App() *fiber.App {
@@ -165,28 +167,19 @@ func (v *V1) public(_ context.Context, _ *struct{}) (*V1PublicResponse, error) {
 }
 
 func (v *V1) logout(ctx context.Context, input *V1LogoutRequest) (*V1LogoutResponse, error) {
-	response := &V1LogoutResponse{}
+	response := new(V1LogoutResponse)
 
 	// Try to get cookie from Fiber context if available
-	if input.Cookie != "" {
-		session, _, err := v.options.Manager.ParseSession(input.Cookie)
+	if input.SessionCookie != "" {
+		s, _, err := v.options.Manager.ParseSession(input.SessionCookie)
 		if err == nil {
-			err = v.options.Manager.RevokeSession(ctx, session.Identifier)
+			err = v.options.Manager.RevokeSession(ctx, s.Identifier)
 			if err != nil {
 				v.logger.Error().Err(err).Msg("revoking session failed")
 			}
 		}
 
-		// Clear the cookie by setting it with MaxAge 0
-		response.Headers.SetCookie = &http.Cookie{
-			Name:     cookies.SessionCookie,
-			Value:    "",
-			MaxAge:   0,
-			Domain:   v.options.Endpoint,
-			Secure:   v.options.TLS,
-			HttpOnly: true,
-			SameSite: http.SameSiteLaxMode,
-		}
+		response.SessionCookie = cookies.Remove(v.options)
 	}
 
 	return response, nil

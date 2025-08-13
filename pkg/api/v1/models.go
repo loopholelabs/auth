@@ -10,7 +10,7 @@ import (
 )
 
 type V1LogoutRequest struct {
-	Cookie string `cookie:"authentication_session" doc:"session cookie"`
+	SessionCookie string `cookie:"authentication_session" doc:"session sessioncookie"`
 }
 
 type V1PublicResponseBody struct {
@@ -24,10 +24,6 @@ type V1PublicResponse struct {
 	Body V1PublicResponseBody
 }
 
-type V1LogoutHeaders struct {
-	SetCookie *http.Cookie `header:"Set-Cookie,omitempty" doc:"clear session cookie"`
-}
-
 type V1LogoutResponse struct {
-	Headers V1LogoutHeaders
+	SessionCookie *http.Cookie `header:"Set-Cookie" doc:"clear session cookie"`
 }

@@ -4,7 +4,7 @@
 package google
 
 import (
-	"github.com/loopholelabs/auth/pkg/api/models"
+	"net/http"
 )
 
 // Request types
@@ -19,14 +19,11 @@ type GoogleCallbackRequest struct {
 	State string `query:"state" required:"true" doc:"OAuth state parameter"`
 }
 
-type GoogleLoginHeaders struct {
-	Location string `header:"Location" required:"true" doc:"redirect to google OAuth"`
-}
-
 type GoogleLoginResponse struct {
-	Headers GoogleLoginHeaders
+	Location string `header:"Location" required:"true" doc:"redirect to github OAuth"`
 }
 
 type GoogleCallbackResponse struct {
-	Headers models.SessionWithRedirectHeaders
+	SessionCookie *http.Cookie `header:"Set-Cookie" doc:"session cookie"`
+	Location      string       `header:"Location" required:"true" doc:"redirect to next URL"`
 }

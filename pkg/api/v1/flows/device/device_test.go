@@ -78,7 +78,7 @@ func TestDeviceLogin(t *testing.T) {
 		assert.Equal(t, 200, resp.Result().StatusCode)
 
 		// Parse response
-		var result DeviceLoginBody
+		var result DeviceLoginResponseBody
 		err := json.Unmarshal(resp.Body.Bytes(), &result)
 		require.NoError(t, err)
 
@@ -97,7 +97,7 @@ func TestDeviceValidate(t *testing.T) {
 		loginResp := api.Get("/device/login")
 		require.Equal(t, 200, loginResp.Result().StatusCode)
 
-		var loginResult DeviceLoginBody
+		var loginResult DeviceLoginResponseBody
 		err := json.Unmarshal(loginResp.Body.Bytes(), &loginResult)
 		require.NoError(t, err)
 
