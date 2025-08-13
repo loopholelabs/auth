@@ -66,7 +66,7 @@ func (g *User) Register(prefixes []string, group huma.API) {
 		Security: []map[string][]string{
 			{"cookieAuth": {}},
 		},
-		Middlewares: huma.Middlewares{fiber.LogIP("info", g.logger), middleware.ValidateSession(group, g.options, g.logger)},
+		Middlewares: huma.Middlewares{fiber.LogIP("update", g.logger), middleware.ValidateSession(group, g.options, g.logger)},
 	}, g.update)
 }
 

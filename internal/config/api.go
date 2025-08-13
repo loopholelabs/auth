@@ -4,7 +4,6 @@ package config
 
 import (
 	"errors"
-	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -12,8 +11,6 @@ import (
 const (
 	DefaultListenAddress = "127.0.0.1:8080"
 	DefaultEndpoint      = "localhost:8080"
-	DefaultPollInterval  = time.Second * 5
-	DefaultSessionExpiry = time.Hour * 24
 )
 
 type Github struct {
@@ -48,18 +45,15 @@ type Mailer struct {
 }
 
 type API struct {
-	ListenAddress string        `mapstructure:"listen_address"`
-	Database      string        `mapstructure:"database"`
-	TLS           bool          `mapstructure:"tls"`
-	Endpoint      string        `mapstructure:"endpoint"`
-	Issuer        string        `mapstructure:"issuer"`
-	PollInterval  time.Duration `mapstructure:"poll_interval"`
-	SessionExpiry time.Duration `mapstructure:"session_expiry"`
-	Github        Github        `mapstructure:"github"`
-	Google        Google        `mapstructure:"google"`
-	Magic         Magic         `mapstructure:"magic"`
-	Device        Device        `mapstructure:"device"`
-	Mailer        Mailer        `mapstructure:"mailer"`
+	ListenAddress string `mapstructure:"listen_address"`
+	TLS           bool   `mapstructure:"tls"`
+	Endpoint      string `mapstructure:"endpoint"`
+	Issuer        string `mapstructure:"issuer"`
+	Github        Github `mapstructure:"github"`
+	Google        Google `mapstructure:"google"`
+	Magic         Magic  `mapstructure:"magic"`
+	Device        Device `mapstructure:"device"`
+	Mailer        Mailer `mapstructure:"mailer"`
 }
 
 func NewAPI() *API {
@@ -67,19 +61,14 @@ func NewAPI() *API {
 		ListenAddress: DefaultListenAddress,
 		TLS:           false,
 		Endpoint:      DefaultEndpoint,
-		PollInterval:  DefaultPollInterval,
-		SessionExpiry: DefaultSessionExpiry,
 	}
 }
 
 func (c *API) RequiredFlags(cmd *cobra.Command) error {
 	cmd.Flags().StringVar(&c.ListenAddress, "listen_address", DefaultListenAddress, "the address to listen on")
-	cmd.Flags().StringVar(&c.Database, "database", "", "the database to connect to")
 	cmd.Flags().BoolVar(&c.TLS, "tls", false, "whether or not to use TLS")
 	cmd.Flags().StringVar(&c.Endpoint, "endpoint", DefaultEndpoint, "the api endpoint")
 	cmd.Flags().StringVar(&c.Issuer, "issuer", "authentication-service", "the issuer")
-	cmd.Flags().DurationVar(&c.PollInterval, "poll_interval", DefaultPollInterval, "the default polling interval")
-	cmd.Flags().DurationVar(&c.SessionExpiry, "session_expiry", DefaultSessionExpiry, "the session expiration time")
 
 	return nil
 }
@@ -89,24 +78,12 @@ func (c *API) Validate() error {
 		return errors.New("listen_address is required")
 	}
 
-	if c.Database == "" {
-		return errors.New("database is required")
-	}
-
 	if c.Endpoint == "" {
 		return errors.New("endpoint is required")
 	}
 
 	if c.Issuer == "" {
 		return errors.New("issuer is required")
-	}
-
-	if c.PollInterval == 0 {
-		return errors.New("poll_interval is required")
-	}
-
-	if c.SessionExpiry == 0 {
-		return errors.New("session_expiry is required")
 	}
 
 	return nil

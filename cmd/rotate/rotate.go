@@ -3,8 +3,6 @@
 package rotate
 
 import (
-	"errors"
-
 	"github.com/spf13/cobra"
 
 	"github.com/loopholelabs/cmdutils"
@@ -20,14 +18,8 @@ func Cmd() command.SetupCommand[*config.Config] {
 		c := &cobra.Command{
 			Use:   "rotate",
 			Short: "Rotate Authentication API Secret",
-			PreRunE: func(_ *cobra.Command, _ []string) error {
-				if err := ch.Config.Rotate.Validate(); err != nil {
-					return errors.Join(config.ErrFailedToValidateConfig, err)
-				}
-				return nil
-			},
 			RunE: func(c *cobra.Command, _ []string) error {
-				d, err := db.New(ch.Config.API.Database, ch.Logger)
+				d, err := db.New(ch.Config.Database, ch.Logger)
 				if err != nil {
 					return err
 				}
@@ -40,8 +32,8 @@ func Cmd() command.SetupCommand[*config.Config] {
 				}()
 
 				cfg, err := configuration.New(configuration.Options{
-					PollInterval:  ch.Config.API.PollInterval,
-					SessionExpiry: ch.Config.API.SessionExpiry,
+					PollInterval:  ch.Config.PollInterval,
+					SessionExpiry: ch.Config.SessionExpiry,
 				}, d, ch.Logger)
 				if err != nil {
 					return err

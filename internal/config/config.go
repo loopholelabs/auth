@@ -4,6 +4,7 @@ package config
 
 import (
 	"errors"
+	"time"
 
 	"github.com/adrg/xdg"
 	"github.com/spf13/cobra"
@@ -14,6 +15,11 @@ import (
 )
 
 var _ config.Config = (*Config)(nil)
+
+const (
+	DefaultPollInterval  = time.Second * 5
+	DefaultSessionExpiry = time.Hour * 24
+)
 
 var (
 	configFile string
@@ -26,18 +32,25 @@ var (
 )
 
 type Config struct {
-	API    *API    `mapstructure:"api"`
-	Rotate *Rotate `mapstructure:"rotate"`
+	Database      string        `mapstructure:"database"`
+	PollInterval  time.Duration `mapstructure:"poll_interval"`
+	SessionExpiry time.Duration `mapstructure:"session_expiry"`
+	API           *API          `mapstructure:"api"`
 }
 
 func New() *Config {
 	return &Config{
-		API:    NewAPI(),
-		Rotate: NewRotate(),
+		PollInterval:  DefaultPollInterval,
+		SessionExpiry: DefaultSessionExpiry,
+		API:           NewAPI(),
 	}
 }
 
-func (c *Config) RootPersistentFlags(_ *pflag.FlagSet) {}
+func (c *Config) RootPersistentFlags(flags *pflag.FlagSet) {
+	flags.StringVar(&c.Database, "database", "", "the database to connect to")
+	flags.DurationVar(&c.PollInterval, "poll_interval", DefaultPollInterval, "the default polling interval")
+	flags.DurationVar(&c.SessionExpiry, "session_expiry", DefaultSessionExpiry, "the session expiration time")
+}
 
 func (c *Config) GlobalRequiredFlags(_ *cobra.Command) error {
 	return nil
@@ -46,6 +59,18 @@ func (c *Config) GlobalRequiredFlags(_ *cobra.Command) error {
 func (c *Config) Validate() error {
 	if err := viper.Unmarshal(c); err != nil {
 		return errors.Join(ErrFailedToUnmarshalConfig, err)
+	}
+
+	if c.Database == "" {
+		return errors.New("database is required")
+	}
+
+	if c.PollInterval == 0 {
+		return errors.New("poll_interval is required")
+	}
+
+	if c.SessionExpiry == 0 {
+		return errors.New("session_expiry is required")
 	}
 
 	return nil

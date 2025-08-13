@@ -136,7 +136,7 @@ CREATE TABLE session_revocations
 
 CREATE TABLE session_invalidations
 (
-    session_identifier CHAR(36) NOT NULL UNIQUE,
+    session_identifier CHAR(36) NOT NULL,
     generation         INT UNSIGNED     NOT NULL,
     expires_at         DATETIME NOT NULL,
     created_at         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

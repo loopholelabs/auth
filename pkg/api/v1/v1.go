@@ -50,6 +50,8 @@ func New(options options.Options, logger types.Logger) *V1 {
 func (v *V1) init() {
 	v.logger.Debug().Msg("initializing")
 
+	v.app.Get("/docs", v.docs)
+
 	// Configure OpenAPI
 	config := huma.DefaultConfig("Authentication API", "1.0")
 	config.DocsPath = ""

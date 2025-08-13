@@ -21,6 +21,12 @@ import (
 
 //go:generate go tool github.com/sqlc-dev/sqlc/cmd/sqlc generate --file sqlc.yaml
 
+const (
+	pingTimeout  = time.Second * 30
+	maxLifetime  = time.Minute * 3
+	maxOpenConns = 25
+)
+
 var (
 	ErrMissingParseTimeOption       = errors.New("missing parse time option")
 	ErrMissingMultiStatementsOption = errors.New("missing multi statements option")
@@ -51,7 +57,7 @@ func (l *gooseLogger) Fatalf(format string, v ...any) {
 }
 
 func (l *gooseLogger) Printf(format string, v ...any) {
-	l.logger.Info().Msgf(strings.TrimSpace(format), v...)
+	l.logger.Debug().Msgf(strings.TrimSpace(format), v...)
 }
 
 type mysqlLogger struct {
@@ -59,7 +65,7 @@ type mysqlLogger struct {
 }
 
 func (l *mysqlLogger) Print(v ...any) {
-	l.logger.Info().Msg(fmt.Sprint(v...))
+	l.logger.Debug().Msg(fmt.Sprint(v...))
 }
 
 func New(url string, logger types.Logger) (*DB, error) {
@@ -92,11 +98,11 @@ func New(url string, logger types.Logger) (*DB, error) {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(25)
-	db.SetConnMaxLifetime(3 * time.Minute)
+	db.SetMaxOpenConns(maxOpenConns)
+	db.SetMaxIdleConns(maxOpenConns)
+	db.SetConnMaxLifetime(maxLifetime)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), pingTimeout)
 	defer cancel()
 
 	err = db.PingContext(ctx)

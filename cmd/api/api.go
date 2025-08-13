@@ -33,9 +33,9 @@ func Cmd() command.SetupCommand[*config.Config] {
 				return nil
 			},
 			RunE: func(c *cobra.Command, _ []string) error {
-				ch.Printer.Printf("running Authentication API...\n")
+				ch.Printer.Printf("Running Authentication API...\n")
 
-				d, err := db.New(ch.Config.API.Database, ch.Logger)
+				d, err := db.New(ch.Config.Database, ch.Logger)
 				if err != nil {
 					return err
 				}
@@ -76,8 +76,8 @@ func Cmd() command.SetupCommand[*config.Config] {
 						MagicLinkTemplatePath: ch.Config.API.Mailer.MagicLinkTemplatePath,
 					},
 					Configuration: configuration.Options{
-						PollInterval:  ch.Config.API.PollInterval,
-						SessionExpiry: ch.Config.API.SessionExpiry,
+						PollInterval:  ch.Config.PollInterval,
+						SessionExpiry: ch.Config.SessionExpiry,
 					},
 					API: manager.APIOptions{
 						TLS:      ch.Config.API.TLS,
