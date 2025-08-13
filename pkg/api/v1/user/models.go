@@ -33,6 +33,6 @@ type UserInfoResponse struct {
 }
 
 type UserUpdateRequest struct {
-	Name  string `query:"name" required:"false" minLength:"1" maxLength:"255" doc:"user's name'"`
+	Name  string `query:"name" required:"false" minLength:"1" maxLength:"255" doc:"user's name"`
 	Email string `query:"email" required:"false" minLength:"3" maxLength:"255" doc:"user's email'"`
 }
