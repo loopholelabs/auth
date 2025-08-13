@@ -13,6 +13,11 @@ UPDATE sessions
 SET generation = sqlc.arg(generation)
 WHERE identifier = sqlc.arg(identifier);
 
+-- name: IncrementAllSessionGenerationByUserIdentifier :execrows
+UPDATE sessions
+SET generation = generation + 1
+WHERE user_identifier = sqlc.arg(user_identifier);
+
 -- name: GetSessionByIdentifier :one
 SELECT *
 FROM sessions

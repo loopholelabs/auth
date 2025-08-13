@@ -680,10 +680,12 @@ func (m *Manager) ValidateSession(ctx context.Context, token string) (credential
 		return credential.Session{}, false, errors.Join(ErrValidatingSession, ErrRevokedSession)
 	}
 	if m.IsSessionInvalidated(session.Identifier, session.Generation) || (m.Configuration().SessionExpiry() > ForcedRefresh && session.ExpiresAt.Before(time.Now().Add(ForcedRefresh))) {
+		m.logger.Debug().Str("session", session.Identifier).Msg("session invalidated, refreshing")
 		session, err = m.RefreshSession(ctx, session)
 		if err != nil {
-			return credential.Session{}, true, errors.Join(ErrValidatingSession, err)
+			return credential.Session{}, false, errors.Join(ErrValidatingSession, err)
 		}
+		reSign = true
 	}
 	return session, reSign, nil
 }

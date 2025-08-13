@@ -10,3 +10,9 @@ FROM session_invalidations;
 DELETE
 FROM session_invalidations
 WHERE expires_at <= NOW();
+
+-- name: CreateSessionInvalidationsFromSessionByUserIdentifier :execrows
+INSERT INTO session_invalidations (session_identifier, generation, expires_at)
+SELECT identifier, generation, expires_at
+FROM sessions
+WHERE user_identifier = sqlc.arg(user_identifier);

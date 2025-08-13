@@ -26,6 +26,21 @@ func (q *Queries) CreateSessionInvalidation(ctx context.Context, arg CreateSessi
 	return err
 }
 
+const createSessionInvalidationsFromSessionByUserIdentifier = `-- name: CreateSessionInvalidationsFromSessionByUserIdentifier :execrows
+INSERT INTO session_invalidations (session_identifier, generation, expires_at)
+SELECT identifier, generation, expires_at
+FROM sessions
+WHERE user_identifier = ?
+`
+
+func (q *Queries) CreateSessionInvalidationsFromSessionByUserIdentifier(ctx context.Context, userIdentifier string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, createSessionInvalidationsFromSessionByUserIdentifier, userIdentifier)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const deleteExpiredSessionInvalidations = `-- name: DeleteExpiredSessionInvalidations :execrows
 DELETE
 FROM session_invalidations

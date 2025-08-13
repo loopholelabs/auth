@@ -109,6 +109,20 @@ func (q *Queries) GetSessionByIdentifierAndUserIdentifier(ctx context.Context, a
 	return i, err
 }
 
+const incrementAllSessionGenerationByUserIdentifier = `-- name: IncrementAllSessionGenerationByUserIdentifier :execrows
+UPDATE sessions
+SET generation = generation + 1
+WHERE user_identifier = ?
+`
+
+func (q *Queries) IncrementAllSessionGenerationByUserIdentifier(ctx context.Context, userIdentifier string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, incrementAllSessionGenerationByUserIdentifier, userIdentifier)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const updateSessionExpiryByIdentifier = `-- name: UpdateSessionExpiryByIdentifier :execrows
 UPDATE sessions
 SET expires_at = ?
