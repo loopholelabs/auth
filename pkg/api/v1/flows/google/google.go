@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/loopholelabs/auth/pkg/api/middleware/fiber"
 
 	"github.com/loopholelabs/logging/types"
 
@@ -45,6 +46,7 @@ func (g *Google) Register(prefixes []string, group huma.API) {
 		Tags:          loginPrefix,
 		DefaultStatus: 307,
 		Errors:        []int{400, 401, 404, 500},
+		Middlewares:   huma.Middlewares{fiber.LogIP("login", g.logger)},
 	}, g.login)
 
 	callbackPrefix := append(prefixes, "callback") //nolint:gocritic
@@ -57,6 +59,7 @@ func (g *Google) Register(prefixes []string, group huma.API) {
 		Tags:          callbackPrefix,
 		DefaultStatus: 307,
 		Errors:        []int{401, 404, 500},
+		Middlewares:   huma.Middlewares{fiber.LogIP("callback", g.logger)},
 	}, g.callback)
 }
 

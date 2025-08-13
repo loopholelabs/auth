@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/loopholelabs/auth/pkg/api/middleware/fiber"
 
 	"github.com/loopholelabs/logging/types"
 
@@ -50,6 +51,7 @@ func (d *Device) Register(prefixes []string, group huma.API) {
 		Tags:          loginPrefix,
 		DefaultStatus: 200,
 		Errors:        []int{401, 500},
+		Middlewares:   huma.Middlewares{fiber.LogIP("login", d.logger)},
 	}, d.login)
 
 	validatePrefix := append(prefixes, "validate") //nolint:gocritic
@@ -62,6 +64,7 @@ func (d *Device) Register(prefixes []string, group huma.API) {
 		Tags:          validatePrefix,
 		DefaultStatus: 200,
 		Errors:        []int{401, 404, 500},
+		Middlewares:   huma.Middlewares{fiber.LogIP("validate", d.logger)},
 	}, d.validate)
 
 	pollPrefix := append(prefixes, "poll") //nolint:gocritic
@@ -74,6 +77,7 @@ func (d *Device) Register(prefixes []string, group huma.API) {
 		Tags:          pollPrefix,
 		DefaultStatus: 200,
 		Errors:        []int{401, 403, 404, 429, 500},
+		Middlewares:   huma.Middlewares{fiber.LogIP("poll", d.logger)},
 	}, d.poll)
 }
 

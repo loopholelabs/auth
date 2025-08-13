@@ -12,6 +12,7 @@ import (
 
 	emailverifier "github.com/AfterShip/email-verifier"
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/loopholelabs/auth/pkg/api/middleware/fiber"
 
 	"github.com/loopholelabs/logging/types"
 
@@ -51,18 +52,20 @@ func (m *Magic) Register(prefixes []string, group huma.API) {
 		Tags:          loginPrefix,
 		DefaultStatus: 200,
 		Errors:        []int{400, 401, 404, 500},
+		Middlewares:   huma.Middlewares{fiber.LogIP("login", m.logger)},
 	}, m.login)
 
 	callbackPrefix := append(prefixes, "callback") //nolint:gocritic
 	huma.Register(group, huma.Operation{
 		OperationID:   strings.Join(callbackPrefix, "-"),
-		Method:        "GET",
+		Method:        http.MethodGet,
 		Path:          "/callback",
 		Summary:       "magic link callback",
 		Description:   "Handles the magic link callback and creates a session",
 		Tags:          callbackPrefix,
 		DefaultStatus: 307,
 		Errors:        []int{401, 404, 500},
+		Middlewares:   huma.Middlewares{fiber.LogIP("callback", m.logger)},
 	}, m.callback)
 }
 

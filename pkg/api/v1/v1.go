@@ -12,11 +12,13 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humafiber"
 	"github.com/gofiber/fiber/v2"
-	"github.com/loopholelabs/auth/pkg/api/v1/flows"
+
 	"github.com/loopholelabs/logging/types"
 
 	"github.com/loopholelabs/auth/internal/utils"
+	fiberMiddleware "github.com/loopholelabs/auth/pkg/api/middleware/fiber"
 	"github.com/loopholelabs/auth/pkg/api/options"
+	"github.com/loopholelabs/auth/pkg/api/v1/flows"
 	"github.com/loopholelabs/auth/pkg/credential"
 )
 
@@ -121,6 +123,7 @@ func (v *V1) init() {
 		Description:   "logs out a user by revoking their session",
 		Tags:          logoutPrefix,
 		DefaultStatus: 200,
+		Middlewares:   huma.Middlewares{fiberMiddleware.LogIP("logout", v.logger)},
 	}, v.logout)
 
 	flows.New(v.options, v.logger).Register(prefixes, api)
