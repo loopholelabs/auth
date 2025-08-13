@@ -6,7 +6,6 @@ on:
       - "v*"
 
 permissions:
-  packages: write
   contents: write
 
 env:
@@ -42,6 +41,7 @@ jobs:
           context: .
           file: ./build.Dockerfile
           push: false
+          load: true
           tags: ${{ github.event.repository.name }}-build:local
           cache-from: type=gha
           cache-to: type=gha,mode=max
