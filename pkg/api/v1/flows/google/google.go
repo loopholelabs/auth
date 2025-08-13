@@ -145,7 +145,7 @@ func (g *Google) callback(ctx context.Context, request *GoogleCallbackRequest) (
 		err = g.options.Manager.Device().CompleteFlow(ctx, f.DeviceIdentifier, session.Identifier)
 		if err != nil {
 			g.logger.Error().Err(err).Msg("failed to complete flow")
-			return nil, huma.Error500InternalServerError("internal server error")
+			return nil, huma.Error500InternalServerError("failed to complete flow")
 		}
 	} else {
 		response.SessionCookie, err = cookies.Create(session, g.options)
