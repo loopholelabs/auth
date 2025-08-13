@@ -10,7 +10,7 @@ import (
 )
 
 type V1LogoutRequest struct {
-	SessionCookie string `cookie:"authentication_session" doc:"session sessioncookie"`
+	SessionCookie string `cookie:"authentication_session" doc:"session cookie"`
 }
 
 type V1PublicResponseBody struct {
