@@ -168,12 +168,12 @@ func (v *V1) public(_ context.Context, _ *struct{}) (*V1PublicResponse, error) {
 	return response, nil
 }
 
-func (v *V1) logout(ctx context.Context, input *V1LogoutRequest) (*V1LogoutResponse, error) {
+func (v *V1) logout(ctx context.Context, request *V1LogoutRequest) (*V1LogoutResponse, error) {
 	response := new(V1LogoutResponse)
 
 	// Try to get cookie from Fiber context if available
-	if input.SessionCookie != "" {
-		s, _, err := v.options.Manager.ParseSession(input.SessionCookie)
+	if request.SessionCookie != "" {
+		s, _, err := v.options.Manager.ParseSession(request.SessionCookie)
 		if err == nil {
 			err = v.options.Manager.RevokeSession(ctx, s.Identifier)
 			if err != nil {

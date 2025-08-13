@@ -1,6 +1,7 @@
 //SPDX-License-Identifier: Apache-2.0
 
-package utils //nolint:revive
+//nolint:revive
+package utils
 
 import (
 	"crypto/ed25519"

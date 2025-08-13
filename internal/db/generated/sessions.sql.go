@@ -83,6 +83,32 @@ func (q *Queries) GetSessionByIdentifier(ctx context.Context, identifier string)
 	return i, err
 }
 
+const getSessionByIdentifierAndUserIdentifier = `-- name: GetSessionByIdentifierAndUserIdentifier :one
+SELECT identifier, organization_identifier, user_identifier, generation, expires_at, created_at
+FROM sessions
+WHERE identifier = ?
+  AND user_identifier = ? LIMIT 1
+`
+
+type GetSessionByIdentifierAndUserIdentifierParams struct {
+	Identifier     string
+	UserIdentifier string
+}
+
+func (q *Queries) GetSessionByIdentifierAndUserIdentifier(ctx context.Context, arg GetSessionByIdentifierAndUserIdentifierParams) (Session, error) {
+	row := q.db.QueryRowContext(ctx, getSessionByIdentifierAndUserIdentifier, arg.Identifier, arg.UserIdentifier)
+	var i Session
+	err := row.Scan(
+		&i.Identifier,
+		&i.OrganizationIdentifier,
+		&i.UserIdentifier,
+		&i.Generation,
+		&i.ExpiresAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const updateSessionExpiryByIdentifier = `-- name: UpdateSessionExpiryByIdentifier :execrows
 UPDATE sessions
 SET expires_at = ?

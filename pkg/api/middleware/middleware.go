@@ -33,6 +33,7 @@ func ValidateSession(api huma.API, options options.Options, logger types.Logger)
 			if !errors.Is(err, manager.ErrRevokedSession) {
 				logger.Error().Err(err).Msg("error validating session")
 			}
+			ctx.AppendHeader("Set-Cookie", cookies.Remove(options).String())
 			_ = huma.WriteErr(api, ctx, http.StatusUnauthorized, huma.Error401Unauthorized("invalid session").Error())
 			return
 		}

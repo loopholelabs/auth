@@ -62,7 +62,7 @@ func (d *Device) Register(prefixes []string, group huma.API) {
 		Description:   "validates that a device code exists and is valid",
 		Tags:          validatePrefix,
 		DefaultStatus: 200,
-		Errors:        []int{401, 404, 500},
+		Errors:        []int{400, 401, 404, 500},
 		Middlewares:   huma.Middlewares{fiber.LogIP("validate", d.logger)},
 	}, d.validate)
 
@@ -75,7 +75,7 @@ func (d *Device) Register(prefixes []string, group huma.API) {
 		Description:   "polls the device flow to check if authentication is complete",
 		Tags:          pollPrefix,
 		DefaultStatus: 200,
-		Errors:        []int{401, 403, 404, 429, 500},
+		Errors:        []int{400, 401, 403, 404, 429, 500},
 		Middlewares:   huma.Middlewares{fiber.LogIP("poll", d.logger)},
 	}, d.poll)
 }
@@ -100,12 +100,16 @@ func (d *Device) login(ctx context.Context, _ *struct{}) (*DeviceLoginResponse, 
 	}, nil
 }
 
-func (d *Device) validate(ctx context.Context, input *DeviceValidateRequest) (*struct{}, error) {
+func (d *Device) validate(ctx context.Context, request *DeviceValidateRequest) (*struct{}, error) {
 	if d.options.Manager.Device() == nil {
 		return nil, huma.Error401Unauthorized("device provider is not enabled")
 	}
 
-	identifier, err := d.options.Manager.Device().ExistsFlow(ctx, input.Code)
+	if len(request.Code) != 8 {
+		return nil, huma.Error400BadRequest("invalid code")
+	}
+
+	identifier, err := d.options.Manager.Device().ExistsFlow(ctx, request.Code)
 	if err != nil {
 		d.logger.Error().Err(err).Msg("error checking if flow exists")
 		return nil, huma.Error500InternalServerError("error checking if flow exists")
@@ -117,12 +121,16 @@ func (d *Device) validate(ctx context.Context, input *DeviceValidateRequest) (*s
 	return nil, nil //nolint:nilnil
 }
 
-func (d *Device) poll(ctx context.Context, input *DevicePollRequest) (*DevicePollResponse, error) {
+func (d *Device) poll(ctx context.Context, request *DevicePollRequest) (*DevicePollResponse, error) {
 	if d.options.Manager.Device() == nil {
 		return nil, huma.Error401Unauthorized("device provider is not enabled")
 	}
 
-	sessionIdentifier, err := d.options.Manager.Device().PollFlow(ctx, input.Poll, PollingRate)
+	if len(request.Poll) != 36 {
+		return nil, huma.Error400BadRequest("invalid poll")
+	}
+
+	sessionIdentifier, err := d.options.Manager.Device().PollFlow(ctx, request.Poll, PollingRate)
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):

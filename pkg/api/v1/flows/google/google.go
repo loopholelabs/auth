@@ -57,24 +57,31 @@ func (g *Google) Register(prefixes []string, group huma.API) {
 		Description:   "handles the OAuth callback from google and creates a session",
 		Tags:          callbackPrefix,
 		DefaultStatus: 307,
-		Errors:        []int{401, 404, 500},
+		Errors:        []int{400, 401, 404, 500},
 		Middlewares:   huma.Middlewares{fiber.LogIP("callback", g.logger)},
 	}, g.callback)
 }
 
-func (g *Google) login(ctx context.Context, input *GoogleLoginRequest) (*GoogleLoginResponse, error) {
+func (g *Google) login(ctx context.Context, request *GoogleLoginRequest) (*GoogleLoginResponse, error) {
 	if g.options.Manager.Google() == nil {
 		return nil, huma.Error401Unauthorized("google provider is not enabled")
+	}
+
+	if request.Next == "" {
+		return nil, huma.Error400BadRequest("invalid next url")
 	}
 
 	var err error
 	var deviceIdentifier string
 
-	if input.Code != "" && len(input.Code) == 8 {
+	if request.Code != "" {
+		if len(request.Code) != 8 {
+			return nil, huma.Error400BadRequest("invalid code")
+		}
 		if g.options.Manager.Device() == nil {
 			return nil, huma.Error401Unauthorized("device provider is not enabled")
 		}
-		deviceIdentifier, err = g.options.Manager.Device().ExistsFlow(ctx, input.Code)
+		deviceIdentifier, err = g.options.Manager.Device().ExistsFlow(ctx, request.Code)
 		if err != nil {
 			g.logger.Error().Err(err).Msg("error checking if flow exists")
 			return nil, huma.Error500InternalServerError("error checking if flow exists")
@@ -84,7 +91,7 @@ func (g *Google) login(ctx context.Context, input *GoogleLoginRequest) (*GoogleL
 		}
 	}
 
-	redirect, err := g.options.Manager.Google().CreateFlow(ctx, deviceIdentifier, "", input.Next)
+	redirect, err := g.options.Manager.Google().CreateFlow(ctx, deviceIdentifier, "", request.Next)
 	if err != nil {
 		g.logger.Error().Err(err).Msg("failed to get redirect")
 		return nil, huma.Error500InternalServerError("failed to get redirect")
@@ -95,12 +102,20 @@ func (g *Google) login(ctx context.Context, input *GoogleLoginRequest) (*GoogleL
 	}, nil
 }
 
-func (g *Google) callback(ctx context.Context, input *GoogleCallbackRequest) (*GoogleCallbackResponse, error) {
+func (g *Google) callback(ctx context.Context, request *GoogleCallbackRequest) (*GoogleCallbackResponse, error) {
 	if g.options.Manager.Google() == nil {
 		return nil, huma.Error401Unauthorized("google provider is not enabled")
 	}
 
-	f, err := g.options.Manager.Google().CompleteFlow(ctx, input.State, input.Code)
+	if request.Code == "" {
+		return nil, huma.Error400BadRequest("invalid code")
+	}
+
+	if request.State == "" {
+		return nil, huma.Error400BadRequest("invalid state")
+	}
+
+	f, err := g.options.Manager.Google().CompleteFlow(ctx, request.State, request.Code)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, huma.Error404NotFound("flow does not exist")

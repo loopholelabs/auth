@@ -63,12 +63,12 @@ func (m *Magic) Register(prefixes []string, group huma.API) {
 		Description:   "Handles the magic link callback and creates a session",
 		Tags:          callbackPrefix,
 		DefaultStatus: 307,
-		Errors:        []int{401, 404, 500},
+		Errors:        []int{400, 401, 404, 500},
 		Middlewares:   huma.Middlewares{fiber.LogIP("callback", m.logger)},
 	}, m.callback)
 }
 
-func (m *Magic) login(ctx context.Context, input *MagicLoginRequest) (*struct{}, error) {
+func (m *Magic) login(ctx context.Context, request *MagicLoginRequest) (*struct{}, error) {
 	if m.options.Manager.Magic() == nil {
 		return nil, huma.Error401Unauthorized("magic provider is not enabled")
 	}
@@ -77,17 +77,29 @@ func (m *Magic) login(ctx context.Context, input *MagicLoginRequest) (*struct{},
 		return nil, huma.Error401Unauthorized("email provider is not enabled")
 	}
 
-	ret, err := m.emailVerifier.Verify(input.Email)
+	if request.Email == "" {
+		return nil, huma.Error400BadRequest("invalid email address")
+	}
+
+	if request.Next == "" {
+		return nil, huma.Error400BadRequest("invalid next url")
+	}
+
+	ret, err := m.emailVerifier.Verify(request.Email)
 	if err != nil || !ret.Syntax.Valid || !ret.HasMxRecords {
 		return nil, huma.Error400BadRequest("invalid email address")
 	}
 
 	var deviceIdentifier string
-	if input.Code != "" && len(input.Code) == 8 {
+	if request.Code != "" {
+		if len(request.Code) != 8 {
+			return nil, huma.Error400BadRequest("invalid code")
+		}
+
 		if m.options.Manager.Device() == nil {
 			return nil, huma.Error401Unauthorized("device provider is not enabled")
 		}
-		deviceIdentifier, err = m.options.Manager.Device().ExistsFlow(ctx, input.Code)
+		deviceIdentifier, err = m.options.Manager.Device().ExistsFlow(ctx, request.Code)
 		if err != nil {
 			m.logger.Error().Err(err).Msg("error checking if flow exists")
 			return nil, huma.Error500InternalServerError("error checking if flow exists")
@@ -97,7 +109,7 @@ func (m *Magic) login(ctx context.Context, input *MagicLoginRequest) (*struct{},
 		}
 	}
 
-	token, err := m.options.Manager.Magic().CreateFlow(ctx, input.Email, deviceIdentifier, "", input.Next)
+	token, err := m.options.Manager.Magic().CreateFlow(ctx, request.Email, deviceIdentifier, "", request.Next)
 	if err != nil {
 		m.logger.Error().Err(err).Msg("failed to get token")
 		return nil, huma.Error500InternalServerError("failed to get token")
@@ -115,7 +127,7 @@ func (m *Magic) login(ctx context.Context, input *MagicLoginRequest) (*struct{},
 	callback.RawQuery = q.Encode()
 
 	err = m.options.Manager.Mailer().SendMagicLink(ctx, mailer.Email{
-		To: input.Email,
+		To: request.Email,
 	}, callback.String(), magic.Expiry)
 	if err != nil {
 		m.logger.Error().Err(err).Msg("failed to send magic link")
@@ -125,12 +137,16 @@ func (m *Magic) login(ctx context.Context, input *MagicLoginRequest) (*struct{},
 	return nil, nil //nolint:nilnil
 }
 
-func (m *Magic) callback(ctx context.Context, input *MagicCallbackRequest) (*MagicCallbackResponse, error) {
+func (m *Magic) callback(ctx context.Context, request *MagicCallbackRequest) (*MagicCallbackResponse, error) {
 	if m.options.Manager.Magic() == nil {
 		return nil, huma.Error401Unauthorized("magic provider is not enabled")
 	}
 
-	f, err := m.options.Manager.Magic().CompleteFlow(ctx, input.Token)
+	if request.Token == "" {
+		return nil, huma.Error400BadRequest("invalid token")
+	}
+
+	f, err := m.options.Manager.Magic().CompleteFlow(ctx, request.Token)
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
