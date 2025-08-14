@@ -6,7 +6,7 @@ BUILD_GO_VERSION = $(shell (go version | awk '{print $$3}'))
 BUILD_DATE=$(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
 BUILD_PLATFORM = $(shell (go version | awk '{print $$4}'))
 BUILD_VERSION = $(shell git rev-parse --short HEAD)
-DEFAULT_BUILD_ARGS = -ldflags='-s -w -X github.com/loopholelabs/auth/version.GitCommit=$(BUILD_GIT_COMMIT) -X github.com/loopholelabs/auth/version.GoVersion=$(BUILD_GO_VERSION) -X github.com/loopholelabs/auth/version.BuildDate=$(BUILD_DATE) -X github.com/loopholelabs/auth/version.Platform=$(BUILD_PLATFORM) -X github.com/loopholelabs/auth/version.Platform=$(BUILD_VERSION)' -trimpath
+DEFAULT_BUILD_ARGS = -ldflags='-s -w -X github.com/loopholelabs/auth/version.GitCommit=$(BUILD_GIT_COMMIT) -X github.com/loopholelabs/auth/version.GoVersion=$(BUILD_GO_VERSION) -X github.com/loopholelabs/auth/version.BuildDate=$(BUILD_DATE) -X github.com/loopholelabs/auth/version.Platform=$(BUILD_PLATFORM) -X github.com/loopholelabs/auth/version.Version=$(BUILD_VERSION)' -trimpath
 
 .PHONY: build-image
 build-image:
