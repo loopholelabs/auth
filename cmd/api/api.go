@@ -33,7 +33,7 @@ func Cmd() command.SetupCommand[*config.Config] {
 				return nil
 			},
 			RunE: func(c *cobra.Command, _ []string) error {
-				ch.Printer.Printf("Running Authentication API... %s\n", ch.Config.API.ListenAddress)
+				ch.Printer.Printf("Running Authentication API...\n")
 
 				d, err := db.New(ch.Config.Database, ch.Logger)
 				if err != nil {
