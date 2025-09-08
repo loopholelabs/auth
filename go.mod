@@ -21,7 +21,7 @@ require (
 	github.com/loopholelabs/logging v0.3.2
 	github.com/pressly/goose/v3 v3.24.3
 	github.com/spf13/cobra v1.9.1
-	github.com/spf13/pflag v1.0.7
+	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go v0.38.0
