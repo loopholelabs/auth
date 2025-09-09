@@ -2883,7 +2883,7 @@ func TestSessionValidation(t *testing.T) {
 			// Check if session is valid - it should automatically refresh the invalidated session
 			validSession, needsReSign, err := m.ValidateSession(t.Context(), token)
 			require.NoError(t, err)
-			require.False(t, needsReSign) // reSign is false because refresh succeeded
+			require.True(t, needsReSign) // reSign is true because refresh succeeded so the session must be re-signed
 			require.Equal(t, session.Identifier, validSession.Identifier)
 			// The session should have been refreshed with the new generation from the database
 			require.Equal(t, session.Generation+1, validSession.Generation)
