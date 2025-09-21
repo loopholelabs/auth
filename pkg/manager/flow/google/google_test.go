@@ -956,7 +956,7 @@ func TestGarbageCollection(t *testing.T) {
 
 		// Sleep briefly to ensure flow is definitely in the past
 		time.Sleep(100 * time.Millisecond)
-		
+
 		// Mock time to make the flow appear expired
 		futureTime := time.Now().Add(Expiry + time.Minute)
 		now = func() time.Time { return futureTime }
@@ -1023,7 +1023,7 @@ func TestGarbageCollection(t *testing.T) {
 
 		// Sleep briefly to ensure flows created after this are definitely newer
 		time.Sleep(100 * time.Millisecond)
-		
+
 		// Mock time to be exactly at baseTime + Expiry so gc() will delete flows older than now
 		now = func() time.Time { return baseTime.Add(Expiry + time.Minute) }
 

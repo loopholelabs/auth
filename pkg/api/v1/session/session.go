@@ -7,9 +7,10 @@ import (
 	"database/sql"
 	"errors"
 
-	"github.com/jackc/pgx/v5"
 	"net/http"
 	"strings"
+
+	"github.com/jackc/pgx/v5"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -196,7 +197,7 @@ func (g *Session) revoke(ctx context.Context, request *SessionRevokeRequest) (*S
 	return &SessionRevokeResponse{
 		Body: SessionRevokeResponseBody{
 			Identifier: pgxtypes.StringFromUUID(revocableSession.Identifier),
-			Generation: uint32(revocableSession.Generation),
+			Generation: uint32(revocableSession.Generation), //nolint:gosec // Generation is always non-negative
 			ExpiresAt:  pgxtypes.TimeFromTimestamp(revocableSession.ExpiresAt),
 			CreatedAt:  pgxtypes.TimeFromTimestamp(revocableSession.CreatedAt),
 		},

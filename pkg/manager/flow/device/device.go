@@ -188,7 +188,7 @@ func (c *Device) CompleteFlow(ctx context.Context, identifier string, sessionIde
 	}
 	num, err := c.db.Queries.UpdateDeviceCodeFlowSessionIdentifierByIdentifier(ctx, generated.UpdateDeviceCodeFlowSessionIdentifierByIdentifierParams{
 		SessionIdentifier: sessionID,
-		Identifier: pgxtypes.UUIDFromString(identifier),
+		Identifier:        pgxtypes.UUIDFromString(identifier),
 	})
 	if err != nil {
 		return errors.Join(ErrCompletingFlow, err)

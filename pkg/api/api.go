@@ -43,7 +43,7 @@ func New(o options.Options, logger types.Logger) (*API, error) {
 }
 
 func (s *API) Start(listenAddress string) error {
-	listener, err := net.Listen("tcp", listenAddress) //nolint:noctx
+	listener, err := net.Listen("tcp", listenAddress)
 	if err != nil {
 		return errors.Join(err, ErrStartingAPI)
 	}

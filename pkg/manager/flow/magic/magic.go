@@ -101,13 +101,13 @@ func (c *Magic) CreateFlow(ctx context.Context, emailAddress string, deviceIdent
 	}
 
 	params := generated.CreateMagicLinkFlowParams{
-		Identifier:   pgxtypes.UUIDFromString(identifierStr),
-		Salt:         pgxtypes.UUIDFromString(salt),
-		Hash:         hash,
-		EmailAddress: emailAddress,
+		Identifier:       pgxtypes.UUIDFromString(identifierStr),
+		Salt:             pgxtypes.UUIDFromString(salt),
+		Hash:             hash,
+		EmailAddress:     emailAddress,
 		DeviceIdentifier: deviceID,
-		UserIdentifier: userID,
-		NextUrl: nextURL,
+		UserIdentifier:   userID,
+		NextUrl:          nextURL,
 	}
 
 	c.logger.Debug().Msg("creating flow")

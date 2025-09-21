@@ -5,6 +5,7 @@ package testutils
 import (
 	"context"
 	"fmt"
+	"net"
 	"testing"
 	"time"
 
@@ -51,7 +52,8 @@ func SetupPostgreSQLContainer(t testing.TB) *PostgreSQLContainer {
 	port, err := container.MappedPort(t.Context(), "5432")
 	require.NoError(t, err, "failed to get container port")
 
-	url := fmt.Sprintf("postgres://postgres:testpassword@%s:%s/testdb?sslmode=disable", host, port.Port())
+	hostPort := net.JoinHostPort(host, port.Port())
+	url := fmt.Sprintf("postgres://postgres:testpassword@%s/testdb?sslmode=disable", hostPort)
 
 	postgresContainer := &PostgreSQLContainer{
 		container: container,

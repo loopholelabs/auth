@@ -421,7 +421,7 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 			Name:       user.Name,
 			Email:      user.PrimaryEmail,
 		},
-		Generation: uint32(session.Generation),
+		Generation: uint32(session.Generation), //nolint:gosec // Generation is always non-negative
 		ExpiresAt:  pgxtypes.TimeFromTimestamp(session.ExpiresAt),
 	}
 
@@ -493,7 +493,7 @@ func (m *Manager) CreateExistingSession(ctx context.Context, identifier string) 
 			Name:       user.Name,
 			Email:      user.PrimaryEmail,
 		},
-		Generation: uint32(session.Generation),
+		Generation: uint32(session.Generation), //nolint:gosec // Generation is always non-negative
 		ExpiresAt:  pgxtypes.TimeFromTimestamp(session.ExpiresAt),
 	}, nil
 }
@@ -538,8 +538,8 @@ func (m *Manager) RefreshSession(ctx context.Context, session credential.Session
 		return credential.Session{}, errors.Join(ErrRefreshingSession, ErrSessionIsExpired)
 	}
 
-	if int32(s.Generation) != int32(session.Generation) {
-		session.Generation = uint32(s.Generation)
+	if s.Generation != int32(session.Generation) { //nolint:gosec // Safe comparison
+		session.Generation = uint32(s.Generation) //nolint:gosec // Generation is always non-negative
 
 		user, err := qtx.GetUserByIdentifier(ctx, pgxtypes.UUIDFromString(session.UserInfo.Identifier))
 		if err != nil {
@@ -822,7 +822,7 @@ func (m *Manager) sessionInvalidationsRefresh() {
 		for _, sessionInvalidation := range sessionInvalidations {
 			expiresAt := pgxtypes.TimeFromTimestamp(sessionInvalidation.ExpiresAt)
 			if expiresAt.After(time.Now()) {
-				m.sessionInvalidationCache.Set(pgxtypes.StringFromUUID(sessionInvalidation.SessionIdentifier), uint32(sessionInvalidation.Generation), time.Until(expiresAt))
+				m.sessionInvalidationCache.Set(pgxtypes.StringFromUUID(sessionInvalidation.SessionIdentifier), uint32(sessionInvalidation.Generation), time.Until(expiresAt)) //nolint:gosec // Generation is always non-negative
 				refreshed++
 			}
 		}

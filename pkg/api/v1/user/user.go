@@ -8,9 +8,10 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/jackc/pgx/v5"
 	"net/http"
 	"strings"
+
+	"github.com/jackc/pgx/v5"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/loopholelabs/auth/internal/db/generated"
@@ -122,7 +123,7 @@ func (g *User) info(ctx context.Context, _ *struct{}) (*UserInfoResponse, error)
 			return nil, huma.Error500InternalServerError("error retrieving user verified emails")
 		}
 		identityInfos = append(identityInfos, IdentityInfo{
-			Provider:       string(identity.Provider),
+			Provider:       identity.Provider,
 			VerifiedEmails: verifiedEmails,
 			CreatedAt:      pgxtypes.TimeFromTimestamp(identity.CreatedAt),
 		})

@@ -1,6 +1,5 @@
 //SPDX-License-Identifier: Apache-2.0
 
-//nolint:revive
 package utils
 
 import (

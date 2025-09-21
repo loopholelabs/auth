@@ -147,12 +147,12 @@ func (c *Github) CreateFlow(ctx context.Context, deviceIdentifier string, userId
 	}
 
 	params := generated.CreateGithubOAuthFlowParams{
-		Identifier: pgxtypes.UUIDFromString(identifierStr),
-		Verifier:   verifier,
-		Challenge:  pkce.CodeChallengeS256(verifier),
+		Identifier:       pgxtypes.UUIDFromString(identifierStr),
+		Verifier:         verifier,
+		Challenge:        pkce.CodeChallengeS256(verifier),
 		DeviceIdentifier: deviceID,
-		UserIdentifier: userID,
-		NextUrl: nextURL,
+		UserIdentifier:   userID,
+		NextUrl:          nextURL,
 	}
 
 	c.logger.Debug().Msg("creating flow")

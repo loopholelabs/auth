@@ -628,9 +628,9 @@ func TestGarbageCollection(t *testing.T) {
 		require.NoError(t, err)
 
 		// Update the created_at timestamps to make the flows appear old
-		_, err = database.Pool.Exec(t.Context(), 
+		_, err = database.Pool.Exec(t.Context(),
 			"UPDATE magic_link_flows SET created_at = $1 WHERE identifier IN ($2, $3, $4)",
-			pgxtypes.TimestampFromTime(time.Now().Add(-Expiry - 10*time.Minute)),
+			pgxtypes.TimestampFromTime(time.Now().Add(-Expiry-10*time.Minute)),
 			pgxtypes.UUIDFromString(expiredFlowID),
 			pgxtypes.UUIDFromString(recentFlowID),
 			pgxtypes.UUIDFromString(expiredFlowID2))
