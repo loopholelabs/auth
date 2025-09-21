@@ -20,8 +20,7 @@ import (
 	"github.com/loopholelabs/auth/internal/db/generated"
 )
 
-// TODO: Fix sqlc generation on macOS - for now, generated files are pre-built
-// go:generate go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.27.0 generate --file sqlc.yaml
+//go:generate go tool sqlc generate --file sqlc.yaml
 
 const (
 	pingTimeout  = time.Second * 30
@@ -126,12 +125,12 @@ func (db *DB) BeginTx(ctx context.Context, opts sql.TxOptions) (pgx.Tx, error) {
 	default:
 		pgxOpts.IsoLevel = pgx.ReadCommitted
 	}
-	
+
 	if opts.ReadOnly {
 		pgxOpts.AccessMode = pgx.ReadOnly
 	} else {
 		pgxOpts.AccessMode = pgx.ReadWrite
 	}
-	
+
 	return db.Pool.BeginTx(ctx, pgxOpts)
 }
