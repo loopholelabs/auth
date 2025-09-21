@@ -55,9 +55,7 @@ DROP INDEX idx_invitations_organization;
 DROP INDEX idx_memberships_organization;
 DROP INDEX idx_memberships_user;
 
-DROP INDEX idx_magic_link_user;
-DROP INDEX idx_github_oauth_user;
-DROP INDEX idx_google_oauth_user;
+DROP INDEX idx_identities_user;
 
 DROP INDEX idx_service_keys_expires_at;
 DROP INDEX idx_service_keys_user;
@@ -65,7 +63,7 @@ DROP INDEX idx_service_keys_organization;
 
 DROP INDEX idx_api_keys_organization;
 
-DROP INDEX idx_session_invalidation_session;
+DROP INDEX idx_session_invalidations_session;
 DROP INDEX idx_sessions_expires_at;
 DROP INDEX idx_sessions_organization;
 DROP INDEX idx_sessions_user;

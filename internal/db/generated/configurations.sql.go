@@ -15,7 +15,7 @@ FROM configurations
 `
 
 func (q *Queries) GetAllConfigurations(ctx context.Context) ([]Configuration, error) {
-	rows, err := q.db.QueryContext(ctx, getAllConfigurations)
+	rows, err := q.db.Query(ctx, getAllConfigurations)
 	if err != nil {
 		return nil, err
 	}
@@ -28,9 +28,6 @@ func (q *Queries) GetAllConfigurations(ctx context.Context) ([]Configuration, er
 		}
 		items = append(items, i)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -40,11 +37,11 @@ func (q *Queries) GetAllConfigurations(ctx context.Context) ([]Configuration, er
 const getConfigurationByKey = `-- name: GetConfigurationByKey :one
 SELECT configuration_key, configuration_value, updated_at
 FROM configurations
-WHERE configuration_key = ? LIMIT 1
+WHERE configuration_key = $1 LIMIT 1
 `
 
 func (q *Queries) GetConfigurationByKey(ctx context.Context, configurationKey string) (Configuration, error) {
-	row := q.db.QueryRowContext(ctx, getConfigurationByKey, configurationKey)
+	row := q.db.QueryRow(ctx, getConfigurationByKey, configurationKey)
 	var i Configuration
 	err := row.Scan(&i.ConfigurationKey, &i.ConfigurationValue, &i.UpdatedAt)
 	return i, err
@@ -52,10 +49,10 @@ func (q *Queries) GetConfigurationByKey(ctx context.Context, configurationKey st
 
 const setConfiguration = `-- name: SetConfiguration :exec
 INSERT INTO configurations (configuration_key, configuration_value, updated_at)
-VALUES (?, ?, CURRENT_TIMESTAMP) ON DUPLICATE KEY
-UPDATE
-    configuration_value =
-VALUES (configuration_value), updated_at = CURRENT_TIMESTAMP
+VALUES ($1, $2, CURRENT_TIMESTAMP) 
+ON CONFLICT (configuration_key) DO UPDATE 
+SET configuration_value = EXCLUDED.configuration_value,
+    updated_at = CURRENT_TIMESTAMP
 `
 
 type SetConfigurationParams struct {
@@ -64,6 +61,6 @@ type SetConfigurationParams struct {
 }
 
 func (q *Queries) SetConfiguration(ctx context.Context, arg SetConfigurationParams) error {
-	_, err := q.db.ExecContext(ctx, setConfiguration, arg.ConfigurationKey, arg.ConfigurationValue)
+	_, err := q.db.Exec(ctx, setConfiguration, arg.ConfigurationKey, arg.ConfigurationValue)
 	return err
 }

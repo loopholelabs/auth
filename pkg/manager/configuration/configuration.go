@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/loopholelabs/logging/types"
 
 	"github.com/loopholelabs/auth/internal/db"
@@ -155,13 +156,13 @@ func (c *Configuration) RotateSigningKey(ctx context.Context) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	tx, err := c.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead})
+	tx, err := c.db.BeginTx(ctx, sql.TxOptions{Isolation: sql.LevelRepeatableRead})
 	if err != nil {
 		return errors.Join(ErrRotatingSigningKey, err)
 	}
 	defer func() {
-		err := tx.Rollback()
-		if err != nil && !errors.Is(err, sql.ErrTxDone) {
+		err := tx.Rollback(ctx)
+		if err != nil && !errors.Is(err, pgx.ErrTxClosed) {
 			c.logger.Error().Err(err).Msg("failed to rollback transaction")
 		}
 	}()
@@ -179,7 +180,7 @@ func (c *Configuration) RotateSigningKey(ctx context.Context) error {
 			return errors.Join(ErrRotatingSigningKey, err)
 		}
 
-		err = tx.Commit()
+		err = tx.Commit(ctx)
 		if err != nil {
 			return errors.Join(ErrRotatingSigningKey, err)
 		}
@@ -219,7 +220,7 @@ func (c *Configuration) RotateSigningKey(ctx context.Context) error {
 		return errors.Join(ErrRotatingSigningKey, err)
 	}
 
-	err = tx.Commit()
+	err = tx.Commit(ctx)
 	if err != nil {
 		return errors.Join(ErrRotatingSigningKey, err)
 	}
@@ -243,13 +244,13 @@ func (c *Configuration) Close() error {
 func (c *Configuration) setDefault(key Key, value string) (string, error) {
 	ctx, cancel := context.WithTimeout(c.ctx, Timeout)
 	defer cancel()
-	tx, err := c.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
+	tx, err := c.db.BeginTx(ctx, sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
 		return "", errors.Join(ErrSettingConfiguration, err)
 	}
 	defer func() {
-		err := tx.Rollback()
-		if err != nil && !errors.Is(err, sql.ErrTxDone) {
+		err := tx.Rollback(ctx)
+		if err != nil && !errors.Is(err, pgx.ErrTxClosed) {
 			c.logger.Error().Err(err).Msg("failed to rollback transaction")
 		}
 	}()
@@ -271,7 +272,7 @@ func (c *Configuration) setDefault(key Key, value string) (string, error) {
 			return "", errors.Join(ErrGettingConfiguration, err)
 		}
 	}
-	err = tx.Commit()
+	err = tx.Commit(ctx)
 	if err != nil {
 		return "", errors.Join(ErrSettingConfiguration, err)
 	}
@@ -286,13 +287,13 @@ func (c *Configuration) setDefaultSigningKey() error {
 
 	ctx, cancel := context.WithTimeout(c.ctx, Timeout)
 	defer cancel()
-	tx, err := c.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
+	tx, err := c.db.BeginTx(ctx, sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
 		return errors.Join(ErrSettingDefaultSigningKey, err)
 	}
 	defer func() {
-		err := tx.Rollback()
-		if err != nil && !errors.Is(err, sql.ErrTxDone) {
+		err := tx.Rollback(ctx)
+		if err != nil && !errors.Is(err, pgx.ErrTxClosed) {
 			c.logger.Error().Err(err).Msg("failed to rollback transaction")
 		}
 	}()
@@ -310,7 +311,7 @@ func (c *Configuration) setDefaultSigningKey() error {
 			return errors.Join(ErrSettingDefaultSigningKey, err)
 		}
 
-		err = tx.Commit()
+		err = tx.Commit(ctx)
 		if err != nil {
 			return errors.Join(ErrSettingDefaultSigningKey, err)
 		}
@@ -347,7 +348,7 @@ func (c *Configuration) setDefaultSigningKey() error {
 		c.previousPublicKey = nil
 		c.encodedPreviousPublicKey = nil
 
-		err = tx.Commit()
+		err = tx.Commit(ctx)
 		if err != nil {
 			return errors.Join(ErrSettingDefaultSigningKey, err)
 		}
@@ -365,7 +366,7 @@ func (c *Configuration) setDefaultSigningKey() error {
 		return errors.Join(ErrSettingDefaultSigningKey, err)
 	}
 
-	err = tx.Commit()
+	err = tx.Commit(ctx)
 	if err != nil {
 		return errors.Join(ErrSettingDefaultSigningKey, err)
 	}

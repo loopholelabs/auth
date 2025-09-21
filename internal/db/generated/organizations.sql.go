@@ -7,33 +7,34 @@ package generated
 
 import (
 	"context"
-	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createOrganization = `-- name: CreateOrganization :exec
 INSERT INTO organizations (identifier, name, is_default, created_at)
-VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
 `
 
 type CreateOrganizationParams struct {
-	Identifier string
+	Identifier pgtype.UUID
 	Name       string
 	IsDefault  bool
 }
 
 func (q *Queries) CreateOrganization(ctx context.Context, arg CreateOrganizationParams) error {
-	_, err := q.db.ExecContext(ctx, createOrganization, arg.Identifier, arg.Name, arg.IsDefault)
+	_, err := q.db.Exec(ctx, createOrganization, arg.Identifier, arg.Name, arg.IsDefault)
 	return err
 }
 
 const getOrganizationByIdentifier = `-- name: GetOrganizationByIdentifier :one
 SELECT identifier, name, is_default, created_at
 FROM organizations
-WHERE identifier = ? LIMIT 1
+WHERE identifier = $1 LIMIT 1
 `
 
-func (q *Queries) GetOrganizationByIdentifier(ctx context.Context, identifier string) (Organization, error) {
-	row := q.db.QueryRowContext(ctx, getOrganizationByIdentifier, identifier)
+func (q *Queries) GetOrganizationByIdentifier(ctx context.Context, identifier pgtype.UUID) (Organization, error) {
+	row := q.db.QueryRow(ctx, getOrganizationByIdentifier, identifier)
 	var i Organization
 	err := row.Scan(
 		&i.Identifier,
@@ -50,21 +51,21 @@ SELECT o.identifier, o.name, o.is_default, o.created_at,
        m.created_at AS membership_created_at
 FROM memberships m
          INNER JOIN organizations o ON m.organization_identifier = o.identifier
-WHERE m.user_identifier = ?
+WHERE m.user_identifier = $1
 ORDER BY o.created_at DESC
 `
 
 type GetOrganizationsForUserIdentifierRow struct {
-	Identifier          string
+	Identifier          pgtype.UUID
 	Name                string
 	IsDefault           bool
-	CreatedAt           time.Time
+	CreatedAt           pgtype.Timestamp
 	MembershipRole      string
-	MembershipCreatedAt time.Time
+	MembershipCreatedAt pgtype.Timestamp
 }
 
-func (q *Queries) GetOrganizationsForUserIdentifier(ctx context.Context, userIdentifier string) ([]GetOrganizationsForUserIdentifierRow, error) {
-	rows, err := q.db.QueryContext(ctx, getOrganizationsForUserIdentifier, userIdentifier)
+func (q *Queries) GetOrganizationsForUserIdentifier(ctx context.Context, userIdentifier pgtype.UUID) ([]GetOrganizationsForUserIdentifierRow, error) {
+	rows, err := q.db.Query(ctx, getOrganizationsForUserIdentifier, userIdentifier)
 	if err != nil {
 		return nil, err
 	}
@@ -83,9 +84,6 @@ func (q *Queries) GetOrganizationsForUserIdentifier(ctx context.Context, userIde
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

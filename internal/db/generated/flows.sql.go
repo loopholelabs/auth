@@ -7,8 +7,8 @@ package generated
 
 import (
 	"context"
-	"database/sql"
-	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const countAllDeviceCodeFlows = `-- name: CountAllDeviceCodeFlows :one
@@ -17,7 +17,7 @@ FROM device_code_flows
 `
 
 func (q *Queries) CountAllDeviceCodeFlows(ctx context.Context) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countAllDeviceCodeFlows)
+	row := q.db.QueryRow(ctx, countAllDeviceCodeFlows)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -29,7 +29,7 @@ FROM github_oauth_flows
 `
 
 func (q *Queries) CountAllGithubOAuthFlows(ctx context.Context) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countAllGithubOAuthFlows)
+	row := q.db.QueryRow(ctx, countAllGithubOAuthFlows)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -41,7 +41,7 @@ FROM google_oauth_flows
 `
 
 func (q *Queries) CountAllGoogleOAuthFlows(ctx context.Context) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countAllGoogleOAuthFlows)
+	row := q.db.QueryRow(ctx, countAllGoogleOAuthFlows)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -53,46 +53,46 @@ FROM magic_link_flows
 `
 
 func (q *Queries) CountAllMagicLinkFlows(ctx context.Context) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countAllMagicLinkFlows)
+	row := q.db.QueryRow(ctx, countAllMagicLinkFlows)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
 }
 
 const createDeviceCodeFlow = `-- name: CreateDeviceCodeFlow :exec
-INSERT INTO device_code_flows (identifier, code, poll, last_poll, created_at)
-VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+INSERT INTO device_code_flows (identifier, code, poll, created_at)
+VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
 `
 
 type CreateDeviceCodeFlowParams struct {
-	Identifier string
+	Identifier pgtype.UUID
 	Code       string
-	Poll       string
+	Poll       pgtype.UUID
 }
 
 func (q *Queries) CreateDeviceCodeFlow(ctx context.Context, arg CreateDeviceCodeFlowParams) error {
-	_, err := q.db.ExecContext(ctx, createDeviceCodeFlow, arg.Identifier, arg.Code, arg.Poll)
+	_, err := q.db.Exec(ctx, createDeviceCodeFlow, arg.Identifier, arg.Code, arg.Poll)
 	return err
 }
 
 const createGithubOAuthFlow = `-- name: CreateGithubOAuthFlow :exec
 INSERT INTO github_oauth_flows (identifier, device_identifier, user_identifier, verifier, challenge, next_url,
                                 created_at)
-VALUES (?, ?, ?, ?,
-        ?, ?, CURRENT_TIMESTAMP)
+VALUES ($1, $2, $3, $4,
+        $5, $6, CURRENT_TIMESTAMP)
 `
 
 type CreateGithubOAuthFlowParams struct {
-	Identifier       string
-	DeviceIdentifier sql.NullString
-	UserIdentifier   sql.NullString
+	Identifier       pgtype.UUID
+	DeviceIdentifier pgtype.UUID
+	UserIdentifier   pgtype.UUID
 	Verifier         string
 	Challenge        string
 	NextUrl          string
 }
 
 func (q *Queries) CreateGithubOAuthFlow(ctx context.Context, arg CreateGithubOAuthFlowParams) error {
-	_, err := q.db.ExecContext(ctx, createGithubOAuthFlow,
+	_, err := q.db.Exec(ctx, createGithubOAuthFlow,
 		arg.Identifier,
 		arg.DeviceIdentifier,
 		arg.UserIdentifier,
@@ -106,21 +106,21 @@ func (q *Queries) CreateGithubOAuthFlow(ctx context.Context, arg CreateGithubOAu
 const createGoogleOAuthFlow = `-- name: CreateGoogleOAuthFlow :exec
 INSERT INTO google_oauth_flows (identifier, device_identifier, user_identifier, verifier, challenge, next_url,
                                 created_at)
-VALUES (?, ?, ?, ?,
-        ?, ?, CURRENT_TIMESTAMP)
+VALUES ($1, $2, $3, $4,
+        $5, $6, CURRENT_TIMESTAMP)
 `
 
 type CreateGoogleOAuthFlowParams struct {
-	Identifier       string
-	DeviceIdentifier sql.NullString
-	UserIdentifier   sql.NullString
+	Identifier       pgtype.UUID
+	DeviceIdentifier pgtype.UUID
+	UserIdentifier   pgtype.UUID
 	Verifier         string
 	Challenge        string
 	NextUrl          string
 }
 
 func (q *Queries) CreateGoogleOAuthFlow(ctx context.Context, arg CreateGoogleOAuthFlowParams) error {
-	_, err := q.db.ExecContext(ctx, createGoogleOAuthFlow,
+	_, err := q.db.Exec(ctx, createGoogleOAuthFlow,
 		arg.Identifier,
 		arg.DeviceIdentifier,
 		arg.UserIdentifier,
@@ -134,22 +134,22 @@ func (q *Queries) CreateGoogleOAuthFlow(ctx context.Context, arg CreateGoogleOAu
 const createMagicLinkFlow = `-- name: CreateMagicLinkFlow :exec
 INSERT INTO magic_link_flows (identifier, device_identifier, user_identifier, next_url, salt, hash, email_address,
                               created_at)
-VALUES (?, ?, ?, ?,
-        ?, ?, ?, CURRENT_TIMESTAMP)
+VALUES ($1, $2, $3, $4,
+        $5, $6, $7, CURRENT_TIMESTAMP)
 `
 
 type CreateMagicLinkFlowParams struct {
-	Identifier       string
-	DeviceIdentifier sql.NullString
-	UserIdentifier   sql.NullString
+	Identifier       pgtype.UUID
+	DeviceIdentifier pgtype.UUID
+	UserIdentifier   pgtype.UUID
 	NextUrl          string
-	Salt             string
+	Salt             pgtype.UUID
 	Hash             []byte
 	EmailAddress     string
 }
 
 func (q *Queries) CreateMagicLinkFlow(ctx context.Context, arg CreateMagicLinkFlowParams) error {
-	_, err := q.db.ExecContext(ctx, createMagicLinkFlow,
+	_, err := q.db.Exec(ctx, createMagicLinkFlow,
 		arg.Identifier,
 		arg.DeviceIdentifier,
 		arg.UserIdentifier,
@@ -167,11 +167,11 @@ FROM device_code_flows
 `
 
 func (q *Queries) DeleteAllDeviceCodeFlows(ctx context.Context) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deleteAllDeviceCodeFlows)
+	result, err := q.db.Exec(ctx, deleteAllDeviceCodeFlows)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected()
+	return result.RowsAffected(), nil
 }
 
 const deleteAllGithubOAuthFlows = `-- name: DeleteAllGithubOAuthFlows :execrows
@@ -180,11 +180,11 @@ FROM github_oauth_flows
 `
 
 func (q *Queries) DeleteAllGithubOAuthFlows(ctx context.Context) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deleteAllGithubOAuthFlows)
+	result, err := q.db.Exec(ctx, deleteAllGithubOAuthFlows)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected()
+	return result.RowsAffected(), nil
 }
 
 const deleteAllGoogleOAuthFlows = `-- name: DeleteAllGoogleOAuthFlows :execrows
@@ -193,11 +193,11 @@ FROM google_oauth_flows
 `
 
 func (q *Queries) DeleteAllGoogleOAuthFlows(ctx context.Context) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deleteAllGoogleOAuthFlows)
+	result, err := q.db.Exec(ctx, deleteAllGoogleOAuthFlows)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected()
+	return result.RowsAffected(), nil
 }
 
 const deleteAllMagicLinkFlows = `-- name: DeleteAllMagicLinkFlows :execrows
@@ -206,133 +206,133 @@ FROM magic_link_flows
 `
 
 func (q *Queries) DeleteAllMagicLinkFlows(ctx context.Context) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deleteAllMagicLinkFlows)
+	result, err := q.db.Exec(ctx, deleteAllMagicLinkFlows)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected()
+	return result.RowsAffected(), nil
 }
 
 const deleteDeviceCodeFlowByIdentifier = `-- name: DeleteDeviceCodeFlowByIdentifier :execrows
 DELETE
 FROM device_code_flows
-WHERE identifier = ?
+WHERE identifier = $1
 `
 
-func (q *Queries) DeleteDeviceCodeFlowByIdentifier(ctx context.Context, identifier string) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deleteDeviceCodeFlowByIdentifier, identifier)
+func (q *Queries) DeleteDeviceCodeFlowByIdentifier(ctx context.Context, identifier pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteDeviceCodeFlowByIdentifier, identifier)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected()
+	return result.RowsAffected(), nil
 }
 
 const deleteDeviceCodeFlowsBeforeCreatedAt = `-- name: DeleteDeviceCodeFlowsBeforeCreatedAt :execrows
 DELETE
 FROM device_code_flows
-WHERE created_at < ?
+WHERE created_at < $1
 `
 
-func (q *Queries) DeleteDeviceCodeFlowsBeforeCreatedAt(ctx context.Context, createdAt time.Time) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deleteDeviceCodeFlowsBeforeCreatedAt, createdAt)
+func (q *Queries) DeleteDeviceCodeFlowsBeforeCreatedAt(ctx context.Context, createdAt pgtype.Timestamp) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteDeviceCodeFlowsBeforeCreatedAt, createdAt)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected()
+	return result.RowsAffected(), nil
 }
 
 const deleteGithubOAuthFlowByIdentifier = `-- name: DeleteGithubOAuthFlowByIdentifier :execrows
 DELETE
 FROM github_oauth_flows
-WHERE identifier = ?
+WHERE identifier = $1
 `
 
-func (q *Queries) DeleteGithubOAuthFlowByIdentifier(ctx context.Context, identifier string) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deleteGithubOAuthFlowByIdentifier, identifier)
+func (q *Queries) DeleteGithubOAuthFlowByIdentifier(ctx context.Context, identifier pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteGithubOAuthFlowByIdentifier, identifier)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected()
+	return result.RowsAffected(), nil
 }
 
 const deleteGithubOAuthFlowsBeforeCreatedAt = `-- name: DeleteGithubOAuthFlowsBeforeCreatedAt :execrows
 DELETE
 FROM github_oauth_flows
-WHERE created_at < ?
+WHERE created_at < $1
 `
 
-func (q *Queries) DeleteGithubOAuthFlowsBeforeCreatedAt(ctx context.Context, createdAt time.Time) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deleteGithubOAuthFlowsBeforeCreatedAt, createdAt)
+func (q *Queries) DeleteGithubOAuthFlowsBeforeCreatedAt(ctx context.Context, createdAt pgtype.Timestamp) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteGithubOAuthFlowsBeforeCreatedAt, createdAt)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected()
+	return result.RowsAffected(), nil
 }
 
 const deleteGoogleOAuthFlowByIdentifier = `-- name: DeleteGoogleOAuthFlowByIdentifier :execrows
 DELETE
 FROM google_oauth_flows
-WHERE identifier = ?
+WHERE identifier = $1
 `
 
-func (q *Queries) DeleteGoogleOAuthFlowByIdentifier(ctx context.Context, identifier string) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deleteGoogleOAuthFlowByIdentifier, identifier)
+func (q *Queries) DeleteGoogleOAuthFlowByIdentifier(ctx context.Context, identifier pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteGoogleOAuthFlowByIdentifier, identifier)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected()
+	return result.RowsAffected(), nil
 }
 
 const deleteGoogleOAuthFlowsBeforeCreatedAt = `-- name: DeleteGoogleOAuthFlowsBeforeCreatedAt :execrows
 DELETE
 FROM google_oauth_flows
-WHERE created_at < ?
+WHERE created_at < $1
 `
 
-func (q *Queries) DeleteGoogleOAuthFlowsBeforeCreatedAt(ctx context.Context, createdAt time.Time) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deleteGoogleOAuthFlowsBeforeCreatedAt, createdAt)
+func (q *Queries) DeleteGoogleOAuthFlowsBeforeCreatedAt(ctx context.Context, createdAt pgtype.Timestamp) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteGoogleOAuthFlowsBeforeCreatedAt, createdAt)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected()
+	return result.RowsAffected(), nil
 }
 
 const deleteMagicLinkFlowByIdentifier = `-- name: DeleteMagicLinkFlowByIdentifier :execrows
 DELETE
 FROM magic_link_flows
-WHERE identifier = ?
+WHERE identifier = $1
 `
 
-func (q *Queries) DeleteMagicLinkFlowByIdentifier(ctx context.Context, identifier string) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deleteMagicLinkFlowByIdentifier, identifier)
+func (q *Queries) DeleteMagicLinkFlowByIdentifier(ctx context.Context, identifier pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteMagicLinkFlowByIdentifier, identifier)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected()
+	return result.RowsAffected(), nil
 }
 
 const deleteMagicLinkFlowsBeforeCreatedAt = `-- name: DeleteMagicLinkFlowsBeforeCreatedAt :execrows
 DELETE
 FROM magic_link_flows
-WHERE created_at < ?
+WHERE created_at < $1
 `
 
-func (q *Queries) DeleteMagicLinkFlowsBeforeCreatedAt(ctx context.Context, createdAt time.Time) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deleteMagicLinkFlowsBeforeCreatedAt, createdAt)
+func (q *Queries) DeleteMagicLinkFlowsBeforeCreatedAt(ctx context.Context, createdAt pgtype.Timestamp) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteMagicLinkFlowsBeforeCreatedAt, createdAt)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected()
+	return result.RowsAffected(), nil
 }
 
 const getDeviceCodeFlowByCode = `-- name: GetDeviceCodeFlowByCode :one
 SELECT identifier, session_identifier, code, poll, last_poll, created_at
 FROM device_code_flows
-WHERE code = ? LIMIT 1
+WHERE code = $1 LIMIT 1
 `
 
 func (q *Queries) GetDeviceCodeFlowByCode(ctx context.Context, code string) (DeviceCodeFlow, error) {
-	row := q.db.QueryRowContext(ctx, getDeviceCodeFlowByCode, code)
+	row := q.db.QueryRow(ctx, getDeviceCodeFlowByCode, code)
 	var i DeviceCodeFlow
 	err := row.Scan(
 		&i.Identifier,
@@ -348,11 +348,11 @@ func (q *Queries) GetDeviceCodeFlowByCode(ctx context.Context, code string) (Dev
 const getDeviceCodeFlowByIdentifier = `-- name: GetDeviceCodeFlowByIdentifier :one
 SELECT identifier, session_identifier, code, poll, last_poll, created_at
 FROM device_code_flows
-WHERE identifier = ? LIMIT 1
+WHERE identifier = $1 LIMIT 1
 `
 
-func (q *Queries) GetDeviceCodeFlowByIdentifier(ctx context.Context, identifier string) (DeviceCodeFlow, error) {
-	row := q.db.QueryRowContext(ctx, getDeviceCodeFlowByIdentifier, identifier)
+func (q *Queries) GetDeviceCodeFlowByIdentifier(ctx context.Context, identifier pgtype.UUID) (DeviceCodeFlow, error) {
+	row := q.db.QueryRow(ctx, getDeviceCodeFlowByIdentifier, identifier)
 	var i DeviceCodeFlow
 	err := row.Scan(
 		&i.Identifier,
@@ -368,11 +368,11 @@ func (q *Queries) GetDeviceCodeFlowByIdentifier(ctx context.Context, identifier 
 const getDeviceCodeFlowByPoll = `-- name: GetDeviceCodeFlowByPoll :one
 SELECT identifier, session_identifier, code, poll, last_poll, created_at
 FROM device_code_flows
-WHERE poll = ? LIMIT 1
+WHERE poll = $1 LIMIT 1
 `
 
-func (q *Queries) GetDeviceCodeFlowByPoll(ctx context.Context, poll string) (DeviceCodeFlow, error) {
-	row := q.db.QueryRowContext(ctx, getDeviceCodeFlowByPoll, poll)
+func (q *Queries) GetDeviceCodeFlowByPoll(ctx context.Context, poll pgtype.UUID) (DeviceCodeFlow, error) {
+	row := q.db.QueryRow(ctx, getDeviceCodeFlowByPoll, poll)
 	var i DeviceCodeFlow
 	err := row.Scan(
 		&i.Identifier,
@@ -388,11 +388,11 @@ func (q *Queries) GetDeviceCodeFlowByPoll(ctx context.Context, poll string) (Dev
 const getGithubOAuthFlowByIdentifier = `-- name: GetGithubOAuthFlowByIdentifier :one
 SELECT identifier, verifier, challenge, device_identifier, user_identifier, next_url, created_at
 FROM github_oauth_flows
-WHERE identifier = ? LIMIT 1
+WHERE identifier = $1 LIMIT 1
 `
 
-func (q *Queries) GetGithubOAuthFlowByIdentifier(ctx context.Context, identifier string) (GithubOauthFlow, error) {
-	row := q.db.QueryRowContext(ctx, getGithubOAuthFlowByIdentifier, identifier)
+func (q *Queries) GetGithubOAuthFlowByIdentifier(ctx context.Context, identifier pgtype.UUID) (GithubOauthFlow, error) {
+	row := q.db.QueryRow(ctx, getGithubOAuthFlowByIdentifier, identifier)
 	var i GithubOauthFlow
 	err := row.Scan(
 		&i.Identifier,
@@ -409,11 +409,11 @@ func (q *Queries) GetGithubOAuthFlowByIdentifier(ctx context.Context, identifier
 const getGoogleOAuthFlowByIdentifier = `-- name: GetGoogleOAuthFlowByIdentifier :one
 SELECT identifier, verifier, challenge, device_identifier, user_identifier, next_url, created_at
 FROM google_oauth_flows
-WHERE identifier = ? LIMIT 1
+WHERE identifier = $1 LIMIT 1
 `
 
-func (q *Queries) GetGoogleOAuthFlowByIdentifier(ctx context.Context, identifier string) (GoogleOauthFlow, error) {
-	row := q.db.QueryRowContext(ctx, getGoogleOAuthFlowByIdentifier, identifier)
+func (q *Queries) GetGoogleOAuthFlowByIdentifier(ctx context.Context, identifier pgtype.UUID) (GoogleOauthFlow, error) {
+	row := q.db.QueryRow(ctx, getGoogleOAuthFlowByIdentifier, identifier)
 	var i GoogleOauthFlow
 	err := row.Scan(
 		&i.Identifier,
@@ -430,11 +430,11 @@ func (q *Queries) GetGoogleOAuthFlowByIdentifier(ctx context.Context, identifier
 const getMagicLinkFlowByIdentifier = `-- name: GetMagicLinkFlowByIdentifier :one
 SELECT identifier, salt, hash, email_address, device_identifier, user_identifier, next_url, created_at
 FROM magic_link_flows
-WHERE identifier = ? LIMIT 1
+WHERE identifier = $1 LIMIT 1
 `
 
-func (q *Queries) GetMagicLinkFlowByIdentifier(ctx context.Context, identifier string) (MagicLinkFlow, error) {
-	row := q.db.QueryRowContext(ctx, getMagicLinkFlowByIdentifier, identifier)
+func (q *Queries) GetMagicLinkFlowByIdentifier(ctx context.Context, identifier pgtype.UUID) (MagicLinkFlow, error) {
+	row := q.db.QueryRow(ctx, getMagicLinkFlowByIdentifier, identifier)
 	var i MagicLinkFlow
 	err := row.Scan(
 		&i.Identifier,
@@ -452,32 +452,32 @@ func (q *Queries) GetMagicLinkFlowByIdentifier(ctx context.Context, identifier s
 const updateDeviceCodeFlowLastPollByPoll = `-- name: UpdateDeviceCodeFlowLastPollByPoll :execrows
 UPDATE device_code_flows
 SET last_poll = CURRENT_TIMESTAMP
-WHERE poll = ?
+WHERE poll = $1
 `
 
-func (q *Queries) UpdateDeviceCodeFlowLastPollByPoll(ctx context.Context, poll string) (int64, error) {
-	result, err := q.db.ExecContext(ctx, updateDeviceCodeFlowLastPollByPoll, poll)
+func (q *Queries) UpdateDeviceCodeFlowLastPollByPoll(ctx context.Context, poll pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, updateDeviceCodeFlowLastPollByPoll, poll)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected()
+	return result.RowsAffected(), nil
 }
 
 const updateDeviceCodeFlowSessionIdentifierByIdentifier = `-- name: UpdateDeviceCodeFlowSessionIdentifierByIdentifier :execrows
 UPDATE device_code_flows
-SET session_identifier = ?
-WHERE identifier = ?
+SET session_identifier = $1
+WHERE identifier = $2
 `
 
 type UpdateDeviceCodeFlowSessionIdentifierByIdentifierParams struct {
-	SessionIdentifier sql.NullString
-	Identifier        string
+	SessionIdentifier pgtype.UUID
+	Identifier        pgtype.UUID
 }
 
 func (q *Queries) UpdateDeviceCodeFlowSessionIdentifierByIdentifier(ctx context.Context, arg UpdateDeviceCodeFlowSessionIdentifierByIdentifierParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, updateDeviceCodeFlowSessionIdentifierByIdentifier, arg.SessionIdentifier, arg.Identifier)
+	result, err := q.db.Exec(ctx, updateDeviceCodeFlowSessionIdentifierByIdentifier, arg.SessionIdentifier, arg.Identifier)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected()
+	return result.RowsAffected(), nil
 }

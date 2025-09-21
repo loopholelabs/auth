@@ -16,6 +16,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/grokify/go-pkce"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/github"
 
@@ -23,6 +25,7 @@ import (
 
 	"github.com/loopholelabs/auth/internal/db"
 	"github.com/loopholelabs/auth/internal/db/generated"
+	"github.com/loopholelabs/auth/internal/db/pgxtypes"
 	"github.com/loopholelabs/auth/pkg/manager/flow"
 )
 
@@ -130,18 +133,25 @@ func (c *Github) CreateFlow(ctx context.Context, deviceIdentifier string, userId
 		return "", errors.Join(ErrCreatingFlow, err)
 	}
 
+	identifierStr := uuid.New().String()
+	var deviceID, userID pgtype.UUID
+	if deviceIdentifier != "" {
+		deviceID = pgxtypes.UUIDFromString(deviceIdentifier)
+	} else {
+		deviceID = pgtype.UUID{Valid: false}
+	}
+	if userIdentifier != "" {
+		userID = pgxtypes.UUIDFromString(userIdentifier)
+	} else {
+		userID = pgtype.UUID{Valid: false}
+	}
+
 	params := generated.CreateGithubOAuthFlowParams{
-		Identifier: uuid.New().String(),
+		Identifier: pgxtypes.UUIDFromString(identifierStr),
 		Verifier:   verifier,
 		Challenge:  pkce.CodeChallengeS256(verifier),
-		DeviceIdentifier: sql.NullString{
-			String: deviceIdentifier,
-			Valid:  deviceIdentifier != "",
-		},
-		UserIdentifier: sql.NullString{
-			String: userIdentifier,
-			Valid:  userIdentifier != "",
-		},
+		DeviceIdentifier: deviceID,
+		UserIdentifier: userID,
 		NextUrl: nextURL,
 	}
 
@@ -151,31 +161,31 @@ func (c *Github) CreateFlow(ctx context.Context, deviceIdentifier string, userId
 		return "", errors.Join(ErrCreatingFlow, err)
 	}
 
-	return c.config.AuthCodeURL(params.Identifier, oauth2.AccessTypeOnline, oauth2.SetAuthURLParam(pkce.ParamCodeChallenge, params.Challenge), oauth2.SetAuthURLParam(pkce.ParamCodeChallengeMethod, pkce.MethodS256)), nil
+	return c.config.AuthCodeURL(identifierStr, oauth2.AccessTypeOnline, oauth2.SetAuthURLParam(pkce.ParamCodeChallenge, params.Challenge), oauth2.SetAuthURLParam(pkce.ParamCodeChallengeMethod, pkce.MethodS256)), nil
 }
 
 func (c *Github) CompleteFlow(ctx context.Context, identifier string, code string) (flow.Data, error) {
 	c.logger.Debug().Str("identifier", identifier).Msg("completing flow")
-	tx, err := c.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
+	tx, err := c.db.BeginTx(ctx, sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
 		return flow.Data{}, errors.Join(ErrCompletingFlow, err)
 	}
 
 	defer func() {
-		err := tx.Rollback()
-		if err != nil && !errors.Is(err, sql.ErrTxDone) {
+		err := tx.Rollback(ctx)
+		if err != nil && !errors.Is(err, pgx.ErrTxClosed) {
 			c.logger.Error().Err(err).Msg("failed to rollback transaction")
 		}
 	}()
 
 	qtx := c.db.Queries.WithTx(tx)
 
-	f, err := qtx.GetGithubOAuthFlowByIdentifier(ctx, identifier)
+	f, err := qtx.GetGithubOAuthFlowByIdentifier(ctx, pgxtypes.UUIDFromString(identifier))
 	if err != nil {
 		return flow.Data{}, errors.Join(ErrCompletingFlow, err)
 	}
 
-	num, err := qtx.DeleteGithubOAuthFlowByIdentifier(ctx, identifier)
+	num, err := qtx.DeleteGithubOAuthFlowByIdentifier(ctx, pgxtypes.UUIDFromString(identifier))
 	if err != nil {
 		return flow.Data{}, errors.Join(ErrCompletingFlow, err)
 	}
@@ -183,7 +193,7 @@ func (c *Github) CompleteFlow(ctx context.Context, identifier string, code strin
 		return flow.Data{}, errors.Join(ErrCompletingFlow, sql.ErrNoRows)
 	}
 
-	err = tx.Commit()
+	err = tx.Commit(ctx)
 	if err != nil {
 		return flow.Data{}, errors.Join(ErrCompletingFlow, err)
 	}
@@ -233,8 +243,8 @@ func (c *Github) CompleteFlow(ctx context.Context, identifier string, code strin
 		ProviderIdentifier: strconv.FormatInt(u.ID, 10),
 		UserName:           u.Name,
 		NextURL:            f.NextUrl,
-		DeviceIdentifier:   f.DeviceIdentifier.String,
-		UserIdentifier:     f.UserIdentifier.String,
+		DeviceIdentifier:   pgxtypes.StringFromUUID(f.DeviceIdentifier),
+		UserIdentifier:     pgxtypes.StringFromUUID(f.UserIdentifier),
 	}
 
 	// Get User Emails
@@ -286,7 +296,7 @@ func (c *Github) CompleteFlow(ctx context.Context, identifier string, code strin
 func (c *Github) gc() (int64, error) {
 	ctx, cancel := context.WithTimeout(c.ctx, Timeout)
 	defer cancel()
-	return c.db.Queries.DeleteGithubOAuthFlowsBeforeCreatedAt(ctx, now().Add(-Expiry))
+	return c.db.Queries.DeleteGithubOAuthFlowsBeforeCreatedAt(ctx, pgxtypes.TimestampFromTime(now().Add(-Expiry)))
 }
 
 func (c *Github) doGC() {

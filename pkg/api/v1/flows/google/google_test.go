@@ -21,8 +21,8 @@ import (
 )
 
 func setupTestEnvironment(t *testing.T, enableGoogle bool) humatest.TestAPI {
-	// Setup MySQL container
-	container := testutils.SetupMySQLContainer(t)
+	// Setup PostgreSQL container
+	container := testutils.SetupPostgreSQLContainer(t)
 	logger := logging.Test(t, logging.Zerolog, "test")
 	database, err := db.New(container.URL, logger)
 	require.NoError(t, err)

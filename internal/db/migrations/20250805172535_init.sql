@@ -5,10 +5,10 @@
 -- ------------------------------------------------------------------
 CREATE TABLE organizations
 (
-    identifier CHAR(36)     NOT NULL PRIMARY KEY DEFAULT (uuid()),
+    identifier UUID         NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
     name       VARCHAR(255) NOT NULL,
     is_default BOOLEAN      NOT NULL             DEFAULT TRUE,
-    created_at DATETIME     NOT NULL             DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP    NOT NULL             DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ------------------------------------------------------------------
@@ -16,12 +16,12 @@ CREATE TABLE organizations
 -- ------------------------------------------------------------------
 CREATE TABLE users
 (
-    identifier                      CHAR(36)     NOT NULL PRIMARY KEY DEFAULT (uuid()),
+    identifier                      UUID         NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
     name                            VARCHAR(255) NOT NULL,
     primary_email                   VARCHAR(255) NOT NULL UNIQUE,
-    default_organization_identifier CHAR(36)     NOT NULL,
-    last_login                      DATETIME     NOT NULL             DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    created_at                      DATETIME     NOT NULL             DEFAULT CURRENT_TIMESTAMP,
+    default_organization_identifier UUID         NOT NULL,
+    last_login                      TIMESTAMP    NOT NULL             DEFAULT CURRENT_TIMESTAMP,
+    created_at                      TIMESTAMP    NOT NULL             DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_users_default_org
         FOREIGN KEY (default_organization_identifier)
@@ -35,11 +35,11 @@ CREATE TABLE users
 -- ------------------------------------------------------------------
 CREATE TABLE identities
 (
-    provider            ENUM('GITHUB', 'GOOGLE', 'MAGIC') NOT NULL,
+    provider            VARCHAR(10) NOT NULL CHECK (provider IN ('GITHUB', 'GOOGLE', 'MAGIC')),
     provider_identifier VARCHAR(255) NOT NULL,
-    user_identifier     CHAR(36)     NOT NULL,
-    verified_emails     JSON         NOT NULL,
-    created_at          DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    user_identifier     UUID     NOT NULL,
+    verified_emails     JSONB    NOT NULL,
+    created_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     PRIMARY KEY (provider, provider_identifier),
 
@@ -55,10 +55,10 @@ CREATE TABLE identities
 -- ------------------------------------------------------------------
 CREATE TABLE memberships
 (
-    user_identifier         CHAR(36)    NOT NULL,
-    organization_identifier CHAR(36)    NOT NULL,
+    user_identifier         UUID        NOT NULL,
+    organization_identifier UUID        NOT NULL,
     role                    VARCHAR(64) NOT NULL,
-    created_at              DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at              TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_memberships_user_identifier_users
         FOREIGN KEY (user_identifier)
@@ -72,7 +72,7 @@ CREATE TABLE memberships
             ON DELETE CASCADE
             ON UPDATE CASCADE,
 
-    PRIMARY KEY memberships_index (user_identifier, organization_identifier)
+    PRIMARY KEY (user_identifier, organization_identifier)
 );
 
 -- ------------------------------------------------------------------
@@ -80,14 +80,14 @@ CREATE TABLE memberships
 -- ------------------------------------------------------------------
 CREATE TABLE invitations
 (
-    identifier              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    organization_identifier CHAR(36)    NOT NULL,
-    inviter_user_identifier CHAR(36)    NOT NULL,
+    identifier              SERIAL PRIMARY KEY,
+    organization_identifier UUID        NOT NULL,
+    inviter_user_identifier UUID        NOT NULL,
     role                    VARCHAR(64) NOT NULL,
-    hash                    BINARY(32)    NOT NULL,
-    status                  ENUM('pending', 'accepted') NOT NULL DEFAULT 'pending',
-    expires_at              DATETIME    NOT NULL,
-    created_at              DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    hash                    BYTEA       NOT NULL CHECK (octet_length(hash) = 32),
+    status                  VARCHAR(10) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted')),
+    expires_at              TIMESTAMP   NOT NULL,
+    created_at              TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_invitations_organization_identifier_organizations
         FOREIGN KEY (organization_identifier)
@@ -107,12 +107,12 @@ CREATE TABLE invitations
 -- ------------------------------------------------------------------
 CREATE TABLE sessions
 (
-    identifier              CHAR(36) PRIMARY KEY DEFAULT (uuid()),
-    organization_identifier CHAR(36) NOT NULL,
-    user_identifier         CHAR(36) NOT NULL,
-    generation              INT UNSIGNED NOT NULL,
-    expires_at              DATETIME NOT NULL,
-    created_at              DATETIME NOT NULL    DEFAULT CURRENT_TIMESTAMP,
+    identifier              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_identifier UUID      NOT NULL,
+    user_identifier         UUID      NOT NULL,
+    generation              INTEGER   NOT NULL,
+    expires_at              TIMESTAMP NOT NULL,
+    created_at              TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_sessions_organization_identifier_organizations
         FOREIGN KEY (organization_identifier)
@@ -129,17 +129,17 @@ CREATE TABLE sessions
 
 CREATE TABLE session_revocations
 (
-    session_identifier CHAR(36) PRIMARY KEY,
-    expires_at         DATETIME NOT NULL,
-    created_at         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    session_identifier UUID PRIMARY KEY,
+    expires_at         TIMESTAMP NOT NULL,
+    created_at         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE session_invalidations
 (
-    session_identifier CHAR(36) NOT NULL,
-    generation         INT UNSIGNED     NOT NULL,
-    expires_at         DATETIME NOT NULL,
-    created_at         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    session_identifier UUID      NOT NULL,
+    generation         INTEGER   NOT NULL,
+    expires_at         TIMESTAMP NOT NULL,
+    created_at         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     PRIMARY KEY (session_identifier, generation),
 
@@ -156,11 +156,11 @@ CREATE TABLE session_invalidations
 CREATE TABLE api_keys
 (
     identifier              CHAR(12) PRIMARY KEY,
-    salt                    CHAR(36)    NOT NULL,
-    hash                    BINARY(32)    NOT NULL,
-    organization_identifier CHAR(36)    NOT NULL,
+    salt                    UUID        NOT NULL,
+    hash                    BYTEA       NOT NULL CHECK (octet_length(hash) = 32),
+    organization_identifier UUID        NOT NULL,
     role                    VARCHAR(64) NOT NULL,
-    created_at              DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at              TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_api_keys_organization_identifier_organizations
         FOREIGN KEY (organization_identifier)
@@ -175,14 +175,14 @@ CREATE TABLE api_keys
 CREATE TABLE service_keys
 (
     identifier              CHAR(12) PRIMARY KEY,
-    salt                    CHAR(36)    NOT NULL,
-    hash                    BINARY(32)    NOT NULL,
-    organization_identifier CHAR(36)    NOT NULL,
-    user_identifier         CHAR(36)    NOT NULL,
+    salt                    UUID        NOT NULL,
+    hash                    BYTEA       NOT NULL CHECK (octet_length(hash) = 32),
+    organization_identifier UUID        NOT NULL,
+    user_identifier         UUID        NOT NULL,
     role                    VARCHAR(64) NOT NULL,
-    resource_ids            JSON,
-    expires_at              DATETIME    NOT NULL,
-    created_at              DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    resource_ids            JSONB,
+    expires_at              TIMESTAMP   NOT NULL,
+    created_at              TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_service_keys_organization_identifier_organizations
         FOREIGN KEY (organization_identifier)
@@ -203,11 +203,11 @@ CREATE TABLE service_keys
 CREATE TABLE machine_keys
 (
     identifier              CHAR(12) PRIMARY KEY,
-    salt                    CHAR(36)    NOT NULL,
-    hash                    BINARY(32)    NOT NULL,
-    organization_identifier CHAR(36)    NOT NULL,
+    salt                    UUID        NOT NULL,
+    hash                    BYTEA       NOT NULL CHECK (octet_length(hash) = 32),
+    organization_identifier UUID        NOT NULL,
     kind                    VARCHAR(64) NOT NULL,
-    created_at              DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at              TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_machine_keys_organization_identifier_organizations
         FOREIGN KEY (organization_identifier)
@@ -221,12 +221,12 @@ CREATE TABLE machine_keys
 -- ------------------------------------------------------------------
 CREATE TABLE device_code_flows
 (
-    identifier         CHAR(36) PRIMARY KEY DEFAULT (uuid()),
-    session_identifier CHAR(36) UNIQUE,
-    code               CHAR(8)  NOT NULL UNIQUE,
-    poll               CHAR(36) NOT NULL UNIQUE,
-    last_poll          DATETIME NOT NULL    DEFAULT CURRENT_TIMESTAMP,
-    created_at         DATETIME NOT NULL    DEFAULT CURRENT_TIMESTAMP,
+    identifier         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_identifier UUID UNIQUE,
+    code               VARCHAR(8)  NOT NULL UNIQUE,
+    poll               UUID        NOT NULL UNIQUE,
+    last_poll          TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at         TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_device_code_flows_session_identifier_sessions
         FOREIGN KEY (session_identifier)
@@ -237,13 +237,13 @@ CREATE TABLE device_code_flows
 
 CREATE TABLE google_oauth_flows
 (
-    identifier        CHAR(36) PRIMARY KEY   DEFAULT (uuid()),
+    identifier        UUID PRIMARY KEY   DEFAULT gen_random_uuid(),
     verifier          VARCHAR(255)  NOT NULL,
     challenge         VARCHAR(255)  NOT NULL,
-    device_identifier CHAR(36),
-    user_identifier   char(36),
+    device_identifier UUID,
+    user_identifier   UUID,
     next_url          VARCHAR(1024) NOT NULL,
-    created_at        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at        TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_google_oauth_flows_device_identifier_device_code_flows
         FOREIGN KEY (device_identifier)
@@ -260,13 +260,13 @@ CREATE TABLE google_oauth_flows
 
 CREATE TABLE github_oauth_flows
 (
-    identifier        CHAR(36) PRIMARY KEY   DEFAULT (uuid()),
+    identifier        UUID PRIMARY KEY   DEFAULT gen_random_uuid(),
     verifier          VARCHAR(255)  NOT NULL,
     challenge         VARCHAR(255)  NOT NULL,
-    device_identifier CHAR(36),
-    user_identifier   char(36),
+    device_identifier UUID,
+    user_identifier   UUID,
     next_url          VARCHAR(1024) NOT NULL,
-    created_at        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at        TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_github_oauth_flows_device_identifier_device_code_flows
         FOREIGN KEY (device_identifier)
@@ -283,14 +283,14 @@ CREATE TABLE github_oauth_flows
 
 CREATE TABLE magic_link_flows
 (
-    identifier        CHAR(36) PRIMARY KEY   DEFAULT (uuid()),
-    salt              CHAR(36)      NOT NULL,
-    hash              BINARY(32)     NOT NULL,
+    identifier        UUID PRIMARY KEY   DEFAULT gen_random_uuid(),
+    salt              UUID          NOT NULL,
+    hash              BYTEA         NOT NULL CHECK (octet_length(hash) = 32),
     email_address     VARCHAR(320)  NOT NULL,
-    device_identifier CHAR(36),
-    user_identifier   CHAR(36),
+    device_identifier UUID,
+    user_identifier   UUID,
     next_url          VARCHAR(1024) NOT NULL,
-    created_at        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at        TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_magic_link_flows_device_identifier_device_code_flows
         FOREIGN KEY (device_identifier)
@@ -311,14 +311,14 @@ CREATE TABLE magic_link_flows
 CREATE TABLE configurations
 (
     configuration_key   VARCHAR(255) PRIMARY KEY,
-    configuration_value TEXT     NOT NULL,
-    updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    configuration_value TEXT      NOT NULL,
+    updated_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
-DROP TABLE configuration;
+DROP TABLE configurations;
 DROP TABLE magic_link_flows;
 DROP TABLE github_oauth_flows;
 DROP TABLE google_oauth_flows;

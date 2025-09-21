@@ -10,11 +10,14 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/loopholelabs/logging/types"
 
 	"github.com/loopholelabs/auth/internal/db"
 	"github.com/loopholelabs/auth/internal/db/generated"
+	"github.com/loopholelabs/auth/internal/db/pgxtypes"
 	"github.com/loopholelabs/auth/internal/utils"
 )
 
@@ -73,10 +76,12 @@ func (c *Device) Close() error {
 }
 
 func (c *Device) CreateFlow(ctx context.Context) (string, string, error) {
+	code := utils.RandomBase32String(8)
+	poll := uuid.New().String()
 	params := generated.CreateDeviceCodeFlowParams{
-		Identifier: uuid.New().String(),
-		Code:       utils.RandomBase32String(8),
-		Poll:       uuid.New().String(),
+		Identifier: pgxtypes.NewUUID(),
+		Code:       code,
+		Poll:       pgxtypes.UUIDFromString(poll),
 	}
 
 	c.logger.Debug().Msg("creating flow")
@@ -85,7 +90,7 @@ func (c *Device) CreateFlow(ctx context.Context) (string, string, error) {
 		return "", "", errors.Join(ErrCreatingFlow, err)
 	}
 
-	return params.Code, params.Poll, nil
+	return code, poll, nil
 }
 
 func (c *Device) ExistsFlow(ctx context.Context, code string) (string, error) {
@@ -97,36 +102,43 @@ func (c *Device) ExistsFlow(ctx context.Context, code string) (string, error) {
 		}
 		return "", nil
 	}
-	return f.Identifier, nil
+	return pgxtypes.StringFromUUID(f.Identifier), nil
 }
 
 func (c *Device) PollFlow(ctx context.Context, poll string, pollRate time.Duration) (string, error) {
 	c.logger.Debug().Str("poll", poll).Msg("polling flow")
-	tx, err := c.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
+	tx, err := c.db.BeginTx(ctx, sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
 		return "", errors.Join(ErrPollingFlow, err)
 	}
 
 	defer func() {
-		err := tx.Rollback()
-		if err != nil && !errors.Is(err, sql.ErrTxDone) {
+		err := tx.Rollback(ctx)
+		if err != nil && !errors.Is(err, pgx.ErrTxClosed) {
 			c.logger.Error().Err(err).Msg("failed to rollback transaction")
 		}
 	}()
 
 	qtx := c.db.Queries.WithTx(tx)
 
-	f, err := qtx.GetDeviceCodeFlowByPoll(ctx, poll)
+	f, err := qtx.GetDeviceCodeFlowByPoll(ctx, pgxtypes.UUIDFromString(poll))
 	if err != nil {
 		return "", errors.Join(ErrPollingFlow, err)
 	}
 
-	if f.LastPoll.Add(pollRate).Before(now()) {
-		return "", errors.Join(ErrPollingFlow, ErrRateLimitFlow)
+	// Check polling rate limit (only if this isn't the first poll)
+	// If LastPoll equals CreatedAt, it means this is the first poll (due to DEFAULT CURRENT_TIMESTAMP)
+	if f.LastPoll.Valid {
+		lastPollTime := pgxtypes.TimeFromTimestamp(f.LastPoll)
+		createdAtTime := pgxtypes.TimeFromTimestamp(f.CreatedAt)
+		// Skip rate limit check if LastPoll equals CreatedAt (first poll)
+		if !lastPollTime.Equal(createdAtTime) && lastPollTime.Add(pollRate).After(now()) {
+			return "", errors.Join(ErrPollingFlow, ErrRateLimitFlow)
+		}
 	}
 
-	if f.SessionIdentifier.String != "" {
-		session, err := qtx.GetSessionByIdentifier(ctx, f.SessionIdentifier.String)
+	if pgxtypes.IsValidUUID(f.SessionIdentifier) {
+		session, err := qtx.GetSessionByIdentifier(ctx, f.SessionIdentifier)
 		if err != nil {
 			return "", errors.Join(ErrPollingFlow, err)
 		}
@@ -138,15 +150,15 @@ func (c *Device) PollFlow(ctx context.Context, poll string, pollRate time.Durati
 			return "", errors.Join(ErrPollingFlow, sql.ErrNoRows)
 		}
 
-		err = tx.Commit()
+		err = tx.Commit(ctx)
 		if err != nil {
 			return "", errors.Join(ErrPollingFlow, err)
 		}
 
-		return session.Identifier, nil
+		return pgxtypes.StringFromUUID(session.Identifier), nil
 	}
 
-	num, err := qtx.UpdateDeviceCodeFlowLastPollByPoll(ctx, poll)
+	num, err := qtx.UpdateDeviceCodeFlowLastPollByPoll(ctx, pgxtypes.UUIDFromString(poll))
 	if err != nil {
 		return "", errors.Join(ErrPollingFlow, err)
 	}
@@ -154,7 +166,7 @@ func (c *Device) PollFlow(ctx context.Context, poll string, pollRate time.Durati
 		return "", errors.Join(ErrPollingFlow, sql.ErrNoRows)
 	}
 
-	err = tx.Commit()
+	err = tx.Commit(ctx)
 	if err != nil {
 		return "", errors.Join(ErrPollingFlow, err)
 	}
@@ -164,12 +176,19 @@ func (c *Device) PollFlow(ctx context.Context, poll string, pollRate time.Durati
 
 func (c *Device) CompleteFlow(ctx context.Context, identifier string, sessionIdentifier string) error {
 	c.logger.Debug().Str("identifier", identifier).Msg("completing flow")
+	var sessionID pgtype.UUID
+	if sessionIdentifier != "" {
+		// Validate that sessionIdentifier is a valid UUID
+		if _, err := uuid.Parse(sessionIdentifier); err != nil {
+			return errors.Join(ErrCompletingFlow, err)
+		}
+		sessionID = pgxtypes.UUIDFromString(sessionIdentifier)
+	} else {
+		sessionID = pgtype.UUID{Valid: false}
+	}
 	num, err := c.db.Queries.UpdateDeviceCodeFlowSessionIdentifierByIdentifier(ctx, generated.UpdateDeviceCodeFlowSessionIdentifierByIdentifierParams{
-		SessionIdentifier: sql.NullString{
-			String: sessionIdentifier,
-			Valid:  sessionIdentifier != "",
-		},
-		Identifier: identifier,
+		SessionIdentifier: sessionID,
+		Identifier: pgxtypes.UUIDFromString(identifier),
 	})
 	if err != nil {
 		return errors.Join(ErrCompletingFlow, err)
@@ -183,7 +202,7 @@ func (c *Device) CompleteFlow(ctx context.Context, identifier string, sessionIde
 func (c *Device) gc() (int64, error) {
 	ctx, cancel := context.WithTimeout(c.ctx, Timeout)
 	defer cancel()
-	return c.db.Queries.DeleteDeviceCodeFlowsBeforeCreatedAt(ctx, now().Add(-Expiry))
+	return c.db.Queries.DeleteDeviceCodeFlowsBeforeCreatedAt(ctx, pgxtypes.TimestampFromTime(now().Add(-Expiry)))
 }
 
 func (c *Device) doGC() {

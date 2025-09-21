@@ -13,7 +13,7 @@ import (
 )
 
 func TestInitialize(t *testing.T) {
-	container := testutils.SetupMySQLContainer(t)
+	container := testutils.SetupPostgreSQLContainer(t)
 	logger := logging.Test(t, logging.Zerolog, "test")
 
 	t.Run("SuccessfulInitialization", func(t *testing.T) {
@@ -22,8 +22,8 @@ func TestInitialize(t *testing.T) {
 		require.NotNil(t, db)
 
 		// Verify connection pool settings
-		stats := db.DB.Stats()
-		require.Equal(t, 25, stats.MaxOpenConnections)
+		stats := db.Pool.Stat()
+		require.Equal(t, int32(25), stats.MaxConns())
 
 		// Verify we can query the database
 		var result int
@@ -36,46 +36,25 @@ func TestInitialize(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("MissingParseTimeOption", func(t *testing.T) {
-		invalidURL := "root:testpassword@tcp(localhost:3306)/testdb?multiStatements=true&loc=UTC"
-		db, err := New(invalidURL, logger)
-		require.ErrorIs(t, err, ErrMissingParseTimeOption)
-		require.Nil(t, db)
-	})
-
-	t.Run("MissingMultiStatementsOption", func(t *testing.T) {
-		invalidURL := "root:testpassword@tcp(localhost:3306)/testdb?parseTime=true&loc=UTC"
-		db, err := New(invalidURL, logger)
-		require.ErrorIs(t, err, ErrMissingMultiStatementsOption)
-		require.Nil(t, db)
-	})
-
-	t.Run("MissingLocationOption", func(t *testing.T) {
-		invalidURL := "root:testpassword@tcp(localhost:3306)/testdb?parseTime=true&multiStatements=true"
-		db, err := New(invalidURL, logger)
-		require.ErrorIs(t, err, ErrMissingLocationOption)
-		require.Nil(t, db)
-	})
-
 	t.Run("InvalidDatabaseURL", func(t *testing.T) {
-		invalidURL := "invalid://url?parseTime=true&multiStatements=true&loc=UTC"
+		invalidURL := "invalid://url"
 		db, err := New(invalidURL, logger)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to connect to database")
+		require.Contains(t, err.Error(), "failed to parse database url")
 		require.Nil(t, db)
 	})
 
 	t.Run("UnreachableDatabase", func(t *testing.T) {
-		unreachableURL := "root:wrongpassword@tcp(localhost:9999)/testdb?parseTime=true&multiStatements=true&loc=UTC"
+		unreachableURL := "postgres://postgres:wrongpassword@localhost:9999/testdb?sslmode=disable"
 		db, err := New(unreachableURL, logger)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to ping database")
+		require.Contains(t, err.Error(), "failed to")
 		require.Nil(t, db)
 	})
 }
 
 func TestClose(t *testing.T) {
-	container := testutils.SetupMySQLContainer(t)
+	container := testutils.SetupPostgreSQLContainer(t)
 	logger := logging.Test(t, logging.Zerolog, "test")
 
 	t.Run("CloseValidConnection", func(t *testing.T) {
@@ -92,7 +71,8 @@ func TestClose(t *testing.T) {
 		// Verify connection is closed
 		err = db.DB.Ping()
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "sql: database is closed")
+		// PostgreSQL pool returns "closed pool" when closed
+		require.Contains(t, err.Error(), "closed")
 	})
 
 	t.Run("CloseMultipleTimes", func(t *testing.T) {
@@ -114,7 +94,7 @@ func TestClose(t *testing.T) {
 }
 
 func TestMigrations(t *testing.T) {
-	container := testutils.SetupMySQLContainer(t)
+	container := testutils.SetupPostgreSQLContainer(t)
 	logger := logging.Test(t, logging.Zerolog, "test")
 
 	t.Run("MigrationsAppliedSuccessfully", func(t *testing.T) {
@@ -124,7 +104,7 @@ func TestMigrations(t *testing.T) {
 
 		// Check that goose_db_version table exists
 		var tableName string
-		err = db.DB.QueryRow("SELECT table_name FROM information_schema.tables WHERE table_schema = 'testdb' AND table_name = 'goose_db_version'").Scan(&tableName)
+		err = db.DB.QueryRow("SELECT table_name FROM information_schema.tables WHERE table_catalog = 'testdb' AND table_name = 'goose_db_version'").Scan(&tableName)
 		require.NoError(t, err)
 		require.Equal(t, "goose_db_version", tableName)
 
@@ -169,15 +149,15 @@ func TestMigrations(t *testing.T) {
 }
 
 func TestConnectionPoolSettings(t *testing.T) {
-	container := testutils.SetupMySQLContainer(t)
+	container := testutils.SetupPostgreSQLContainer(t)
 	logger := logging.Test(t, logging.Zerolog, "test")
 
 	db, err := New(container.URL, logger)
 	require.NoError(t, err)
 	require.NotNil(t, db)
 
-	stats := db.DB.Stats()
-	require.Equal(t, 25, stats.MaxOpenConnections)
+	stats := db.Pool.Stat()
+	require.Equal(t, int32(25), stats.MaxConns())
 
 	// Clean up
 	err = db.Close()

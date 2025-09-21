@@ -14,10 +14,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/loopholelabs/logging/types"
 
 	"github.com/loopholelabs/auth/internal/db"
 	"github.com/loopholelabs/auth/internal/db/generated"
+	"github.com/loopholelabs/auth/internal/db/pgxtypes"
 	"github.com/loopholelabs/auth/pkg/manager/flow"
 )
 
@@ -84,19 +87,26 @@ func (c *Magic) CreateFlow(ctx context.Context, emailAddress string, deviceIdent
 	h.Write([]byte(secret))
 	hash := h.Sum(nil)
 
+	identifierStr := uuid.New().String()
+	var deviceID, userID pgtype.UUID
+	if deviceIdentifier != "" {
+		deviceID = pgxtypes.UUIDFromString(deviceIdentifier)
+	} else {
+		deviceID = pgtype.UUID{Valid: false}
+	}
+	if userIdentifier != "" {
+		userID = pgxtypes.UUIDFromString(userIdentifier)
+	} else {
+		userID = pgtype.UUID{Valid: false}
+	}
+
 	params := generated.CreateMagicLinkFlowParams{
-		Identifier:   uuid.New().String(),
-		Salt:         salt,
+		Identifier:   pgxtypes.UUIDFromString(identifierStr),
+		Salt:         pgxtypes.UUIDFromString(salt),
 		Hash:         hash,
 		EmailAddress: emailAddress,
-		DeviceIdentifier: sql.NullString{
-			String: deviceIdentifier,
-			Valid:  deviceIdentifier != "",
-		},
-		UserIdentifier: sql.NullString{
-			String: userIdentifier,
-			Valid:  userIdentifier != "",
-		},
+		DeviceIdentifier: deviceID,
+		UserIdentifier: userID,
 		NextUrl: nextURL,
 	}
 
@@ -106,7 +116,7 @@ func (c *Magic) CreateFlow(ctx context.Context, emailAddress string, deviceIdent
 		return "", errors.Join(ErrCreatingFlow, err)
 	}
 
-	return base64.StdEncoding.EncodeToString([]byte(params.Identifier + "_" + secret)), nil
+	return base64.StdEncoding.EncodeToString([]byte(identifierStr + "_" + secret)), nil
 }
 
 func (c *Magic) CompleteFlow(ctx context.Context, token string) (flow.Data, error) {
@@ -133,26 +143,26 @@ func (c *Magic) CompleteFlow(ctx context.Context, token string) (flow.Data, erro
 	}
 
 	c.logger.Debug().Str("identifier", identifier).Msg("completing flow")
-	tx, err := c.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
+	tx, err := c.db.BeginTx(ctx, sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
 		return flow.Data{}, errors.Join(ErrCompletingFlow, err)
 	}
 
 	defer func() {
-		err := tx.Rollback()
-		if err != nil && !errors.Is(err, sql.ErrTxDone) {
+		err := tx.Rollback(ctx)
+		if err != nil && !errors.Is(err, pgx.ErrTxClosed) {
 			c.logger.Error().Err(err).Msg("failed to rollback transaction")
 		}
 	}()
 
 	qtx := c.db.Queries.WithTx(tx)
 
-	f, err := qtx.GetMagicLinkFlowByIdentifier(ctx, identifier)
+	f, err := qtx.GetMagicLinkFlowByIdentifier(ctx, pgxtypes.UUIDFromString(identifier))
 	if err != nil {
 		return flow.Data{}, errors.Join(ErrCompletingFlow, err)
 	}
 
-	num, err := qtx.DeleteMagicLinkFlowByIdentifier(ctx, identifier)
+	num, err := qtx.DeleteMagicLinkFlowByIdentifier(ctx, pgxtypes.UUIDFromString(identifier))
 	if err != nil {
 		return flow.Data{}, errors.Join(ErrCompletingFlow, err)
 	}
@@ -160,12 +170,13 @@ func (c *Magic) CompleteFlow(ctx context.Context, token string) (flow.Data, erro
 		return flow.Data{}, errors.Join(ErrCompletingFlow, sql.ErrNoRows)
 	}
 
-	err = tx.Commit()
+	err = tx.Commit(ctx)
 	if err != nil {
 		return flow.Data{}, errors.Join(ErrCompletingFlow, err)
 	}
 
-	h := hmac.New(sha256.New, []byte(f.Salt))
+	saltStr := pgxtypes.StringFromUUID(f.Salt)
+	h := hmac.New(sha256.New, []byte(saltStr))
 	h.Write([]byte(secret))
 	if !hmac.Equal(f.Hash, h.Sum(nil)) {
 		return flow.Data{}, errors.Join(ErrCompletingFlow, ErrInvalidSecret)
@@ -175,8 +186,8 @@ func (c *Magic) CompleteFlow(ctx context.Context, token string) (flow.Data, erro
 		ProviderIdentifier: f.EmailAddress,
 		UserName:           "",
 		NextURL:            f.NextUrl,
-		DeviceIdentifier:   f.DeviceIdentifier.String,
-		UserIdentifier:     f.UserIdentifier.String,
+		DeviceIdentifier:   pgxtypes.StringFromUUID(f.DeviceIdentifier),
+		UserIdentifier:     pgxtypes.StringFromUUID(f.UserIdentifier),
 		PrimaryEmail:       f.EmailAddress,
 		VerifiedEmails:     []string{f.EmailAddress},
 	}, nil
@@ -185,7 +196,7 @@ func (c *Magic) CompleteFlow(ctx context.Context, token string) (flow.Data, erro
 func (c *Magic) gc() (int64, error) {
 	ctx, cancel := context.WithTimeout(c.ctx, Timeout)
 	defer cancel()
-	return c.db.Queries.DeleteMagicLinkFlowsBeforeCreatedAt(ctx, now().Add(-Expiry))
+	return c.db.Queries.DeleteMagicLinkFlowsBeforeCreatedAt(ctx, pgxtypes.TimestampFromTime(now().Add(-Expiry)))
 }
 
 func (c *Magic) doGC() {

@@ -19,7 +19,7 @@ import (
 
 func TestNew(t *testing.T) {
 	t.Run("ValidOptions", func(t *testing.T) {
-		container := testutils.SetupMySQLContainer(t)
+		container := testutils.SetupPostgreSQLContainer(t)
 		logger := logging.Test(t, logging.Zerolog, "test")
 		database, err := db.New(container.URL, logger)
 		require.NoError(t, err)
@@ -44,7 +44,7 @@ func TestNew(t *testing.T) {
 	})
 
 	t.Run("InvalidPollInterval", func(t *testing.T) {
-		container := testutils.SetupMySQLContainer(t)
+		container := testutils.SetupPostgreSQLContainer(t)
 		logger := logging.Test(t, logging.Zerolog, "test")
 		database, err := db.New(container.URL, logger)
 		require.NoError(t, err)
@@ -78,7 +78,7 @@ func TestNew(t *testing.T) {
 	})
 
 	t.Run("ExistingConfigurationInDatabase", func(t *testing.T) {
-		container := testutils.SetupMySQLContainer(t)
+		container := testutils.SetupPostgreSQLContainer(t)
 		logger := logging.Test(t, logging.Zerolog, "test")
 		database, err := db.New(container.URL, logger)
 		require.NoError(t, err)
@@ -118,7 +118,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestSetDefault(t *testing.T) {
-	container := testutils.SetupMySQLContainer(t)
+	container := testutils.SetupPostgreSQLContainer(t)
 	logger := logging.Test(t, logging.Zerolog, "test")
 	database, err := db.New(container.URL, logger)
 	require.NoError(t, err)
@@ -175,7 +175,7 @@ func TestSetDefault(t *testing.T) {
 }
 
 func TestPollingUpdates(t *testing.T) {
-	container := testutils.SetupMySQLContainer(t)
+	container := testutils.SetupPostgreSQLContainer(t)
 	logger := logging.Test(t, logging.Zerolog, "test")
 	database, err := db.New(container.URL, logger)
 	require.NoError(t, err)
@@ -223,7 +223,7 @@ func TestPollingUpdates(t *testing.T) {
 }
 
 func TestInvalidConfigurationValues(t *testing.T) {
-	container := testutils.SetupMySQLContainer(t)
+	container := testutils.SetupPostgreSQLContainer(t)
 	logger := logging.Test(t, logging.Zerolog, "test")
 	database, err := db.New(container.URL, logger)
 	require.NoError(t, err)
@@ -269,7 +269,7 @@ func TestInvalidConfigurationValues(t *testing.T) {
 }
 
 func TestUnknownConfigurationKey(t *testing.T) {
-	container := testutils.SetupMySQLContainer(t)
+	container := testutils.SetupPostgreSQLContainer(t)
 	logger := logging.Test(t, logging.Zerolog, "test")
 	database, err := db.New(container.URL, logger)
 	require.NoError(t, err)
@@ -306,7 +306,7 @@ func TestUnknownConfigurationKey(t *testing.T) {
 }
 
 func TestConcurrentAccess(t *testing.T) {
-	container := testutils.SetupMySQLContainer(t)
+	container := testutils.SetupPostgreSQLContainer(t)
 	logger := logging.Test(t, logging.Zerolog, "test")
 	database, err := db.New(container.URL, logger)
 	require.NoError(t, err)
@@ -367,7 +367,7 @@ func TestConcurrentAccess(t *testing.T) {
 }
 
 func TestGracefulShutdown(t *testing.T) {
-	container := testutils.SetupMySQLContainer(t)
+	container := testutils.SetupPostgreSQLContainer(t)
 	logger := logging.Test(t, logging.Zerolog, "test")
 	database, err := db.New(container.URL, logger)
 	require.NoError(t, err)
@@ -409,7 +409,7 @@ func TestGracefulShutdown(t *testing.T) {
 }
 
 func TestMultipleConfigurations(t *testing.T) {
-	container := testutils.SetupMySQLContainer(t)
+	container := testutils.SetupPostgreSQLContainer(t)
 	logger := logging.Test(t, logging.Zerolog, "test")
 	database, err := db.New(container.URL, logger)
 	require.NoError(t, err)
@@ -466,7 +466,7 @@ func TestMultipleConfigurations(t *testing.T) {
 }
 
 func TestTransactionIsolation(t *testing.T) {
-	container := testutils.SetupMySQLContainer(t)
+	container := testutils.SetupPostgreSQLContainer(t)
 	logger := logging.Test(t, logging.Zerolog, "test")
 	database, err := db.New(container.URL, logger)
 	require.NoError(t, err)
@@ -506,7 +506,7 @@ func TestTransactionIsolation(t *testing.T) {
 
 func TestConfigurationEdgeCases(t *testing.T) {
 	t.Run("VeryShortPollInterval", func(t *testing.T) {
-		container := testutils.SetupMySQLContainer(t)
+		container := testutils.SetupPostgreSQLContainer(t)
 		logger := logging.Test(t, logging.Zerolog, "test")
 		database, err := db.New(container.URL, logger)
 		require.NoError(t, err)
@@ -530,7 +530,7 @@ func TestConfigurationEdgeCases(t *testing.T) {
 	})
 
 	t.Run("VeryLongDurations", func(t *testing.T) {
-		container := testutils.SetupMySQLContainer(t)
+		container := testutils.SetupPostgreSQLContainer(t)
 		logger := logging.Test(t, logging.Zerolog, "test")
 		database, err := db.New(container.URL, logger)
 		require.NoError(t, err)
@@ -554,7 +554,7 @@ func TestConfigurationEdgeCases(t *testing.T) {
 	})
 
 	t.Run("ZeroDurations", func(t *testing.T) {
-		container := testutils.SetupMySQLContainer(t)
+		container := testutils.SetupPostgreSQLContainer(t)
 		logger := logging.Test(t, logging.Zerolog, "test")
 		database, err := db.New(container.URL, logger)
 		require.NoError(t, err)
@@ -602,7 +602,7 @@ func TestKeyString(t *testing.T) {
 }
 
 func TestDatabaseConnectionLost(t *testing.T) {
-	container := testutils.SetupMySQLContainer(t)
+	container := testutils.SetupPostgreSQLContainer(t)
 	logger := logging.Test(t, logging.Zerolog, "test")
 	database, err := db.New(container.URL, logger)
 	require.NoError(t, err)
@@ -630,7 +630,7 @@ func TestDatabaseConnectionLost(t *testing.T) {
 }
 
 func TestInitializationFailure(t *testing.T) {
-	container := testutils.SetupMySQLContainer(t)
+	container := testutils.SetupPostgreSQLContainer(t)
 	logger := logging.Test(t, logging.Zerolog, "test")
 	database, err := db.New(container.URL, logger)
 	require.NoError(t, err)
@@ -659,7 +659,7 @@ func TestInitializationFailure(t *testing.T) {
 }
 
 func TestDatabaseUpdateAfterInit(t *testing.T) {
-	container := testutils.SetupMySQLContainer(t)
+	container := testutils.SetupPostgreSQLContainer(t)
 	logger := logging.Test(t, logging.Zerolog, "test")
 	database, err := db.New(container.URL, logger)
 	require.NoError(t, err)
@@ -703,7 +703,7 @@ func TestDatabaseUpdateAfterInit(t *testing.T) {
 }
 
 func TestNegativeDurations(t *testing.T) {
-	container := testutils.SetupMySQLContainer(t)
+	container := testutils.SetupPostgreSQLContainer(t)
 	logger := logging.Test(t, logging.Zerolog, "test")
 	database, err := db.New(container.URL, logger)
 	require.NoError(t, err)
@@ -740,7 +740,7 @@ func TestNegativeDurations(t *testing.T) {
 
 func TestSigningKeyInitialization(t *testing.T) {
 	t.Run("FirstTimeInitialization", func(t *testing.T) {
-		container := testutils.SetupMySQLContainer(t)
+		container := testutils.SetupPostgreSQLContainer(t)
 		logger := logging.Test(t, logging.Zerolog, "test")
 		database, err := db.New(container.URL, logger)
 		require.NoError(t, err)
@@ -782,7 +782,7 @@ func TestSigningKeyInitialization(t *testing.T) {
 	})
 
 	t.Run("ExistingSigningKey", func(t *testing.T) {
-		container := testutils.SetupMySQLContainer(t)
+		container := testutils.SetupPostgreSQLContainer(t)
 		logger := logging.Test(t, logging.Zerolog, "test")
 		database, err := db.New(container.URL, logger)
 		require.NoError(t, err)
@@ -830,7 +830,7 @@ func TestSigningKeyInitialization(t *testing.T) {
 	})
 
 	t.Run("ExistingBothKeys", func(t *testing.T) {
-		container := testutils.SetupMySQLContainer(t)
+		container := testutils.SetupPostgreSQLContainer(t)
 		logger := logging.Test(t, logging.Zerolog, "test")
 		database, err := db.New(container.URL, logger)
 		require.NoError(t, err)
@@ -887,7 +887,7 @@ func TestSigningKeyInitialization(t *testing.T) {
 
 func TestRotateSigningKey(t *testing.T) {
 	t.Run("FirstRotation", func(t *testing.T) {
-		container := testutils.SetupMySQLContainer(t)
+		container := testutils.SetupPostgreSQLContainer(t)
 		logger := logging.Test(t, logging.Zerolog, "test")
 		database, err := db.New(container.URL, logger)
 		require.NoError(t, err)
@@ -943,7 +943,7 @@ func TestRotateSigningKey(t *testing.T) {
 	})
 
 	t.Run("SubsequentRotation", func(t *testing.T) {
-		container := testutils.SetupMySQLContainer(t)
+		container := testutils.SetupPostgreSQLContainer(t)
 		logger := logging.Test(t, logging.Zerolog, "test")
 		database, err := db.New(container.URL, logger)
 		require.NoError(t, err)
@@ -987,7 +987,7 @@ func TestRotateSigningKey(t *testing.T) {
 	})
 
 	t.Run("ConcurrentRotation", func(t *testing.T) {
-		container := testutils.SetupMySQLContainer(t)
+		container := testutils.SetupPostgreSQLContainer(t)
 		logger := logging.Test(t, logging.Zerolog, "test")
 		database, err := db.New(container.URL, logger)
 		require.NoError(t, err)
@@ -1039,7 +1039,7 @@ func TestRotateSigningKey(t *testing.T) {
 }
 
 func TestSigningKeyPollingUpdate(t *testing.T) {
-	container := testutils.SetupMySQLContainer(t)
+	container := testutils.SetupPostgreSQLContainer(t)
 	logger := logging.Test(t, logging.Zerolog, "test")
 	database, err := db.New(container.URL, logger)
 	require.NoError(t, err)
@@ -1090,7 +1090,7 @@ func TestSigningKeyPollingUpdate(t *testing.T) {
 
 func TestSigningKeyEncodingDecoding(t *testing.T) {
 	t.Run("InvalidBase64", func(t *testing.T) {
-		container := testutils.SetupMySQLContainer(t)
+		container := testutils.SetupPostgreSQLContainer(t)
 		logger := logging.Test(t, logging.Zerolog, "test")
 		database, err := db.New(container.URL, logger)
 		require.NoError(t, err)
@@ -1130,7 +1130,7 @@ func TestSigningKeyEncodingDecoding(t *testing.T) {
 	})
 
 	t.Run("InvalidPEM", func(t *testing.T) {
-		container := testutils.SetupMySQLContainer(t)
+		container := testutils.SetupPostgreSQLContainer(t)
 		logger := logging.Test(t, logging.Zerolog, "test")
 		database, err := db.New(container.URL, logger)
 		require.NoError(t, err)
@@ -1173,7 +1173,7 @@ func TestSigningKeyEncodingDecoding(t *testing.T) {
 
 func TestTransactionIsolationLevels(t *testing.T) {
 	t.Run("RotateSigningKeyUsesRepeatableRead", func(t *testing.T) {
-		container := testutils.SetupMySQLContainer(t)
+		container := testutils.SetupPostgreSQLContainer(t)
 		logger := logging.Test(t, logging.Zerolog, "test")
 		database, err := db.New(container.URL, logger)
 		require.NoError(t, err)
@@ -1207,7 +1207,7 @@ func TestTransactionIsolationLevels(t *testing.T) {
 	})
 
 	t.Run("SetDefaultUsesReadCommitted", func(t *testing.T) {
-		container := testutils.SetupMySQLContainer(t)
+		container := testutils.SetupPostgreSQLContainer(t)
 		logger := logging.Test(t, logging.Zerolog, "test")
 		database, err := db.New(container.URL, logger)
 		require.NoError(t, err)

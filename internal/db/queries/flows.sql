@@ -86,8 +86,8 @@ SELECT COUNT(*)
 FROM magic_link_flows;
 
 -- name: CreateDeviceCodeFlow :exec
-INSERT INTO device_code_flows (identifier, code, poll, last_poll, created_at)
-VALUES (sqlc.arg(identifier), sqlc.arg(code), sqlc.arg(poll), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO device_code_flows (identifier, code, poll, created_at)
+VALUES (sqlc.arg(identifier), sqlc.arg(code), sqlc.arg(poll), CURRENT_TIMESTAMP);
 
 -- name: GetDeviceCodeFlowByIdentifier :one
 SELECT *

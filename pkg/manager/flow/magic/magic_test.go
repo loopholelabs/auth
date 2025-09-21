@@ -20,11 +20,12 @@ import (
 
 	"github.com/loopholelabs/auth/internal/db"
 	"github.com/loopholelabs/auth/internal/db/generated"
+	"github.com/loopholelabs/auth/internal/db/pgxtypes"
 	"github.com/loopholelabs/auth/internal/testutils"
 )
 
 func TestNew(t *testing.T) {
-	container := testutils.SetupMySQLContainer(t)
+	container := testutils.SetupPostgreSQLContainer(t)
 	logger := logging.Test(t, logging.Zerolog, "test")
 	database, err := db.New(container.URL, logger)
 	require.NoError(t, err)
@@ -55,7 +56,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestCreateFlow(t *testing.T) {
-	container := testutils.SetupMySQLContainer(t)
+	container := testutils.SetupPostgreSQLContainer(t)
 	logger := logging.Test(t, logging.Zerolog, "test")
 	database, err := db.New(container.URL, logger)
 	require.NoError(t, err)
@@ -97,9 +98,9 @@ func TestCreateFlow(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify flow was created in database
-		flow, err := database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), identifier)
+		flow, err := database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), pgxtypes.UUIDFromString(identifier))
 		require.NoError(t, err)
-		require.Equal(t, identifier, flow.Identifier)
+		require.Equal(t, identifier, pgxtypes.StringFromUUID(flow.Identifier))
 		require.NotEmpty(t, flow.Salt)
 		require.NotEmpty(t, flow.Hash)
 		require.Equal(t, "test@example.com", flow.EmailAddress)
@@ -107,7 +108,8 @@ func TestCreateFlow(t *testing.T) {
 		require.False(t, flow.DeviceIdentifier.Valid)
 		require.False(t, flow.UserIdentifier.Valid)
 
-		h := hmac.New(sha256.New, []byte(flow.Salt))
+		saltStr := pgxtypes.StringFromUUID(flow.Salt)
+		h := hmac.New(sha256.New, []byte(saltStr))
 		h.Write([]byte(secret))
 
 		// Verify the hash is valid HMAC hash
@@ -128,7 +130,7 @@ func TestCreateFlow(t *testing.T) {
 		identifier := parts[0]
 
 		// Verify flow was created without device identifier
-		flow, err := database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), identifier)
+		flow, err := database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), pgxtypes.UUIDFromString(identifier))
 		require.NoError(t, err)
 		require.Equal(t, "user@example.com", flow.EmailAddress)
 		require.False(t, flow.DeviceIdentifier.Valid)
@@ -142,17 +144,17 @@ func TestCreateFlow(t *testing.T) {
 		// First create a user and organization
 		orgID := uuid.New().String()
 		err := database.Queries.CreateOrganization(t.Context(), generated.CreateOrganizationParams{
-			Identifier: orgID,
+			Identifier: pgxtypes.UUIDFromString(orgID),
 			Name:       "test-org-" + uuid.New().String()[:8],
 			IsDefault:  true,
 		})
 		require.NoError(t, err)
 
 		err = database.Queries.CreateUser(t.Context(), generated.CreateUserParams{
-			Identifier:                    userID,
+			Identifier:                    pgxtypes.UUIDFromString(userID),
 			Name:                          "test",
 			PrimaryEmail:                  "test-" + uuid.New().String()[:8] + "@example.com",
-			DefaultOrganizationIdentifier: orgID,
+			DefaultOrganizationIdentifier: pgxtypes.UUIDFromString(orgID),
 		})
 		require.NoError(t, err)
 
@@ -168,12 +170,12 @@ func TestCreateFlow(t *testing.T) {
 		identifier := parts[0]
 
 		// Verify flow was created with user identifier
-		flow, err := database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), identifier)
+		flow, err := database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), pgxtypes.UUIDFromString(identifier))
 		require.NoError(t, err)
 		require.Equal(t, "linked@example.com", flow.EmailAddress)
 		require.False(t, flow.DeviceIdentifier.Valid)
 		require.True(t, flow.UserIdentifier.Valid)
-		require.Equal(t, userID, flow.UserIdentifier.String)
+		require.Equal(t, userID, pgxtypes.StringFromUUID(flow.UserIdentifier))
 		require.Equal(t, "http://example.com/next", flow.NextUrl)
 	})
 
@@ -183,17 +185,17 @@ func TestCreateFlow(t *testing.T) {
 		// Create user first
 		orgID := uuid.New().String()
 		err := database.Queries.CreateOrganization(t.Context(), generated.CreateOrganizationParams{
-			Identifier: orgID,
+			Identifier: pgxtypes.UUIDFromString(orgID),
 			Name:       "test-org-" + uuid.New().String()[:8],
 			IsDefault:  true,
 		})
 		require.NoError(t, err)
 
 		err = database.Queries.CreateUser(t.Context(), generated.CreateUserParams{
-			Identifier:                    userID,
+			Identifier:                    pgxtypes.UUIDFromString(userID),
 			Name:                          "test",
 			PrimaryEmail:                  "test-" + uuid.New().String()[:8] + "@example.com",
-			DefaultOrganizationIdentifier: orgID,
+			DefaultOrganizationIdentifier: pgxtypes.UUIDFromString(orgID),
 		})
 		require.NoError(t, err)
 
@@ -210,12 +212,12 @@ func TestCreateFlow(t *testing.T) {
 		identifier := parts[0]
 
 		// Verify parameters were stored
-		flow, err := database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), identifier)
+		flow, err := database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), pgxtypes.UUIDFromString(identifier))
 		require.NoError(t, err)
 		require.Equal(t, "full@example.com", flow.EmailAddress)
 		require.False(t, flow.DeviceIdentifier.Valid)
 		require.True(t, flow.UserIdentifier.Valid)
-		require.Equal(t, userID, flow.UserIdentifier.String)
+		require.Equal(t, userID, pgxtypes.StringFromUUID(flow.UserIdentifier))
 		require.Equal(t, "https://app.com/welcome", flow.NextUrl)
 	})
 
@@ -233,7 +235,7 @@ func TestCreateFlow(t *testing.T) {
 		identifier := parts[0]
 
 		// Verify flow was created with empty email
-		flow, err := database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), identifier)
+		flow, err := database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), pgxtypes.UUIDFromString(identifier))
 		require.NoError(t, err)
 		require.Empty(t, flow.EmailAddress)
 	})
@@ -260,18 +262,18 @@ func TestCreateFlow(t *testing.T) {
 		tokenBytes2, _ := base64.StdEncoding.DecodeString(token2)
 		identifier2 := string(tokenBytes2[:strings.Index(string(tokenBytes2), "_")])
 
-		flow1, err := database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), identifier1)
+		flow1, err := database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), pgxtypes.UUIDFromString(identifier1))
 		require.NoError(t, err)
 		require.Equal(t, email, flow1.EmailAddress)
 
-		flow2, err := database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), identifier2)
+		flow2, err := database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), pgxtypes.UUIDFromString(identifier2))
 		require.NoError(t, err)
 		require.Equal(t, email, flow2.EmailAddress)
 	})
 }
 
 func TestCompleteFlow(t *testing.T) {
-	container := testutils.SetupMySQLContainer(t)
+	container := testutils.SetupPostgreSQLContainer(t)
 	logger := logging.Test(t, logging.Zerolog, "test")
 	database, err := db.New(container.URL, logger)
 	require.NoError(t, err)
@@ -310,7 +312,7 @@ func TestCompleteFlow(t *testing.T) {
 		// Verify flow was deleted from database
 		tokenBytes, _ := base64.StdEncoding.DecodeString(token)
 		identifier := string(tokenBytes[:strings.Index(string(tokenBytes), "_")])
-		_, err = database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), identifier)
+		_, err = database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), pgxtypes.UUIDFromString(identifier))
 		require.Error(t, err) // Should be deleted
 	})
 
@@ -320,17 +322,17 @@ func TestCompleteFlow(t *testing.T) {
 		// Create user first
 		orgID := uuid.New().String()
 		err := database.Queries.CreateOrganization(t.Context(), generated.CreateOrganizationParams{
-			Identifier: orgID,
+			Identifier: pgxtypes.UUIDFromString(orgID),
 			Name:       "test-org-" + uuid.New().String()[:8],
 			IsDefault:  true,
 		})
 		require.NoError(t, err)
 
 		err = database.Queries.CreateUser(t.Context(), generated.CreateUserParams{
-			Identifier:                    userID,
+			Identifier:                    pgxtypes.UUIDFromString(userID),
 			Name:                          "test",
 			PrimaryEmail:                  "test-" + uuid.New().String()[:8] + "@example.com",
-			DefaultOrganizationIdentifier: orgID,
+			DefaultOrganizationIdentifier: pgxtypes.UUIDFromString(orgID),
 		})
 		require.NoError(t, err)
 
@@ -431,7 +433,7 @@ func TestCompleteFlow(t *testing.T) {
 		require.Zero(t, flow)
 
 		// Verify the flow is deleted on failure
-		_, err = database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), identifier)
+		_, err = database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), pgxtypes.UUIDFromString(identifier))
 		require.ErrorIs(t, err, sql.ErrNoRows) // Should not exist anymore
 	})
 
@@ -489,7 +491,7 @@ func TestCompleteFlow(t *testing.T) {
 }
 
 func TestTokenEncoding(t *testing.T) {
-	container := testutils.SetupMySQLContainer(t)
+	container := testutils.SetupPostgreSQLContainer(t)
 	logger := logging.Test(t, logging.Zerolog, "test")
 	database, err := db.New(container.URL, logger)
 	require.NoError(t, err)
@@ -554,10 +556,11 @@ func TestTokenEncoding(t *testing.T) {
 		secret := parts[1]
 
 		// Verify the stored hash cannot be reversed to get the secret
-		flow, err := database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), identifier)
+		flow, err := database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), pgxtypes.UUIDFromString(identifier))
 		require.NoError(t, err)
 
-		h := hmac.New(sha256.New, []byte(flow.Salt))
+		saltStr := pgxtypes.StringFromUUID(flow.Salt)
+		h := hmac.New(sha256.New, []byte(saltStr))
 		h.Write([]byte(secret))
 
 		// Verify the hash is valid HMAC hash
@@ -566,7 +569,7 @@ func TestTokenEncoding(t *testing.T) {
 		// Verify wrong secret doesn't validate
 		wrongSecret := uuid.New().String()
 
-		h = hmac.New(sha256.New, []byte(flow.Salt))
+		h = hmac.New(sha256.New, []byte(saltStr))
 		h.Write([]byte(wrongSecret))
 
 		// Verify the hash is invalid HMAC hash
@@ -575,7 +578,7 @@ func TestTokenEncoding(t *testing.T) {
 }
 
 func TestGarbageCollection(t *testing.T) {
-	container := testutils.SetupMySQLContainer(t)
+	container := testutils.SetupPostgreSQLContainer(t)
 	logger := logging.Test(t, logging.Zerolog, "test")
 	database, err := db.New(container.URL, logger)
 	require.NoError(t, err)
@@ -593,37 +596,48 @@ func TestGarbageCollection(t *testing.T) {
 
 		// Create flows that will be created at the current time
 		expiredFlowID := uuid.New().String()
+		expiredHash := sha256.Sum256([]byte("expired-hash"))
 		err = database.Queries.CreateMagicLinkFlow(t.Context(), generated.CreateMagicLinkFlowParams{
-			Identifier:   expiredFlowID,
-			Salt:         uuid.New().String(),
-			Hash:         []byte("expired-hash"),
+			Identifier:   pgxtypes.UUIDFromString(expiredFlowID),
+			Salt:         pgxtypes.UUIDFromString(uuid.New().String()),
+			Hash:         expiredHash[:],
 			EmailAddress: "expired@example.com",
 		})
 		require.NoError(t, err)
 
 		// Create a recent flow
 		recentFlowID := uuid.New().String()
+		recentHash := sha256.Sum256([]byte("recent-hash"))
 		err = database.Queries.CreateMagicLinkFlow(t.Context(), generated.CreateMagicLinkFlowParams{
-			Identifier:   recentFlowID,
-			Salt:         uuid.New().String(),
-			Hash:         []byte("recent-hash"),
+			Identifier:   pgxtypes.UUIDFromString(recentFlowID),
+			Salt:         pgxtypes.UUIDFromString(uuid.New().String()),
+			Hash:         recentHash[:],
 			EmailAddress: "recent@example.com",
 		})
 		require.NoError(t, err)
 
 		// Create another expired flow
 		expiredFlowID2 := uuid.New().String()
+		expiredHash2 := sha256.Sum256([]byte("expired-hash-2"))
 		err = database.Queries.CreateMagicLinkFlow(t.Context(), generated.CreateMagicLinkFlowParams{
-			Identifier:   expiredFlowID2,
-			Salt:         uuid.New().String(),
-			Hash:         []byte("expired-hash-2"),
+			Identifier:   pgxtypes.UUIDFromString(expiredFlowID2),
+			Salt:         pgxtypes.UUIDFromString(uuid.New().String()),
+			Hash:         expiredHash2[:],
 			EmailAddress: "expired2@example.com",
 		})
 		require.NoError(t, err)
 
-		// Mock time.Now to return a time that's Expiry ahead in the future
-		futureTime := time.Now().Add(Expiry + 10*time.Minute)
-		now = func() time.Time { return futureTime }
+		// Update the created_at timestamps to make the flows appear old
+		_, err = database.Pool.Exec(t.Context(), 
+			"UPDATE magic_link_flows SET created_at = $1 WHERE identifier IN ($2, $3, $4)",
+			pgxtypes.TimestampFromTime(time.Now().Add(-Expiry - 10*time.Minute)),
+			pgxtypes.UUIDFromString(expiredFlowID),
+			pgxtypes.UUIDFromString(recentFlowID),
+			pgxtypes.UUIDFromString(expiredFlowID2))
+		require.NoError(t, err)
+
+		// Now all flows should be considered expired
+		now = time.Now
 
 		// Create Magic instance with mocked time
 		m, err := New(database, logger)
@@ -638,13 +652,13 @@ func TestGarbageCollection(t *testing.T) {
 		require.Equal(t, int64(3), deleted) // Should delete all 3 flows since they're now "expired"
 
 		// Verify all flows are deleted
-		_, err = database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), expiredFlowID)
+		_, err = database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), pgxtypes.UUIDFromString(expiredFlowID))
 		require.Error(t, err) // Should not exist
 
-		_, err = database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), expiredFlowID2)
+		_, err = database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), pgxtypes.UUIDFromString(expiredFlowID2))
 		require.Error(t, err) // Should not exist
 
-		_, err = database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), recentFlowID)
+		_, err = database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), pgxtypes.UUIDFromString(recentFlowID))
 		require.Error(t, err) // Should not exist since with mocked time it's also expired
 	})
 
@@ -667,10 +681,11 @@ func TestGarbageCollection(t *testing.T) {
 		// The gc goroutine should be running now
 		// Create a flow that will be expired when we mock the time
 		expiredFlowID := uuid.New().String()
+		expiredHash := sha256.Sum256([]byte("expired-hash"))
 		err = database.Queries.CreateMagicLinkFlow(t.Context(), generated.CreateMagicLinkFlowParams{
-			Identifier:   expiredFlowID,
-			Salt:         uuid.New().String(),
-			Hash:         []byte("expired-hash"),
+			Identifier:   pgxtypes.UUIDFromString(expiredFlowID),
+			Salt:         pgxtypes.UUIDFromString(uuid.New().String()),
+			Hash:         expiredHash[:],
 			EmailAddress: "gc@example.com",
 		})
 		require.NoError(t, err)
@@ -698,7 +713,7 @@ func TestGarbageCollection(t *testing.T) {
 		require.NoError(t, err)
 
 		// Run cleanup on empty table
-		deleted, err := database.Queries.DeleteMagicLinkFlowsBeforeCreatedAt(t.Context(), time.Now())
+		deleted, err := database.Queries.DeleteMagicLinkFlowsBeforeCreatedAt(t.Context(), pgxtypes.TimestampFromTime(time.Now()))
 		require.NoError(t, err)
 		require.Equal(t, int64(0), deleted) // No rows deleted
 	})
@@ -707,17 +722,18 @@ func TestGarbageCollection(t *testing.T) {
 		// Create only recent flows
 		for i := 0; i < 3; i++ {
 			flowID := uuid.New().String()
+			flowHash := sha256.Sum256([]byte(fmt.Sprintf("hash-%d", i)))
 			err := database.Queries.CreateMagicLinkFlow(t.Context(), generated.CreateMagicLinkFlowParams{
-				Identifier:   flowID,
-				Salt:         uuid.New().String(),
-				Hash:         []byte(fmt.Sprintf("hash-%d", i)),
+				Identifier:   pgxtypes.UUIDFromString(flowID),
+				Salt:         pgxtypes.UUIDFromString(uuid.New().String()),
+				Hash:         flowHash[:],
 				EmailAddress: fmt.Sprintf("user%d@example.com", i),
 			})
 			require.NoError(t, err)
 		}
 
 		// Run cleanup with a time that won't match any flows
-		deleted, err := database.Queries.DeleteMagicLinkFlowsBeforeCreatedAt(t.Context(), time.Now().Add(-5*time.Minute))
+		deleted, err := database.Queries.DeleteMagicLinkFlowsBeforeCreatedAt(t.Context(), pgxtypes.TimestampFromTime(time.Now().Add(-5*time.Minute)))
 		require.NoError(t, err)
 		require.Equal(t, int64(0), deleted) // No rows should be deleted
 
@@ -766,14 +782,14 @@ func TestGarbageCollection(t *testing.T) {
 		for _, token := range tokens {
 			tokenBytes, _ := base64.StdEncoding.DecodeString(token)
 			identifier := string(tokenBytes[:strings.Index(string(tokenBytes), "_")])
-			_, err = database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), identifier)
+			_, err = database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), pgxtypes.UUIDFromString(identifier))
 			require.ErrorIs(t, err, sql.ErrNoRows)
 		}
 	})
 }
 
 func TestConcurrency(t *testing.T) {
-	container := testutils.SetupMySQLContainer(t)
+	container := testutils.SetupPostgreSQLContainer(t)
 	logger := logging.Test(t, logging.Zerolog, "test")
 	database, err := db.New(container.URL, logger)
 	require.NoError(t, err)
@@ -855,7 +871,7 @@ func TestConcurrency(t *testing.T) {
 }
 
 func TestErrorScenarios(t *testing.T) {
-	container := testutils.SetupMySQLContainer(t)
+	container := testutils.SetupPostgreSQLContainer(t)
 	logger := logging.Test(t, logging.Zerolog, "test")
 	database, err := db.New(container.URL, logger)
 	require.NoError(t, err)
@@ -880,7 +896,7 @@ func TestErrorScenarios(t *testing.T) {
 		tokenBytes, _ := base64.StdEncoding.DecodeString(token)
 		identifier := string(tokenBytes[:strings.Index(string(tokenBytes), "_")])
 
-		num, err := database.Queries.DeleteMagicLinkFlowByIdentifier(t.Context(), identifier)
+		num, err := database.Queries.DeleteMagicLinkFlowByIdentifier(t.Context(), pgxtypes.UUIDFromString(identifier))
 		require.NoError(t, err)
 		require.Equal(t, int64(1), num)
 
@@ -912,7 +928,7 @@ func TestErrorScenarios(t *testing.T) {
 }
 
 func TestClose(t *testing.T) {
-	container := testutils.SetupMySQLContainer(t)
+	container := testutils.SetupPostgreSQLContainer(t)
 	logger := logging.Test(t, logging.Zerolog, "test")
 	database, err := db.New(container.URL, logger)
 	require.NoError(t, err)
@@ -953,7 +969,7 @@ func TestClose(t *testing.T) {
 }
 
 func TestFlowLifecycle(t *testing.T) {
-	container := testutils.SetupMySQLContainer(t)
+	container := testutils.SetupPostgreSQLContainer(t)
 	logger := logging.Test(t, logging.Zerolog, "test")
 	database, err := db.New(container.URL, logger)
 	require.NoError(t, err)
@@ -977,17 +993,17 @@ func TestFlowLifecycle(t *testing.T) {
 		// Create user first
 		orgID := uuid.New().String()
 		err := database.Queries.CreateOrganization(t.Context(), generated.CreateOrganizationParams{
-			Identifier: orgID,
+			Identifier: pgxtypes.UUIDFromString(orgID),
 			Name:       "test-org-" + uuid.New().String()[:8],
 			IsDefault:  true,
 		})
 		require.NoError(t, err)
 
 		err = database.Queries.CreateUser(t.Context(), generated.CreateUserParams{
-			Identifier:                    userID,
+			Identifier:                    pgxtypes.UUIDFromString(userID),
 			Name:                          "test",
 			PrimaryEmail:                  "test-" + uuid.New().String()[:8] + "@example.com",
-			DefaultOrganizationIdentifier: orgID,
+			DefaultOrganizationIdentifier: pgxtypes.UUIDFromString(orgID),
 		})
 		require.NoError(t, err)
 
@@ -1000,11 +1016,11 @@ func TestFlowLifecycle(t *testing.T) {
 		tokenBytes, _ := base64.StdEncoding.DecodeString(token)
 		identifier := string(tokenBytes[:strings.Index(string(tokenBytes), "_")])
 
-		flow, err := database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), identifier)
+		flow, err := database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), pgxtypes.UUIDFromString(identifier))
 		require.NoError(t, err)
 		require.Equal(t, email, flow.EmailAddress)
 		require.False(t, flow.DeviceIdentifier.Valid)
-		require.Equal(t, userID, flow.UserIdentifier.String)
+		require.Equal(t, userID, pgxtypes.StringFromUUID(flow.UserIdentifier))
 		require.Equal(t, nextURL, flow.NextUrl)
 
 		// Step 3: Complete flow
@@ -1018,7 +1034,7 @@ func TestFlowLifecycle(t *testing.T) {
 		require.Equal(t, nextURL, completedFlow.NextURL)
 
 		// Step 4: Verify flow is deleted
-		_, err = database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), identifier)
+		_, err = database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), pgxtypes.UUIDFromString(identifier))
 		require.Error(t, err)
 
 		// Step 5: Verify token cannot be reused
@@ -1029,7 +1045,7 @@ func TestFlowLifecycle(t *testing.T) {
 }
 
 func TestSpecialCharacters(t *testing.T) {
-	container := testutils.SetupMySQLContainer(t)
+	container := testutils.SetupPostgreSQLContainer(t)
 	logger := logging.Test(t, logging.Zerolog, "test")
 	database, err := db.New(container.URL, logger)
 	require.NoError(t, err)
@@ -1085,7 +1101,7 @@ func TestSpecialCharacters(t *testing.T) {
 }
 
 func TestNullableFields(t *testing.T) {
-	container := testutils.SetupMySQLContainer(t)
+	container := testutils.SetupPostgreSQLContainer(t)
 	logger := logging.Test(t, logging.Zerolog, "test")
 	database, err := db.New(container.URL, logger)
 	require.NoError(t, err)
@@ -1123,9 +1139,9 @@ func TestNullableFields(t *testing.T) {
 			user    string
 			nextURL string
 		}{
-			{"OnlyUser", "", "user-123", "http://localhost:3000/dashboard"},
+			{"OnlyUser", "", uuid.New().String(), "http://localhost:3000/dashboard"},
 			{"OnlyNextURL", "", "", "https://app.com"},
-			{"UserAndURL", "", "user-789", "https://app.com/other"},
+			{"UserAndURL", "", uuid.New().String(), "https://app.com/other"},
 		}
 
 		for _, tc := range testCases {
@@ -1134,17 +1150,17 @@ func TestNullableFields(t *testing.T) {
 				if tc.user != "" {
 					orgID := uuid.New().String()
 					err := database.Queries.CreateOrganization(t.Context(), generated.CreateOrganizationParams{
-						Identifier: orgID,
+						Identifier: pgxtypes.UUIDFromString(orgID),
 						Name:       "test-org-" + uuid.New().String()[:8],
 						IsDefault:  true,
 					})
 					require.NoError(t, err)
 
 					err = database.Queries.CreateUser(t.Context(), generated.CreateUserParams{
-						Identifier:                    tc.user,
+						Identifier:                    pgxtypes.UUIDFromString(tc.user),
 						Name:                          "test",
 						PrimaryEmail:                  "test-" + uuid.New().String()[:8] + "@example.com",
-						DefaultOrganizationIdentifier: orgID,
+						DefaultOrganizationIdentifier: pgxtypes.UUIDFromString(orgID),
 					})
 					require.NoError(t, err)
 				}

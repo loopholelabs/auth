@@ -13,12 +13,14 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jellydator/ttlcache/v3"
 
 	"github.com/loopholelabs/logging/types"
 
 	"github.com/loopholelabs/auth/internal/db"
 	"github.com/loopholelabs/auth/internal/db/generated"
+	"github.com/loopholelabs/auth/internal/db/pgxtypes"
 	"github.com/loopholelabs/auth/internal/mailer"
 	"github.com/loopholelabs/auth/pkg/credential"
 	"github.com/loopholelabs/auth/pkg/manager/configuration"
@@ -291,23 +293,23 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 	}
 	switch provider {
 	case flow.GithubProvider:
-		params.Provider = generated.IdentitiesProviderGITHUB
+		params.Provider = "GITHUB"
 	case flow.GoogleProvider:
-		params.Provider = generated.IdentitiesProviderGOOGLE
+		params.Provider = "GOOGLE"
 	case flow.MagicProvider:
-		params.Provider = generated.IdentitiesProviderMAGIC
+		params.Provider = "MAGIC"
 	default:
 		return credential.Session{}, errors.Join(ErrCreatingSession, ErrInvalidProvider)
 	}
 
-	tx, err := m.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
+	tx, err := m.db.BeginTx(ctx, sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
 		return credential.Session{}, errors.Join(ErrCreatingSession, err)
 	}
 
 	defer func() {
-		err := tx.Rollback()
-		if err != nil && !errors.Is(err, sql.ErrTxDone) {
+		err := tx.Rollback(ctx)
+		if err != nil && !errors.Is(err, pgx.ErrTxClosed) {
 			m.logger.Error().Err(err).Str("provider", provider.String()).Str("provider_identifier", data.ProviderIdentifier).Str("primary_email", data.PrimaryEmail).Msg("failed to rollback transaction")
 		}
 	}()
@@ -328,7 +330,7 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 			}
 			organizationIdentifier := uuid.New().String()
 			err = qtx.CreateOrganization(ctx, generated.CreateOrganizationParams{
-				Identifier: organizationIdentifier,
+				Identifier: pgxtypes.UUIDFromString(organizationIdentifier),
 				Name:       organizationName,
 				IsDefault:  true,
 			})
@@ -337,10 +339,10 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 			}
 			userIdentifier := uuid.New().String()
 			err = qtx.CreateUser(ctx, generated.CreateUserParams{
-				Identifier:                    userIdentifier,
+				Identifier:                    pgxtypes.UUIDFromString(userIdentifier),
 				Name:                          data.UserName,
 				PrimaryEmail:                  data.PrimaryEmail,
-				DefaultOrganizationIdentifier: organizationIdentifier,
+				DefaultOrganizationIdentifier: pgxtypes.UUIDFromString(organizationIdentifier),
 			})
 			if err != nil {
 				return credential.Session{}, errors.Join(ErrCreatingSession, err)
@@ -352,7 +354,7 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 		err = qtx.CreateIdentity(ctx, generated.CreateIdentityParams{
 			Provider:           params.Provider,
 			ProviderIdentifier: params.ProviderIdentifier,
-			UserIdentifier:     data.UserIdentifier,
+			UserIdentifier:     pgxtypes.UUIDFromString(data.UserIdentifier),
 			VerifiedEmails:     verifiedEmails,
 		})
 		if err != nil {
@@ -382,27 +384,26 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 		return credential.Session{}, errors.Join(ErrCreatingSession, err)
 	}
 
-	err = tx.Commit()
+	err = tx.Commit(ctx)
 	if err != nil {
 		return credential.Session{}, errors.Join(ErrCreatingSession, err)
 	}
 
 	sessionIdentifier := uuid.New().String()
-	// Truncate expiry time to nearest second to match MySQL DATETIME precision
-	// This ensures consistency between Go's nanosecond precision and MySQL's second precision
-	expiresAt := time.Now().Add(m.Configuration().SessionExpiry()).Truncate(time.Second)
+	// PostgreSQL handles microsecond precision, no need to truncate
+	expiresAt := time.Now().Add(m.Configuration().SessionExpiry())
 	err = m.db.Queries.CreateSession(ctx, generated.CreateSessionParams{
-		Identifier:             sessionIdentifier,
+		Identifier:             pgxtypes.UUIDFromString(sessionIdentifier),
 		OrganizationIdentifier: user.DefaultOrganizationIdentifier,
 		UserIdentifier:         user.Identifier,
 		Generation:             0,
-		ExpiresAt:              expiresAt,
+		ExpiresAt:              pgxtypes.TimestampFromTime(expiresAt),
 	})
 	if err != nil {
 		return credential.Session{}, errors.Join(ErrCreatingSession, err)
 	}
 
-	session, err := m.db.Queries.GetSessionByIdentifier(ctx, sessionIdentifier)
+	session, err := m.db.Queries.GetSessionByIdentifier(ctx, pgxtypes.UUIDFromString(sessionIdentifier))
 	if err != nil {
 		return credential.Session{}, errors.Join(ErrCreatingSession, err)
 	}
@@ -410,18 +411,18 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 	s := credential.Session{
 		Identifier: sessionIdentifier,
 		OrganizationInfo: credential.OrganizationInfo{
-			Identifier: session.OrganizationIdentifier,
+			Identifier: pgxtypes.StringFromUUID(session.OrganizationIdentifier),
 			Name:       organization.Name,
 			IsDefault:  true,
 			Role:       role.OwnerRole,
 		},
 		UserInfo: credential.UserInfo{
-			Identifier: session.UserIdentifier,
+			Identifier: pgxtypes.StringFromUUID(session.UserIdentifier),
 			Name:       user.Name,
 			Email:      user.PrimaryEmail,
 		},
-		Generation: session.Generation,
-		ExpiresAt:  session.ExpiresAt,
+		Generation: uint32(session.Generation),
+		ExpiresAt:  pgxtypes.TimeFromTimestamp(session.ExpiresAt),
 	}
 
 	if !s.IsValid() {
@@ -432,21 +433,21 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 }
 
 func (m *Manager) CreateExistingSession(ctx context.Context, identifier string) (credential.Session, error) {
-	tx, err := m.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
+	tx, err := m.db.BeginTx(ctx, sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
 		return credential.Session{}, errors.Join(ErrCreatingSession, err)
 	}
 
 	defer func() {
-		err := tx.Rollback()
-		if err != nil && !errors.Is(err, sql.ErrTxDone) {
+		err := tx.Rollback(ctx)
+		if err != nil && !errors.Is(err, pgx.ErrTxClosed) {
 			m.logger.Error().Err(err).Str("session_identifier", identifier).Msg("failed to rollback transaction")
 		}
 	}()
 
 	qtx := m.db.Queries.WithTx(tx)
 
-	session, err := qtx.GetSessionByIdentifier(ctx, identifier)
+	session, err := qtx.GetSessionByIdentifier(ctx, pgxtypes.UUIDFromString(identifier))
 	if err != nil {
 		return credential.Session{}, errors.Join(ErrCreatingSession, err)
 	}
@@ -469,7 +470,7 @@ func (m *Manager) CreateExistingSession(ctx context.Context, identifier string) 
 		return credential.Session{}, errors.Join(ErrCreatingSession, err)
 	}
 
-	err = tx.Commit()
+	err = tx.Commit(ctx)
 	if err != nil {
 		return credential.Session{}, errors.Join(ErrCreatingSession, err)
 	}
@@ -480,20 +481,20 @@ func (m *Manager) CreateExistingSession(ctx context.Context, identifier string) 
 	}
 
 	return credential.Session{
-		Identifier: session.Identifier,
+		Identifier: pgxtypes.StringFromUUID(session.Identifier),
 		OrganizationInfo: credential.OrganizationInfo{
-			Identifier: session.OrganizationIdentifier,
+			Identifier: pgxtypes.StringFromUUID(session.OrganizationIdentifier),
 			Name:       organization.Name,
 			IsDefault:  organization.IsDefault,
 			Role:       membershipRole,
 		},
 		UserInfo: credential.UserInfo{
-			Identifier: session.UserIdentifier,
+			Identifier: pgxtypes.StringFromUUID(session.UserIdentifier),
 			Name:       user.Name,
 			Email:      user.PrimaryEmail,
 		},
-		Generation: session.Generation,
-		ExpiresAt:  session.ExpiresAt,
+		Generation: uint32(session.Generation),
+		ExpiresAt:  pgxtypes.TimeFromTimestamp(session.ExpiresAt),
 	}, nil
 }
 
@@ -514,33 +515,33 @@ func (m *Manager) RefreshSession(ctx context.Context, session credential.Session
 		return credential.Session{}, errors.Join(ErrRefreshingSession, ErrSessionIsExpired)
 	}
 
-	tx, err := m.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
+	tx, err := m.db.BeginTx(ctx, sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
 		return credential.Session{}, errors.Join(ErrRefreshingSession, err)
 	}
 
 	defer func() {
-		err := tx.Rollback()
-		if err != nil && !errors.Is(err, sql.ErrTxDone) {
+		err := tx.Rollback(ctx)
+		if err != nil && !errors.Is(err, pgx.ErrTxClosed) {
 			m.logger.Error().Err(err).Str("session", session.Identifier).Msg("failed to rollback transaction")
 		}
 	}()
 
 	qtx := m.db.Queries.WithTx(tx)
 
-	s, err := qtx.GetSessionByIdentifier(ctx, session.Identifier)
+	s, err := qtx.GetSessionByIdentifier(ctx, pgxtypes.UUIDFromString(session.Identifier))
 	if err != nil {
 		return credential.Session{}, errors.Join(ErrRefreshingSession, err)
 	}
 
-	if s.ExpiresAt.Before(now) {
+	if pgxtypes.TimeFromTimestamp(s.ExpiresAt).Before(now) {
 		return credential.Session{}, errors.Join(ErrRefreshingSession, ErrSessionIsExpired)
 	}
 
-	if s.Generation != session.Generation {
-		session.Generation = s.Generation
+	if int32(s.Generation) != int32(session.Generation) {
+		session.Generation = uint32(s.Generation)
 
-		user, err := qtx.GetUserByIdentifier(ctx, session.UserInfo.Identifier)
+		user, err := qtx.GetUserByIdentifier(ctx, pgxtypes.UUIDFromString(session.UserInfo.Identifier))
 		if err != nil {
 			return credential.Session{}, errors.Join(ErrRefreshingSession, err)
 		}
@@ -551,8 +552,8 @@ func (m *Manager) RefreshSession(ctx context.Context, session credential.Session
 		if !session.OrganizationInfo.IsDefault {
 			// Not a default org, need to get the membership for updated role
 			membership, err := qtx.GetMembershipByUserIdentifierAndOrganizationIdentifier(ctx, generated.GetMembershipByUserIdentifierAndOrganizationIdentifierParams{
-				UserIdentifier:         session.UserInfo.Identifier,
-				OrganizationIdentifier: session.OrganizationInfo.Identifier,
+				UserIdentifier:         pgxtypes.UUIDFromString(session.UserInfo.Identifier),
+				OrganizationIdentifier: pgxtypes.UUIDFromString(session.OrganizationInfo.Identifier),
 			})
 			if err != nil {
 				return credential.Session{}, errors.Join(ErrRefreshingSession, err)
@@ -564,20 +565,19 @@ func (m *Manager) RefreshSession(ctx context.Context, session credential.Session
 			session.OrganizationInfo.Role = membershipRole
 		}
 
-		organization, err := qtx.GetOrganizationByIdentifier(ctx, session.OrganizationInfo.Identifier)
+		organization, err := qtx.GetOrganizationByIdentifier(ctx, pgxtypes.UUIDFromString(session.OrganizationInfo.Identifier))
 		if err != nil {
 			return credential.Session{}, errors.Join(ErrRefreshingSession, err)
 		}
 		session.OrganizationInfo.Name = organization.Name
 	}
 
-	// Truncate expiry time to nearest second to match MySQL DATETIME precision
-	// This ensures consistency between Go's nanosecond precision and MySQL's second precision
-	session.ExpiresAt = time.Now().Add(m.Configuration().SessionExpiry()).Truncate(time.Second)
-	if session.ExpiresAt.After(s.ExpiresAt) {
+	// PostgreSQL handles microsecond precision, no need to truncate
+	session.ExpiresAt = time.Now().Add(m.Configuration().SessionExpiry())
+	if session.ExpiresAt.After(pgxtypes.TimeFromTimestamp(s.ExpiresAt)) {
 		num, err := qtx.UpdateSessionExpiryByIdentifier(ctx, generated.UpdateSessionExpiryByIdentifierParams{
-			ExpiresAt:  session.ExpiresAt,
-			Identifier: session.Identifier,
+			ExpiresAt:  pgxtypes.TimestampFromTime(session.ExpiresAt),
+			Identifier: pgxtypes.UUIDFromString(session.Identifier),
 		})
 		if err != nil {
 			return credential.Session{}, errors.Join(ErrRefreshingSession, err)
@@ -586,10 +586,10 @@ func (m *Manager) RefreshSession(ctx context.Context, session credential.Session
 			return credential.Session{}, errors.Join(ErrRefreshingSession, sql.ErrNoRows)
 		}
 	} else {
-		session.ExpiresAt = s.ExpiresAt
+		session.ExpiresAt = pgxtypes.TimeFromTimestamp(s.ExpiresAt)
 	}
 
-	err = tx.Commit()
+	err = tx.Commit(ctx)
 	if err != nil {
 		return credential.Session{}, errors.Join(ErrRefreshingSession, err)
 	}
@@ -598,21 +598,21 @@ func (m *Manager) RefreshSession(ctx context.Context, session credential.Session
 }
 
 func (m *Manager) RevokeSession(ctx context.Context, identifier string) error {
-	tx, err := m.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
+	tx, err := m.db.BeginTx(ctx, sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
 		return errors.Join(ErrRevokingSession, err)
 	}
 
 	defer func() {
-		err := tx.Rollback()
-		if err != nil && !errors.Is(err, sql.ErrTxDone) {
+		err := tx.Rollback(ctx)
+		if err != nil && !errors.Is(err, pgx.ErrTxClosed) {
 			m.logger.Error().Err(err).Str("session", identifier).Msg("failed to rollback transaction")
 		}
 	}()
 
 	qtx := m.db.Queries.WithTx(tx)
 
-	session, err := qtx.GetSessionByIdentifier(ctx, identifier)
+	session, err := qtx.GetSessionByIdentifier(ctx, pgxtypes.UUIDFromString(identifier))
 	if err != nil {
 		return errors.Join(ErrRevokingSession, err)
 	}
@@ -627,13 +627,13 @@ func (m *Manager) RevokeSession(ctx context.Context, identifier string) error {
 
 	err = qtx.CreateSessionRevocation(ctx, generated.CreateSessionRevocationParams{
 		SessionIdentifier: session.Identifier,
-		ExpiresAt:         session.ExpiresAt.Add(Jitter),
+		ExpiresAt:         pgxtypes.TimestampFromTime(pgxtypes.TimeFromTimestamp(session.ExpiresAt).Add(Jitter)),
 	})
 	if err != nil {
 		return errors.Join(ErrRevokingSession, err)
 	}
 
-	err = tx.Commit()
+	err = tx.Commit(ctx)
 	if err != nil {
 		return errors.Join(ErrRevokingSession, err)
 	}
@@ -794,8 +794,9 @@ func (m *Manager) sessionRevocationsRefresh() {
 		m.mu.Unlock()
 	} else {
 		for _, sessionRevocation := range sessionRevocations {
-			if sessionRevocation.ExpiresAt.After(time.Now()) {
-				m.sessionRevocationCache.Set(sessionRevocation.SessionIdentifier, struct{}{}, time.Until(sessionRevocation.ExpiresAt))
+			expiresAt := pgxtypes.TimeFromTimestamp(sessionRevocation.ExpiresAt)
+			if expiresAt.After(time.Now()) {
+				m.sessionRevocationCache.Set(pgxtypes.StringFromUUID(sessionRevocation.SessionIdentifier), struct{}{}, time.Until(expiresAt))
 				refreshed++
 			}
 		}
@@ -819,8 +820,9 @@ func (m *Manager) sessionInvalidationsRefresh() {
 		m.mu.Unlock()
 	} else {
 		for _, sessionInvalidation := range sessionInvalidations {
-			if sessionInvalidation.ExpiresAt.After(time.Now()) {
-				m.sessionInvalidationCache.Set(sessionInvalidation.SessionIdentifier, sessionInvalidation.Generation, time.Until(sessionInvalidation.ExpiresAt))
+			expiresAt := pgxtypes.TimeFromTimestamp(sessionInvalidation.ExpiresAt)
+			if expiresAt.After(time.Now()) {
+				m.sessionInvalidationCache.Set(pgxtypes.StringFromUUID(sessionInvalidation.SessionIdentifier), uint32(sessionInvalidation.Generation), time.Until(expiresAt))
 				refreshed++
 			}
 		}

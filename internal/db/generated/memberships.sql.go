@@ -7,38 +7,40 @@ package generated
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createMembership = `-- name: CreateMembership :exec
 INSERT INTO memberships (user_identifier, organization_identifier, role, created_at)
-VALUES (?, ?, LOWER(?), CURRENT_TIMESTAMP)
+VALUES ($1, $2, LOWER($3), CURRENT_TIMESTAMP)
 `
 
 type CreateMembershipParams struct {
-	UserIdentifier         string
-	OrganizationIdentifier string
+	UserIdentifier         pgtype.UUID
+	OrganizationIdentifier pgtype.UUID
 	Role                   string
 }
 
 func (q *Queries) CreateMembership(ctx context.Context, arg CreateMembershipParams) error {
-	_, err := q.db.ExecContext(ctx, createMembership, arg.UserIdentifier, arg.OrganizationIdentifier, arg.Role)
+	_, err := q.db.Exec(ctx, createMembership, arg.UserIdentifier, arg.OrganizationIdentifier, arg.Role)
 	return err
 }
 
 const getMembershipByUserIdentifierAndOrganizationIdentifier = `-- name: GetMembershipByUserIdentifierAndOrganizationIdentifier :one
 SELECT user_identifier, organization_identifier, role, created_at
 FROM memberships
-WHERE user_identifier = ?
-  AND organization_identifier = ? LIMIT 1
+WHERE user_identifier = $1
+  AND organization_identifier = $2 LIMIT 1
 `
 
 type GetMembershipByUserIdentifierAndOrganizationIdentifierParams struct {
-	UserIdentifier         string
-	OrganizationIdentifier string
+	UserIdentifier         pgtype.UUID
+	OrganizationIdentifier pgtype.UUID
 }
 
 func (q *Queries) GetMembershipByUserIdentifierAndOrganizationIdentifier(ctx context.Context, arg GetMembershipByUserIdentifierAndOrganizationIdentifierParams) (Membership, error) {
-	row := q.db.QueryRowContext(ctx, getMembershipByUserIdentifierAndOrganizationIdentifier, arg.UserIdentifier, arg.OrganizationIdentifier)
+	row := q.db.QueryRow(ctx, getMembershipByUserIdentifierAndOrganizationIdentifier, arg.UserIdentifier, arg.OrganizationIdentifier)
 	var i Membership
 	err := row.Scan(
 		&i.UserIdentifier,
@@ -52,11 +54,11 @@ func (q *Queries) GetMembershipByUserIdentifierAndOrganizationIdentifier(ctx con
 const getMembershipsByOrganizationIdentifier = `-- name: GetMembershipsByOrganizationIdentifier :many
 SELECT user_identifier, organization_identifier, role, created_at
 from memberships
-WHERE organization_identifier = ?
+WHERE organization_identifier = $1
 `
 
-func (q *Queries) GetMembershipsByOrganizationIdentifier(ctx context.Context, organizationIdentifier string) ([]Membership, error) {
-	rows, err := q.db.QueryContext(ctx, getMembershipsByOrganizationIdentifier, organizationIdentifier)
+func (q *Queries) GetMembershipsByOrganizationIdentifier(ctx context.Context, organizationIdentifier pgtype.UUID) ([]Membership, error) {
+	rows, err := q.db.Query(ctx, getMembershipsByOrganizationIdentifier, organizationIdentifier)
 	if err != nil {
 		return nil, err
 	}
@@ -73,9 +75,6 @@ func (q *Queries) GetMembershipsByOrganizationIdentifier(ctx context.Context, or
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -86,11 +85,11 @@ func (q *Queries) GetMembershipsByOrganizationIdentifier(ctx context.Context, or
 const getMembershipsByUserIdentifier = `-- name: GetMembershipsByUserIdentifier :many
 SELECT user_identifier, organization_identifier, role, created_at
 from memberships
-WHERE user_identifier = ?
+WHERE user_identifier = $1
 `
 
-func (q *Queries) GetMembershipsByUserIdentifier(ctx context.Context, userIdentifier string) ([]Membership, error) {
-	rows, err := q.db.QueryContext(ctx, getMembershipsByUserIdentifier, userIdentifier)
+func (q *Queries) GetMembershipsByUserIdentifier(ctx context.Context, userIdentifier pgtype.UUID) ([]Membership, error) {
+	rows, err := q.db.Query(ctx, getMembershipsByUserIdentifier, userIdentifier)
 	if err != nil {
 		return nil, err
 	}
@@ -108,9 +107,6 @@ func (q *Queries) GetMembershipsByUserIdentifier(ctx context.Context, userIdenti
 		}
 		items = append(items, i)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -119,21 +115,21 @@ func (q *Queries) GetMembershipsByUserIdentifier(ctx context.Context, userIdenti
 
 const updateMembershipRoleByUserIdentifierAndOrganizationIdentifier = `-- name: UpdateMembershipRoleByUserIdentifierAndOrganizationIdentifier :execrows
 UPDATE memberships
-SET role = LOWER(?)
-WHERE user_identifier = ?
-  AND organization_identifier = ?
+SET role = LOWER($1)
+WHERE user_identifier = $2
+  AND organization_identifier = $3
 `
 
 type UpdateMembershipRoleByUserIdentifierAndOrganizationIdentifierParams struct {
 	Role                   string
-	UserIdentifier         string
-	OrganizationIdentifier string
+	UserIdentifier         pgtype.UUID
+	OrganizationIdentifier pgtype.UUID
 }
 
 func (q *Queries) UpdateMembershipRoleByUserIdentifierAndOrganizationIdentifier(ctx context.Context, arg UpdateMembershipRoleByUserIdentifierAndOrganizationIdentifierParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, updateMembershipRoleByUserIdentifierAndOrganizationIdentifier, arg.Role, arg.UserIdentifier, arg.OrganizationIdentifier)
+	result, err := q.db.Exec(ctx, updateMembershipRoleByUserIdentifierAndOrganizationIdentifier, arg.Role, arg.UserIdentifier, arg.OrganizationIdentifier)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected()
+	return result.RowsAffected(), nil
 }

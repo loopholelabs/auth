@@ -6,6 +6,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+
+	"github.com/jackc/pgx/v5"
 	"net/http"
 	"strings"
 
@@ -14,6 +16,7 @@ import (
 	"github.com/loopholelabs/logging/types"
 
 	"github.com/loopholelabs/auth/internal/db/generated"
+	"github.com/loopholelabs/auth/internal/db/pgxtypes"
 	"github.com/loopholelabs/auth/pkg/api/middleware"
 	"github.com/loopholelabs/auth/pkg/api/middleware/fiber"
 	"github.com/loopholelabs/auth/pkg/api/options"
@@ -138,15 +141,15 @@ func (g *Session) revoke(ctx context.Context, request *SessionRevokeRequest) (*S
 		return nil, huma.Error401Unauthorized("invalid session")
 	}
 
-	tx, err := g.options.Manager.Database().DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
+	tx, err := g.options.Manager.Database().BeginTx(ctx, sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
 		g.logger.Error().Err(err).Msg("error beginning transaction")
 		return nil, huma.Error500InternalServerError("error accessing database")
 	}
 
 	defer func() {
-		err := tx.Rollback()
-		if err != nil && !errors.Is(err, sql.ErrTxDone) {
+		err := tx.Rollback(ctx)
+		if err != nil && !errors.Is(err, pgx.ErrTxClosed) {
 			g.logger.Error().Err(err).Msg("failed to rollback transaction")
 		}
 	}()
@@ -154,8 +157,8 @@ func (g *Session) revoke(ctx context.Context, request *SessionRevokeRequest) (*S
 	qtx := g.options.Manager.Database().Queries.WithTx(tx)
 
 	revocableSession, err := qtx.GetSessionByIdentifierAndUserIdentifier(ctx, generated.GetSessionByIdentifierAndUserIdentifierParams{
-		Identifier:     request.Identifier,
-		UserIdentifier: session.UserInfo.Identifier,
+		Identifier:     pgxtypes.UUIDFromString(request.Identifier),
+		UserIdentifier: pgxtypes.UUIDFromString(session.UserInfo.Identifier),
 	})
 	if err != nil {
 		if !errors.Is(err, sql.ErrNoRows) {
@@ -184,7 +187,7 @@ func (g *Session) revoke(ctx context.Context, request *SessionRevokeRequest) (*S
 		return nil, huma.Error500InternalServerError("error revoking session")
 	}
 
-	err = tx.Commit()
+	err = tx.Commit(ctx)
 	if err != nil {
 		g.logger.Error().Err(err).Msg("error committing transaction")
 		return nil, huma.Error500InternalServerError("error accessing database")
@@ -192,10 +195,10 @@ func (g *Session) revoke(ctx context.Context, request *SessionRevokeRequest) (*S
 
 	return &SessionRevokeResponse{
 		Body: SessionRevokeResponseBody{
-			Identifier: revocableSession.Identifier,
-			Generation: revocableSession.Generation,
-			ExpiresAt:  revocableSession.ExpiresAt,
-			CreatedAt:  revocableSession.CreatedAt,
+			Identifier: pgxtypes.StringFromUUID(revocableSession.Identifier),
+			Generation: uint32(revocableSession.Generation),
+			ExpiresAt:  pgxtypes.TimeFromTimestamp(revocableSession.ExpiresAt),
+			CreatedAt:  pgxtypes.TimeFromTimestamp(revocableSession.CreatedAt),
 		},
 	}, nil
 }

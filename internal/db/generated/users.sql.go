@@ -7,23 +7,25 @@ package generated
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createUser = `-- name: CreateUser :exec
 INSERT INTO users (identifier, name, primary_email, default_organization_identifier, created_at)
-VALUES (?, ?, LOWER(?), ?,
+VALUES ($1, $2, LOWER($3), $4,
         CURRENT_TIMESTAMP)
 `
 
 type CreateUserParams struct {
-	Identifier                    string
+	Identifier                    pgtype.UUID
 	Name                          string
 	PrimaryEmail                  string
-	DefaultOrganizationIdentifier string
+	DefaultOrganizationIdentifier pgtype.UUID
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
-	_, err := q.db.ExecContext(ctx, createUser,
+	_, err := q.db.Exec(ctx, createUser,
 		arg.Identifier,
 		arg.Name,
 		arg.PrimaryEmail,
@@ -35,11 +37,11 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
 const getUserByIdentifier = `-- name: GetUserByIdentifier :one
 SELECT identifier, name, primary_email, default_organization_identifier, last_login, created_at
 FROM users
-WHERE identifier = ? LIMIT 1
+WHERE identifier = $1 LIMIT 1
 `
 
-func (q *Queries) GetUserByIdentifier(ctx context.Context, identifier string) (User, error) {
-	row := q.db.QueryRowContext(ctx, getUserByIdentifier, identifier)
+func (q *Queries) GetUserByIdentifier(ctx context.Context, identifier pgtype.UUID) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByIdentifier, identifier)
 	var i User
 	err := row.Scan(
 		&i.Identifier,
@@ -55,51 +57,51 @@ func (q *Queries) GetUserByIdentifier(ctx context.Context, identifier string) (U
 const updateUserLastLoginByIdentifier = `-- name: UpdateUserLastLoginByIdentifier :execrows
 UPDATE users
 SET last_login = CURRENT_TIMESTAMP
-WHERE identifier = ?
+WHERE identifier = $1
 `
 
-func (q *Queries) UpdateUserLastLoginByIdentifier(ctx context.Context, identifier string) (int64, error) {
-	result, err := q.db.ExecContext(ctx, updateUserLastLoginByIdentifier, identifier)
+func (q *Queries) UpdateUserLastLoginByIdentifier(ctx context.Context, identifier pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, updateUserLastLoginByIdentifier, identifier)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected()
+	return result.RowsAffected(), nil
 }
 
 const updateUserNameByIdentifier = `-- name: UpdateUserNameByIdentifier :execrows
 UPDATE users
-SET name = ?
-WHERE identifier = ?
+SET name = $1
+WHERE identifier = $2
 `
 
 type UpdateUserNameByIdentifierParams struct {
 	Name       string
-	Identifier string
+	Identifier pgtype.UUID
 }
 
 func (q *Queries) UpdateUserNameByIdentifier(ctx context.Context, arg UpdateUserNameByIdentifierParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, updateUserNameByIdentifier, arg.Name, arg.Identifier)
+	result, err := q.db.Exec(ctx, updateUserNameByIdentifier, arg.Name, arg.Identifier)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected()
+	return result.RowsAffected(), nil
 }
 
 const updateUserPrimaryEmailByIdentifier = `-- name: UpdateUserPrimaryEmailByIdentifier :execrows
 UPDATE users
-SET primary_email = ?
-WHERE identifier = ?
+SET primary_email = $1
+WHERE identifier = $2
 `
 
 type UpdateUserPrimaryEmailByIdentifierParams struct {
 	PrimaryEmail string
-	Identifier   string
+	Identifier   pgtype.UUID
 }
 
 func (q *Queries) UpdateUserPrimaryEmailByIdentifier(ctx context.Context, arg UpdateUserPrimaryEmailByIdentifierParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, updateUserPrimaryEmailByIdentifier, arg.PrimaryEmail, arg.Identifier)
+	result, err := q.db.Exec(ctx, updateUserPrimaryEmailByIdentifier, arg.PrimaryEmail, arg.Identifier)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected()
+	return result.RowsAffected(), nil
 }
