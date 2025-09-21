@@ -20,7 +20,8 @@ import (
 	"github.com/loopholelabs/auth/internal/db/generated"
 )
 
-//go:generate go tool sqlc generate --file sqlc.yaml
+// TODO: Fix sqlc generation on macOS - for now, generated files are pre-built
+// go:generate go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.27.0 generate --file sqlc.yaml
 
 const (
 	pingTimeout  = time.Second * 30
