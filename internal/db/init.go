@@ -107,7 +107,16 @@ func New(url string, logger types.Logger) (*DB, error) {
 }
 
 func (db *DB) Close() error {
-	db.Pool.Close()
+	// Close both the sql.DB and the pool
+	// The sql.DB is used for migrations, the pool for queries
+	if db.DB != nil {
+		if err := db.DB.Close(); err != nil {
+			return err
+		}
+	}
+	if db.Pool != nil {
+		db.Pool.Close()
+	}
 	return nil
 }
 
