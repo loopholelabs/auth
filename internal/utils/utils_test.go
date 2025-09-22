@@ -1,6 +1,6 @@
 //SPDX-License-Identifier: Apache-2.0
 
-package utils //nolint:revive // utils is a meaningful package name
+package utils
 
 import (
 	"crypto/ed25519"
