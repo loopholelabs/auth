@@ -225,7 +225,7 @@ CREATE TABLE device_code_flows
     session_identifier UUID UNIQUE,
     code               VARCHAR(8)  NOT NULL UNIQUE,
     poll               UUID        NOT NULL UNIQUE,
-    last_poll          TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_poll          TIMESTAMP   DEFAULT NULL,
     created_at         TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_device_code_flows_session_identifier_sessions
