@@ -65,14 +65,15 @@ func New(url string, logger types.Logger) (*DB, error) {
 	config.MaxConnLifetime = maxLifetime
 
 	// Create pool
-	ctx, cancel := context.WithTimeout(context.Background(), pingTimeout)
-	defer cancel()
-
-	pool, err := pgxpool.NewWithConfig(ctx, config)
+	pool, err := pgxpool.NewWithConfig(context.Background(), config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
+	// Ping with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), pingTimeout)
+	defer cancel()
+	
 	err = pool.Ping(ctx)
 	if err != nil {
 		pool.Close()
