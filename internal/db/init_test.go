@@ -48,7 +48,8 @@ func TestInitialize(t *testing.T) {
 		unreachableURL := "postgres://postgres:wrongpassword@localhost:9999/testdb?sslmode=disable"
 		db, err := New(unreachableURL, logger)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to")
+		// Should fail during ping since port 9999 is unreachable
+		require.Contains(t, err.Error(), "failed to ping database")
 		require.Nil(t, db)
 	})
 }
