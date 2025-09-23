@@ -126,15 +126,14 @@ func (c *Device) PollFlow(ctx context.Context, poll string, pollRate time.Durati
 		return "", errors.Join(ErrPollingFlow, err)
 	}
 
-	// Check polling rate limit (only if this isn't the first poll)
-	// If LastPoll equals CreatedAt, it means this is the first poll (due to DEFAULT CURRENT_TIMESTAMP)
-	if f.LastPoll.Valid {
-		lastPollTime := pgxtypes.TimeFromTimestamp(f.LastPoll)
-		createdAtTime := pgxtypes.TimeFromTimestamp(f.CreatedAt)
-		// Skip rate limit check if LastPoll equals CreatedAt (first poll)
-		if !lastPollTime.Equal(createdAtTime) && lastPollTime.Add(pollRate).After(now()) {
-			return "", errors.Join(ErrPollingFlow, ErrRateLimitFlow)
-		}
+	// Check polling rate limit (skip for first poll when last_poll == created_at)
+	// Both timestamps use DEFAULT CURRENT_TIMESTAMP, so they're equal on first poll
+	lastPollTime := pgxtypes.TimeFromTimestamp(f.LastPoll)
+	createdAtTime := pgxtypes.TimeFromTimestamp(f.CreatedAt)
+	
+	// If this isn't the first poll, check rate limit
+	if !lastPollTime.Equal(createdAtTime) && lastPollTime.Add(pollRate).After(now()) {
+		return "", errors.Join(ErrPollingFlow, ErrRateLimitFlow)
 	}
 
 	if pgxtypes.IsValidUUID(f.SessionIdentifier) {

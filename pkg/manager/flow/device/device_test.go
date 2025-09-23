@@ -97,8 +97,9 @@ func TestDevice_CreateFlow(t *testing.T) {
 		assert.Equal(t, poll, pgxtypes.StringFromUUID(flowByCode.Poll))
 		assert.False(t, flowByCode.SessionIdentifier.Valid)
 		assert.WithinDuration(t, time.Now(), pgxtypes.TimeFromTimestamp(flowByCode.CreatedAt), 5*time.Second)
-		// LastPoll should be NULL on creation (not set)
-		assert.False(t, flowByCode.LastPoll.Valid, "LastPoll should be NULL for new flow")
+		// LastPoll should be equal to CreatedAt on creation (both use DEFAULT CURRENT_TIMESTAMP)
+		assert.True(t, flowByCode.LastPoll.Valid, "LastPoll should be valid for new flow")
+		assert.Equal(t, pgxtypes.TimeFromTimestamp(flowByCode.CreatedAt), pgxtypes.TimeFromTimestamp(flowByCode.LastPoll))
 
 		// Verify flow can be retrieved by poll
 		flowByPoll, err := database.Queries.GetDeviceCodeFlowByPoll(t.Context(), pgxtypes.UUIDFromString(poll))
