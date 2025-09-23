@@ -73,7 +73,7 @@ func New(url string, logger types.Logger) (*DB, error) {
 	// Ping with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), pingTimeout)
 	defer cancel()
-	
+
 	err = pool.Ping(ctx)
 	if err != nil {
 		pool.Close()
