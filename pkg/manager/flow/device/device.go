@@ -130,7 +130,7 @@ func (c *Device) PollFlow(ctx context.Context, poll string, pollRate time.Durati
 	// Both timestamps use DEFAULT CURRENT_TIMESTAMP, so they're equal on first poll
 	lastPollTime := pgxtypes.TimeFromTimestamp(f.LastPoll)
 	createdAtTime := pgxtypes.TimeFromTimestamp(f.CreatedAt)
-	
+
 	// If this isn't the first poll, check rate limit
 	if !lastPollTime.Equal(createdAtTime) && lastPollTime.Add(pollRate).After(now()) {
 		return "", errors.Join(ErrPollingFlow, ErrRateLimitFlow)
