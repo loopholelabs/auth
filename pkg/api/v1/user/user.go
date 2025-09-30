@@ -80,13 +80,18 @@ func (g *User) info(ctx context.Context, _ *struct{}) (*UserInfoResponse, error)
 		return nil, huma.Error401Unauthorized("invalid session")
 	}
 
-	user, err := g.options.Manager.Database().Queries.GetUserByIdentifier(ctx, pgxtypes.UUIDFromString(session.UserInfo.Identifier))
+	userIdentifier := pgxtypes.UUIDFromString(session.UserInfo.Identifier)
+	if !userIdentifier.Valid {
+		return nil, huma.Error401Unauthorized("invalid session")
+	}
+
+	user, err := g.options.Manager.Database().Queries.GetUserByIdentifier(ctx, userIdentifier)
 	if err != nil {
 		g.logger.Error().Err(err).Msg("error retrieving user info")
 		return nil, huma.Error500InternalServerError("error retrieving user info")
 	}
 
-	organizations, err := g.options.Manager.Database().Queries.GetOrganizationsForUserIdentifier(ctx, pgxtypes.UUIDFromString(session.UserInfo.Identifier))
+	organizations, err := g.options.Manager.Database().Queries.GetOrganizationsForUserIdentifier(ctx, userIdentifier)
 	if err != nil {
 		g.logger.Error().Err(err).Msg("error retrieving user memberships")
 		return nil, huma.Error500InternalServerError("error retrieving user memberships")
@@ -98,7 +103,7 @@ func (g *User) info(ctx context.Context, _ *struct{}) (*UserInfoResponse, error)
 		return nil, huma.Error500InternalServerError("error retrieving default organization")
 	}
 
-	identities, err := g.options.Manager.Database().Queries.GetAllIdentitiesByUserIdentifier(ctx, pgxtypes.UUIDFromString(session.UserInfo.Identifier))
+	identities, err := g.options.Manager.Database().Queries.GetAllIdentitiesByUserIdentifier(ctx, userIdentifier)
 	if err != nil {
 		g.logger.Error().Err(err).Msg("error retrieving user identities")
 		return nil, huma.Error500InternalServerError("error retrieving user identities")
@@ -106,11 +111,21 @@ func (g *User) info(ctx context.Context, _ *struct{}) (*UserInfoResponse, error)
 
 	var organizationInfo []OrganizationInfo
 	for _, organization := range organizations {
+		createdAt, err := pgxtypes.TimeFromTimestamp(organization.CreatedAt)
+		if err != nil {
+			g.logger.Error().Err(err).Msg("error processing organization creation time")
+			return nil, huma.Error500InternalServerError("error processing organization data")
+		}
+		joinedAt, err := pgxtypes.TimeFromTimestamp(organization.MembershipCreatedAt)
+		if err != nil {
+			g.logger.Error().Err(err).Msg("error processing membership creation time")
+			return nil, huma.Error500InternalServerError("error processing organization data")
+		}
 		organizationInfo = append(organizationInfo, OrganizationInfo{
 			Name:      organization.Name,
-			CreatedAt: pgxtypes.TimeFromTimestamp(organization.CreatedAt),
+			CreatedAt: createdAt,
 			Role:      organization.MembershipRole,
-			JoinedAt:  pgxtypes.TimeFromTimestamp(organization.MembershipCreatedAt),
+			JoinedAt:  joinedAt,
 		})
 	}
 
@@ -122,24 +137,45 @@ func (g *User) info(ctx context.Context, _ *struct{}) (*UserInfoResponse, error)
 			g.logger.Error().Err(err).Msg("error retrieving user verified emails")
 			return nil, huma.Error500InternalServerError("error retrieving user verified emails")
 		}
+		createdAt, err := pgxtypes.TimeFromTimestamp(identity.CreatedAt)
+		if err != nil {
+			g.logger.Error().Err(err).Msg("error processing identity creation time")
+			return nil, huma.Error500InternalServerError("error processing identity data")
+		}
 		identityInfos = append(identityInfos, IdentityInfo{
 			Provider:       identity.Provider,
 			VerifiedEmails: verifiedEmails,
-			CreatedAt:      pgxtypes.TimeFromTimestamp(identity.CreatedAt),
+			CreatedAt:      createdAt,
 		})
+	}
+
+	lastLogin, err := pgxtypes.TimeFromTimestamp(user.LastLogin)
+	if err != nil {
+		g.logger.Error().Err(err).Msg("error processing user last login")
+		return nil, huma.Error500InternalServerError("error processing user data")
+	}
+	userCreatedAt, err := pgxtypes.TimeFromTimestamp(user.CreatedAt)
+	if err != nil {
+		g.logger.Error().Err(err).Msg("error processing user creation time")
+		return nil, huma.Error500InternalServerError("error processing user data")
+	}
+	defaultOrgCreatedAt, err := pgxtypes.TimeFromTimestamp(defaultOrganization.CreatedAt)
+	if err != nil {
+		g.logger.Error().Err(err).Msg("error processing default organization creation time")
+		return nil, huma.Error500InternalServerError("error processing organization data")
 	}
 
 	return &UserInfoResponse{
 		Body: UserInfoResponseBody{
 			Name:      session.UserInfo.Name,
 			Email:     session.UserInfo.Email,
-			LastLogin: pgxtypes.TimeFromTimestamp(user.LastLogin),
-			CreatedAt: pgxtypes.TimeFromTimestamp(user.CreatedAt),
+			LastLogin: lastLogin,
+			CreatedAt: userCreatedAt,
 			DefaultOrganization: OrganizationInfo{
 				Name:      defaultOrganization.Name,
-				CreatedAt: pgxtypes.TimeFromTimestamp(defaultOrganization.CreatedAt),
+				CreatedAt: defaultOrgCreatedAt,
 				Role:      role.OwnerRole.String(),
-				JoinedAt:  pgxtypes.TimeFromTimestamp(user.CreatedAt),
+				JoinedAt:  userCreatedAt, // User created at same time as default org
 			},
 			Organizations: organizationInfo,
 			Identities:    identityInfos,

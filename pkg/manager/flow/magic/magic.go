@@ -175,19 +175,25 @@ func (c *Magic) CompleteFlow(ctx context.Context, token string) (flow.Data, erro
 		return flow.Data{}, errors.Join(ErrCompletingFlow, err)
 	}
 
-	saltStr := pgxtypes.StringFromUUID(f.Salt)
+	saltStr, err := pgxtypes.StringFromUUID(f.Salt)
+	if err != nil {
+		return flow.Data{}, errors.Join(ErrCompletingFlow, err)
+	}
 	h := hmac.New(sha256.New, []byte(saltStr))
 	h.Write([]byte(secret))
 	if !hmac.Equal(f.Hash, h.Sum(nil)) {
 		return flow.Data{}, errors.Join(ErrCompletingFlow, ErrInvalidSecret)
 	}
 
+	deviceIdentifier, _ := pgxtypes.StringFromUUID(f.DeviceIdentifier) // OK if empty
+	userIdentifier, _ := pgxtypes.StringFromUUID(f.UserIdentifier)     // OK if empty
+
 	return flow.Data{
 		ProviderIdentifier: f.EmailAddress,
 		UserName:           "",
 		NextURL:            f.NextUrl,
-		DeviceIdentifier:   pgxtypes.StringFromUUID(f.DeviceIdentifier),
-		UserIdentifier:     pgxtypes.StringFromUUID(f.UserIdentifier),
+		DeviceIdentifier:   deviceIdentifier,
+		UserIdentifier:     userIdentifier,
 		PrimaryEmail:       f.EmailAddress,
 		VerifiedEmails:     []string{f.EmailAddress},
 	}, nil

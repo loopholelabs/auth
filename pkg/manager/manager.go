@@ -408,21 +408,34 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 		return credential.Session{}, errors.Join(ErrCreatingSession, err)
 	}
 
+	orgIdentifier, err := pgxtypes.StringFromUUID(session.OrganizationIdentifier)
+	if err != nil {
+		return credential.Session{}, errors.Join(ErrCreatingSession, err)
+	}
+	userIdentifier, err := pgxtypes.StringFromUUID(session.UserIdentifier)
+	if err != nil {
+		return credential.Session{}, errors.Join(ErrCreatingSession, err)
+	}
+	expiresAt, err = pgxtypes.TimeFromTimestamp(session.ExpiresAt)
+	if err != nil {
+		return credential.Session{}, errors.Join(ErrCreatingSession, err)
+	}
+
 	s := credential.Session{
 		Identifier: sessionIdentifier,
 		OrganizationInfo: credential.OrganizationInfo{
-			Identifier: pgxtypes.StringFromUUID(session.OrganizationIdentifier),
+			Identifier: orgIdentifier,
 			Name:       organization.Name,
 			IsDefault:  true,
 			Role:       role.OwnerRole,
 		},
 		UserInfo: credential.UserInfo{
-			Identifier: pgxtypes.StringFromUUID(session.UserIdentifier),
+			Identifier: userIdentifier,
 			Name:       user.Name,
 			Email:      user.PrimaryEmail,
 		},
 		Generation: uint32(session.Generation), //nolint:gosec // Generation is always non-negative
-		ExpiresAt:  pgxtypes.TimeFromTimestamp(session.ExpiresAt),
+		ExpiresAt:  expiresAt,
 	}
 
 	if !s.IsValid() {
@@ -480,21 +493,38 @@ func (m *Manager) CreateExistingSession(ctx context.Context, identifier string) 
 		return credential.Session{}, errors.Join(ErrCreatingSession, ErrInvalidSessionRole)
 	}
 
+	sessionIdentifier, err := pgxtypes.StringFromUUID(session.Identifier)
+	if err != nil {
+		return credential.Session{}, errors.Join(ErrCreatingSession, err)
+	}
+	orgIdentifier, err := pgxtypes.StringFromUUID(session.OrganizationIdentifier)
+	if err != nil {
+		return credential.Session{}, errors.Join(ErrCreatingSession, err)
+	}
+	userIdentifier, err := pgxtypes.StringFromUUID(session.UserIdentifier)
+	if err != nil {
+		return credential.Session{}, errors.Join(ErrCreatingSession, err)
+	}
+	expiresAt, err := pgxtypes.TimeFromTimestamp(session.ExpiresAt)
+	if err != nil {
+		return credential.Session{}, errors.Join(ErrCreatingSession, err)
+	}
+
 	return credential.Session{
-		Identifier: pgxtypes.StringFromUUID(session.Identifier),
+		Identifier: sessionIdentifier,
 		OrganizationInfo: credential.OrganizationInfo{
-			Identifier: pgxtypes.StringFromUUID(session.OrganizationIdentifier),
+			Identifier: orgIdentifier,
 			Name:       organization.Name,
 			IsDefault:  organization.IsDefault,
 			Role:       membershipRole,
 		},
 		UserInfo: credential.UserInfo{
-			Identifier: pgxtypes.StringFromUUID(session.UserIdentifier),
+			Identifier: userIdentifier,
 			Name:       user.Name,
 			Email:      user.PrimaryEmail,
 		},
 		Generation: uint32(session.Generation), //nolint:gosec // Generation is always non-negative
-		ExpiresAt:  pgxtypes.TimeFromTimestamp(session.ExpiresAt),
+		ExpiresAt:  expiresAt,
 	}, nil
 }
 
@@ -534,7 +564,11 @@ func (m *Manager) RefreshSession(ctx context.Context, session credential.Session
 		return credential.Session{}, errors.Join(ErrRefreshingSession, err)
 	}
 
-	if pgxtypes.TimeFromTimestamp(s.ExpiresAt).Before(now) {
+	expiresAt, err := pgxtypes.TimeFromTimestamp(s.ExpiresAt)
+	if err != nil {
+		return credential.Session{}, errors.Join(ErrRefreshingSession, err)
+	}
+	if expiresAt.Before(now) {
 		return credential.Session{}, errors.Join(ErrRefreshingSession, ErrSessionIsExpired)
 	}
 
@@ -574,7 +608,11 @@ func (m *Manager) RefreshSession(ctx context.Context, session credential.Session
 
 	// PostgreSQL handles microsecond precision, no need to truncate
 	session.ExpiresAt = time.Now().Add(m.Configuration().SessionExpiry())
-	if session.ExpiresAt.After(pgxtypes.TimeFromTimestamp(s.ExpiresAt)) {
+	currentExpiresAt, err := pgxtypes.TimeFromTimestamp(s.ExpiresAt)
+	if err != nil {
+		return credential.Session{}, errors.Join(ErrRefreshingSession, err)
+	}
+	if session.ExpiresAt.After(currentExpiresAt) {
 		num, err := qtx.UpdateSessionExpiryByIdentifier(ctx, generated.UpdateSessionExpiryByIdentifierParams{
 			ExpiresAt:  pgxtypes.TimestampFromTime(session.ExpiresAt),
 			Identifier: pgxtypes.UUIDFromString(session.Identifier),
@@ -586,7 +624,7 @@ func (m *Manager) RefreshSession(ctx context.Context, session credential.Session
 			return credential.Session{}, errors.Join(ErrRefreshingSession, sql.ErrNoRows)
 		}
 	} else {
-		session.ExpiresAt = pgxtypes.TimeFromTimestamp(s.ExpiresAt)
+		session.ExpiresAt = currentExpiresAt
 	}
 
 	err = tx.Commit(ctx)
@@ -625,9 +663,13 @@ func (m *Manager) RevokeSession(ctx context.Context, identifier string) error {
 		return errors.Join(ErrRevokingSession, sql.ErrNoRows)
 	}
 
+	expiresAt, err := pgxtypes.TimeFromTimestamp(session.ExpiresAt)
+	if err != nil {
+		return errors.Join(ErrRevokingSession, err)
+	}
 	err = qtx.CreateSessionRevocation(ctx, generated.CreateSessionRevocationParams{
 		SessionIdentifier: session.Identifier,
-		ExpiresAt:         pgxtypes.TimestampFromTime(pgxtypes.TimeFromTimestamp(session.ExpiresAt).Add(Jitter)),
+		ExpiresAt:         pgxtypes.TimestampFromTime(expiresAt.Add(Jitter)),
 	})
 	if err != nil {
 		return errors.Join(ErrRevokingSession, err)
@@ -794,9 +836,18 @@ func (m *Manager) sessionRevocationsRefresh() {
 		m.mu.Unlock()
 	} else {
 		for _, sessionRevocation := range sessionRevocations {
-			expiresAt := pgxtypes.TimeFromTimestamp(sessionRevocation.ExpiresAt)
+			expiresAt, err := pgxtypes.TimeFromTimestamp(sessionRevocation.ExpiresAt)
+			if err != nil {
+				m.logger.Error().Err(err).Msg("failed to parse session revocation expiry")
+				continue
+			}
 			if expiresAt.After(time.Now()) {
-				m.sessionRevocationCache.Set(pgxtypes.StringFromUUID(sessionRevocation.SessionIdentifier), struct{}{}, time.Until(expiresAt))
+				identifier, err := pgxtypes.StringFromUUID(sessionRevocation.SessionIdentifier)
+				if err != nil {
+					m.logger.Error().Err(err).Msg("failed to parse session revocation identifier")
+					continue
+				}
+				m.sessionRevocationCache.Set(identifier, struct{}{}, time.Until(expiresAt))
 				refreshed++
 			}
 		}
@@ -820,9 +871,18 @@ func (m *Manager) sessionInvalidationsRefresh() {
 		m.mu.Unlock()
 	} else {
 		for _, sessionInvalidation := range sessionInvalidations {
-			expiresAt := pgxtypes.TimeFromTimestamp(sessionInvalidation.ExpiresAt)
+			expiresAt, err := pgxtypes.TimeFromTimestamp(sessionInvalidation.ExpiresAt)
+			if err != nil {
+				m.logger.Error().Err(err).Msg("failed to parse session invalidation expiry")
+				continue
+			}
 			if expiresAt.After(time.Now()) {
-				m.sessionInvalidationCache.Set(pgxtypes.StringFromUUID(sessionInvalidation.SessionIdentifier), uint32(sessionInvalidation.Generation), time.Until(expiresAt)) //nolint:gosec // Generation is always non-negative
+				identifier, err := pgxtypes.StringFromUUID(sessionInvalidation.SessionIdentifier)
+				if err != nil {
+					m.logger.Error().Err(err).Msg("failed to parse session invalidation identifier")
+					continue
+				}
+				m.sessionInvalidationCache.Set(identifier, uint32(sessionInvalidation.Generation), time.Until(expiresAt)) //nolint:gosec // Generation is always non-negative
 				refreshed++
 			}
 		}

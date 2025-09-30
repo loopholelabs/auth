@@ -18,7 +18,9 @@ func TestUUIDFromString(t *testing.T) {
 		result := UUIDFromString(validUUID)
 
 		assert.True(t, result.Valid)
-		assert.Equal(t, validUUID, StringFromUUID(result))
+		strResult, err := StringFromUUID(result)
+		assert.NoError(t, err)
+		assert.Equal(t, validUUID, strResult)
 	})
 
 	t.Run("InvalidUUID", func(t *testing.T) {
@@ -48,7 +50,9 @@ func TestUUIDFromStringPtr(t *testing.T) {
 		result := UUIDFromStringPtr(&validUUID)
 
 		assert.True(t, result.Valid)
-		assert.Equal(t, validUUID, StringFromUUID(result))
+		strResult, err := StringFromUUID(result)
+		assert.NoError(t, err)
+		assert.Equal(t, validUUID, strResult)
 	})
 
 	t.Run("NilPointer", func(t *testing.T) {
@@ -76,15 +80,15 @@ func TestStringFromUUID(t *testing.T) {
 	t.Run("ValidUUID", func(t *testing.T) {
 		validUUID := "123e4567-e89b-12d3-a456-426614174000"
 		pgUUID := UUIDFromString(validUUID)
-		result := StringFromUUID(pgUUID)
-
+		result, err := StringFromUUID(pgUUID)
+		assert.NoError(t, err)
 		assert.Equal(t, validUUID, result)
 	})
 
 	t.Run("InvalidUUID", func(t *testing.T) {
 		invalidUUID := pgtype.UUID{Valid: false}
-		result := StringFromUUID(invalidUUID)
-
+		result, err := StringFromUUID(invalidUUID)
+		assert.Error(t, err)
 		assert.Empty(t, result)
 	})
 
@@ -94,8 +98,8 @@ func TestStringFromUUID(t *testing.T) {
 			Bytes: [16]byte{}, // All zeros, but marked as valid
 			Valid: true,
 		}
-		result := StringFromUUID(invalidUUID)
-
+		result, err := StringFromUUID(invalidUUID)
+		assert.NoError(t, err)
 		// All-zero UUID should still be valid
 		assert.Equal(t, "00000000-0000-0000-0000-000000000000", result)
 	})
@@ -161,23 +165,23 @@ func TestTimeFromTimestamp(t *testing.T) {
 	t.Run("ValidTimestamp", func(t *testing.T) {
 		now := time.Now()
 		timestamp := TimestampFromTime(now)
-		result := TimeFromTimestamp(timestamp)
-
+		result, err := TimeFromTimestamp(timestamp)
+		assert.NoError(t, err)
 		assert.Equal(t, now.UTC(), result)
 	})
 
 	t.Run("InvalidTimestamp", func(t *testing.T) {
 		invalidTimestamp := pgtype.Timestamp{Valid: false}
-		result := TimeFromTimestamp(invalidTimestamp)
-
+		result, err := TimeFromTimestamp(invalidTimestamp)
+		assert.Error(t, err)
 		assert.Equal(t, time.Time{}, result)
 	})
 
 	t.Run("ZeroTimestamp", func(t *testing.T) {
 		zeroTime := time.Time{}
 		timestamp := TimestampFromTime(zeroTime)
-		result := TimeFromTimestamp(timestamp)
-
+		result, err := TimeFromTimestamp(timestamp)
+		assert.NoError(t, err)
 		assert.Equal(t, zeroTime.UTC(), result)
 	})
 }
@@ -189,11 +193,12 @@ func TestNewUUID(t *testing.T) {
 		assert.True(t, result.Valid)
 
 		// Verify it's a valid UUID string
-		uuidStr := StringFromUUID(result)
+		uuidStr, err := StringFromUUID(result)
+		assert.NoError(t, err)
 		assert.NotEmpty(t, uuidStr)
 
 		// Verify it can be parsed back
-		_, err := uuid.Parse(uuidStr)
+		_, err = uuid.Parse(uuidStr)
 		assert.NoError(t, err)
 	})
 
@@ -270,8 +275,8 @@ func TestRoundTripConversions(t *testing.T) {
 
 		// String -> pgtype.UUID -> String
 		pgUUID := UUIDFromString(original)
-		result := StringFromUUID(pgUUID)
-
+		result, err := StringFromUUID(pgUUID)
+		assert.NoError(t, err)
 		assert.Equal(t, original, result)
 	})
 
@@ -280,8 +285,8 @@ func TestRoundTripConversions(t *testing.T) {
 
 		// Time -> pgtype.Timestamp -> Time
 		pgTimestamp := TimestampFromTime(original)
-		result := TimeFromTimestamp(pgTimestamp)
-
+		result, err := TimeFromTimestamp(pgTimestamp)
+		assert.NoError(t, err)
 		assert.Equal(t, original.UTC(), result)
 	})
 
@@ -305,7 +310,9 @@ func TestEdgeCases(t *testing.T) {
 		result := UUIDFromString(maxUUID)
 
 		assert.True(t, result.Valid)
-		assert.Equal(t, maxUUID, StringFromUUID(result))
+		strResult, err := StringFromUUID(result)
+		assert.NoError(t, err)
+		assert.Equal(t, maxUUID, strResult)
 	})
 
 	t.Run("FutureTimestamp", func(t *testing.T) {
@@ -328,8 +335,8 @@ func TestEdgeCases(t *testing.T) {
 		// PostgreSQL supports microsecond precision
 		now := time.Now().Add(123456 * time.Nanosecond)
 		timestamp := TimestampFromTime(now)
-		result := TimeFromTimestamp(timestamp)
-
+		result, err := TimeFromTimestamp(timestamp)
+		assert.NoError(t, err)
 		// Should preserve microsecond precision
 		assert.Equal(t, now.UTC().Truncate(time.Microsecond), result.Truncate(time.Microsecond))
 	})

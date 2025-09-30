@@ -236,12 +236,15 @@ func (c *Google) CompleteFlow(ctx context.Context, identifier string, code strin
 		return flow.Data{}, errors.Join(ErrCompletingFlow, err)
 	}
 
+	deviceIdentifier, _ := pgxtypes.StringFromUUID(f.DeviceIdentifier) // OK if empty
+	userIdentifier, _ := pgxtypes.StringFromUUID(f.UserIdentifier)     // OK if empty
+
 	data := flow.Data{
 		ProviderIdentifier: strconv.FormatInt(u.ID, 10),
 		UserName:           u.Name,
 		NextURL:            f.NextUrl,
-		DeviceIdentifier:   pgxtypes.StringFromUUID(f.DeviceIdentifier),
-		UserIdentifier:     pgxtypes.StringFromUUID(f.UserIdentifier),
+		DeviceIdentifier:   deviceIdentifier,
+		UserIdentifier:     userIdentifier,
 	}
 
 	if !u.Verified || u.Email == "" {

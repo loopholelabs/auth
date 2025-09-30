@@ -3,10 +3,16 @@
 package pgxtypes
 
 import (
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
+)
+
+var (
+	ErrInvalidUUID      = errors.New("invalid UUID")
+	ErrInvalidTimestamp = errors.New("invalid timestamp")
 )
 
 // UUIDFromString converts a string UUID to pgtype.UUID
@@ -30,16 +36,16 @@ func UUIDFromStringPtr(s *string) pgtype.UUID {
 }
 
 // StringFromUUID converts pgtype.UUID to string
-func StringFromUUID(u pgtype.UUID) string {
+func StringFromUUID(u pgtype.UUID) (string, error) {
 	if !u.Valid {
-		return ""
+		return "", ErrInvalidUUID
 	}
 	// Format the bytes as a UUID string
 	uid, err := uuid.FromBytes(u.Bytes[:])
 	if err != nil {
-		return ""
+		return "", err
 	}
-	return uid.String()
+	return uid.String(), nil
 }
 
 // TimestampFromTime converts time.Time to pgtype.Timestamp
@@ -60,11 +66,11 @@ func TimestampFromTimePtr(t *time.Time) pgtype.Timestamp {
 }
 
 // TimeFromTimestamp converts pgtype.Timestamp to time.Time
-func TimeFromTimestamp(ts pgtype.Timestamp) time.Time {
+func TimeFromTimestamp(ts pgtype.Timestamp) (time.Time, error) {
 	if !ts.Valid {
-		return time.Time{}
+		return time.Time{}, ErrInvalidTimestamp
 	}
-	return ts.Time
+	return ts.Time, nil
 }
 
 // NewUUID generates a new pgtype.UUID

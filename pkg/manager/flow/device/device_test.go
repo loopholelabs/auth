@@ -94,12 +94,18 @@ func TestDevice_CreateFlow(t *testing.T) {
 		flowByCode, err := database.Queries.GetDeviceCodeFlowByCode(t.Context(), code)
 		require.NoError(t, err)
 		assert.Equal(t, code, flowByCode.Code)
-		assert.Equal(t, poll, pgxtypes.StringFromUUID(flowByCode.Poll))
+		pollStr, err := pgxtypes.StringFromUUID(flowByCode.Poll)
+		require.NoError(t, err)
+		assert.Equal(t, poll, pollStr)
 		assert.False(t, flowByCode.SessionIdentifier.Valid)
-		assert.WithinDuration(t, time.Now(), pgxtypes.TimeFromTimestamp(flowByCode.CreatedAt), 5*time.Second)
+		createdAt, err := pgxtypes.TimeFromTimestamp(flowByCode.CreatedAt)
+		require.NoError(t, err)
+		assert.WithinDuration(t, time.Now(), createdAt, 5*time.Second)
 		// LastPoll should be equal to CreatedAt on creation (both use DEFAULT CURRENT_TIMESTAMP)
 		assert.True(t, flowByCode.LastPoll.Valid, "LastPoll should be valid for new flow")
-		assert.Equal(t, pgxtypes.TimeFromTimestamp(flowByCode.CreatedAt), pgxtypes.TimeFromTimestamp(flowByCode.LastPoll))
+		lastPoll, err := pgxtypes.TimeFromTimestamp(flowByCode.LastPoll)
+		require.NoError(t, err)
+		assert.Equal(t, createdAt, lastPoll)
 
 		// Verify flow can be retrieved by poll
 		flowByPoll, err := database.Queries.GetDeviceCodeFlowByPoll(t.Context(), pgxtypes.UUIDFromString(poll))
@@ -136,7 +142,9 @@ func TestDevice_CreateFlow(t *testing.T) {
 			flow, err := database.Queries.GetDeviceCodeFlowByCode(t.Context(), code)
 			require.NoError(t, err)
 			assert.Equal(t, code, flow.Code)
-			assert.Equal(t, polls[i], pgxtypes.StringFromUUID(flow.Poll))
+			pollStr, err := pgxtypes.StringFromUUID(flow.Poll)
+			require.NoError(t, err)
+			assert.Equal(t, polls[i], pollStr)
 		}
 	})
 
@@ -292,7 +300,9 @@ func TestDevice_CompleteFlow(t *testing.T) {
 		flow, err := database.Queries.GetDeviceCodeFlowByPoll(t.Context(), pgxtypes.UUIDFromString(poll))
 		require.NoError(t, err)
 		assert.True(t, flow.SessionIdentifier.Valid)
-		assert.Equal(t, sessionID, pgxtypes.StringFromUUID(flow.SessionIdentifier))
+		sessionIDStr, err := pgxtypes.StringFromUUID(flow.SessionIdentifier)
+		require.NoError(t, err)
+		assert.Equal(t, sessionID, sessionIDStr)
 	})
 
 	t.Run("CompleteNonExistentFlow", func(t *testing.T) {
@@ -362,7 +372,9 @@ func TestDevice_CompleteFlow(t *testing.T) {
 		// Verify flow has the second session
 		flow, err := database.Queries.GetDeviceCodeFlowByPoll(t.Context(), pgxtypes.UUIDFromString(poll))
 		require.NoError(t, err)
-		assert.Equal(t, sessionID2, pgxtypes.StringFromUUID(flow.SessionIdentifier))
+		sessionIDStr, err := pgxtypes.StringFromUUID(flow.SessionIdentifier)
+		require.NoError(t, err)
+		assert.Equal(t, sessionID2, sessionIDStr)
 	})
 }
 
@@ -432,7 +444,9 @@ func TestDevice_PollFlow(t *testing.T) {
 		// Verify LastPoll was updated
 		flow, err := database.Queries.GetDeviceCodeFlowByPoll(t.Context(), pgxtypes.UUIDFromString(poll))
 		require.NoError(t, err)
-		assert.WithinDuration(t, time.Now(), pgxtypes.TimeFromTimestamp(flow.LastPoll), 5*time.Second)
+		lastPollTime, err := pgxtypes.TimeFromTimestamp(flow.LastPoll)
+		require.NoError(t, err)
+		assert.WithinDuration(t, time.Now(), lastPollTime, 5*time.Second)
 	})
 
 	t.Run("PollCompletedFlow", func(t *testing.T) {

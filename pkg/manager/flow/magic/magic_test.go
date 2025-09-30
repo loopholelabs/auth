@@ -100,7 +100,9 @@ func TestCreateFlow(t *testing.T) {
 		// Verify flow was created in database
 		flow, err := database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), pgxtypes.UUIDFromString(identifier))
 		require.NoError(t, err)
-		require.Equal(t, identifier, pgxtypes.StringFromUUID(flow.Identifier))
+		identifierStr, err := pgxtypes.StringFromUUID(flow.Identifier)
+		require.NoError(t, err)
+		require.Equal(t, identifier, identifierStr)
 		require.NotEmpty(t, flow.Salt)
 		require.NotEmpty(t, flow.Hash)
 		require.Equal(t, "test@example.com", flow.EmailAddress)
@@ -108,7 +110,8 @@ func TestCreateFlow(t *testing.T) {
 		require.False(t, flow.DeviceIdentifier.Valid)
 		require.False(t, flow.UserIdentifier.Valid)
 
-		saltStr := pgxtypes.StringFromUUID(flow.Salt)
+		saltStr, err := pgxtypes.StringFromUUID(flow.Salt)
+		require.NoError(t, err)
 		h := hmac.New(sha256.New, []byte(saltStr))
 		h.Write([]byte(secret))
 
@@ -175,7 +178,9 @@ func TestCreateFlow(t *testing.T) {
 		require.Equal(t, "linked@example.com", flow.EmailAddress)
 		require.False(t, flow.DeviceIdentifier.Valid)
 		require.True(t, flow.UserIdentifier.Valid)
-		require.Equal(t, userID, pgxtypes.StringFromUUID(flow.UserIdentifier))
+		userIdentifierStr, err := pgxtypes.StringFromUUID(flow.UserIdentifier)
+		require.NoError(t, err)
+		require.Equal(t, userID, userIdentifierStr)
 		require.Equal(t, "http://example.com/next", flow.NextUrl)
 	})
 
@@ -217,7 +222,9 @@ func TestCreateFlow(t *testing.T) {
 		require.Equal(t, "full@example.com", flow.EmailAddress)
 		require.False(t, flow.DeviceIdentifier.Valid)
 		require.True(t, flow.UserIdentifier.Valid)
-		require.Equal(t, userID, pgxtypes.StringFromUUID(flow.UserIdentifier))
+		userIdentifierStr, err := pgxtypes.StringFromUUID(flow.UserIdentifier)
+		require.NoError(t, err)
+		require.Equal(t, userID, userIdentifierStr)
 		require.Equal(t, "https://app.com/welcome", flow.NextUrl)
 	})
 
@@ -559,7 +566,8 @@ func TestTokenEncoding(t *testing.T) {
 		flow, err := database.Queries.GetMagicLinkFlowByIdentifier(t.Context(), pgxtypes.UUIDFromString(identifier))
 		require.NoError(t, err)
 
-		saltStr := pgxtypes.StringFromUUID(flow.Salt)
+		saltStr, err := pgxtypes.StringFromUUID(flow.Salt)
+		require.NoError(t, err)
 		h := hmac.New(sha256.New, []byte(saltStr))
 		h.Write([]byte(secret))
 
@@ -1020,7 +1028,9 @@ func TestFlowLifecycle(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, email, flow.EmailAddress)
 		require.False(t, flow.DeviceIdentifier.Valid)
-		require.Equal(t, userID, pgxtypes.StringFromUUID(flow.UserIdentifier))
+		userIdentifierStr, err := pgxtypes.StringFromUUID(flow.UserIdentifier)
+		require.NoError(t, err)
+		require.Equal(t, userID, userIdentifierStr)
 		require.Equal(t, nextURL, flow.NextUrl)
 
 		// Step 3: Complete flow

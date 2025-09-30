@@ -102,7 +102,11 @@ func (c *Device) ExistsFlow(ctx context.Context, code string) (string, error) {
 		}
 		return "", nil
 	}
-	return pgxtypes.StringFromUUID(f.Identifier), nil
+	identifier, err := pgxtypes.StringFromUUID(f.Identifier)
+	if err != nil {
+		return "", errors.Join(ErrGettingFlow, err)
+	}
+	return identifier, nil
 }
 
 func (c *Device) PollFlow(ctx context.Context, poll string, pollRate time.Duration) (string, error) {
@@ -128,8 +132,14 @@ func (c *Device) PollFlow(ctx context.Context, poll string, pollRate time.Durati
 
 	// Check polling rate limit (skip for first poll when last_poll == created_at)
 	// Both timestamps use DEFAULT CURRENT_TIMESTAMP, so they're equal on first poll
-	lastPollTime := pgxtypes.TimeFromTimestamp(f.LastPoll)
-	createdAtTime := pgxtypes.TimeFromTimestamp(f.CreatedAt)
+	lastPollTime, err := pgxtypes.TimeFromTimestamp(f.LastPoll)
+	if err != nil {
+		return "", errors.Join(ErrPollingFlow, err)
+	}
+	createdAtTime, err := pgxtypes.TimeFromTimestamp(f.CreatedAt)
+	if err != nil {
+		return "", errors.Join(ErrPollingFlow, err)
+	}
 
 	// If this isn't the first poll, check rate limit
 	if !lastPollTime.Equal(createdAtTime) && lastPollTime.Add(pollRate).After(now()) {
@@ -154,7 +164,11 @@ func (c *Device) PollFlow(ctx context.Context, poll string, pollRate time.Durati
 			return "", errors.Join(ErrPollingFlow, err)
 		}
 
-		return pgxtypes.StringFromUUID(session.Identifier), nil
+		sessionID, err := pgxtypes.StringFromUUID(session.Identifier)
+		if err != nil {
+			return "", errors.Join(ErrPollingFlow, err)
+		}
+		return sessionID, nil
 	}
 
 	num, err := qtx.UpdateDeviceCodeFlowLastPollByPoll(ctx, pgxtypes.UUIDFromString(poll))

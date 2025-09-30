@@ -156,10 +156,18 @@ func (g *Session) revoke(ctx context.Context, request *SessionRevokeRequest) (*S
 	}()
 
 	qtx := g.options.Manager.Database().Queries.WithTx(tx)
+	identifier := pgxtypes.UUIDFromString(request.Identifier)
+	if !identifier.Valid {
+		return nil, huma.Error400BadRequest("invalid identifier")
+	}
+	userIdentifier := pgxtypes.UUIDFromString(session.UserInfo.Identifier)
+	if !userIdentifier.Valid {
+		return nil, huma.Error401Unauthorized("invalid session")
+	}
 
 	revocableSession, err := qtx.GetSessionByIdentifierAndUserIdentifier(ctx, generated.GetSessionByIdentifierAndUserIdentifierParams{
-		Identifier:     pgxtypes.UUIDFromString(request.Identifier),
-		UserIdentifier: pgxtypes.UUIDFromString(session.UserInfo.Identifier),
+		Identifier:     identifier,
+		UserIdentifier: userIdentifier,
 	})
 	if err != nil {
 		if !errors.Is(err, sql.ErrNoRows) {
@@ -194,12 +202,25 @@ func (g *Session) revoke(ctx context.Context, request *SessionRevokeRequest) (*S
 		return nil, huma.Error500InternalServerError("error accessing database")
 	}
 
+	identifierStr, err := pgxtypes.StringFromUUID(revocableSession.Identifier)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("error processing session identifier")
+	}
+	expiresAt, err := pgxtypes.TimeFromTimestamp(revocableSession.ExpiresAt)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("error processing session expiry")
+	}
+	createdAt, err := pgxtypes.TimeFromTimestamp(revocableSession.CreatedAt)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("error processing session creation time")
+	}
+
 	return &SessionRevokeResponse{
 		Body: SessionRevokeResponseBody{
-			Identifier: pgxtypes.StringFromUUID(revocableSession.Identifier),
+			Identifier: identifierStr,
 			Generation: uint32(revocableSession.Generation), //nolint:gosec // Generation is always non-negative
-			ExpiresAt:  pgxtypes.TimeFromTimestamp(revocableSession.ExpiresAt),
-			CreatedAt:  pgxtypes.TimeFromTimestamp(revocableSession.CreatedAt),
+			ExpiresAt:  expiresAt,
+			CreatedAt:  createdAt,
 		},
 	}, nil
 }
