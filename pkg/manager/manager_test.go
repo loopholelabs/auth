@@ -259,9 +259,9 @@ func TestCreateSession(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "test@example.com", user.PrimaryEmail)
 		require.Equal(t, "Test User", user.Name)
-		defaultOrgId, err := pgxtypes.StringFromUUID(user.DefaultOrganizationIdentifier)
+		defaultOrgID, err := pgxtypes.StringFromUUID(user.DefaultOrganizationIdentifier)
 		require.NoError(t, err)
-		require.Equal(t, session.OrganizationInfo.Identifier, defaultOrgId)
+		require.Equal(t, session.OrganizationInfo.Identifier, defaultOrgID)
 
 		// Verify organization was created
 		org, err := database.Queries.GetOrganizationByIdentifier(t.Context(), pgxtypes.UUIDFromString(session.OrganizationInfo.Identifier))
@@ -272,12 +272,12 @@ func TestCreateSession(t *testing.T) {
 		// Verify session was created
 		dbSession, err := database.Queries.GetSessionByIdentifier(t.Context(), pgxtypes.UUIDFromString(session.Identifier))
 		require.NoError(t, err)
-		orgId, err := pgxtypes.StringFromUUID(dbSession.OrganizationIdentifier)
+		orgID, err := pgxtypes.StringFromUUID(dbSession.OrganizationIdentifier)
 		require.NoError(t, err)
-		require.Equal(t, session.OrganizationInfo.Identifier, orgId)
-		userId, err := pgxtypes.StringFromUUID(dbSession.UserIdentifier)
+		require.Equal(t, session.OrganizationInfo.Identifier, orgID)
+		userID, err := pgxtypes.StringFromUUID(dbSession.UserIdentifier)
 		require.NoError(t, err)
-		require.Equal(t, session.UserInfo.Identifier, userId)
+		require.Equal(t, session.UserInfo.Identifier, userID)
 		require.Equal(t, int32(0), dbSession.Generation)
 	})
 

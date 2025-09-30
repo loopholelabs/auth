@@ -117,7 +117,9 @@ func (c *Device) PollFlow(ctx context.Context, poll string, pollRate time.Durati
 	}
 
 	defer func() {
-		err := tx.Rollback(ctx)
+		rollbackCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		err := tx.Rollback(rollbackCtx)
 		if err != nil && !errors.Is(err, pgx.ErrTxClosed) {
 			c.logger.Error().Err(err).Msg("failed to rollback transaction")
 		}

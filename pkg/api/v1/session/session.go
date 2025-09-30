@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"time"
 
 	"net/http"
 	"strings"
@@ -149,7 +150,9 @@ func (g *Session) revoke(ctx context.Context, request *SessionRevokeRequest) (*S
 	}
 
 	defer func() {
-		err := tx.Rollback(ctx)
+		rollbackCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		err := tx.Rollback(rollbackCtx)
 		if err != nil && !errors.Is(err, pgx.ErrTxClosed) {
 			g.logger.Error().Err(err).Msg("failed to rollback transaction")
 		}

@@ -161,7 +161,9 @@ func (c *Configuration) RotateSigningKey(ctx context.Context) error {
 		return errors.Join(ErrRotatingSigningKey, err)
 	}
 	defer func() {
-		err := tx.Rollback(ctx)
+		rollbackCtx, rollbackCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer rollbackCancel()
+		err := tx.Rollback(rollbackCtx)
 		if err != nil && !errors.Is(err, pgx.ErrTxClosed) {
 			c.logger.Error().Err(err).Msg("failed to rollback transaction")
 		}
@@ -249,7 +251,9 @@ func (c *Configuration) setDefault(key Key, value string) (string, error) {
 		return "", errors.Join(ErrSettingConfiguration, err)
 	}
 	defer func() {
-		err := tx.Rollback(ctx)
+		rollbackCtx, rollbackCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer rollbackCancel()
+		err := tx.Rollback(rollbackCtx)
 		if err != nil && !errors.Is(err, pgx.ErrTxClosed) {
 			c.logger.Error().Err(err).Msg("failed to rollback transaction")
 		}
@@ -292,7 +296,9 @@ func (c *Configuration) setDefaultSigningKey() error {
 		return errors.Join(ErrSettingDefaultSigningKey, err)
 	}
 	defer func() {
-		err := tx.Rollback(ctx)
+		rollbackCtx, rollbackCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer rollbackCancel()
+		err := tx.Rollback(rollbackCtx)
 		if err != nil && !errors.Is(err, pgx.ErrTxClosed) {
 			c.logger.Error().Err(err).Msg("failed to rollback transaction")
 		}

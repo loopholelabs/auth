@@ -308,7 +308,9 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 	}
 
 	defer func() {
-		err := tx.Rollback(ctx)
+		rollbackCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		err := tx.Rollback(rollbackCtx)
 		if err != nil && !errors.Is(err, pgx.ErrTxClosed) {
 			m.logger.Error().Err(err).Str("provider", provider.String()).Str("provider_identifier", data.ProviderIdentifier).Str("primary_email", data.PrimaryEmail).Msg("failed to rollback transaction")
 		}
@@ -452,7 +454,9 @@ func (m *Manager) CreateExistingSession(ctx context.Context, identifier string) 
 	}
 
 	defer func() {
-		err := tx.Rollback(ctx)
+		rollbackCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		err := tx.Rollback(rollbackCtx)
 		if err != nil && !errors.Is(err, pgx.ErrTxClosed) {
 			m.logger.Error().Err(err).Str("session_identifier", identifier).Msg("failed to rollback transaction")
 		}
@@ -551,7 +555,9 @@ func (m *Manager) RefreshSession(ctx context.Context, session credential.Session
 	}
 
 	defer func() {
-		err := tx.Rollback(ctx)
+		rollbackCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		err := tx.Rollback(rollbackCtx)
 		if err != nil && !errors.Is(err, pgx.ErrTxClosed) {
 			m.logger.Error().Err(err).Str("session", session.Identifier).Msg("failed to rollback transaction")
 		}
@@ -642,7 +648,9 @@ func (m *Manager) RevokeSession(ctx context.Context, identifier string) error {
 	}
 
 	defer func() {
-		err := tx.Rollback(ctx)
+		rollbackCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		err := tx.Rollback(rollbackCtx)
 		if err != nil && !errors.Is(err, pgx.ErrTxClosed) {
 			m.logger.Error().Err(err).Str("session", identifier).Msg("failed to rollback transaction")
 		}
