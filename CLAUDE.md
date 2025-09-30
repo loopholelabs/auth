@@ -60,21 +60,24 @@ make generate
 
 ### Testing
 
-```bash
-# Run all tests (uses 5min timeout for container-based tests)
-make test
+**IMPORTANT**: Tests MUST be run with the `test` build tag. Always use `make test-specific` unless the user explicitly requests otherwise.
 
-# Run specific tests
+```bash
+# PREFERRED: Run specific tests (includes -tags=test automatically)
 make test-specific TEST_ARGS="./pkg/manager/..."
 
-# Run full test suite with appropriate timeout
-go test -v ./... -timeout 5m
+# Run all tests (only if user explicitly asks)
+make test
 
-# Run single test with shorter timeout (if you know it's fast)
-go test -v ./pkg/manager/configuration/ -run TestKeyString -timeout 30s
+# If you must use go test directly, ALWAYS include -tags=test
+go test -v -tags=test ./pkg/manager/... -timeout 5m
 
-# Run tests without cache
-go test -count=1 -v ./path/to/package -timeout 5m
+# WRONG - Missing test tag (will fail)
+go test -v ./pkg/manager/... -timeout 5m  # DO NOT USE
+
+# Examples with test tag:
+go test -v -tags=test ./pkg/manager/configuration/ -run TestKeyString -timeout 30s
+go test -count=1 -v -tags=test ./path/to/package -timeout 5m
 ```
 
 **Important Test Timeout Considerations**:
@@ -102,6 +105,70 @@ go run cmd/main.go api --log "" --log-level debug --config .config.yaml
 
 # The server listens on 127.0.0.1:8080 by default
 # Note: Ask the user to run this command in the background if you need to test the API
+```
+
+## Input Validation and Documentation Pattern
+
+**Critical Rule**: API handlers MUST validate inputs before passing to manager functions.
+
+### API Handler Requirements
+
+1. Convert all UUID/timestamp inputs to pgx types using pgxtypes functions
+2. Return 400 Bad Request if conversion fails
+3. Add comments documenting validation status:
+   ```go
+   // Input validated: userID is a valid pgtype.UUID
+   // Non-PGX type: email is a string (not for direct database use)
+   result, err := manager.SomeFunction(ctx, userID, email)
+   ```
+
+### Manager Function Requirements
+
+1. Accept pgx types as parameters (not strings that need conversion)
+2. Add header comment indicating API handler usage:
+   ```go
+   // FunctionName does X
+   // Called from API handler - inputs should be pre-validated pgx types
+   // Defensive check: validates param.Valid (returns error → 500 if invalid)
+   ```
+3. Perform defensive validation (check `.Valid`):
+   ```go
+   if !identifier.Valid {
+       logger.Error().Msg("FunctionName called with invalid identifier - API handler validation failed")
+       return errors.Join(ErrFunctionName, ErrInvalidIdentifier)
+   }
+   ```
+
+### Why This Pattern?
+
+- **400 errors**: Invalid client input (caught at API boundary)
+- **500 errors**: Programming errors (API handler forgot to validate)
+- **Clear accountability**: Comments document where validation happens
+- **Defense in depth**: Manager functions still check, but log it as a bug
+
+### Example Anti-patterns (DO NOT DO):
+
+```go
+// BAD: Manager function converting strings
+func CompleteFlow(ctx context.Context, identifier string) error {
+    uuid, err := pgxtypes.UUIDFromString(identifier)  // NO! Should be done in API handler
+    // ...
+}
+
+// BAD: API handler not validating
+func callback(ctx context.Context, request *Request) (*Response, error) {
+    // NO! Passing raw string without validation
+    result, err := manager.CompleteFlow(ctx, request.State)
+    // ...
+}
+
+// BAD: No documentation of validation
+func callback(ctx context.Context, request *Request) (*Response, error) {
+    stateUUID, _ := pgxtypes.UUIDFromString(request.State)
+    // Missing comment about validation!
+    result, err := manager.CompleteFlow(ctx, stateUUID)
+    // ...
+}
 ```
 
 ## Architecture Overview

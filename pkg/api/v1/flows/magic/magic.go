@@ -12,9 +12,11 @@ import (
 
 	emailverifier "github.com/AfterShip/email-verifier"
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/loopholelabs/logging/types"
 
+	"github.com/loopholelabs/auth/internal/db/pgxtypes"
 	"github.com/loopholelabs/auth/internal/mailer"
 	"github.com/loopholelabs/auth/pkg/api/middleware/fiber"
 	"github.com/loopholelabs/auth/pkg/api/options"
@@ -90,7 +92,7 @@ func (m *Magic) login(ctx context.Context, request *MagicLoginRequest) (*struct{
 		return nil, huma.Error400BadRequest("invalid email address")
 	}
 
-	var deviceIdentifier string
+	var deviceUUID pgtype.UUID
 	if request.Code != "" {
 		if len(request.Code) != 8 {
 			return nil, huma.Error400BadRequest("invalid code")
@@ -99,7 +101,7 @@ func (m *Magic) login(ctx context.Context, request *MagicLoginRequest) (*struct{
 		if m.options.Manager.Device() == nil {
 			return nil, huma.Error401Unauthorized("device provider is not enabled")
 		}
-		deviceIdentifier, err = m.options.Manager.Device().ExistsFlow(ctx, request.Code)
+		deviceIdentifier, err := m.options.Manager.Device().ExistsFlow(ctx, request.Code)
 		if err != nil {
 			m.logger.Error().Err(err).Msg("error checking if flow exists")
 			return nil, huma.Error500InternalServerError("error checking if flow exists")
@@ -107,9 +109,24 @@ func (m *Magic) login(ctx context.Context, request *MagicLoginRequest) (*struct{
 		if deviceIdentifier == "" {
 			return nil, huma.Error404NotFound("device flow does not exist")
 		}
+
+		// Convert device identifier to pgtype.UUID
+		deviceUUID, err = pgxtypes.UUIDFromString(deviceIdentifier)
+		if err != nil {
+			m.logger.Error().Err(err).Str("device_id", deviceIdentifier).Msg("invalid device identifier from ExistsFlow")
+			return nil, huma.Error500InternalServerError("invalid device identifier")
+		}
+	} else {
+		// No device flow - use invalid UUID
+		deviceUUID = pgtype.UUID{Valid: false}
 	}
 
-	token, err := m.options.Manager.Magic().CreateFlow(ctx, request.Email, deviceIdentifier, "", request.Next)
+	// Call manager function
+	// Non-PGX type: request.Email is a string (already validated)
+	// Input validated: deviceUUID is a valid pgtype.UUID or Valid:false
+	// Input validated: userUUID is Valid:false (no user identifier)
+	// Non-PGX type: request.Next is a URL string (not for database)
+	token, err := m.options.Manager.Magic().CreateFlow(ctx, request.Email, deviceUUID, pgtype.UUID{Valid: false}, request.Next)
 	if err != nil {
 		m.logger.Error().Err(err).Msg("failed to get token")
 		return nil, huma.Error500InternalServerError("failed to get token")
@@ -177,7 +194,21 @@ func (m *Magic) callback(ctx context.Context, request *MagicCallbackRequest) (*M
 
 	if f.DeviceIdentifier != "" {
 		// Device flow - complete the device flow but don't set cookie
-		err = m.options.Manager.Device().CompleteFlow(ctx, f.DeviceIdentifier, session.Identifier)
+		// Convert identifiers to pgtype.UUID
+		deviceUUID, err := pgxtypes.UUIDFromString(f.DeviceIdentifier)
+		if err != nil {
+			m.logger.Error().Err(err).Str("device_id", f.DeviceIdentifier).Msg("invalid device identifier from flow")
+			return nil, huma.Error500InternalServerError("invalid device identifier")
+		}
+		sessionUUID, err := pgxtypes.UUIDFromString(session.Identifier)
+		if err != nil {
+			m.logger.Error().Err(err).Str("session_id", session.Identifier).Msg("invalid session identifier")
+			return nil, huma.Error500InternalServerError("invalid session identifier")
+		}
+
+		// Call manager function
+		// Input validated: deviceUUID and sessionUUID are valid pgtype.UUIDs
+		err = m.options.Manager.Device().CompleteFlow(ctx, deviceUUID, sessionUUID)
 		if err != nil {
 			m.logger.Error().Err(err).Msg("failed to complete flow")
 			return nil, huma.Error500InternalServerError("failed to complete flow")

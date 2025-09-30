@@ -331,8 +331,12 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 				organizationName = fmt.Sprintf("%s's Organization", data.UserName)
 			}
 			organizationIdentifier := uuid.New().String()
+			organizationUUID, err := pgxtypes.UUIDFromString(organizationIdentifier)
+			if err != nil {
+				return credential.Session{}, errors.Join(ErrCreatingSession, err)
+			}
 			err = qtx.CreateOrganization(ctx, generated.CreateOrganizationParams{
-				Identifier: pgxtypes.UUIDFromString(organizationIdentifier),
+				Identifier: organizationUUID,
 				Name:       organizationName,
 				IsDefault:  true,
 			})
@@ -340,11 +344,15 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 				return credential.Session{}, errors.Join(ErrCreatingSession, err)
 			}
 			userIdentifier := uuid.New().String()
+			userUUID, err := pgxtypes.UUIDFromString(userIdentifier)
+			if err != nil {
+				return credential.Session{}, errors.Join(ErrCreatingSession, err)
+			}
 			err = qtx.CreateUser(ctx, generated.CreateUserParams{
-				Identifier:                    pgxtypes.UUIDFromString(userIdentifier),
+				Identifier:                    userUUID,
 				Name:                          data.UserName,
 				PrimaryEmail:                  data.PrimaryEmail,
-				DefaultOrganizationIdentifier: pgxtypes.UUIDFromString(organizationIdentifier),
+				DefaultOrganizationIdentifier: organizationUUID,
 			})
 			if err != nil {
 				return credential.Session{}, errors.Join(ErrCreatingSession, err)
@@ -353,10 +361,14 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 		}
 
 		// This identity must be associated with the given user
+		dataUserUUID, err := pgxtypes.UUIDFromString(data.UserIdentifier)
+		if err != nil {
+			return credential.Session{}, errors.Join(ErrCreatingSession, err)
+		}
 		err = qtx.CreateIdentity(ctx, generated.CreateIdentityParams{
 			Provider:           params.Provider,
 			ProviderIdentifier: params.ProviderIdentifier,
-			UserIdentifier:     pgxtypes.UUIDFromString(data.UserIdentifier),
+			UserIdentifier:     dataUserUUID,
 			VerifiedEmails:     verifiedEmails,
 		})
 		if err != nil {
@@ -394,18 +406,26 @@ func (m *Manager) CreateSession(ctx context.Context, data flow.Data, provider fl
 	sessionIdentifier := uuid.New().String()
 	// PostgreSQL handles microsecond precision, no need to truncate
 	expiresAt := time.Now().Add(m.Configuration().SessionExpiry())
+	sessionUUID, err := pgxtypes.UUIDFromString(sessionIdentifier)
+	if err != nil {
+		return credential.Session{}, errors.Join(ErrCreatingSession, err)
+	}
+	expiresAtTS, err := pgxtypes.TimestampFromTime(expiresAt)
+	if err != nil {
+		return credential.Session{}, errors.Join(ErrCreatingSession, err)
+	}
 	err = m.db.Queries.CreateSession(ctx, generated.CreateSessionParams{
-		Identifier:             pgxtypes.UUIDFromString(sessionIdentifier),
+		Identifier:             sessionUUID,
 		OrganizationIdentifier: user.DefaultOrganizationIdentifier,
 		UserIdentifier:         user.Identifier,
 		Generation:             0,
-		ExpiresAt:              pgxtypes.TimestampFromTime(expiresAt),
+		ExpiresAt:              expiresAtTS,
 	})
 	if err != nil {
 		return credential.Session{}, errors.Join(ErrCreatingSession, err)
 	}
 
-	session, err := m.db.Queries.GetSessionByIdentifier(ctx, pgxtypes.UUIDFromString(sessionIdentifier))
+	session, err := m.db.Queries.GetSessionByIdentifier(ctx, sessionUUID)
 	if err != nil {
 		return credential.Session{}, errors.Join(ErrCreatingSession, err)
 	}
@@ -464,7 +484,11 @@ func (m *Manager) CreateExistingSession(ctx context.Context, identifier string) 
 
 	qtx := m.db.Queries.WithTx(tx)
 
-	session, err := qtx.GetSessionByIdentifier(ctx, pgxtypes.UUIDFromString(identifier))
+	identifierUUID, err := pgxtypes.UUIDFromString(identifier)
+	if err != nil {
+		return credential.Session{}, errors.Join(ErrCreatingSession, err)
+	}
+	session, err := qtx.GetSessionByIdentifier(ctx, identifierUUID)
 	if err != nil {
 		return credential.Session{}, errors.Join(ErrCreatingSession, err)
 	}
@@ -565,7 +589,11 @@ func (m *Manager) RefreshSession(ctx context.Context, session credential.Session
 
 	qtx := m.db.Queries.WithTx(tx)
 
-	s, err := qtx.GetSessionByIdentifier(ctx, pgxtypes.UUIDFromString(session.Identifier))
+	sessionIdentifierUUID, err := pgxtypes.UUIDFromString(session.Identifier)
+	if err != nil {
+		return credential.Session{}, errors.Join(ErrRefreshingSession, err)
+	}
+	s, err := qtx.GetSessionByIdentifier(ctx, sessionIdentifierUUID)
 	if err != nil {
 		return credential.Session{}, errors.Join(ErrRefreshingSession, err)
 	}
@@ -581,7 +609,11 @@ func (m *Manager) RefreshSession(ctx context.Context, session credential.Session
 	if s.Generation != int32(session.Generation) { //nolint:gosec // Safe comparison
 		session.Generation = uint32(s.Generation) //nolint:gosec // Generation is always non-negative
 
-		user, err := qtx.GetUserByIdentifier(ctx, pgxtypes.UUIDFromString(session.UserInfo.Identifier))
+		userIdentifierUUID, err := pgxtypes.UUIDFromString(session.UserInfo.Identifier)
+		if err != nil {
+			return credential.Session{}, errors.Join(ErrRefreshingSession, err)
+		}
+		user, err := qtx.GetUserByIdentifier(ctx, userIdentifierUUID)
 		if err != nil {
 			return credential.Session{}, errors.Join(ErrRefreshingSession, err)
 		}
@@ -591,9 +623,13 @@ func (m *Manager) RefreshSession(ctx context.Context, session credential.Session
 
 		if !session.OrganizationInfo.IsDefault {
 			// Not a default org, need to get the membership for updated role
+			orgIdentifierUUID, err := pgxtypes.UUIDFromString(session.OrganizationInfo.Identifier)
+			if err != nil {
+				return credential.Session{}, errors.Join(ErrRefreshingSession, err)
+			}
 			membership, err := qtx.GetMembershipByUserIdentifierAndOrganizationIdentifier(ctx, generated.GetMembershipByUserIdentifierAndOrganizationIdentifierParams{
-				UserIdentifier:         pgxtypes.UUIDFromString(session.UserInfo.Identifier),
-				OrganizationIdentifier: pgxtypes.UUIDFromString(session.OrganizationInfo.Identifier),
+				UserIdentifier:         userIdentifierUUID,
+				OrganizationIdentifier: orgIdentifierUUID,
 			})
 			if err != nil {
 				return credential.Session{}, errors.Join(ErrRefreshingSession, err)
@@ -605,7 +641,11 @@ func (m *Manager) RefreshSession(ctx context.Context, session credential.Session
 			session.OrganizationInfo.Role = membershipRole
 		}
 
-		organization, err := qtx.GetOrganizationByIdentifier(ctx, pgxtypes.UUIDFromString(session.OrganizationInfo.Identifier))
+		orgIdentifierUUID2, err := pgxtypes.UUIDFromString(session.OrganizationInfo.Identifier)
+		if err != nil {
+			return credential.Session{}, errors.Join(ErrRefreshingSession, err)
+		}
+		organization, err := qtx.GetOrganizationByIdentifier(ctx, orgIdentifierUUID2)
 		if err != nil {
 			return credential.Session{}, errors.Join(ErrRefreshingSession, err)
 		}
@@ -619,9 +659,13 @@ func (m *Manager) RefreshSession(ctx context.Context, session credential.Session
 		return credential.Session{}, errors.Join(ErrRefreshingSession, err)
 	}
 	if session.ExpiresAt.After(currentExpiresAt) {
+		expiresAtTS, err := pgxtypes.TimestampFromTime(session.ExpiresAt)
+		if err != nil {
+			return credential.Session{}, errors.Join(ErrRefreshingSession, err)
+		}
 		num, err := qtx.UpdateSessionExpiryByIdentifier(ctx, generated.UpdateSessionExpiryByIdentifierParams{
-			ExpiresAt:  pgxtypes.TimestampFromTime(session.ExpiresAt),
-			Identifier: pgxtypes.UUIDFromString(session.Identifier),
+			ExpiresAt:  expiresAtTS,
+			Identifier: sessionIdentifierUUID,
 		})
 		if err != nil {
 			return credential.Session{}, errors.Join(ErrRefreshingSession, err)
@@ -658,7 +702,11 @@ func (m *Manager) RevokeSession(ctx context.Context, identifier string) error {
 
 	qtx := m.db.Queries.WithTx(tx)
 
-	session, err := qtx.GetSessionByIdentifier(ctx, pgxtypes.UUIDFromString(identifier))
+	identifierUUID, err := pgxtypes.UUIDFromString(identifier)
+	if err != nil {
+		return errors.Join(ErrRevokingSession, err)
+	}
+	session, err := qtx.GetSessionByIdentifier(ctx, identifierUUID)
 	if err != nil {
 		return errors.Join(ErrRevokingSession, err)
 	}
@@ -675,9 +723,13 @@ func (m *Manager) RevokeSession(ctx context.Context, identifier string) error {
 	if err != nil {
 		return errors.Join(ErrRevokingSession, err)
 	}
+	expiresAtWithJitterTS, err := pgxtypes.TimestampFromTime(expiresAt.Add(Jitter))
+	if err != nil {
+		return errors.Join(ErrRevokingSession, err)
+	}
 	err = qtx.CreateSessionRevocation(ctx, generated.CreateSessionRevocationParams{
 		SessionIdentifier: session.Identifier,
-		ExpiresAt:         pgxtypes.TimestampFromTime(expiresAt.Add(Jitter)),
+		ExpiresAt:         expiresAtWithJitterTS,
 	})
 	if err != nil {
 		return errors.Join(ErrRevokingSession, err)

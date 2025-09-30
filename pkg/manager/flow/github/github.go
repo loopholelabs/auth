@@ -124,7 +124,22 @@ func (c *Github) Close() error {
 	return nil
 }
 
-func (c *Github) CreateFlow(ctx context.Context, deviceIdentifier string, userIdentifier string, nextURL string) (string, error) {
+// CreateFlow creates a new GitHub OAuth flow
+// Called from API handler - inputs should be pre-validated pgx types
+// Defensive check: validates deviceIdentifier.Valid and userIdentifier.Valid if provided
+// Note: nextURL is a string URL (not a database ID)
+func (c *Github) CreateFlow(ctx context.Context, deviceIdentifier pgtype.UUID, userIdentifier pgtype.UUID, nextURL string) (string, error) {
+	// Defensive validation - should never fail if API handler validated properly
+	// Note: These can be invalid (Valid: false) if not provided
+	if deviceIdentifier.Valid && deviceIdentifier.Bytes == [16]byte{} {
+		c.logger.Error().Msg("CreateFlow called with valid but empty device identifier - API handler validation failed")
+		return "", errors.Join(ErrCreatingFlow, errors.New("invalid device identifier"))
+	}
+	if userIdentifier.Valid && userIdentifier.Bytes == [16]byte{} {
+		c.logger.Error().Msg("CreateFlow called with valid but empty user identifier - API handler validation failed")
+		return "", errors.Join(ErrCreatingFlow, errors.New("invalid user identifier"))
+	}
+
 	if nextURL == "" {
 		return "", errors.Join(ErrCreatingFlow, ErrInvalidNextURL)
 	}
@@ -134,24 +149,17 @@ func (c *Github) CreateFlow(ctx context.Context, deviceIdentifier string, userId
 	}
 
 	identifierStr := uuid.New().String()
-	var deviceID, userID pgtype.UUID
-	if deviceIdentifier != "" {
-		deviceID = pgxtypes.UUIDFromString(deviceIdentifier)
-	} else {
-		deviceID = pgtype.UUID{Valid: false}
-	}
-	if userIdentifier != "" {
-		userID = pgxtypes.UUIDFromString(userIdentifier)
-	} else {
-		userID = pgtype.UUID{Valid: false}
-	}
 
+	identifier, err := pgxtypes.UUIDFromString(identifierStr)
+	if err != nil {
+		return "", errors.Join(ErrCreatingFlow, err)
+	}
 	params := generated.CreateGithubOAuthFlowParams{
-		Identifier:       pgxtypes.UUIDFromString(identifierStr),
+		Identifier:       identifier,
 		Verifier:         verifier,
 		Challenge:        pkce.CodeChallengeS256(verifier),
-		DeviceIdentifier: deviceID,
-		UserIdentifier:   userID,
+		DeviceIdentifier: deviceIdentifier,
+		UserIdentifier:   userIdentifier,
 		NextUrl:          nextURL,
 	}
 
@@ -164,8 +172,19 @@ func (c *Github) CreateFlow(ctx context.Context, deviceIdentifier string, userId
 	return c.config.AuthCodeURL(identifierStr, oauth2.AccessTypeOnline, oauth2.SetAuthURLParam(pkce.ParamCodeChallenge, params.Challenge), oauth2.SetAuthURLParam(pkce.ParamCodeChallengeMethod, pkce.MethodS256)), nil
 }
 
-func (c *Github) CompleteFlow(ctx context.Context, identifier string, code string) (flow.Data, error) {
-	c.logger.Debug().Str("identifier", identifier).Msg("completing flow")
+// CompleteFlow completes a GitHub OAuth flow
+// Called from API handler - inputs should be pre-validated pgx types
+// Defensive check: validates identifier.Valid (returns error → 500 if invalid)
+// Note: code is an OAuth authorization code string (not a database ID)
+func (c *Github) CompleteFlow(ctx context.Context, identifier pgtype.UUID, code string) (flow.Data, error) {
+	// Defensive validation - should never fail if API handler validated properly
+	if !identifier.Valid {
+		c.logger.Error().Msg("CompleteFlow called with invalid identifier - API handler validation failed")
+		return flow.Data{}, errors.Join(ErrCompletingFlow, errors.New("invalid flow identifier"))
+	}
+
+	identifierStr, _ := pgxtypes.StringFromUUID(identifier)
+	c.logger.Debug().Str("identifier", identifierStr).Msg("completing flow")
 	tx, err := c.db.BeginTx(ctx, sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
 		return flow.Data{}, errors.Join(ErrCompletingFlow, err)
@@ -182,12 +201,12 @@ func (c *Github) CompleteFlow(ctx context.Context, identifier string, code strin
 
 	qtx := c.db.Queries.WithTx(tx)
 
-	f, err := qtx.GetGithubOAuthFlowByIdentifier(ctx, pgxtypes.UUIDFromString(identifier))
+	f, err := qtx.GetGithubOAuthFlowByIdentifier(ctx, identifier)
 	if err != nil {
 		return flow.Data{}, errors.Join(ErrCompletingFlow, err)
 	}
 
-	num, err := qtx.DeleteGithubOAuthFlowByIdentifier(ctx, pgxtypes.UUIDFromString(identifier))
+	num, err := qtx.DeleteGithubOAuthFlowByIdentifier(ctx, identifier)
 	if err != nil {
 		return flow.Data{}, errors.Join(ErrCompletingFlow, err)
 	}
@@ -301,7 +320,11 @@ func (c *Github) CompleteFlow(ctx context.Context, identifier string, code strin
 func (c *Github) gc() (int64, error) {
 	ctx, cancel := context.WithTimeout(c.ctx, Timeout)
 	defer cancel()
-	return c.db.Queries.DeleteGithubOAuthFlowsBeforeCreatedAt(ctx, pgxtypes.TimestampFromTime(now().Add(-Expiry)))
+	ts, err := pgxtypes.TimestampFromTime(now().Add(-Expiry))
+	if err != nil {
+		return 0, err
+	}
+	return c.db.Queries.DeleteGithubOAuthFlowsBeforeCreatedAt(ctx, ts)
 }
 
 func (c *Github) doGC() {

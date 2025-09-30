@@ -78,14 +78,22 @@ func (c *Device) Close() error {
 func (c *Device) CreateFlow(ctx context.Context) (string, string, error) {
 	code := utils.RandomBase32String(8)
 	poll := uuid.New().String()
+	identifier, err := pgxtypes.NewUUID()
+	if err != nil {
+		return "", "", errors.Join(ErrCreatingFlow, err)
+	}
+	pollUUID, err := pgxtypes.UUIDFromString(poll)
+	if err != nil {
+		return "", "", errors.Join(ErrCreatingFlow, err)
+	}
 	params := generated.CreateDeviceCodeFlowParams{
-		Identifier: pgxtypes.NewUUID(),
+		Identifier: identifier,
 		Code:       code,
-		Poll:       pgxtypes.UUIDFromString(poll),
+		Poll:       pollUUID,
 	}
 
 	c.logger.Debug().Msg("creating flow")
-	err := c.db.Queries.CreateDeviceCodeFlow(ctx, params)
+	err = c.db.Queries.CreateDeviceCodeFlow(ctx, params)
 	if err != nil {
 		return "", "", errors.Join(ErrCreatingFlow, err)
 	}
@@ -109,8 +117,18 @@ func (c *Device) ExistsFlow(ctx context.Context, code string) (string, error) {
 	return identifier, nil
 }
 
-func (c *Device) PollFlow(ctx context.Context, poll string, pollRate time.Duration) (string, error) {
-	c.logger.Debug().Str("poll", poll).Msg("polling flow")
+// PollFlow checks if a device code flow has been completed
+// Called from API handler - inputs should be pre-validated pgx types
+// Defensive check: validates poll.Valid (returns error → 500 if invalid)
+func (c *Device) PollFlow(ctx context.Context, poll pgtype.UUID, pollRate time.Duration) (string, error) {
+	// Defensive validation - should never fail if API handler validated properly
+	if !poll.Valid {
+		c.logger.Error().Msg("PollFlow called with invalid poll UUID - API handler validation failed")
+		return "", errors.Join(ErrPollingFlow, errors.New("invalid poll identifier"))
+	}
+
+	pollStr, _ := pgxtypes.StringFromUUID(poll)
+	c.logger.Debug().Str("poll", pollStr).Msg("polling flow")
 	tx, err := c.db.BeginTx(ctx, sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
 		return "", errors.Join(ErrPollingFlow, err)
@@ -127,7 +145,7 @@ func (c *Device) PollFlow(ctx context.Context, poll string, pollRate time.Durati
 
 	qtx := c.db.Queries.WithTx(tx)
 
-	f, err := qtx.GetDeviceCodeFlowByPoll(ctx, pgxtypes.UUIDFromString(poll))
+	f, err := qtx.GetDeviceCodeFlowByPoll(ctx, poll)
 	if err != nil {
 		return "", errors.Join(ErrPollingFlow, err)
 	}
@@ -148,7 +166,7 @@ func (c *Device) PollFlow(ctx context.Context, poll string, pollRate time.Durati
 		return "", errors.Join(ErrPollingFlow, ErrRateLimitFlow)
 	}
 
-	if pgxtypes.IsValidUUID(f.SessionIdentifier) {
+	if f.SessionIdentifier.Valid {
 		session, err := qtx.GetSessionByIdentifier(ctx, f.SessionIdentifier)
 		if err != nil {
 			return "", errors.Join(ErrPollingFlow, err)
@@ -173,7 +191,7 @@ func (c *Device) PollFlow(ctx context.Context, poll string, pollRate time.Durati
 		return sessionID, nil
 	}
 
-	num, err := qtx.UpdateDeviceCodeFlowLastPollByPoll(ctx, pgxtypes.UUIDFromString(poll))
+	num, err := qtx.UpdateDeviceCodeFlowLastPollByPoll(ctx, poll)
 	if err != nil {
 		return "", errors.Join(ErrPollingFlow, err)
 	}
@@ -189,21 +207,23 @@ func (c *Device) PollFlow(ctx context.Context, poll string, pollRate time.Durati
 	return "", errors.Join(ErrPollingFlow, ErrFlowNotCompleted)
 }
 
-func (c *Device) CompleteFlow(ctx context.Context, identifier string, sessionIdentifier string) error {
-	c.logger.Debug().Str("identifier", identifier).Msg("completing flow")
-	var sessionID pgtype.UUID
-	if sessionIdentifier != "" {
-		// Validate that sessionIdentifier is a valid UUID
-		if _, err := uuid.Parse(sessionIdentifier); err != nil {
-			return errors.Join(ErrCompletingFlow, err)
-		}
-		sessionID = pgxtypes.UUIDFromString(sessionIdentifier)
-	} else {
-		sessionID = pgtype.UUID{Valid: false}
+// CompleteFlow marks a device flow as completed by setting its session identifier
+// Called from API handler - inputs should be pre-validated pgx types
+// Defensive check: validates identifier.Valid and sessionIdentifier.Valid (returns error → 500 if invalid)
+func (c *Device) CompleteFlow(ctx context.Context, identifier pgtype.UUID, sessionIdentifier pgtype.UUID) error {
+	// Defensive validation - should never fail if API handler validated properly
+	if !identifier.Valid {
+		c.logger.Error().Msg("CompleteFlow called with invalid identifier - API handler validation failed")
+		return errors.Join(ErrCompletingFlow, errors.New("invalid device identifier"))
 	}
+	// Note: sessionIdentifier can be invalid (Valid: false) if no session is set
+
+	identifierStr, _ := pgxtypes.StringFromUUID(identifier)
+	c.logger.Debug().Str("identifier", identifierStr).Msg("completing flow")
+
 	num, err := c.db.Queries.UpdateDeviceCodeFlowSessionIdentifierByIdentifier(ctx, generated.UpdateDeviceCodeFlowSessionIdentifierByIdentifierParams{
-		SessionIdentifier: sessionID,
-		Identifier:        pgxtypes.UUIDFromString(identifier),
+		SessionIdentifier: sessionIdentifier,
+		Identifier:        identifier,
 	})
 	if err != nil {
 		return errors.Join(ErrCompletingFlow, err)
@@ -217,7 +237,11 @@ func (c *Device) CompleteFlow(ctx context.Context, identifier string, sessionIde
 func (c *Device) gc() (int64, error) {
 	ctx, cancel := context.WithTimeout(c.ctx, Timeout)
 	defer cancel()
-	return c.db.Queries.DeleteDeviceCodeFlowsBeforeCreatedAt(ctx, pgxtypes.TimestampFromTime(now().Add(-Expiry)))
+	ts, err := pgxtypes.TimestampFromTime(now().Add(-Expiry))
+	if err != nil {
+		return 0, err
+	}
+	return c.db.Queries.DeleteDeviceCodeFlowsBeforeCreatedAt(ctx, ts)
 }
 
 func (c *Device) doGC() {

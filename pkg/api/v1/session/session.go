@@ -159,12 +159,12 @@ func (g *Session) revoke(ctx context.Context, request *SessionRevokeRequest) (*S
 	}()
 
 	qtx := g.options.Manager.Database().Queries.WithTx(tx)
-	identifier := pgxtypes.UUIDFromString(request.Identifier)
-	if !identifier.Valid {
+	identifier, err := pgxtypes.UUIDFromString(request.Identifier)
+	if err != nil {
 		return nil, huma.Error400BadRequest("invalid identifier")
 	}
-	userIdentifier := pgxtypes.UUIDFromString(session.UserInfo.Identifier)
-	if !userIdentifier.Valid {
+	userIdentifier, err := pgxtypes.UUIDFromString(session.UserInfo.Identifier)
+	if err != nil {
 		return nil, huma.Error401Unauthorized("invalid session")
 	}
 

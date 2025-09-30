@@ -81,8 +81,8 @@ func (g *User) info(ctx context.Context, _ *struct{}) (*UserInfoResponse, error)
 		return nil, huma.Error401Unauthorized("invalid session")
 	}
 
-	userIdentifier := pgxtypes.UUIDFromString(session.UserInfo.Identifier)
-	if !userIdentifier.Valid {
+	userIdentifier, err := pgxtypes.UUIDFromString(session.UserInfo.Identifier)
+	if err != nil {
 		return nil, huma.Error401Unauthorized("invalid session")
 	}
 
@@ -200,6 +200,12 @@ func (g *User) update(ctx context.Context, request *UserUpdateRequest) (*struct{
 		}
 	}
 
+	// Convert the user identifier once for reuse throughout the function
+	userIdentifier, err := pgxtypes.UUIDFromString(session.UserInfo.Identifier)
+	if err != nil {
+		return nil, huma.Error401Unauthorized("invalid session")
+	}
+
 	tx, err := g.options.Manager.Database().BeginTx(ctx, sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
 		g.logger.Error().Err(err).Msg("error beginning transaction")
@@ -218,7 +224,7 @@ func (g *User) update(ctx context.Context, request *UserUpdateRequest) (*struct{
 	qtx := g.options.Manager.Database().Queries.WithTx(tx)
 
 	if request.Email != "" {
-		identities, err := qtx.GetAllIdentitiesByUserIdentifier(ctx, pgxtypes.UUIDFromString(session.UserInfo.Identifier))
+		identities, err := qtx.GetAllIdentitiesByUserIdentifier(ctx, userIdentifier)
 		if err != nil {
 			g.logger.Error().Err(err).Msg("error retrieving user identities")
 			return nil, huma.Error500InternalServerError("error retrieving user identities")
@@ -249,7 +255,7 @@ func (g *User) update(ctx context.Context, request *UserUpdateRequest) (*struct{
 
 		num, err := qtx.UpdateUserPrimaryEmailByIdentifier(ctx, generated.UpdateUserPrimaryEmailByIdentifierParams{
 			PrimaryEmail: request.Email,
-			Identifier:   pgxtypes.UUIDFromString(session.UserInfo.Identifier),
+			Identifier:   userIdentifier,
 		})
 		if err != nil {
 			g.logger.Error().Err(err).Msg("error updating user primary email")
@@ -264,7 +270,7 @@ func (g *User) update(ctx context.Context, request *UserUpdateRequest) (*struct{
 	if request.Name != "" {
 		num, err := qtx.UpdateUserNameByIdentifier(ctx, generated.UpdateUserNameByIdentifierParams{
 			Name:       request.Name,
-			Identifier: pgxtypes.UUIDFromString(session.UserInfo.Identifier),
+			Identifier: userIdentifier,
 		})
 		if err != nil {
 			g.logger.Error().Err(err).Msg("error updating user name")
@@ -276,12 +282,12 @@ func (g *User) update(ctx context.Context, request *UserUpdateRequest) (*struct{
 		}
 	}
 
-	numInvalidations, err := qtx.CreateSessionInvalidationsFromSessionByUserIdentifier(ctx, pgxtypes.UUIDFromString(session.UserInfo.Identifier))
+	numInvalidations, err := qtx.CreateSessionInvalidationsFromSessionByUserIdentifier(ctx, userIdentifier)
 	if err != nil {
 		g.logger.Error().Err(err).Msg("error creating session invalidations")
 		return nil, huma.Error500InternalServerError("error creating session invalidations")
 	}
-	numSessions, err := qtx.IncrementAllSessionGenerationByUserIdentifier(ctx, pgxtypes.UUIDFromString(session.UserInfo.Identifier))
+	numSessions, err := qtx.IncrementAllSessionGenerationByUserIdentifier(ctx, userIdentifier)
 	if err != nil {
 		g.logger.Error().Err(err).Msg("error incrementing session generation")
 		return nil, huma.Error500InternalServerError("error incrementing session generation")

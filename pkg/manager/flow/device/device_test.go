@@ -108,7 +108,9 @@ func TestDevice_CreateFlow(t *testing.T) {
 		assert.Equal(t, createdAt, lastPoll)
 
 		// Verify flow can be retrieved by poll
-		flowByPoll, err := database.Queries.GetDeviceCodeFlowByPoll(t.Context(), pgxtypes.UUIDFromString(poll))
+		pollUUID, err := pgxtypes.UUIDFromString(poll)
+		require.NoError(t, err)
+		flowByPoll, err := database.Queries.GetDeviceCodeFlowByPoll(t.Context(), pollUUID)
 		require.NoError(t, err)
 		assert.Equal(t, flowByCode.Identifier, flowByPoll.Identifier)
 	})
@@ -250,8 +252,10 @@ func TestDevice_CompleteFlow(t *testing.T) {
 	createTestSession := func(t *testing.T) string {
 		// Create organization first
 		orgID := uuid.New().String()
-		err := database.Queries.CreateOrganization(t.Context(), generated.CreateOrganizationParams{
-			Identifier: pgxtypes.UUIDFromString(orgID),
+		orgUUID, err := pgxtypes.UUIDFromString(orgID)
+		require.NoError(t, err)
+		err = database.Queries.CreateOrganization(t.Context(), generated.CreateOrganizationParams{
+			Identifier: orgUUID,
 			Name:       "Test Org",
 			IsDefault:  false,
 		})
@@ -259,22 +263,28 @@ func TestDevice_CompleteFlow(t *testing.T) {
 
 		// Create user
 		userID := uuid.New().String()
+		userUUID, err := pgxtypes.UUIDFromString(userID)
+		require.NoError(t, err)
 		err = database.Queries.CreateUser(t.Context(), generated.CreateUserParams{
-			Identifier:                    pgxtypes.UUIDFromString(userID),
+			Identifier:                    userUUID,
 			Name:                          "Test User",
 			PrimaryEmail:                  "test-" + userID[:8] + "@example.com",
-			DefaultOrganizationIdentifier: pgxtypes.UUIDFromString(orgID),
+			DefaultOrganizationIdentifier: orgUUID,
 		})
 		require.NoError(t, err)
 
 		// Create session
 		sessionID := uuid.New().String()
+		sessionUUID, err := pgxtypes.UUIDFromString(sessionID)
+		require.NoError(t, err)
+		expiresAt, err := pgxtypes.TimestampFromTime(time.Now().Add(time.Hour))
+		require.NoError(t, err)
 		err = database.Queries.CreateSession(t.Context(), generated.CreateSessionParams{
-			Identifier:             pgxtypes.UUIDFromString(sessionID),
-			OrganizationIdentifier: pgxtypes.UUIDFromString(orgID),
-			UserIdentifier:         pgxtypes.UUIDFromString(userID),
+			Identifier:             sessionUUID,
+			OrganizationIdentifier: orgUUID,
+			UserIdentifier:         userUUID,
 			Generation:             1,
-			ExpiresAt:              pgxtypes.TimestampFromTime(time.Now().Add(time.Hour)),
+			ExpiresAt:              expiresAt,
 		})
 		require.NoError(t, err)
 		return sessionID
@@ -297,7 +307,9 @@ func TestDevice_CompleteFlow(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify flow was updated
-		flow, err := database.Queries.GetDeviceCodeFlowByPoll(t.Context(), pgxtypes.UUIDFromString(poll))
+		pollUUID, err := pgxtypes.UUIDFromString(poll)
+		require.NoError(t, err)
+		flow, err := database.Queries.GetDeviceCodeFlowByPoll(t.Context(), pollUUID)
 		require.NoError(t, err)
 		assert.True(t, flow.SessionIdentifier.Valid)
 		sessionIDStr, err := pgxtypes.StringFromUUID(flow.SessionIdentifier)
@@ -327,7 +339,9 @@ func TestDevice_CompleteFlow(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify flow was updated with null session
-		flow, err := database.Queries.GetDeviceCodeFlowByPoll(t.Context(), pgxtypes.UUIDFromString(poll))
+		pollUUID, err := pgxtypes.UUIDFromString(poll)
+		require.NoError(t, err)
+		flow, err := database.Queries.GetDeviceCodeFlowByPoll(t.Context(), pollUUID)
 		require.NoError(t, err)
 		assert.False(t, flow.SessionIdentifier.Valid)
 	})
@@ -370,7 +384,9 @@ func TestDevice_CompleteFlow(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify flow has the second session
-		flow, err := database.Queries.GetDeviceCodeFlowByPoll(t.Context(), pgxtypes.UUIDFromString(poll))
+		pollUUID, err := pgxtypes.UUIDFromString(poll)
+		require.NoError(t, err)
+		flow, err := database.Queries.GetDeviceCodeFlowByPoll(t.Context(), pollUUID)
 		require.NoError(t, err)
 		sessionIDStr, err := pgxtypes.StringFromUUID(flow.SessionIdentifier)
 		require.NoError(t, err)
@@ -399,8 +415,10 @@ func TestDevice_PollFlow(t *testing.T) {
 	createTestSession := func(t *testing.T) string {
 		// Create organization first
 		orgID := uuid.New().String()
-		err := database.Queries.CreateOrganization(t.Context(), generated.CreateOrganizationParams{
-			Identifier: pgxtypes.UUIDFromString(orgID),
+		orgUUID, err := pgxtypes.UUIDFromString(orgID)
+		require.NoError(t, err)
+		err = database.Queries.CreateOrganization(t.Context(), generated.CreateOrganizationParams{
+			Identifier: orgUUID,
 			Name:       "Test Org",
 			IsDefault:  false,
 		})
@@ -408,22 +426,28 @@ func TestDevice_PollFlow(t *testing.T) {
 
 		// Create user
 		userID := uuid.New().String()
+		userUUID, err := pgxtypes.UUIDFromString(userID)
+		require.NoError(t, err)
 		err = database.Queries.CreateUser(t.Context(), generated.CreateUserParams{
-			Identifier:                    pgxtypes.UUIDFromString(userID),
+			Identifier:                    userUUID,
 			Name:                          "Test User",
 			PrimaryEmail:                  "test-" + userID[:8] + "@example.com",
-			DefaultOrganizationIdentifier: pgxtypes.UUIDFromString(orgID),
+			DefaultOrganizationIdentifier: orgUUID,
 		})
 		require.NoError(t, err)
 
 		// Create session
 		sessionID := uuid.New().String()
+		sessionUUID, err := pgxtypes.UUIDFromString(sessionID)
+		require.NoError(t, err)
+		expiresAt, err := pgxtypes.TimestampFromTime(time.Now().Add(time.Hour))
+		require.NoError(t, err)
 		err = database.Queries.CreateSession(t.Context(), generated.CreateSessionParams{
-			Identifier:             pgxtypes.UUIDFromString(sessionID),
-			OrganizationIdentifier: pgxtypes.UUIDFromString(orgID),
-			UserIdentifier:         pgxtypes.UUIDFromString(userID),
+			Identifier:             sessionUUID,
+			OrganizationIdentifier: orgUUID,
+			UserIdentifier:         userUUID,
 			Generation:             1,
-			ExpiresAt:              pgxtypes.TimestampFromTime(time.Now().Add(time.Hour)),
+			ExpiresAt:              expiresAt,
 		})
 		require.NoError(t, err)
 		return sessionID
@@ -442,7 +466,9 @@ func TestDevice_PollFlow(t *testing.T) {
 		assert.Empty(t, sessionID)
 
 		// Verify LastPoll was updated
-		flow, err := database.Queries.GetDeviceCodeFlowByPoll(t.Context(), pgxtypes.UUIDFromString(poll))
+		pollUUID, err := pgxtypes.UUIDFromString(poll)
+		require.NoError(t, err)
+		flow, err := database.Queries.GetDeviceCodeFlowByPoll(t.Context(), pollUUID)
 		require.NoError(t, err)
 		lastPollTime, err := pgxtypes.TimeFromTimestamp(flow.LastPoll)
 		require.NoError(t, err)
@@ -464,7 +490,9 @@ func TestDevice_PollFlow(t *testing.T) {
 		require.NoError(t, err)
 
 		// Check the flow state before polling
-		flow, err := database.Queries.GetDeviceCodeFlowByPoll(t.Context(), pgxtypes.UUIDFromString(poll))
+		pollUUID, err := pgxtypes.UUIDFromString(poll)
+		require.NoError(t, err)
+		flow, err := database.Queries.GetDeviceCodeFlowByPoll(t.Context(), pollUUID)
 		require.NoError(t, err)
 		t.Logf("Flow LastPoll valid: %v, time: %v", flow.LastPoll.Valid, flow.LastPoll.Time)
 		t.Logf("Flow SessionIdentifier valid: %v", flow.SessionIdentifier.Valid)
@@ -475,7 +503,9 @@ func TestDevice_PollFlow(t *testing.T) {
 		assert.Equal(t, sessionID, returnedSessionID)
 
 		// Verify flow was deleted
-		_, err = database.Queries.GetDeviceCodeFlowByPoll(t.Context(), pgxtypes.UUIDFromString(poll))
+		pollUUID2, err := pgxtypes.UUIDFromString(poll)
+		require.NoError(t, err)
+		_, err = database.Queries.GetDeviceCodeFlowByPoll(t.Context(), pollUUID2)
 		assert.Error(t, err)
 		assert.ErrorIs(t, err, sql.ErrNoRows)
 	})
@@ -497,7 +527,9 @@ func TestDevice_PollFlow(t *testing.T) {
 		time.Sleep(time.Second)
 
 		// Set LastPoll to very recent time
-		num, err := database.Queries.UpdateDeviceCodeFlowLastPollByPoll(t.Context(), pgxtypes.UUIDFromString(poll))
+		pollUUID, err := pgxtypes.UUIDFromString(poll)
+		require.NoError(t, err)
+		num, err := database.Queries.UpdateDeviceCodeFlowLastPollByPoll(t.Context(), pollUUID)
 		require.NoError(t, err)
 		require.Equal(t, int64(1), num)
 
@@ -553,7 +585,9 @@ func TestDevice_PollFlow(t *testing.T) {
 		require.NoError(t, err)
 
 		// Delete the session (to simulate invalid foreign key)
-		num, err := database.Queries.DeleteSessionByIdentifier(t.Context(), pgxtypes.UUIDFromString(sessionID))
+		sessionUUID, err := pgxtypes.UUIDFromString(sessionID)
+		require.NoError(t, err)
+		num, err := database.Queries.DeleteSessionByIdentifier(t.Context(), sessionUUID)
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), num)
 

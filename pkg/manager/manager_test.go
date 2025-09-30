@@ -255,7 +255,9 @@ func TestCreateSession(t *testing.T) {
 		require.Equal(t, flowData.VerifiedEmails, verifiedEmails)
 
 		// Verify user was created
-		user, err := database.Queries.GetUserByIdentifier(t.Context(), pgxtypes.UUIDFromString(session.UserInfo.Identifier))
+		userUUID, err := pgxtypes.UUIDFromString(session.UserInfo.Identifier)
+		require.NoError(t, err)
+		user, err := database.Queries.GetUserByIdentifier(t.Context(), userUUID)
 		require.NoError(t, err)
 		require.Equal(t, "test@example.com", user.PrimaryEmail)
 		require.Equal(t, "Test User", user.Name)
@@ -264,13 +266,17 @@ func TestCreateSession(t *testing.T) {
 		require.Equal(t, session.OrganizationInfo.Identifier, defaultOrgID)
 
 		// Verify organization was created
-		org, err := database.Queries.GetOrganizationByIdentifier(t.Context(), pgxtypes.UUIDFromString(session.OrganizationInfo.Identifier))
+		orgUUID, err := pgxtypes.UUIDFromString(session.OrganizationInfo.Identifier)
+		require.NoError(t, err)
+		org, err := database.Queries.GetOrganizationByIdentifier(t.Context(), orgUUID)
 		require.NoError(t, err)
 		require.Equal(t, "Test User's Organization", org.Name)
 		require.True(t, org.IsDefault)
 
 		// Verify session was created
-		dbSession, err := database.Queries.GetSessionByIdentifier(t.Context(), pgxtypes.UUIDFromString(session.Identifier))
+		sessionUUID, err := pgxtypes.UUIDFromString(session.Identifier)
+		require.NoError(t, err)
+		dbSession, err := database.Queries.GetSessionByIdentifier(t.Context(), sessionUUID)
 		require.NoError(t, err)
 		orgID, err := pgxtypes.StringFromUUID(dbSession.OrganizationIdentifier)
 		require.NoError(t, err)
@@ -327,7 +333,9 @@ func TestCreateSession(t *testing.T) {
 		require.Equal(t, session.UserInfo.Identifier, userIdentifierStr)
 
 		// Verify organization name when no name is provided
-		org, err := database.Queries.GetOrganizationByIdentifier(t.Context(), pgxtypes.UUIDFromString(session.OrganizationInfo.Identifier))
+		orgUUID, err := pgxtypes.UUIDFromString(session.OrganizationInfo.Identifier)
+		require.NoError(t, err)
+		org, err := database.Queries.GetOrganizationByIdentifier(t.Context(), orgUUID)
 		require.NoError(t, err)
 		require.Contains(t, org.Name, " Organization") // Should have generated a random name
 	})
@@ -335,19 +343,23 @@ func TestCreateSession(t *testing.T) {
 	t.Run("ExistingUserNewIdentity", func(t *testing.T) {
 		// First create a user with an organization
 		orgID := uuid.New().String()
-		err := database.Queries.CreateOrganization(t.Context(), generated.CreateOrganizationParams{
-			Identifier: pgxtypes.UUIDFromString(orgID),
+		orgUUID, err := pgxtypes.UUIDFromString(orgID)
+		require.NoError(t, err)
+		err = database.Queries.CreateOrganization(t.Context(), generated.CreateOrganizationParams{
+			Identifier: orgUUID,
 			Name:       "Existing Org",
 			IsDefault:  true,
 		})
 		require.NoError(t, err)
 
 		userID := uuid.New().String()
+		userUUID, err := pgxtypes.UUIDFromString(userID)
+		require.NoError(t, err)
 		err = database.Queries.CreateUser(t.Context(), generated.CreateUserParams{
-			Identifier:                    pgxtypes.UUIDFromString(userID),
+			Identifier:                    userUUID,
 			Name:                          "test",
 			PrimaryEmail:                  "existing@example.com",
-			DefaultOrganizationIdentifier: pgxtypes.UUIDFromString(orgID),
+			DefaultOrganizationIdentifier: orgUUID,
 		})
 		require.NoError(t, err)
 
@@ -382,19 +394,23 @@ func TestCreateSession(t *testing.T) {
 	t.Run("ExistingIdentityReturnsSession", func(t *testing.T) {
 		// First create a complete user setup
 		orgID := uuid.New().String()
-		err := database.Queries.CreateOrganization(t.Context(), generated.CreateOrganizationParams{
-			Identifier: pgxtypes.UUIDFromString(orgID),
+		orgUUID, err := pgxtypes.UUIDFromString(orgID)
+		require.NoError(t, err)
+		err = database.Queries.CreateOrganization(t.Context(), generated.CreateOrganizationParams{
+			Identifier: orgUUID,
 			Name:       "Test Org",
 			IsDefault:  true,
 		})
 		require.NoError(t, err)
 
 		userID := uuid.New().String()
+		userUUID, err := pgxtypes.UUIDFromString(userID)
+		require.NoError(t, err)
 		err = database.Queries.CreateUser(t.Context(), generated.CreateUserParams{
-			Identifier:                    pgxtypes.UUIDFromString(userID),
+			Identifier:                    userUUID,
 			Name:                          "test",
 			PrimaryEmail:                  "identity@example.com",
-			DefaultOrganizationIdentifier: pgxtypes.UUIDFromString(orgID),
+			DefaultOrganizationIdentifier: orgUUID,
 		})
 		require.NoError(t, err)
 
@@ -403,7 +419,7 @@ func TestCreateSession(t *testing.T) {
 		err = database.Queries.CreateIdentity(t.Context(), generated.CreateIdentityParams{
 			Provider:           "GITHUB",
 			ProviderIdentifier: "github-identity-999",
-			UserIdentifier:     pgxtypes.UUIDFromString(userID),
+			UserIdentifier:     userUUID,
 			VerifiedEmails:     verifiedEmails,
 		})
 		require.NoError(t, err)
@@ -425,7 +441,9 @@ func TestCreateSession(t *testing.T) {
 		require.Equal(t, orgID, session.OrganizationInfo.Identifier)
 
 		// Verify a new session was still created
-		dbSession, err := database.Queries.GetSessionByIdentifier(t.Context(), pgxtypes.UUIDFromString(session.Identifier))
+		sessionUUID, err := pgxtypes.UUIDFromString(session.Identifier)
+		require.NoError(t, err)
+		dbSession, err := database.Queries.GetSessionByIdentifier(t.Context(), sessionUUID)
 		require.NoError(t, err)
 		sessionUserID, err := pgxtypes.StringFromUUID(dbSession.UserIdentifier)
 		require.NoError(t, err)
@@ -583,11 +601,15 @@ func TestCreateSession(t *testing.T) {
 		require.NoError(t, err)
 
 		qtx := database.Queries.WithTx(tx)
+		userUUID, err := pgxtypes.UUIDFromString(userID)
+		require.NoError(t, err)
+		nonExistentOrgUUID, err := pgxtypes.UUIDFromString(nonExistentOrgID)
+		require.NoError(t, err)
 		err = qtx.CreateUser(t.Context(), generated.CreateUserParams{
-			Identifier:                    pgxtypes.UUIDFromString(userID),
+			Identifier:                    userUUID,
 			Name:                          "test",
 			PrimaryEmail:                  "rollback@example.com",
-			DefaultOrganizationIdentifier: pgxtypes.UUIDFromString(nonExistentOrgID), // This doesn't exist
+			DefaultOrganizationIdentifier: nonExistentOrgUUID, // This doesn't exist
 		})
 		// This should fail due to foreign key constraint
 		require.Error(t, err)
@@ -629,7 +651,9 @@ func TestCreateSession(t *testing.T) {
 		require.NotNil(t, session)
 
 		// Verify special characters were handled correctly
-		org, err := database.Queries.GetOrganizationByIdentifier(t.Context(), pgxtypes.UUIDFromString(session.OrganizationInfo.Identifier))
+		orgUUID, err := pgxtypes.UUIDFromString(session.OrganizationInfo.Identifier)
+		require.NoError(t, err)
+		org, err := database.Queries.GetOrganizationByIdentifier(t.Context(), orgUUID)
 		require.NoError(t, err)
 		require.Equal(t, "User's \"Special\" Name's Organization", org.Name)
 
@@ -744,7 +768,9 @@ func TestCreateSessionEdgeCases(t *testing.T) {
 		require.Equal(t, uint32(0), session.Generation)
 
 		// Verify in database
-		dbSession, err := database.Queries.GetSessionByIdentifier(t.Context(), pgxtypes.UUIDFromString(session.Identifier))
+		sessionUUID, err := pgxtypes.UUIDFromString(session.Identifier)
+		require.NoError(t, err)
+		dbSession, err := database.Queries.GetSessionByIdentifier(t.Context(), sessionUUID)
 		require.NoError(t, err)
 		require.Equal(t, int32(0), dbSession.Generation)
 	})
@@ -884,7 +910,9 @@ func TestCreateSessionValidation(t *testing.T) {
 		require.Equal(t, "John Doe", session.UserInfo.Name)
 
 		// Verify in database
-		user, err := database.Queries.GetUserByIdentifier(t.Context(), pgxtypes.UUIDFromString(session.UserInfo.Identifier))
+		userUUID, err := pgxtypes.UUIDFromString(session.UserInfo.Identifier)
+		require.NoError(t, err)
+		user, err := database.Queries.GetUserByIdentifier(t.Context(), userUUID)
 		require.NoError(t, err)
 		require.Equal(t, "John Doe", user.Name)
 	})
@@ -937,7 +965,9 @@ func TestRefreshSession(t *testing.T) {
 		require.Equal(t, originalGeneration, refreshedSession.Generation, "Generation should not change when only refreshing expiry")
 
 		// Verify in database
-		dbSession, err := database.Queries.GetSessionByIdentifier(t.Context(), pgxtypes.UUIDFromString(session.Identifier))
+		sessionUUID, err := pgxtypes.UUIDFromString(session.Identifier)
+		require.NoError(t, err)
+		dbSession, err := database.Queries.GetSessionByIdentifier(t.Context(), sessionUUID)
 		require.NoError(t, err)
 		// The refreshed session should have exactly the same expiry as in the database
 		dbExpiry, err := pgxtypes.TimeFromTimestamp(dbSession.ExpiresAt)
@@ -980,23 +1010,27 @@ func TestRefreshSession(t *testing.T) {
 		require.NoError(t, err)
 
 		// Simulate a generation update in the database (e.g., from another service)
+		sessionUUID, err := pgxtypes.UUIDFromString(session.Identifier)
+		require.NoError(t, err)
 		num, err := database.Queries.UpdateSessionGenerationByIdentifier(t.Context(), generated.UpdateSessionGenerationByIdentifierParams{
 			Generation: int32(session.Generation + 1),
-			Identifier: pgxtypes.UUIDFromString(session.Identifier),
+			Identifier: sessionUUID,
 		})
 		require.NoError(t, err)
 		require.Equal(t, int64(1), num)
 
 		// Update user info in database to simulate profile changes
+		userUUID, err := pgxtypes.UUIDFromString(session.UserInfo.Identifier)
+		require.NoError(t, err)
 		num, err = database.Queries.UpdateUserNameByIdentifier(t.Context(), generated.UpdateUserNameByIdentifierParams{
-			Identifier: pgxtypes.UUIDFromString(session.UserInfo.Identifier),
+			Identifier: userUUID,
 			Name:       "Updated Name",
 		})
 		require.NoError(t, err)
 		require.Equal(t, int64(1), num)
 
 		num, err = database.Queries.UpdateUserPrimaryEmailByIdentifier(t.Context(), generated.UpdateUserPrimaryEmailByIdentifierParams{
-			Identifier:   pgxtypes.UUIDFromString(session.UserInfo.Identifier),
+			Identifier:   userUUID,
 			PrimaryEmail: "updated@example.com",
 		})
 		require.NoError(t, err)
@@ -1050,9 +1084,13 @@ func TestRefreshSession(t *testing.T) {
 		// Manually extend the session expiry in the database to be longer than what configuration would set
 		// PostgreSQL handles microsecond precision, no need to truncate
 		futureExpiry := time.Now().Add(time.Hour)
+		expiresAtTS, err := pgxtypes.TimestampFromTime(futureExpiry)
+		require.NoError(t, err)
+		sessionUUID, err := pgxtypes.UUIDFromString(session.Identifier)
+		require.NoError(t, err)
 		num, err := database.Queries.UpdateSessionExpiryByIdentifier(t.Context(), generated.UpdateSessionExpiryByIdentifierParams{
-			ExpiresAt:  pgxtypes.TimestampFromTime(futureExpiry),
-			Identifier: pgxtypes.UUIDFromString(session.Identifier),
+			ExpiresAt:  expiresAtTS,
+			Identifier: sessionUUID,
 		})
 		require.NoError(t, err)
 		require.Equal(t, int64(1), num)
@@ -1066,7 +1104,7 @@ func TestRefreshSession(t *testing.T) {
 			"Expiry should not be reduced below database value")
 
 		// Verify database still has the longer expiry
-		dbSession, err := database.Queries.GetSessionByIdentifier(t.Context(), pgxtypes.UUIDFromString(session.Identifier))
+		dbSession, err := database.Queries.GetSessionByIdentifier(t.Context(), sessionUUID)
 		require.NoError(t, err)
 		dbExpiry, err := pgxtypes.TimeFromTimestamp(dbSession.ExpiresAt)
 		require.NoError(t, err)
@@ -1224,7 +1262,9 @@ func TestRefreshSession(t *testing.T) {
 		require.GreaterOrEqual(t, successCount, 1, "At least one refresh should succeed")
 
 		// Verify the session still exists and has been refreshed
-		dbSession, err := database.Queries.GetSessionByIdentifier(t.Context(), pgxtypes.UUIDFromString(session.Identifier))
+		sessionUUID, err := pgxtypes.UUIDFromString(session.Identifier)
+		require.NoError(t, err)
+		dbSession, err := database.Queries.GetSessionByIdentifier(t.Context(), sessionUUID)
 		require.NoError(t, err)
 		dbExpiry, err := pgxtypes.TimeFromTimestamp(dbSession.ExpiresAt)
 		require.NoError(t, err)
@@ -1265,16 +1305,20 @@ func TestRefreshSession(t *testing.T) {
 
 		// Create a non-default organization and membership
 		orgID := uuid.New().String()
+		orgUUID, err := pgxtypes.UUIDFromString(orgID)
+		require.NoError(t, err)
 		err = database.Queries.CreateOrganization(t.Context(), generated.CreateOrganizationParams{
-			Identifier: pgxtypes.UUIDFromString(orgID),
+			Identifier: orgUUID,
 			Name:       "Test Org",
 			IsDefault:  false,
 		})
 		require.NoError(t, err)
 
+		userUUID, err := pgxtypes.UUIDFromString(session.UserInfo.Identifier)
+		require.NoError(t, err)
 		err = database.Queries.CreateMembership(t.Context(), generated.CreateMembershipParams{
-			UserIdentifier:         pgxtypes.UUIDFromString(session.UserInfo.Identifier),
-			OrganizationIdentifier: pgxtypes.UUIDFromString(orgID),
+			UserIdentifier:         userUUID,
+			OrganizationIdentifier: orgUUID,
 			Role:                   role.MemberRole.String(),
 		})
 		require.NoError(t, err)
@@ -1294,17 +1338,19 @@ func TestRefreshSession(t *testing.T) {
 		}
 
 		// Update the generation to trigger user data refresh
+		sessionUUID, err := pgxtypes.UUIDFromString(session.Identifier)
+		require.NoError(t, err)
 		num, err := database.Queries.UpdateSessionGenerationByIdentifier(t.Context(), generated.UpdateSessionGenerationByIdentifierParams{
 			Generation: int32(session.Generation + 1),
-			Identifier: pgxtypes.UUIDFromString(session.Identifier),
+			Identifier: sessionUUID,
 		})
 		require.NoError(t, err)
 		require.Equal(t, int64(1), num)
 
 		// Update the membership role
 		num, err = database.Queries.UpdateMembershipRoleByUserIdentifierAndOrganizationIdentifier(t.Context(), generated.UpdateMembershipRoleByUserIdentifierAndOrganizationIdentifierParams{
-			UserIdentifier:         pgxtypes.UUIDFromString(session.UserInfo.Identifier),
-			OrganizationIdentifier: pgxtypes.UUIDFromString(orgID),
+			UserIdentifier:         userUUID,
+			OrganizationIdentifier: orgUUID,
 			Role:                   role.AdminRole.String(),
 		})
 		require.NoError(t, err)
@@ -1352,7 +1398,9 @@ func TestRevokeSession(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify session exists
-		dbSession, err := database.Queries.GetSessionByIdentifier(t.Context(), pgxtypes.UUIDFromString(session.Identifier))
+		sessionUUID, err := pgxtypes.UUIDFromString(session.Identifier)
+		require.NoError(t, err)
+		dbSession, err := database.Queries.GetSessionByIdentifier(t.Context(), sessionUUID)
 		require.NoError(t, err)
 		dbSessionID, err := pgxtypes.StringFromUUID(dbSession.Identifier)
 		require.NoError(t, err)
@@ -1363,12 +1411,12 @@ func TestRevokeSession(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify session no longer exists
-		_, err = database.Queries.GetSessionByIdentifier(t.Context(), pgxtypes.UUIDFromString(session.Identifier))
+		_, err = database.Queries.GetSessionByIdentifier(t.Context(), sessionUUID)
 		require.Error(t, err)
 		require.ErrorIs(t, err, sql.ErrNoRows)
 
 		// Verify revocation entry was created
-		revocation, err := database.Queries.GetSessionRevocationBySessionIdentifier(t.Context(), pgxtypes.UUIDFromString(session.Identifier))
+		revocation, err := database.Queries.GetSessionRevocationBySessionIdentifier(t.Context(), sessionUUID)
 		require.NoError(t, err)
 		revocationSessionID, err := pgxtypes.StringFromUUID(revocation.SessionIdentifier)
 		require.NoError(t, err)
@@ -1500,7 +1548,9 @@ func TestRevokeSession(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify session no longer exists
-		_, err = database.Queries.GetSessionByIdentifier(t.Context(), pgxtypes.UUIDFromString(refreshedSession.Identifier))
+		sessionUUID, err := pgxtypes.UUIDFromString(refreshedSession.Identifier)
+		require.NoError(t, err)
+		_, err = database.Queries.GetSessionByIdentifier(t.Context(), sessionUUID)
 		require.Error(t, err)
 		require.ErrorIs(t, err, sql.ErrNoRows)
 
@@ -1570,7 +1620,9 @@ func TestRevokeSession(t *testing.T) {
 		require.Equal(t, 4, errorCount, "Four revocations should fail")
 
 		// Verify session is revoked
-		_, err = database.Queries.GetSessionByIdentifier(t.Context(), pgxtypes.UUIDFromString(session.Identifier))
+		sessionUUID, err := pgxtypes.UUIDFromString(session.Identifier)
+		require.NoError(t, err)
+		_, err = database.Queries.GetSessionByIdentifier(t.Context(), sessionUUID)
 		require.Error(t, err)
 		require.ErrorIs(t, err, sql.ErrNoRows)
 	})
@@ -1821,12 +1873,16 @@ func TestSessionRevocationGarbageCollection(t *testing.T) {
 		require.GreaterOrEqual(t, deletedSessions, int64(1), "At least session2 should be deleted")
 
 		// Session1 is already revoked, so it shouldn't exist
-		_, err = database.Queries.GetSessionByIdentifier(t.Context(), pgxtypes.UUIDFromString(session1.Identifier))
+		session1UUID, err := pgxtypes.UUIDFromString(session1.Identifier)
+		require.NoError(t, err)
+		_, err = database.Queries.GetSessionByIdentifier(t.Context(), session1UUID)
 		require.Error(t, err)
 		require.ErrorIs(t, err, sql.ErrNoRows)
 
 		// Session2 should also be gone due to GC
-		_, err = database.Queries.GetSessionByIdentifier(t.Context(), pgxtypes.UUIDFromString(session2.Identifier))
+		session2UUID, err := pgxtypes.UUIDFromString(session2.Identifier)
+		require.NoError(t, err)
+		_, err = database.Queries.GetSessionByIdentifier(t.Context(), session2UUID)
 		require.Error(t, err)
 		require.ErrorIs(t, err, sql.ErrNoRows)
 
@@ -1906,7 +1962,9 @@ func TestSessionRevocationEdgeCases(t *testing.T) {
 		}
 
 		// Verify final state - session should not exist
-		_, err = database.Queries.GetSessionByIdentifier(t.Context(), pgxtypes.UUIDFromString(session.Identifier))
+		sessionUUID, err := pgxtypes.UUIDFromString(session.Identifier)
+		require.NoError(t, err)
+		_, err = database.Queries.GetSessionByIdentifier(t.Context(), sessionUUID)
 		require.Error(t, err)
 		require.ErrorIs(t, err, sql.ErrNoRows)
 	})
@@ -1950,7 +2008,9 @@ func TestSessionRevocationEdgeCases(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify session is gone
-		_, err = database.Queries.GetSessionByIdentifier(t.Context(), pgxtypes.UUIDFromString(session.Identifier))
+		sessionUUID, err := pgxtypes.UUIDFromString(session.Identifier)
+		require.NoError(t, err)
+		_, err = database.Queries.GetSessionByIdentifier(t.Context(), sessionUUID)
 		require.Error(t, err)
 		require.ErrorIs(t, err, sql.ErrNoRows)
 	})
@@ -2039,7 +2099,9 @@ func TestSessionGarbageCollection(t *testing.T) {
 		require.NotNil(t, session)
 
 		// Verify session was created
-		dbSession, err := database.Queries.GetSessionByIdentifier(t.Context(), pgxtypes.UUIDFromString(session.Identifier))
+		sessionUUID, err := pgxtypes.UUIDFromString(session.Identifier)
+		require.NoError(t, err)
+		dbSession, err := database.Queries.GetSessionByIdentifier(t.Context(), sessionUUID)
 		require.NoError(t, err)
 		dbID, err := pgxtypes.StringFromUUID(dbSession.Identifier)
 		require.NoError(t, err)
@@ -2055,7 +2117,7 @@ func TestSessionGarbageCollection(t *testing.T) {
 		require.GreaterOrEqual(t, deleted, int64(1), "Expected at least 1 session to be deleted")
 
 		// Verify session was deleted
-		_, err = database.Queries.GetSessionByIdentifier(t.Context(), pgxtypes.UUIDFromString(session.Identifier))
+		_, err = database.Queries.GetSessionByIdentifier(t.Context(), sessionUUID)
 		require.Error(t, err)
 		require.ErrorIs(t, err, sql.ErrNoRows)
 	})
@@ -2100,7 +2162,9 @@ func TestSessionGarbageCollection(t *testing.T) {
 		require.Equal(t, int64(0), deleted, "Expected 0 sessions to be deleted")
 
 		// Verify session still exists
-		dbSession, err := database.Queries.GetSessionByIdentifier(t.Context(), pgxtypes.UUIDFromString(session.Identifier))
+		sessionUUID, err := pgxtypes.UUIDFromString(session.Identifier)
+		require.NoError(t, err)
+		dbSession, err := database.Queries.GetSessionByIdentifier(t.Context(), sessionUUID)
 		require.NoError(t, err)
 		dbSessionID, err := pgxtypes.StringFromUUID(dbSession.Identifier)
 		require.NoError(t, err)
@@ -2155,7 +2219,9 @@ func TestSessionGarbageCollection(t *testing.T) {
 
 		// Verify all sessions were deleted
 		for _, session := range sessions {
-			_, err = database.Queries.GetSessionByIdentifier(t.Context(), pgxtypes.UUIDFromString(session.Identifier))
+			sessionUUID, err := pgxtypes.UUIDFromString(session.Identifier)
+			require.NoError(t, err)
+			_, err = database.Queries.GetSessionByIdentifier(t.Context(), sessionUUID)
 			require.Error(t, err)
 			require.ErrorIs(t, err, sql.ErrNoRows)
 		}
@@ -2204,9 +2270,13 @@ func TestSessionGarbageCollection(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify both sessions exist
-		_, err = database.Queries.GetSessionByIdentifier(t.Context(), pgxtypes.UUIDFromString(session1.Identifier))
+		session1UUID, err := pgxtypes.UUIDFromString(session1.Identifier)
+		require.NoError(t, err)
+		_, err = database.Queries.GetSessionByIdentifier(t.Context(), session1UUID)
 		require.NoError(t, err, "Session 1 should exist")
-		_, err = database.Queries.GetSessionByIdentifier(t.Context(), pgxtypes.UUIDFromString(session2.Identifier))
+		session2UUID, err := pgxtypes.UUIDFromString(session2.Identifier)
+		require.NoError(t, err)
+		_, err = database.Queries.GetSessionByIdentifier(t.Context(), session2UUID)
 		require.NoError(t, err, "Session 2 should exist")
 
 		// Wait for 2 second (half the expiry time)
@@ -2228,12 +2298,14 @@ func TestSessionGarbageCollection(t *testing.T) {
 		require.Equal(t, int64(1), deleted, "Expected exactly 1 session to be deleted")
 
 		// Verify session 2 was deleted (not refreshed)
-		_, err = database.Queries.GetSessionByIdentifier(t.Context(), pgxtypes.UUIDFromString(session2.Identifier))
+		_, err = database.Queries.GetSessionByIdentifier(t.Context(), session2UUID)
 		require.Error(t, err)
 		require.ErrorIs(t, err, sql.ErrNoRows, "Session 2 should have been garbage collected")
 
 		// Verify session 1 still exists (was refreshed)
-		dbSession, err := database.Queries.GetSessionByIdentifier(t.Context(), pgxtypes.UUIDFromString(refreshedSession1.Identifier))
+		refreshedSession1UUID, err := pgxtypes.UUIDFromString(refreshedSession1.Identifier)
+		require.NoError(t, err)
+		dbSession, err := database.Queries.GetSessionByIdentifier(t.Context(), refreshedSession1UUID)
 		require.NoError(t, err, "Session 1 should still exist after refresh")
 		refreshedID, err := pgxtypes.StringFromUUID(dbSession.Identifier)
 		require.NoError(t, err)
@@ -2337,10 +2409,14 @@ func TestSessionValidation(t *testing.T) {
 
 			// Add revocation to database
 			sessionID := uuid.New().String()
+			sessionUUID, err := pgxtypes.UUIDFromString(sessionID)
+			require.NoError(t, err)
 			expiresAt := time.Now().Add(time.Minute)
+			expiresAtTS, err := pgxtypes.TimestampFromTime(expiresAt)
+			require.NoError(t, err)
 			err = database.Queries.CreateSessionRevocation(t.Context(), generated.CreateSessionRevocationParams{
-				SessionIdentifier: pgxtypes.UUIDFromString(sessionID),
-				ExpiresAt:         pgxtypes.TimestampFromTime(expiresAt),
+				SessionIdentifier: sessionUUID,
+				ExpiresAt:         expiresAtTS,
 			})
 			require.NoError(t, err)
 
@@ -2379,19 +2455,25 @@ func TestSessionValidation(t *testing.T) {
 
 			// Add multiple revocations
 			sessionID1 := uuid.New().String()
+			session1UUID, err := pgxtypes.UUIDFromString(sessionID1)
+			require.NoError(t, err)
 			sessionID2 := uuid.New().String()
+			session2UUID, err := pgxtypes.UUIDFromString(sessionID2)
+			require.NoError(t, err)
 			sessionID3 := uuid.New().String()
 			expiresAt := time.Now().Add(time.Minute)
+			expiresAtTS, err := pgxtypes.TimestampFromTime(expiresAt)
+			require.NoError(t, err)
 
 			err = database.Queries.CreateSessionRevocation(t.Context(), generated.CreateSessionRevocationParams{
-				SessionIdentifier: pgxtypes.UUIDFromString(sessionID1),
-				ExpiresAt:         pgxtypes.TimestampFromTime(expiresAt),
+				SessionIdentifier: session1UUID,
+				ExpiresAt:         expiresAtTS,
 			})
 			require.NoError(t, err)
 
 			err = database.Queries.CreateSessionRevocation(t.Context(), generated.CreateSessionRevocationParams{
-				SessionIdentifier: pgxtypes.UUIDFromString(sessionID2),
-				ExpiresAt:         pgxtypes.TimestampFromTime(expiresAt),
+				SessionIdentifier: session2UUID,
+				ExpiresAt:         expiresAtTS,
 			})
 			require.NoError(t, err)
 
@@ -2429,10 +2511,14 @@ func TestSessionValidation(t *testing.T) {
 
 			// Add revocation with short expiry
 			sessionID := uuid.New().String()
+			sessionUUID, err := pgxtypes.UUIDFromString(sessionID)
+			require.NoError(t, err)
 			expiresAt := time.Now().Add(time.Second * 2)
+			expiresAtTS, err := pgxtypes.TimestampFromTime(expiresAt)
+			require.NoError(t, err)
 			err = database.Queries.CreateSessionRevocation(t.Context(), generated.CreateSessionRevocationParams{
-				SessionIdentifier: pgxtypes.UUIDFromString(sessionID),
-				ExpiresAt:         pgxtypes.TimestampFromTime(expiresAt),
+				SessionIdentifier: sessionUUID,
+				ExpiresAt:         expiresAtTS,
 			})
 			require.NoError(t, err)
 
@@ -2513,11 +2599,15 @@ func TestSessionValidation(t *testing.T) {
 			require.NoError(t, err)
 
 			// Add invalidation with generation 5
+			sessionUUID, err := pgxtypes.UUIDFromString(session.Identifier)
+			require.NoError(t, err)
 			expiresAt := time.Now().Add(time.Minute)
+			expiresAtTS, err := pgxtypes.TimestampFromTime(expiresAt)
+			require.NoError(t, err)
 			err = database.Queries.CreateSessionInvalidation(t.Context(), generated.CreateSessionInvalidationParams{
-				SessionIdentifier: pgxtypes.UUIDFromString(session.Identifier),
+				SessionIdentifier: sessionUUID,
 				Generation:        5,
-				ExpiresAt:         pgxtypes.TimestampFromTime(expiresAt),
+				ExpiresAt:         expiresAtTS,
 			})
 			require.NoError(t, err)
 
@@ -2570,10 +2660,16 @@ func TestSessionValidation(t *testing.T) {
 			// Initially, no invalidation needed
 			require.False(t, m.IsSessionInvalidated(session.Identifier, session.Generation))
 
+			// Convert session UUID for later use
+			sessionUUID, err := pgxtypes.UUIDFromString(session.Identifier)
+			require.NoError(t, err)
+
 			// Update user's name (this should increment generation)
+			userUUID, err := pgxtypes.UUIDFromString(session.UserInfo.Identifier)
+			require.NoError(t, err)
 			num, err := database.Queries.UpdateUserNameByIdentifier(t.Context(), generated.UpdateUserNameByIdentifierParams{
 				Name:       "Updated User",
-				Identifier: pgxtypes.UUIDFromString(session.UserInfo.Identifier),
+				Identifier: userUUID,
 			})
 			require.NoError(t, err)
 			require.Equal(t, int64(1), num)
@@ -2581,17 +2677,19 @@ func TestSessionValidation(t *testing.T) {
 			// Update session generation
 			num, err = database.Queries.UpdateSessionGenerationByIdentifier(t.Context(), generated.UpdateSessionGenerationByIdentifierParams{
 				Generation: int32(session.Generation + 1),
-				Identifier: pgxtypes.UUIDFromString(session.Identifier),
+				Identifier: sessionUUID,
 			})
 			require.NoError(t, err)
 			require.Equal(t, int64(1), num)
 
 			// Create invalidation entry
 			expiresAt := time.Now().Add(time.Minute * 30)
+			expiresAtTS, err := pgxtypes.TimestampFromTime(expiresAt)
+			require.NoError(t, err)
 			err = database.Queries.CreateSessionInvalidation(t.Context(), generated.CreateSessionInvalidationParams{
-				SessionIdentifier: pgxtypes.UUIDFromString(session.Identifier),
+				SessionIdentifier: sessionUUID,
 				Generation:        int32(session.Generation + 1),
-				ExpiresAt:         pgxtypes.TimestampFromTime(expiresAt),
+				ExpiresAt:         expiresAtTS,
 			})
 			require.NoError(t, err)
 
@@ -2712,30 +2810,38 @@ func TestSessionValidation(t *testing.T) {
 			neitherSession := uuid.New().String()
 
 			// Add to revocation cache
+			revokedSessionUUID, err := pgxtypes.UUIDFromString(revokedSession)
+			require.NoError(t, err)
+			expiresAtTS, err := pgxtypes.TimestampFromTime(expiresAt)
+			require.NoError(t, err)
 			err = database.Queries.CreateSessionRevocation(t.Context(), generated.CreateSessionRevocationParams{
-				SessionIdentifier: pgxtypes.UUIDFromString(revokedSession),
-				ExpiresAt:         pgxtypes.TimestampFromTime(expiresAt),
+				SessionIdentifier: revokedSessionUUID,
+				ExpiresAt:         expiresAtTS,
 			})
 			require.NoError(t, err)
 
+			bothSessionUUID, err := pgxtypes.UUIDFromString(bothSession)
+			require.NoError(t, err)
 			err = database.Queries.CreateSessionRevocation(t.Context(), generated.CreateSessionRevocationParams{
-				SessionIdentifier: pgxtypes.UUIDFromString(bothSession),
-				ExpiresAt:         pgxtypes.TimestampFromTime(expiresAt),
+				SessionIdentifier: bothSessionUUID,
+				ExpiresAt:         expiresAtTS,
 			})
 			require.NoError(t, err)
 
 			// Add to invalidation cache
+			invalidatedSessionUUID, err := pgxtypes.UUIDFromString(invalidatedSession)
+			require.NoError(t, err)
 			err = database.Queries.CreateSessionInvalidation(t.Context(), generated.CreateSessionInvalidationParams{
-				SessionIdentifier: pgxtypes.UUIDFromString(invalidatedSession),
+				SessionIdentifier: invalidatedSessionUUID,
 				Generation:        7,
-				ExpiresAt:         pgxtypes.TimestampFromTime(expiresAt),
+				ExpiresAt:         expiresAtTS,
 			})
 			require.NoError(t, err)
 
 			err = database.Queries.CreateSessionInvalidation(t.Context(), generated.CreateSessionInvalidationParams{
-				SessionIdentifier: pgxtypes.UUIDFromString(bothSession),
+				SessionIdentifier: bothSessionUUID,
 				Generation:        3,
-				ExpiresAt:         pgxtypes.TimestampFromTime(expiresAt),
+				ExpiresAt:         expiresAtTS,
 			})
 			require.NoError(t, err)
 
@@ -2893,19 +2999,23 @@ func TestSessionValidation(t *testing.T) {
 			require.NoError(t, err)
 
 			// Update the session's generation in the database to simulate an invalidation
+			sessionUUID, err := pgxtypes.UUIDFromString(session.Identifier)
+			require.NoError(t, err)
 			num, err := database.Queries.UpdateSessionGenerationByIdentifier(t.Context(), generated.UpdateSessionGenerationByIdentifierParams{
 				Generation: int32(session.Generation + 1),
-				Identifier: pgxtypes.UUIDFromString(session.Identifier),
+				Identifier: sessionUUID,
 			})
 			require.NoError(t, err)
 			require.Equal(t, int64(1), num)
 
 			// Create invalidation entry with the new generation
 			expiresAt := time.Now().Add(time.Minute * 30)
+			expiresAtTS, err := pgxtypes.TimestampFromTime(expiresAt)
+			require.NoError(t, err)
 			err = database.Queries.CreateSessionInvalidation(t.Context(), generated.CreateSessionInvalidationParams{
-				SessionIdentifier: pgxtypes.UUIDFromString(session.Identifier),
+				SessionIdentifier: sessionUUID,
 				Generation:        int32(session.Generation + 1),
-				ExpiresAt:         pgxtypes.TimestampFromTime(expiresAt),
+				ExpiresAt:         expiresAtTS,
 			})
 			require.NoError(t, err)
 
@@ -2966,9 +3076,13 @@ func TestSessionValidation(t *testing.T) {
 
 			// Manually update the session to expire in less than ForcedRefresh
 			// This simulates a session that's been alive for over an hour
+			expiresAtTS, err := pgxtypes.TimestampFromTime(time.Now().Add(time.Minute * 30)) // 30 minutes from now
+			require.NoError(t, err)
+			sessionUUID, err := pgxtypes.UUIDFromString(session.Identifier)
+			require.NoError(t, err)
 			_, err = database.Queries.UpdateSessionExpiryByIdentifier(t.Context(), generated.UpdateSessionExpiryByIdentifierParams{
-				ExpiresAt:  pgxtypes.TimestampFromTime(time.Now().Add(time.Minute * 30)), // 30 minutes from now
-				Identifier: pgxtypes.UUIDFromString(session.Identifier),
+				ExpiresAt:  expiresAtTS,
+				Identifier: sessionUUID,
 			})
 			require.NoError(t, err)
 

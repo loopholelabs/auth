@@ -15,8 +15,9 @@ import (
 func TestUUIDFromString(t *testing.T) {
 	t.Run("ValidUUID", func(t *testing.T) {
 		validUUID := "123e4567-e89b-12d3-a456-426614174000"
-		result := UUIDFromString(validUUID)
+		result, err := UUIDFromString(validUUID)
 
+		require.NoError(t, err)
 		assert.True(t, result.Valid)
 		strResult, err := StringFromUUID(result)
 		assert.NoError(t, err)
@@ -25,21 +26,25 @@ func TestUUIDFromString(t *testing.T) {
 
 	t.Run("InvalidUUID", func(t *testing.T) {
 		invalidUUID := "not-a-uuid"
-		result := UUIDFromString(invalidUUID)
+		result, err := UUIDFromString(invalidUUID)
 
+		assert.Error(t, err)
 		assert.False(t, result.Valid)
 	})
 
 	t.Run("EmptyString", func(t *testing.T) {
-		result := UUIDFromString("")
+		result, err := UUIDFromString("")
 
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, ErrEmptyUUID)
 		assert.False(t, result.Valid)
 	})
 
 	t.Run("MalformedUUID", func(t *testing.T) {
 		malformedUUID := "123e4567-e89b-12d3-a456"
-		result := UUIDFromString(malformedUUID)
+		result, err := UUIDFromString(malformedUUID)
 
+		assert.Error(t, err)
 		assert.False(t, result.Valid)
 	})
 }
@@ -47,8 +52,9 @@ func TestUUIDFromString(t *testing.T) {
 func TestUUIDFromStringPtr(t *testing.T) {
 	t.Run("ValidUUID", func(t *testing.T) {
 		validUUID := "123e4567-e89b-12d3-a456-426614174000"
-		result := UUIDFromStringPtr(&validUUID)
+		result, err := UUIDFromStringPtr(&validUUID)
 
+		require.NoError(t, err)
 		assert.True(t, result.Valid)
 		strResult, err := StringFromUUID(result)
 		assert.NoError(t, err)
@@ -56,22 +62,26 @@ func TestUUIDFromStringPtr(t *testing.T) {
 	})
 
 	t.Run("NilPointer", func(t *testing.T) {
-		result := UUIDFromStringPtr(nil)
+		result, err := UUIDFromStringPtr(nil)
 
+		assert.NoError(t, err) // nil is valid, returns invalid UUID
 		assert.False(t, result.Valid)
 	})
 
 	t.Run("EmptyString", func(t *testing.T) {
 		emptyString := ""
-		result := UUIDFromStringPtr(&emptyString)
+		result, err := UUIDFromStringPtr(&emptyString)
 
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, ErrEmptyUUID)
 		assert.False(t, result.Valid)
 	})
 
 	t.Run("InvalidUUID", func(t *testing.T) {
 		invalidUUID := "not-a-uuid"
-		result := UUIDFromStringPtr(&invalidUUID)
+		result, err := UUIDFromStringPtr(&invalidUUID)
 
+		assert.Error(t, err)
 		assert.False(t, result.Valid)
 	})
 }
@@ -79,7 +89,8 @@ func TestUUIDFromStringPtr(t *testing.T) {
 func TestStringFromUUID(t *testing.T) {
 	t.Run("ValidUUID", func(t *testing.T) {
 		validUUID := "123e4567-e89b-12d3-a456-426614174000"
-		pgUUID := UUIDFromString(validUUID)
+		pgUUID, err := UUIDFromString(validUUID)
+		require.NoError(t, err)
 		result, err := StringFromUUID(pgUUID)
 		assert.NoError(t, err)
 		assert.Equal(t, validUUID, result)
@@ -108,8 +119,9 @@ func TestStringFromUUID(t *testing.T) {
 func TestTimestampFromTime(t *testing.T) {
 	t.Run("ValidTime", func(t *testing.T) {
 		now := time.Now()
-		result := TimestampFromTime(now)
+		result, err := TimestampFromTime(now)
 
+		require.NoError(t, err)
 		assert.True(t, result.Valid)
 		assert.Equal(t, pgtype.Finite, result.InfinityModifier)
 		assert.Equal(t, now.UTC(), result.Time)
@@ -117,11 +129,11 @@ func TestTimestampFromTime(t *testing.T) {
 
 	t.Run("ZeroTime", func(t *testing.T) {
 		zeroTime := time.Time{}
-		result := TimestampFromTime(zeroTime)
+		result, err := TimestampFromTime(zeroTime)
 
-		assert.True(t, result.Valid)
-		assert.Equal(t, pgtype.Finite, result.InfinityModifier)
-		assert.Equal(t, zeroTime.UTC(), result.Time)
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, ErrInvalidTimestamp)
+		assert.False(t, result.Valid)
 	})
 
 	t.Run("TimeWithTimezone", func(t *testing.T) {
@@ -129,8 +141,9 @@ func TestTimestampFromTime(t *testing.T) {
 		require.NoError(t, err)
 
 		nyTime := time.Date(2024, 1, 1, 12, 0, 0, 0, loc)
-		result := TimestampFromTime(nyTime)
+		result, err := TimestampFromTime(nyTime)
 
+		require.NoError(t, err)
 		assert.True(t, result.Valid)
 		assert.Equal(t, nyTime.UTC(), result.Time)
 	})
@@ -139,32 +152,36 @@ func TestTimestampFromTime(t *testing.T) {
 func TestTimestampFromTimePtr(t *testing.T) {
 	t.Run("ValidTimePointer", func(t *testing.T) {
 		now := time.Now()
-		result := TimestampFromTimePtr(&now)
+		result, err := TimestampFromTimePtr(&now)
 
+		require.NoError(t, err)
 		assert.True(t, result.Valid)
 		assert.Equal(t, pgtype.Finite, result.InfinityModifier)
 		assert.Equal(t, now.UTC(), result.Time)
 	})
 
 	t.Run("NilPointer", func(t *testing.T) {
-		result := TimestampFromTimePtr(nil)
+		result, err := TimestampFromTimePtr(nil)
 
+		assert.NoError(t, err) // nil is valid, returns invalid timestamp
 		assert.False(t, result.Valid)
 	})
 
 	t.Run("ZeroTimePointer", func(t *testing.T) {
 		zeroTime := time.Time{}
-		result := TimestampFromTimePtr(&zeroTime)
+		result, err := TimestampFromTimePtr(&zeroTime)
 
-		assert.True(t, result.Valid)
-		assert.Equal(t, zeroTime.UTC(), result.Time)
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, ErrInvalidTimestamp)
+		assert.False(t, result.Valid)
 	})
 }
 
 func TestTimeFromTimestamp(t *testing.T) {
 	t.Run("ValidTimestamp", func(t *testing.T) {
 		now := time.Now()
-		timestamp := TimestampFromTime(now)
+		timestamp, err := TimestampFromTime(now)
+		require.NoError(t, err)
 		result, err := TimeFromTimestamp(timestamp)
 		assert.NoError(t, err)
 		assert.Equal(t, now.UTC(), result)
@@ -178,18 +195,19 @@ func TestTimeFromTimestamp(t *testing.T) {
 	})
 
 	t.Run("ZeroTimestamp", func(t *testing.T) {
+		// Zero time should now return an error
 		zeroTime := time.Time{}
-		timestamp := TimestampFromTime(zeroTime)
-		result, err := TimeFromTimestamp(timestamp)
-		assert.NoError(t, err)
-		assert.Equal(t, zeroTime.UTC(), result)
+		_, err := TimestampFromTime(zeroTime)
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, ErrInvalidTimestamp)
 	})
 }
 
 func TestNewUUID(t *testing.T) {
 	t.Run("GeneratesValidUUID", func(t *testing.T) {
-		result := NewUUID()
+		result, err := NewUUID()
 
+		require.NoError(t, err)
 		assert.True(t, result.Valid)
 
 		// Verify it's a valid UUID string
@@ -203,8 +221,10 @@ func TestNewUUID(t *testing.T) {
 	})
 
 	t.Run("GeneratesUniqueUUIDs", func(t *testing.T) {
-		uuid1 := NewUUID()
-		uuid2 := NewUUID()
+		uuid1, err1 := NewUUID()
+		require.NoError(t, err1)
+		uuid2, err2 := NewUUID()
+		require.NoError(t, err2)
 
 		assert.NotEqual(t, uuid1.Bytes, uuid2.Bytes)
 	})
@@ -212,18 +232,20 @@ func TestNewUUID(t *testing.T) {
 
 func TestIsValidUUID(t *testing.T) {
 	t.Run("ValidUUID", func(t *testing.T) {
-		validUUID := UUIDFromString("123e4567-e89b-12d3-a456-426614174000")
-		assert.True(t, IsValidUUID(validUUID))
+		validUUID, err := UUIDFromString("123e4567-e89b-12d3-a456-426614174000")
+		require.NoError(t, err)
+		assert.True(t, validUUID.Valid)
 	})
 
 	t.Run("InvalidUUID", func(t *testing.T) {
 		invalidUUID := pgtype.UUID{Valid: false}
-		assert.False(t, IsValidUUID(invalidUUID))
+		assert.False(t, invalidUUID.Valid)
 	})
 
 	t.Run("NewUUID", func(t *testing.T) {
-		newUUID := NewUUID()
-		assert.True(t, IsValidUUID(newUUID))
+		newUUID, err := NewUUID()
+		require.NoError(t, err)
+		assert.True(t, newUUID.Valid)
 	})
 }
 
@@ -274,7 +296,8 @@ func TestRoundTripConversions(t *testing.T) {
 		original := "550e8400-e29b-41d4-a716-446655440000"
 
 		// String -> pgtype.UUID -> String
-		pgUUID := UUIDFromString(original)
+		pgUUID, err := UUIDFromString(original)
+		require.NoError(t, err)
 		result, err := StringFromUUID(pgUUID)
 		assert.NoError(t, err)
 		assert.Equal(t, original, result)
@@ -284,7 +307,8 @@ func TestRoundTripConversions(t *testing.T) {
 		original := time.Now().Truncate(time.Microsecond) // PostgreSQL precision
 
 		// Time -> pgtype.Timestamp -> Time
-		pgTimestamp := TimestampFromTime(original)
+		pgTimestamp, err := TimestampFromTime(original)
+		require.NoError(t, err)
 		result, err := TimeFromTimestamp(pgTimestamp)
 		assert.NoError(t, err)
 		assert.Equal(t, original.UTC(), result)
@@ -307,7 +331,8 @@ func TestRoundTripConversions(t *testing.T) {
 func TestEdgeCases(t *testing.T) {
 	t.Run("MaxUUID", func(t *testing.T) {
 		maxUUID := "ffffffff-ffff-ffff-ffff-ffffffffffff"
-		result := UUIDFromString(maxUUID)
+		result, err := UUIDFromString(maxUUID)
+		require.NoError(t, err)
 
 		assert.True(t, result.Valid)
 		strResult, err := StringFromUUID(result)
@@ -317,7 +342,8 @@ func TestEdgeCases(t *testing.T) {
 
 	t.Run("FutureTimestamp", func(t *testing.T) {
 		futureTime := time.Date(2100, 1, 1, 0, 0, 0, 0, time.UTC)
-		result := TimestampFromTime(futureTime)
+		result, err := TimestampFromTime(futureTime)
+		require.NoError(t, err)
 
 		assert.True(t, result.Valid)
 		assert.Equal(t, futureTime, result.Time)
@@ -325,7 +351,8 @@ func TestEdgeCases(t *testing.T) {
 
 	t.Run("PastTimestamp", func(t *testing.T) {
 		pastTime := time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC)
-		result := TimestampFromTime(pastTime)
+		result, err := TimestampFromTime(pastTime)
+		require.NoError(t, err)
 
 		assert.True(t, result.Valid)
 		assert.Equal(t, pastTime, result.Time)
@@ -334,7 +361,8 @@ func TestEdgeCases(t *testing.T) {
 	t.Run("MicrosecondPrecision", func(t *testing.T) {
 		// PostgreSQL supports microsecond precision
 		now := time.Now().Add(123456 * time.Nanosecond)
-		timestamp := TimestampFromTime(now)
+		timestamp, err := TimestampFromTime(now)
+		require.NoError(t, err)
 		result, err := TimeFromTimestamp(timestamp)
 		assert.NoError(t, err)
 		// Should preserve microsecond precision

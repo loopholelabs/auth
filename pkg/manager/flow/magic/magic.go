@@ -77,7 +77,22 @@ func (c *Magic) Close() error {
 	return nil
 }
 
-func (c *Magic) CreateFlow(ctx context.Context, emailAddress string, deviceIdentifier string, userIdentifier string, nextURL string) (string, error) {
+// CreateFlow creates a new magic link flow
+// Called from API handler - inputs should be pre-validated pgx types
+// Defensive check: validates deviceIdentifier.Valid and userIdentifier.Valid if provided
+// Note: emailAddress and nextURL are strings (not database IDs)
+func (c *Magic) CreateFlow(ctx context.Context, emailAddress string, deviceIdentifier pgtype.UUID, userIdentifier pgtype.UUID, nextURL string) (string, error) {
+	// Defensive validation - should never fail if API handler validated properly
+	// Note: These can be invalid (Valid: false) if not provided
+	if deviceIdentifier.Valid && deviceIdentifier.Bytes == [16]byte{} {
+		c.logger.Error().Msg("CreateFlow called with valid but empty device identifier - API handler validation failed")
+		return "", errors.Join(ErrCreatingFlow, errors.New("invalid device identifier"))
+	}
+	if userIdentifier.Valid && userIdentifier.Bytes == [16]byte{} {
+		c.logger.Error().Msg("CreateFlow called with valid but empty user identifier - API handler validation failed")
+		return "", errors.Join(ErrCreatingFlow, errors.New("invalid user identifier"))
+	}
+
 	if nextURL == "" {
 		return "", errors.Join(ErrCreatingFlow, ErrInvalidNextURL)
 	}
@@ -88,30 +103,28 @@ func (c *Magic) CreateFlow(ctx context.Context, emailAddress string, deviceIdent
 	hash := h.Sum(nil)
 
 	identifierStr := uuid.New().String()
-	var deviceID, userID pgtype.UUID
-	if deviceIdentifier != "" {
-		deviceID = pgxtypes.UUIDFromString(deviceIdentifier)
-	} else {
-		deviceID = pgtype.UUID{Valid: false}
-	}
-	if userIdentifier != "" {
-		userID = pgxtypes.UUIDFromString(userIdentifier)
-	} else {
-		userID = pgtype.UUID{Valid: false}
-	}
+	var err error
 
+	identifier, err := pgxtypes.UUIDFromString(identifierStr)
+	if err != nil {
+		return "", errors.Join(ErrCreatingFlow, err)
+	}
+	saltUUID, err := pgxtypes.UUIDFromString(salt)
+	if err != nil {
+		return "", errors.Join(ErrCreatingFlow, err)
+	}
 	params := generated.CreateMagicLinkFlowParams{
-		Identifier:       pgxtypes.UUIDFromString(identifierStr),
-		Salt:             pgxtypes.UUIDFromString(salt),
+		Identifier:       identifier,
+		Salt:             saltUUID,
 		Hash:             hash,
 		EmailAddress:     emailAddress,
-		DeviceIdentifier: deviceID,
-		UserIdentifier:   userID,
+		DeviceIdentifier: deviceIdentifier,
+		UserIdentifier:   userIdentifier,
 		NextUrl:          nextURL,
 	}
 
 	c.logger.Debug().Msg("creating flow")
-	err := c.db.Queries.CreateMagicLinkFlow(ctx, params)
+	err = c.db.Queries.CreateMagicLinkFlow(ctx, params)
 	if err != nil {
 		return "", errors.Join(ErrCreatingFlow, err)
 	}
@@ -159,12 +172,17 @@ func (c *Magic) CompleteFlow(ctx context.Context, token string) (flow.Data, erro
 
 	qtx := c.db.Queries.WithTx(tx)
 
-	f, err := qtx.GetMagicLinkFlowByIdentifier(ctx, pgxtypes.UUIDFromString(identifier))
+	identifierUUID, err := pgxtypes.UUIDFromString(identifier)
 	if err != nil {
 		return flow.Data{}, errors.Join(ErrCompletingFlow, err)
 	}
 
-	num, err := qtx.DeleteMagicLinkFlowByIdentifier(ctx, pgxtypes.UUIDFromString(identifier))
+	f, err := qtx.GetMagicLinkFlowByIdentifier(ctx, identifierUUID)
+	if err != nil {
+		return flow.Data{}, errors.Join(ErrCompletingFlow, err)
+	}
+
+	num, err := qtx.DeleteMagicLinkFlowByIdentifier(ctx, identifierUUID)
 	if err != nil {
 		return flow.Data{}, errors.Join(ErrCompletingFlow, err)
 	}
@@ -204,7 +222,11 @@ func (c *Magic) CompleteFlow(ctx context.Context, token string) (flow.Data, erro
 func (c *Magic) gc() (int64, error) {
 	ctx, cancel := context.WithTimeout(c.ctx, Timeout)
 	defer cancel()
-	return c.db.Queries.DeleteMagicLinkFlowsBeforeCreatedAt(ctx, pgxtypes.TimestampFromTime(now().Add(-Expiry)))
+	ts, err := pgxtypes.TimestampFromTime(now().Add(-Expiry))
+	if err != nil {
+		return 0, err
+	}
+	return c.db.Queries.DeleteMagicLinkFlowsBeforeCreatedAt(ctx, ts)
 }
 
 func (c *Magic) doGC() {

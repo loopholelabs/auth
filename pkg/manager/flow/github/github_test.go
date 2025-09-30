@@ -196,7 +196,9 @@ func TestCreateFlow(t *testing.T) {
 
 		// Verify flow was created in database
 		flowID := q.Get("state")
-		flow, err := database.Queries.GetGithubOAuthFlowByIdentifier(t.Context(), pgxtypes.UUIDFromString(flowID))
+		flowUUID, err := pgxtypes.UUIDFromString(flowID)
+		require.NoError(t, err)
+		flow, err := database.Queries.GetGithubOAuthFlowByIdentifier(t.Context(), flowUUID)
 		require.NoError(t, err)
 		identifierStr, err := pgxtypes.StringFromUUID(flow.Identifier)
 		require.NoError(t, err)
@@ -213,18 +215,22 @@ func TestCreateFlow(t *testing.T) {
 
 		// First create a user and organization
 		orgID := uuid.New().String()
-		err := database.Queries.CreateOrganization(t.Context(), generated.CreateOrganizationParams{
-			Identifier: pgxtypes.UUIDFromString(orgID),
+		orgUUID, err := pgxtypes.UUIDFromString(orgID)
+		require.NoError(t, err)
+		err = database.Queries.CreateOrganization(t.Context(), generated.CreateOrganizationParams{
+			Identifier: orgUUID,
 			Name:       "test-org-" + uuid.New().String()[:8], // Unique name
 			IsDefault:  true,
 		})
 		require.NoError(t, err)
 
+		userUUID, err := pgxtypes.UUIDFromString(userID)
+		require.NoError(t, err)
 		err = database.Queries.CreateUser(t.Context(), generated.CreateUserParams{
-			Identifier:                    pgxtypes.UUIDFromString(userID),
+			Identifier:                    userUUID,
 			Name:                          "test",
 			PrimaryEmail:                  "test-" + uuid.New().String()[:8] + "@example.com", // Unique email
-			DefaultOrganizationIdentifier: pgxtypes.UUIDFromString(orgID),
+			DefaultOrganizationIdentifier: orgUUID,
 		})
 		require.NoError(t, err)
 
@@ -238,7 +244,9 @@ func TestCreateFlow(t *testing.T) {
 		flowID := u.Query().Get("state")
 
 		// Verify flow was created with user ID
-		flow, err := database.Queries.GetGithubOAuthFlowByIdentifier(t.Context(), pgxtypes.UUIDFromString(flowID))
+		flowUUID, err := pgxtypes.UUIDFromString(flowID)
+		require.NoError(t, err)
+		flow, err := database.Queries.GetGithubOAuthFlowByIdentifier(t.Context(), flowUUID)
 		require.NoError(t, err)
 		require.False(t, flow.DeviceIdentifier.Valid)
 		require.True(t, flow.UserIdentifier.Valid)
@@ -299,8 +307,10 @@ func TestCompleteFlow(t *testing.T) {
 
 		// Create a flow first
 		flowID := uuid.New().String()
+		flowUUID, err := pgxtypes.UUIDFromString(flowID)
+		require.NoError(t, err)
 		err = database.Queries.CreateGithubOAuthFlow(t.Context(), generated.CreateGithubOAuthFlowParams{
-			Identifier: pgxtypes.UUIDFromString(flowID),
+			Identifier: flowUUID,
 			Verifier:   "test-verifier",
 			Challenge:  "test-challenge",
 			NextUrl:    "http://localhost:3000/dashboard",
@@ -324,7 +334,9 @@ func TestCompleteFlow(t *testing.T) {
 		require.Empty(t, flow.UserIdentifier)
 
 		// Verify flow was deleted from database
-		_, err = database.Queries.GetGithubOAuthFlowByIdentifier(t.Context(), pgxtypes.UUIDFromString(flowID))
+		flowUUID2, err := pgxtypes.UUIDFromString(flowID)
+		require.NoError(t, err)
+		_, err = database.Queries.GetGithubOAuthFlowByIdentifier(t.Context(), flowUUID2)
 		require.Error(t, err)
 
 		// Verify HTTP requests were made
@@ -370,8 +382,10 @@ func TestCompleteFlow(t *testing.T) {
 
 		// Create a flow
 		flowID := uuid.New().String()
+		flowUUID, err := pgxtypes.UUIDFromString(flowID)
+		require.NoError(t, err)
 		err = database.Queries.CreateGithubOAuthFlow(t.Context(), generated.CreateGithubOAuthFlowParams{
-			Identifier: pgxtypes.UUIDFromString(flowID),
+			Identifier: flowUUID,
 			Verifier:   "test-verifier",
 			Challenge:  "test-challenge",
 		})
@@ -413,8 +427,10 @@ func TestCompleteFlow(t *testing.T) {
 
 		// Create a flow
 		flowID := uuid.New().String()
+		flowUUID, err := pgxtypes.UUIDFromString(flowID)
+		require.NoError(t, err)
 		err = database.Queries.CreateGithubOAuthFlow(t.Context(), generated.CreateGithubOAuthFlowParams{
-			Identifier: pgxtypes.UUIDFromString(flowID),
+			Identifier: flowUUID,
 			Verifier:   "test-verifier",
 			Challenge:  "test-challenge",
 		})
@@ -457,8 +473,10 @@ func TestCompleteFlow(t *testing.T) {
 
 		// Create a flow
 		flowID := uuid.New().String()
+		flowUUID, err := pgxtypes.UUIDFromString(flowID)
+		require.NoError(t, err)
 		err = database.Queries.CreateGithubOAuthFlow(t.Context(), generated.CreateGithubOAuthFlowParams{
-			Identifier: pgxtypes.UUIDFromString(flowID),
+			Identifier: flowUUID,
 			Verifier:   "test-verifier",
 			Challenge:  "test-challenge",
 		})
@@ -503,8 +521,10 @@ func TestCompleteFlow(t *testing.T) {
 
 		// Create a flow
 		flowID := uuid.New().String()
+		flowUUID, err := pgxtypes.UUIDFromString(flowID)
+		require.NoError(t, err)
 		err = database.Queries.CreateGithubOAuthFlow(t.Context(), generated.CreateGithubOAuthFlowParams{
-			Identifier: pgxtypes.UUIDFromString(flowID),
+			Identifier: flowUUID,
 			Verifier:   "test-verifier",
 			Challenge:  "test-challenge",
 		})
@@ -575,8 +595,10 @@ func TestCompleteFlow(t *testing.T) {
 
 		// Create a flow
 		flowID := uuid.New().String()
+		flowUUID, err := pgxtypes.UUIDFromString(flowID)
+		require.NoError(t, err)
 		err = database.Queries.CreateGithubOAuthFlow(t.Context(), generated.CreateGithubOAuthFlowParams{
-			Identifier: pgxtypes.UUIDFromString(flowID),
+			Identifier: flowUUID,
 			Verifier:   "test-verifier",
 			Challenge:  "test-challenge",
 		})
@@ -727,8 +749,10 @@ func TestOAuth2Integration(t *testing.T) {
 		// Create and complete a flow to verify custom client is used
 
 		flowID := uuid.New().String()
+		flowUUID, err := pgxtypes.UUIDFromString(flowID)
+		require.NoError(t, err)
 		err = database.Queries.CreateGithubOAuthFlow(t.Context(), generated.CreateGithubOAuthFlowParams{
-			Identifier: pgxtypes.UUIDFromString(flowID),
+			Identifier: flowUUID,
 			Verifier:   "test-verifier",
 			Challenge:  "test-challenge",
 		})
@@ -793,8 +817,10 @@ func TestErrorHandling(t *testing.T) {
 
 		// Create a flow
 		flowID := uuid.New().String()
+		flowUUID, err := pgxtypes.UUIDFromString(flowID)
+		require.NoError(t, err)
 		err = database.Queries.CreateGithubOAuthFlow(t.Context(), generated.CreateGithubOAuthFlowParams{
-			Identifier: pgxtypes.UUIDFromString(flowID),
+			Identifier: flowUUID,
 			Verifier:   "test-verifier",
 			Challenge:  "test-challenge",
 		})
@@ -847,8 +873,10 @@ func TestErrorHandling(t *testing.T) {
 
 		// Create a flow
 		flowID := uuid.New().String()
+		flowUUID, err := pgxtypes.UUIDFromString(flowID)
+		require.NoError(t, err)
 		err = database.Queries.CreateGithubOAuthFlow(t.Context(), generated.CreateGithubOAuthFlowParams{
-			Identifier: pgxtypes.UUIDFromString(flowID),
+			Identifier: flowUUID,
 			Verifier:   "test-verifier",
 			Challenge:  "test-challenge",
 		})
@@ -881,8 +909,10 @@ func TestGarbageCollection(t *testing.T) {
 
 		// Create flows that will be created at the current time
 		expiredFlowID := uuid.New().String()
+		expiredFlowUUID, err := pgxtypes.UUIDFromString(expiredFlowID)
+		require.NoError(t, err)
 		err = database.Queries.CreateGithubOAuthFlow(t.Context(), generated.CreateGithubOAuthFlowParams{
-			Identifier: pgxtypes.UUIDFromString(expiredFlowID),
+			Identifier: expiredFlowUUID,
 			Verifier:   "expired-verifier",
 			Challenge:  "expired-challenge",
 		})
@@ -890,8 +920,10 @@ func TestGarbageCollection(t *testing.T) {
 
 		// Create a recent flow
 		recentFlowID := uuid.New().String()
+		recentFlowUUID, err := pgxtypes.UUIDFromString(recentFlowID)
+		require.NoError(t, err)
 		err = database.Queries.CreateGithubOAuthFlow(t.Context(), generated.CreateGithubOAuthFlowParams{
-			Identifier: pgxtypes.UUIDFromString(recentFlowID),
+			Identifier: recentFlowUUID,
 			Verifier:   "recent-verifier",
 			Challenge:  "recent-challenge",
 		})
@@ -899,8 +931,10 @@ func TestGarbageCollection(t *testing.T) {
 
 		// Create another expired flow
 		expiredFlowID2 := uuid.New().String()
+		expiredFlowUUID2, err := pgxtypes.UUIDFromString(expiredFlowID2)
+		require.NoError(t, err)
 		err = database.Queries.CreateGithubOAuthFlow(t.Context(), generated.CreateGithubOAuthFlowParams{
-			Identifier: pgxtypes.UUIDFromString(expiredFlowID2),
+			Identifier: expiredFlowUUID2,
 			Verifier:   "expired-verifier-2",
 			Challenge:  "expired-challenge-2",
 		})
@@ -929,13 +963,13 @@ func TestGarbageCollection(t *testing.T) {
 		require.Equal(t, int64(3), deleted) // Should delete all 3 flows since they're now "expired"
 
 		// Verify all flows are deleted
-		_, err = database.Queries.GetGithubOAuthFlowByIdentifier(t.Context(), pgxtypes.UUIDFromString(expiredFlowID))
+		_, err = database.Queries.GetGithubOAuthFlowByIdentifier(t.Context(), expiredFlowUUID)
 		require.Error(t, err) // Should not exist
 
-		_, err = database.Queries.GetGithubOAuthFlowByIdentifier(t.Context(), pgxtypes.UUIDFromString(expiredFlowID2))
+		_, err = database.Queries.GetGithubOAuthFlowByIdentifier(t.Context(), expiredFlowUUID2)
 		require.Error(t, err) // Should not exist
 
-		_, err = database.Queries.GetGithubOAuthFlowByIdentifier(t.Context(), pgxtypes.UUIDFromString(recentFlowID))
+		_, err = database.Queries.GetGithubOAuthFlowByIdentifier(t.Context(), recentFlowUUID)
 		require.Error(t, err) // Should not exist since with mocked time it's also expired
 	})
 
@@ -964,8 +998,10 @@ func TestGarbageCollection(t *testing.T) {
 		// The gc goroutine should be running now
 		// Create a flow that will be expired when we mock the time
 		expiredFlowID := uuid.New().String()
+		expiredFlowUUID, err := pgxtypes.UUIDFromString(expiredFlowID)
+		require.NoError(t, err)
 		err = database.Queries.CreateGithubOAuthFlow(t.Context(), generated.CreateGithubOAuthFlowParams{
-			Identifier: pgxtypes.UUIDFromString(expiredFlowID),
+			Identifier: expiredFlowUUID,
 			Verifier:   "expired-verifier",
 			Challenge:  "expired-challenge",
 		})
@@ -994,7 +1030,9 @@ func TestGarbageCollection(t *testing.T) {
 		require.NoError(t, err)
 
 		// Run cleanup on empty table
-		deleted, err := database.Queries.DeleteGithubOAuthFlowsBeforeCreatedAt(t.Context(), pgxtypes.TimestampFromTime(time.Now()))
+		ts, err := pgxtypes.TimestampFromTime(time.Now())
+		require.NoError(t, err)
+		deleted, err := database.Queries.DeleteGithubOAuthFlowsBeforeCreatedAt(t.Context(), ts)
 		require.NoError(t, err)
 		require.Equal(t, int64(0), deleted) // No rows deleted
 	})
@@ -1003,8 +1041,10 @@ func TestGarbageCollection(t *testing.T) {
 		// Create only recent flows
 		for i := 0; i < 3; i++ {
 			flowID := uuid.New().String()
-			err := database.Queries.CreateGithubOAuthFlow(t.Context(), generated.CreateGithubOAuthFlowParams{
-				Identifier: pgxtypes.UUIDFromString(flowID),
+			flowUUID, err := pgxtypes.UUIDFromString(flowID)
+			require.NoError(t, err)
+			err = database.Queries.CreateGithubOAuthFlow(t.Context(), generated.CreateGithubOAuthFlowParams{
+				Identifier: flowUUID,
 				Verifier:   fmt.Sprintf("verifier-%d", i),
 				Challenge:  fmt.Sprintf("challenge-%d", i),
 			})
@@ -1012,7 +1052,9 @@ func TestGarbageCollection(t *testing.T) {
 		}
 
 		// Run cleanup with a time that won't match any flows
-		deleted, err := database.Queries.DeleteGithubOAuthFlowsBeforeCreatedAt(t.Context(), pgxtypes.TimestampFromTime(time.Now().Add(-5*time.Minute)))
+		ts, err := pgxtypes.TimestampFromTime(time.Now().Add(-5 * time.Minute))
+		require.NoError(t, err)
+		deleted, err := database.Queries.DeleteGithubOAuthFlowsBeforeCreatedAt(t.Context(), ts)
 		require.NoError(t, err)
 		require.Equal(t, int64(0), deleted) // No rows should be deleted
 
@@ -1066,7 +1108,9 @@ func TestGarbageCollection(t *testing.T) {
 		require.Equal(t, int64(3), deleted)
 
 		for _, id := range ids {
-			_, err = database.Queries.GetGithubOAuthFlowByIdentifier(t.Context(), pgxtypes.UUIDFromString(id))
+			flowUUID, err := pgxtypes.UUIDFromString(id)
+			require.NoError(t, err)
+			_, err = database.Queries.GetGithubOAuthFlowByIdentifier(t.Context(), flowUUID)
 			require.ErrorIs(t, err, sql.ErrNoRows)
 		}
 	})

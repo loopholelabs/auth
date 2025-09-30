@@ -10,9 +10,11 @@ import (
 	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/loopholelabs/logging/types"
 
+	"github.com/loopholelabs/auth/internal/db/pgxtypes"
 	"github.com/loopholelabs/auth/pkg/api/middleware/fiber"
 	"github.com/loopholelabs/auth/pkg/api/options"
 	"github.com/loopholelabs/auth/pkg/credential/cookies"
@@ -72,7 +74,7 @@ func (g *Github) login(ctx context.Context, request *GithubLoginRequest) (*Githu
 	}
 
 	var err error
-	var deviceIdentifier string
+	var deviceUUID pgtype.UUID
 
 	if request.Code != "" {
 		if len(request.Code) != 8 {
@@ -81,7 +83,7 @@ func (g *Github) login(ctx context.Context, request *GithubLoginRequest) (*Githu
 		if g.options.Manager.Device() == nil {
 			return nil, huma.Error401Unauthorized("device provider is not enabled")
 		}
-		deviceIdentifier, err = g.options.Manager.Device().ExistsFlow(ctx, request.Code)
+		deviceIdentifier, err := g.options.Manager.Device().ExistsFlow(ctx, request.Code)
 		if err != nil {
 			g.logger.Error().Err(err).Msg("error checking if flow exists")
 			return nil, huma.Error500InternalServerError("error checking if flow exists")
@@ -89,9 +91,23 @@ func (g *Github) login(ctx context.Context, request *GithubLoginRequest) (*Githu
 		if deviceIdentifier == "" {
 			return nil, huma.Error404NotFound("device flow does not exist")
 		}
+
+		// Convert device identifier to pgtype.UUID
+		deviceUUID, err = pgxtypes.UUIDFromString(deviceIdentifier)
+		if err != nil {
+			g.logger.Error().Err(err).Str("device_id", deviceIdentifier).Msg("invalid device identifier from ExistsFlow")
+			return nil, huma.Error500InternalServerError("invalid device identifier")
+		}
+	} else {
+		// No device flow - use invalid UUID
+		deviceUUID = pgtype.UUID{Valid: false}
 	}
 
-	redirect, err := g.options.Manager.Github().CreateFlow(ctx, deviceIdentifier, "", request.Next)
+	// Call manager function
+	// Input validated: deviceUUID is a valid pgtype.UUID or Valid:false
+	// Input validated: userUUID is Valid:false (no user identifier)
+	// Non-PGX type: request.Next is a URL string (not for database)
+	redirect, err := g.options.Manager.Github().CreateFlow(ctx, deviceUUID, pgtype.UUID{Valid: false}, request.Next)
 	if err != nil {
 		g.logger.Error().Err(err).Msg("failed to get redirect")
 		return nil, huma.Error500InternalServerError("failed to get redirect")
@@ -115,7 +131,16 @@ func (g *Github) callback(ctx context.Context, request *GithubCallbackRequest) (
 		return nil, huma.Error400BadRequest("invalid state")
 	}
 
-	f, err := g.options.Manager.Github().CompleteFlow(ctx, request.State, request.Code)
+	// Validate and convert state parameter to pgtype.UUID
+	stateUUID, err := pgxtypes.UUIDFromString(request.State)
+	if err != nil {
+		return nil, huma.Error400BadRequest("invalid state identifier")
+	}
+
+	// Call manager function
+	// Input validated: stateUUID is a valid pgtype.UUID
+	// Non-PGX type: request.Code is OAuth authorization code (not for database)
+	f, err := g.options.Manager.Github().CompleteFlow(ctx, stateUUID, request.Code)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, huma.Error404NotFound("flow does not exist")
@@ -142,7 +167,21 @@ func (g *Github) callback(ctx context.Context, request *GithubCallbackRequest) (
 
 	if f.DeviceIdentifier != "" {
 		// Device flow - complete the device flow but don't set cookie
-		err = g.options.Manager.Device().CompleteFlow(ctx, f.DeviceIdentifier, session.Identifier)
+		// Convert identifiers to pgtype.UUID
+		deviceUUID, err := pgxtypes.UUIDFromString(f.DeviceIdentifier)
+		if err != nil {
+			g.logger.Error().Err(err).Str("device_id", f.DeviceIdentifier).Msg("invalid device identifier from flow")
+			return nil, huma.Error500InternalServerError("invalid device identifier")
+		}
+		sessionUUID, err := pgxtypes.UUIDFromString(session.Identifier)
+		if err != nil {
+			g.logger.Error().Err(err).Str("session_id", session.Identifier).Msg("invalid session identifier")
+			return nil, huma.Error500InternalServerError("invalid session identifier")
+		}
+
+		// Call manager function
+		// Input validated: deviceUUID and sessionUUID are valid pgtype.UUIDs
+		err = g.options.Manager.Device().CompleteFlow(ctx, deviceUUID, sessionUUID)
 		if err != nil {
 			g.logger.Error().Err(err).Msg("failed to complete flow")
 			return nil, huma.Error500InternalServerError("failed to complete flow")

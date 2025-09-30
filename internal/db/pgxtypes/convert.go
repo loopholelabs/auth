@@ -13,24 +13,31 @@ import (
 var (
 	ErrInvalidUUID      = errors.New("invalid UUID")
 	ErrInvalidTimestamp = errors.New("invalid timestamp")
+	ErrEmptyUUID        = errors.New("empty UUID string")
 )
 
 // UUIDFromString converts a string UUID to pgtype.UUID
-func UUIDFromString(s string) pgtype.UUID {
+func UUIDFromString(s string) (pgtype.UUID, error) {
+	if s == "" {
+		return pgtype.UUID{}, ErrEmptyUUID
+	}
 	uid, err := uuid.Parse(s)
 	if err != nil {
-		return pgtype.UUID{Valid: false}
+		return pgtype.UUID{}, err
 	}
 	return pgtype.UUID{
 		Bytes: uid,
 		Valid: true,
-	}
+	}, nil
 }
 
 // UUIDFromStringPtr converts a string pointer to pgtype.UUID, handling nil
-func UUIDFromStringPtr(s *string) pgtype.UUID {
-	if s == nil || *s == "" {
-		return pgtype.UUID{Valid: false}
+func UUIDFromStringPtr(s *string) (pgtype.UUID, error) {
+	if s == nil {
+		return pgtype.UUID{Valid: false}, nil // nil is valid, returns invalid UUID
+	}
+	if *s == "" {
+		return pgtype.UUID{}, ErrEmptyUUID
 	}
 	return UUIDFromString(*s)
 }
@@ -49,18 +56,24 @@ func StringFromUUID(u pgtype.UUID) (string, error) {
 }
 
 // TimestampFromTime converts time.Time to pgtype.Timestamp
-func TimestampFromTime(t time.Time) pgtype.Timestamp {
+func TimestampFromTime(t time.Time) (pgtype.Timestamp, error) {
+	if t.IsZero() {
+		return pgtype.Timestamp{}, ErrInvalidTimestamp
+	}
 	return pgtype.Timestamp{
 		Time:             t.UTC(), // Ensure UTC for consistency
 		InfinityModifier: pgtype.Finite,
 		Valid:            true,
-	}
+	}, nil
 }
 
 // TimestampFromTimePtr converts time.Time pointer to pgtype.Timestamp, handling nil
-func TimestampFromTimePtr(t *time.Time) pgtype.Timestamp {
+func TimestampFromTimePtr(t *time.Time) (pgtype.Timestamp, error) {
 	if t == nil {
-		return pgtype.Timestamp{Valid: false}
+		return pgtype.Timestamp{Valid: false}, nil // nil is valid, returns invalid timestamp
+	}
+	if t.IsZero() {
+		return pgtype.Timestamp{}, ErrInvalidTimestamp
 	}
 	return TimestampFromTime(*t)
 }
@@ -74,13 +87,8 @@ func TimeFromTimestamp(ts pgtype.Timestamp) (time.Time, error) {
 }
 
 // NewUUID generates a new pgtype.UUID
-func NewUUID() pgtype.UUID {
+func NewUUID() (pgtype.UUID, error) {
 	return UUIDFromString(uuid.New().String())
-}
-
-// IsValidUUID checks if a pgtype.UUID is valid and not empty
-func IsValidUUID(u pgtype.UUID) bool {
-	return u.Valid
 }
 
 // UUIDToBytes converts a string UUID to a UUID bytes representation for salt fields

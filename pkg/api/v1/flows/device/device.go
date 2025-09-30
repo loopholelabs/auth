@@ -14,6 +14,7 @@ import (
 
 	"github.com/loopholelabs/logging/types"
 
+	"github.com/loopholelabs/auth/internal/db/pgxtypes"
 	"github.com/loopholelabs/auth/pkg/api/middleware/fiber"
 	"github.com/loopholelabs/auth/pkg/api/options"
 	"github.com/loopholelabs/auth/pkg/credential/cookies"
@@ -130,7 +131,15 @@ func (d *Device) poll(ctx context.Context, request *DevicePollRequest) (*DeviceP
 		return nil, huma.Error400BadRequest("invalid poll")
 	}
 
-	sessionIdentifier, err := d.options.Manager.Device().PollFlow(ctx, request.Poll, PollingRate)
+	// Validate and convert poll parameter to pgtype.UUID
+	pollUUID, err := pgxtypes.UUIDFromString(request.Poll)
+	if err != nil {
+		return nil, huma.Error400BadRequest("invalid poll identifier")
+	}
+
+	// Call manager function
+	// Input validated: pollUUID is a valid pgtype.UUID
+	sessionIdentifier, err := d.options.Manager.Device().PollFlow(ctx, pollUUID, PollingRate)
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
