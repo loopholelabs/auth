@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -73,7 +74,9 @@ func TestCreateFlow(t *testing.T) {
 	})
 
 	t.Run("CreateFlowSuccess", func(t *testing.T) {
-		token, err := m.CreateFlow(t.Context(), "test@example.com", "", "", "http://localhost:3000/dashboard")
+		emptyDeviceID := pgtype.UUID{Valid: false}
+		emptyUserID := pgtype.UUID{Valid: false}
+		token, err := m.CreateFlow(t.Context(), "test@example.com", emptyDeviceID, emptyUserID, "http://localhost:3000/dashboard")
 		require.NoError(t, err)
 		require.NotEmpty(t, token)
 
@@ -123,7 +126,7 @@ func TestCreateFlow(t *testing.T) {
 
 	t.Run("CreateFlowWithEmptyDeviceIdentifier", func(t *testing.T) {
 		// Test with empty device identifier - should work fine
-		token, err := m.CreateFlow(t.Context(), "user@example.com", "", "", "http://localhost:3000/dashboard")
+		token, err := m.CreateFlow(t.Context(), "user@example.com", pgtype.UUID{Valid: false}, pgtype.UUID{Valid: false}, "http://localhost:3000/dashboard")
 		require.NoError(t, err)
 		require.NotEmpty(t, token)
 
@@ -169,7 +172,7 @@ func TestCreateFlow(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		token, err := m.CreateFlow(t.Context(), "linked@example.com", "", userID, "http://example.com/next")
+		token, err := m.CreateFlow(t.Context(), "linked@example.com", pgtype.UUID{Valid: false}, userUUID, "http://example.com/next")
 		require.NoError(t, err)
 		require.NotEmpty(t, token)
 
@@ -219,7 +222,7 @@ func TestCreateFlow(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create flow with user and URL but no device (since device requires FK)
-		token, err := m.CreateFlow(t.Context(), "full@example.com", "", userID, "https://app.com/welcome")
+		token, err := m.CreateFlow(t.Context(), "full@example.com", pgtype.UUID{Valid: false}, userUUID, "https://app.com/welcome")
 		require.NoError(t, err)
 		require.NotEmpty(t, token)
 
@@ -246,7 +249,7 @@ func TestCreateFlow(t *testing.T) {
 
 	t.Run("CreateFlowWithEmptyEmail", func(t *testing.T) {
 		// Empty email should still work (no validation at this level)
-		token, err := m.CreateFlow(t.Context(), "", "", "", "http://localhost:3000/dashboard")
+		token, err := m.CreateFlow(t.Context(), "", pgtype.UUID{Valid: false}, pgtype.UUID{Valid: false}, "http://localhost:3000/dashboard")
 		require.NoError(t, err)
 		require.NotEmpty(t, token)
 
@@ -269,11 +272,11 @@ func TestCreateFlow(t *testing.T) {
 		email := "duplicate@example.com"
 
 		// Should be able to create multiple flows for the same email
-		token1, err := m.CreateFlow(t.Context(), email, "", "", "http://localhost:3000/dashboard")
+		token1, err := m.CreateFlow(t.Context(), email, pgtype.UUID{Valid: false}, pgtype.UUID{Valid: false}, "http://localhost:3000/dashboard")
 		require.NoError(t, err)
 		require.NotEmpty(t, token1)
 
-		token2, err := m.CreateFlow(t.Context(), email, "", "", "http://localhost:3000/dashboard")
+		token2, err := m.CreateFlow(t.Context(), email, pgtype.UUID{Valid: false}, pgtype.UUID{Valid: false}, "http://localhost:3000/dashboard")
 		require.NoError(t, err)
 		require.NotEmpty(t, token2)
 
@@ -320,7 +323,7 @@ func TestCompleteFlow(t *testing.T) {
 
 	t.Run("CompleteFlowSuccess", func(t *testing.T) {
 		// Create a flow
-		token, err := m.CreateFlow(t.Context(), "test@example.com", "", "", "http://localhost:3000/dashboard")
+		token, err := m.CreateFlow(t.Context(), "test@example.com", pgtype.UUID{Valid: false}, pgtype.UUID{Valid: false}, "http://localhost:3000/dashboard")
 		require.NoError(t, err)
 
 		// Complete the flow
@@ -372,7 +375,7 @@ func TestCompleteFlow(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create flow with user and URL
-		token, err := m.CreateFlow(t.Context(), "complete@example.com", "", userID, "https://app.com/success")
+		token, err := m.CreateFlow(t.Context(), "complete@example.com", pgtype.UUID{Valid: false}, userUUID, "https://app.com/success")
 		require.NoError(t, err)
 
 		// Complete the flow
@@ -449,7 +452,7 @@ func TestCompleteFlow(t *testing.T) {
 
 	t.Run("CompleteFlowWithWrongSecret", func(t *testing.T) {
 		// Create a valid flow
-		validToken, err := m.CreateFlow(t.Context(), "valid@example.com", "", "", "http://localhost:3000/dashboard")
+		validToken, err := m.CreateFlow(t.Context(), "valid@example.com", pgtype.UUID{Valid: false}, pgtype.UUID{Valid: false}, "http://localhost:3000/dashboard")
 		require.NoError(t, err)
 
 		// Decode the valid token to get identifier
@@ -476,7 +479,7 @@ func TestCompleteFlow(t *testing.T) {
 
 	t.Run("CompleteFlowIdempotency", func(t *testing.T) {
 		// Create a flow
-		token, err := m.CreateFlow(t.Context(), "idempotent@example.com", "", "", "http://localhost:3000/dashboard")
+		token, err := m.CreateFlow(t.Context(), "idempotent@example.com", pgtype.UUID{Valid: false}, pgtype.UUID{Valid: false}, "http://localhost:3000/dashboard")
 		require.NoError(t, err)
 
 		// Complete the flow first time
@@ -493,7 +496,7 @@ func TestCompleteFlow(t *testing.T) {
 
 	t.Run("CompleteFlowConcurrency", func(t *testing.T) {
 		// Create a flow
-		token, err := m.CreateFlow(t.Context(), "concurrent@example.com", "", "", "http://localhost:3000/dashboard")
+		token, err := m.CreateFlow(t.Context(), "concurrent@example.com", pgtype.UUID{Valid: false}, pgtype.UUID{Valid: false}, "http://localhost:3000/dashboard")
 		require.NoError(t, err)
 
 		// Try to complete the flow concurrently
@@ -545,7 +548,7 @@ func TestTokenEncoding(t *testing.T) {
 	})
 
 	t.Run("TokenStructure", func(t *testing.T) {
-		token, err := m.CreateFlow(t.Context(), "token@example.com", "", "", "http://localhost:3000/dashboard")
+		token, err := m.CreateFlow(t.Context(), "token@example.com", pgtype.UUID{Valid: false}, pgtype.UUID{Valid: false}, "http://localhost:3000/dashboard")
 		require.NoError(t, err)
 
 		// Verify token is valid base64
@@ -574,7 +577,7 @@ func TestTokenEncoding(t *testing.T) {
 		// Create multiple flows and verify tokens are unique
 		tokens := make(map[string]bool)
 		for i := 0; i < 10; i++ {
-			token, err := m.CreateFlow(t.Context(), fmt.Sprintf("user%d@example.com", i), "", "", "http://localhost:3000/dashboard")
+			token, err := m.CreateFlow(t.Context(), fmt.Sprintf("user%d@example.com", i), pgtype.UUID{Valid: false}, pgtype.UUID{Valid: false}, "http://localhost:3000/dashboard")
 			require.NoError(t, err)
 			require.NotContains(t, tokens, token, "token should be unique")
 			tokens[token] = true
@@ -583,7 +586,7 @@ func TestTokenEncoding(t *testing.T) {
 
 	t.Run("TokenSecurity", func(t *testing.T) {
 		// Create a flow
-		token, err := m.CreateFlow(t.Context(), "secure@example.com", "", "", "http://localhost:3000/dashboard")
+		token, err := m.CreateFlow(t.Context(), "secure@example.com", pgtype.UUID{Valid: false}, pgtype.UUID{Valid: false}, "http://localhost:3000/dashboard")
 		require.NoError(t, err)
 
 		// Decode token
@@ -834,7 +837,7 @@ func TestGarbageCollection(t *testing.T) {
 
 		var tokens []string
 		for i := 0; i < 3; i++ {
-			token, err := m.CreateFlow(t.Context(), fmt.Sprintf("user%d@example.com", i), "", "", "http://localhost:3000/dashboard")
+			token, err := m.CreateFlow(t.Context(), fmt.Sprintf("user%d@example.com", i), pgtype.UUID{Valid: false}, pgtype.UUID{Valid: false}, "http://localhost:3000/dashboard")
 			require.NoError(t, err)
 			tokens = append(tokens, token)
 		}
@@ -882,7 +885,7 @@ func TestConcurrency(t *testing.T) {
 		// Create flows concurrently
 		for i := 0; i < numGoroutines; i++ {
 			go func(idx int) {
-				token, err := m.CreateFlow(t.Context(), fmt.Sprintf("concurrent%d@example.com", idx), "", "", "http://localhost:3000/dashboard")
+				token, err := m.CreateFlow(t.Context(), fmt.Sprintf("concurrent%d@example.com", idx), pgtype.UUID{Valid: false}, pgtype.UUID{Valid: false}, "http://localhost:3000/dashboard")
 				if err != nil {
 					errors <- err
 				} else {
@@ -904,7 +907,7 @@ func TestConcurrency(t *testing.T) {
 
 	t.Run("ConcurrentCompleteFlow", func(t *testing.T) {
 		// Create a single flow
-		token, err := m.CreateFlow(t.Context(), "race@example.com", "", "", "http://localhost:3000/dashboard")
+		token, err := m.CreateFlow(t.Context(), "race@example.com", pgtype.UUID{Valid: false}, pgtype.UUID{Valid: false}, "http://localhost:3000/dashboard")
 		require.NoError(t, err)
 
 		results := make(chan error, 2)
@@ -957,7 +960,7 @@ func TestErrorScenarios(t *testing.T) {
 
 	t.Run("CompleteFlowAfterDeletion", func(t *testing.T) {
 		// Create a flow
-		token, err := m.CreateFlow(t.Context(), "deleted@example.com", "", "", "http://localhost:3000/dashboard")
+		token, err := m.CreateFlow(t.Context(), "deleted@example.com", pgtype.UUID{Valid: false}, pgtype.UUID{Valid: false}, "http://localhost:3000/dashboard")
 		require.NoError(t, err)
 
 		// Extract identifier and delete the flow manually
@@ -987,7 +990,7 @@ func TestErrorScenarios(t *testing.T) {
 
 		// Try to create a flow - should fail with database error
 
-		token, err := m2.CreateFlow(t.Context(), "error@example.com", "", "", "http://localhost:3000/dashboard")
+		token, err := m2.CreateFlow(t.Context(), "error@example.com", pgtype.UUID{Valid: false}, pgtype.UUID{Valid: false}, "http://localhost:3000/dashboard")
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrCreatingFlow)
 		require.Empty(t, token)
@@ -1018,7 +1021,7 @@ func TestClose(t *testing.T) {
 
 		// After close, operations should not work due to cancelled context
 
-		_, err = m.CreateFlow(t.Context(), "afterclose@example.com", "", "", "http://localhost:3000/dashboard")
+		_, err = m.CreateFlow(t.Context(), "afterclose@example.com", pgtype.UUID{Valid: false}, pgtype.UUID{Valid: false}, "http://localhost:3000/dashboard")
 		require.NoError(t, err)
 
 		// The flow might still be created since CreateFlow uses the passed context
@@ -1082,7 +1085,7 @@ func TestFlowLifecycle(t *testing.T) {
 		require.NoError(t, err)
 
 		// Step 1: Create flow (without device ID due to FK constraint)
-		token, err := m.CreateFlow(t.Context(), email, "", userID, nextURL)
+		token, err := m.CreateFlow(t.Context(), email, pgtype.UUID{Valid: false}, userUUID, nextURL)
 		require.NoError(t, err)
 		require.NotEmpty(t, token)
 
@@ -1152,7 +1155,7 @@ func TestSpecialCharacters(t *testing.T) {
 		}
 
 		for _, email := range specialEmails {
-			token, err := m.CreateFlow(t.Context(), email, "", "", "http://localhost:3000/dashboard")
+			token, err := m.CreateFlow(t.Context(), email, pgtype.UUID{Valid: false}, pgtype.UUID{Valid: false}, "http://localhost:3000/dashboard")
 			require.NoError(t, err)
 
 			flow, err := m.CompleteFlow(t.Context(), token)
@@ -1170,7 +1173,7 @@ func TestSpecialCharacters(t *testing.T) {
 		}
 
 		for _, url := range urls {
-			token, err := m.CreateFlow(t.Context(), "test@example.com", "", "", url)
+			token, err := m.CreateFlow(t.Context(), "test@example.com", pgtype.UUID{Valid: false}, pgtype.UUID{Valid: false}, url)
 			require.NoError(t, err)
 
 			flow, err := m.CompleteFlow(t.Context(), token)
@@ -1199,7 +1202,7 @@ func TestNullableFields(t *testing.T) {
 
 	t.Run("AllFieldsEmpty", func(t *testing.T) {
 		// Create flow with all optional fields empty
-		token, err := m.CreateFlow(t.Context(), "minimal@example.com", "", "", "http://localhost:3000/dashboard")
+		token, err := m.CreateFlow(t.Context(), "minimal@example.com", pgtype.UUID{Valid: false}, pgtype.UUID{Valid: false}, "http://localhost:3000/dashboard")
 		require.NoError(t, err)
 
 		// Complete flow and verify empty fields
@@ -1249,7 +1252,22 @@ func TestNullableFields(t *testing.T) {
 					require.NoError(t, err)
 				}
 
-				token, err := m.CreateFlow(t.Context(), tc.name+"@example.com", tc.device, tc.user, tc.nextURL)
+				// Convert string identifiers to pgtype.UUID
+				var deviceUUID, userUUID pgtype.UUID
+				if tc.device != "" {
+					deviceUUID, err = pgxtypes.UUIDFromString(tc.device)
+					require.NoError(t, err)
+				} else {
+					deviceUUID = pgtype.UUID{Valid: false}
+				}
+				if tc.user != "" {
+					userUUID, err = pgxtypes.UUIDFromString(tc.user)
+					require.NoError(t, err)
+				} else {
+					userUUID = pgtype.UUID{Valid: false}
+				}
+
+				token, err := m.CreateFlow(t.Context(), tc.name+"@example.com", deviceUUID, userUUID, tc.nextURL)
 				require.NoError(t, err)
 
 				flow, err := m.CompleteFlow(t.Context(), token)

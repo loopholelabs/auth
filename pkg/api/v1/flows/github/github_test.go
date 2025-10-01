@@ -129,7 +129,8 @@ func TestGitHubCallback(t *testing.T) {
 		api := setupTestEnvironment(t, true)
 
 		resp := api.Get("/github/callback?state=invalid-state&code=test-code")
-		assert.Equal(t, 404, resp.Result().StatusCode)
+		// Now returns 400 because state is not a valid UUID
+		assert.Equal(t, 400, resp.Result().StatusCode)
 	})
 
 	t.Run("GitHubNotEnabled", func(t *testing.T) {

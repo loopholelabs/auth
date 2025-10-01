@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -303,7 +304,11 @@ func TestDevice_CompleteFlow(t *testing.T) {
 		sessionID := createTestSession(t)
 
 		// Complete the flow
-		err = device.CompleteFlow(t.Context(), identifier, sessionID)
+		identifierUUID, err := pgxtypes.UUIDFromString(identifier)
+		require.NoError(t, err)
+		sessionUUID, err := pgxtypes.UUIDFromString(sessionID)
+		require.NoError(t, err)
+		err = device.CompleteFlow(t.Context(), identifierUUID, sessionUUID)
 		require.NoError(t, err)
 
 		// Verify flow was updated
@@ -321,7 +326,11 @@ func TestDevice_CompleteFlow(t *testing.T) {
 		sessionID := createTestSession(t)
 		nonExistentID := uuid.New().String()
 
-		err := device.CompleteFlow(t.Context(), nonExistentID, sessionID)
+		nonExistentUUID, err := pgxtypes.UUIDFromString(nonExistentID)
+		require.NoError(t, err)
+		sessionUUID, err := pgxtypes.UUIDFromString(sessionID)
+		require.NoError(t, err)
+		err = device.CompleteFlow(t.Context(), nonExistentUUID, sessionUUID)
 		assert.ErrorIs(t, err, sql.ErrNoRows)
 	})
 
@@ -335,7 +344,10 @@ func TestDevice_CompleteFlow(t *testing.T) {
 		require.NoError(t, err)
 
 		// Complete with empty session ID (should succeed but set NULL)
-		err = device.CompleteFlow(t.Context(), identifier, "")
+		identifierUUID, err := pgxtypes.UUIDFromString(identifier)
+		require.NoError(t, err)
+		emptySessionUUID := pgtype.UUID{Valid: false} // Invalid UUID for empty session
+		err = device.CompleteFlow(t.Context(), identifierUUID, emptySessionUUID)
 		require.NoError(t, err)
 
 		// Verify flow was updated with null session
@@ -357,7 +369,11 @@ func TestDevice_CompleteFlow(t *testing.T) {
 
 		// Try to complete with non-existent session ID (foreign key constraint should fail)
 		invalidSessionID := uuid.New().String()
-		err = device.CompleteFlow(t.Context(), identifier, invalidSessionID)
+		identifierUUID, err := pgxtypes.UUIDFromString(identifier)
+		require.NoError(t, err)
+		invalidSessionUUID, err := pgxtypes.UUIDFromString(invalidSessionID)
+		require.NoError(t, err)
+		err = device.CompleteFlow(t.Context(), identifierUUID, invalidSessionUUID)
 		assert.Error(t, err)
 		assert.ErrorIs(t, err, ErrCompletingFlow)
 	})
@@ -376,11 +392,17 @@ func TestDevice_CompleteFlow(t *testing.T) {
 		sessionID2 := createTestSession(t)
 
 		// Complete the flow first time
-		err = device.CompleteFlow(t.Context(), identifier, sessionID1)
+		identifierUUID, err := pgxtypes.UUIDFromString(identifier)
+		require.NoError(t, err)
+		sessionUUID1, err := pgxtypes.UUIDFromString(sessionID1)
+		require.NoError(t, err)
+		err = device.CompleteFlow(t.Context(), identifierUUID, sessionUUID1)
 		require.NoError(t, err)
 
 		// Complete the flow second time (should update)
-		err = device.CompleteFlow(t.Context(), identifier, sessionID2)
+		sessionUUID2, err := pgxtypes.UUIDFromString(sessionID2)
+		require.NoError(t, err)
+		err = device.CompleteFlow(t.Context(), identifierUUID, sessionUUID2)
 		require.NoError(t, err)
 
 		// Verify flow has the second session
@@ -459,15 +481,15 @@ func TestDevice_PollFlow(t *testing.T) {
 		require.NoError(t, err)
 
 		// Poll the flow (should return not completed)
-		sessionID, err := device.PollFlow(t.Context(), poll, 5*time.Second)
+		pollUUID, err := pgxtypes.UUIDFromString(poll)
+		require.NoError(t, err)
+		sessionID, err := device.PollFlow(t.Context(), pollUUID, 5*time.Second)
 		assert.Error(t, err)
 		assert.ErrorIs(t, err, ErrPollingFlow)
 		assert.ErrorIs(t, err, ErrFlowNotCompleted)
 		assert.Empty(t, sessionID)
 
 		// Verify LastPoll was updated
-		pollUUID, err := pgxtypes.UUIDFromString(poll)
-		require.NoError(t, err)
 		flow, err := database.Queries.GetDeviceCodeFlowByPoll(t.Context(), pollUUID)
 		require.NoError(t, err)
 		lastPollTime, err := pgxtypes.TimeFromTimestamp(flow.LastPoll)
@@ -486,7 +508,11 @@ func TestDevice_PollFlow(t *testing.T) {
 
 		// Create and attach a session
 		sessionID := createTestSession(t)
-		err = device.CompleteFlow(t.Context(), identifier, sessionID)
+		identifierUUID, err := pgxtypes.UUIDFromString(identifier)
+		require.NoError(t, err)
+		sessionUUID, err := pgxtypes.UUIDFromString(sessionID)
+		require.NoError(t, err)
+		err = device.CompleteFlow(t.Context(), identifierUUID, sessionUUID)
 		require.NoError(t, err)
 
 		// Check the flow state before polling
@@ -498,7 +524,7 @@ func TestDevice_PollFlow(t *testing.T) {
 		t.Logf("Flow SessionIdentifier valid: %v", flow.SessionIdentifier.Valid)
 
 		// Poll the flow (should return session ID and delete flow)
-		returnedSessionID, err := device.PollFlow(t.Context(), poll, 5*time.Second)
+		returnedSessionID, err := device.PollFlow(t.Context(), pollUUID, 5*time.Second)
 		require.NoError(t, err)
 		assert.Equal(t, sessionID, returnedSessionID)
 
@@ -512,8 +538,10 @@ func TestDevice_PollFlow(t *testing.T) {
 
 	t.Run("PollNonExistentFlow", func(t *testing.T) {
 		nonExistentPoll := uuid.New().String()
+		nonExistentPollUUID, err := pgxtypes.UUIDFromString(nonExistentPoll)
+		require.NoError(t, err)
 
-		sessionID, err := device.PollFlow(t.Context(), nonExistentPoll, 5*time.Second)
+		sessionID, err := device.PollFlow(t.Context(), nonExistentPollUUID, 5*time.Second)
 		assert.Error(t, err)
 		assert.ErrorIs(t, err, ErrPollingFlow)
 		assert.Empty(t, sessionID)
@@ -534,7 +562,7 @@ func TestDevice_PollFlow(t *testing.T) {
 		require.Equal(t, int64(1), num)
 
 		// Try to poll immediately with long poll rate (should be rate limited since we just updated LastPoll)
-		sessionID, err := device.PollFlow(t.Context(), poll, 5*time.Second)
+		sessionID, err := device.PollFlow(t.Context(), pollUUID, 5*time.Second)
 		assert.Error(t, err)
 		assert.ErrorIs(t, err, ErrPollingFlow)
 		assert.ErrorIs(t, err, ErrRateLimitFlow)
@@ -555,13 +583,15 @@ func TestDevice_PollFlow(t *testing.T) {
 		require.NoError(t, err)
 
 		// First poll - should update LastPoll
-		_, err = device.PollFlow(t.Context(), poll, 5*time.Second)
+		pollUUID, err := pgxtypes.UUIDFromString(poll)
+		require.NoError(t, err)
+		_, err = device.PollFlow(t.Context(), pollUUID, 5*time.Second)
 		assert.Error(t, err)
 		assert.ErrorIs(t, err, ErrFlowNotCompleted)
 
 		// Try to poll again immediately with short poll rate
 		// This should be rate limited because LastPoll + 1ms is before now()
-		sessionID, err := device.PollFlow(t.Context(), poll, 1*time.Millisecond)
+		sessionID, err := device.PollFlow(t.Context(), pollUUID, 1*time.Millisecond)
 		assert.Error(t, err)
 		assert.ErrorIs(t, err, ErrPollingFlow)
 		assert.ErrorIs(t, err, ErrRateLimitFlow)
@@ -581,18 +611,24 @@ func TestDevice_PollFlow(t *testing.T) {
 		sessionID := createTestSession(t)
 
 		// Complete the flow with session
-		err = device.CompleteFlow(t.Context(), identifier, sessionID)
+		identifierUUID, err := pgxtypes.UUIDFromString(identifier)
+		require.NoError(t, err)
+		sessionUUID, err := pgxtypes.UUIDFromString(sessionID)
+		require.NoError(t, err)
+		err = device.CompleteFlow(t.Context(), identifierUUID, sessionUUID)
 		require.NoError(t, err)
 
 		// Delete the session (to simulate invalid foreign key)
-		sessionUUID, err := pgxtypes.UUIDFromString(sessionID)
+		sessionUUID, err = pgxtypes.UUIDFromString(sessionID)
 		require.NoError(t, err)
 		num, err := database.Queries.DeleteSessionByIdentifier(t.Context(), sessionUUID)
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), num)
 
 		// Poll should fail when trying to get session
-		returnedSessionID, err := device.PollFlow(t.Context(), poll, 5*time.Second)
+		pollUUID, err := pgxtypes.UUIDFromString(poll)
+		require.NoError(t, err)
+		returnedSessionID, err := device.PollFlow(t.Context(), pollUUID, 5*time.Second)
 		assert.Error(t, err)
 		assert.ErrorIs(t, err, ErrPollingFlow)
 		assert.Empty(t, returnedSessionID)
@@ -611,7 +647,11 @@ func TestDevice_PollFlow(t *testing.T) {
 		sessionID := createTestSession(t)
 
 		// Complete the flow
-		err = device.CompleteFlow(t.Context(), identifier, sessionID)
+		identifierUUID, err := pgxtypes.UUIDFromString(identifier)
+		require.NoError(t, err)
+		sessionUUID, err := pgxtypes.UUIDFromString(sessionID)
+		require.NoError(t, err)
+		err = device.CompleteFlow(t.Context(), identifierUUID, sessionUUID)
 		require.NoError(t, err)
 
 		// Try concurrent polling
@@ -624,11 +664,14 @@ func TestDevice_PollFlow(t *testing.T) {
 		var startWg sync.WaitGroup
 		startWg.Add(2)
 
+		pollUUID, err := pgxtypes.UUIDFromString(poll)
+		require.NoError(t, err)
+
 		for i := 0; i < 2; i++ {
 			go func() {
 				startWg.Done()
 				startWg.Wait() // Wait for both goroutines to be ready
-				sid, err := device.PollFlow(t.Context(), poll, 5*time.Second)
+				sid, err := device.PollFlow(t.Context(), pollUUID, 5*time.Second)
 				results <- struct {
 					sessionID string
 					err       error
@@ -840,7 +883,11 @@ func TestDevice_EdgeCases(t *testing.T) {
 		// Poll multiple times rapidly to test rate limiting
 		for i := 0; i < 5; i++ {
 			// Use a long pollRate (1 second) to ensure subsequent rapid polls are rate limited
-			_, err = device.PollFlow(t.Context(), poll, 1*time.Second)
+			pollUUID, err := pgxtypes.UUIDFromString(poll)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = device.PollFlow(t.Context(), pollUUID, 1*time.Second)
 
 			if i == 0 {
 				// First poll should succeed (return flow not completed)
@@ -873,12 +920,19 @@ func TestDevice_EdgeCases(t *testing.T) {
 		// We can't easily mock internal database errors, but we can test
 		// with an invalid poll value that will cause an error
 		invalidPoll := "invalid-uuid"
-		_, err = device.PollFlow(t.Context(), invalidPoll, 5*time.Second)
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrPollingFlow)
+		// This should fail at conversion
+		invalidPollUUID, err := pgxtypes.UUIDFromString(invalidPoll)
+		if err == nil {
+			// If somehow conversion succeeded, still test PollFlow
+			_, err = device.PollFlow(t.Context(), invalidPollUUID, 5*time.Second)
+			assert.Error(t, err)
+			assert.ErrorIs(t, err, ErrPollingFlow)
+		}
 
 		// Original flow should still be pollable (but returns flow not completed)
-		_, err = device.PollFlow(t.Context(), poll, 5*time.Second)
+		pollUUID, err := pgxtypes.UUIDFromString(poll)
+		require.NoError(t, err)
+		_, err = device.PollFlow(t.Context(), pollUUID, 5*time.Second)
 		assert.Error(t, err)
 		assert.ErrorIs(t, err, ErrPollingFlow)
 		assert.ErrorIs(t, err, ErrFlowNotCompleted)
@@ -975,9 +1029,17 @@ func TestDevice_SecurityCases(t *testing.T) {
 		// Try SQL injection in poll parameter
 		maliciousPoll := "'; DROP TABLE device_code_flows; --"
 
-		_, err := device.PollFlow(t.Context(), maliciousPoll, 5*time.Second)
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrPollingFlow)
+		// This should fail at conversion
+		maliciousPollUUID, err := pgxtypes.UUIDFromString(maliciousPoll)
+		if err == nil {
+			// If somehow conversion succeeded, still test PollFlow
+			_, err = device.PollFlow(t.Context(), maliciousPollUUID, 5*time.Second)
+			assert.Error(t, err)
+			assert.ErrorIs(t, err, ErrPollingFlow)
+		} else {
+			// Expected - malicious string should fail UUID conversion
+			assert.Error(t, err)
+		}
 
 		// Verify table still exists
 		count, err := database.Queries.CountAllDeviceCodeFlows(t.Context())
@@ -1002,8 +1064,18 @@ func TestDevice_SecurityCases(t *testing.T) {
 			strings.Repeat("a", 1000),
 		}
 
+		identifierUUID, err := pgxtypes.UUIDFromString(identifier)
+		require.NoError(t, err)
+
 		for _, invalidSession := range invalidSessions {
-			err := device.CompleteFlow(t.Context(), identifier, invalidSession)
+			// These should fail at conversion
+			invalidUUID, err := pgxtypes.UUIDFromString(invalidSession)
+			if err != nil {
+				// Expected error at conversion - this is what we want to test
+				continue
+			}
+			// If somehow conversion succeeded, still test the CompleteFlow
+			err = device.CompleteFlow(t.Context(), identifierUUID, invalidUUID)
 			assert.Error(t, err)
 			assert.ErrorIs(t, err, ErrCompletingFlow)
 		}
@@ -1080,7 +1152,12 @@ func TestDevice_PerformanceAndStress(t *testing.T) {
 					}
 
 					// Poll (should fail as incomplete)
-					_, err = device.PollFlow(context.Background(), poll, 5*time.Second)
+					pollUUID, err := pgxtypes.UUIDFromString(poll)
+					if err != nil {
+						errs <- err
+						continue
+					}
+					_, err = device.PollFlow(context.Background(), pollUUID, 5*time.Second)
 					if err == nil {
 						errs <- errors.New("poll should fail for incomplete flow")
 					}

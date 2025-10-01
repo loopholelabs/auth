@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 
@@ -168,7 +169,10 @@ func TestCreateFlow(t *testing.T) {
 	})
 
 	t.Run("CreateFlowSuccess", func(t *testing.T) {
-		authURL, err := g.CreateFlow(t.Context(), "", "", "http://localhost:3000/dashboard")
+		// Use empty UUIDs (Valid: false) for device and user identifiers
+		emptyDeviceID := pgtype.UUID{Valid: false}
+		emptyUserID := pgtype.UUID{Valid: false}
+		authURL, err := g.CreateFlow(t.Context(), emptyDeviceID, emptyUserID, "http://localhost:3000/dashboard")
 		require.NoError(t, err)
 		require.NotEmpty(t, authURL)
 
@@ -228,7 +232,9 @@ func TestCreateFlow(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		authURL, err := g.CreateFlow(t.Context(), "", userID, "http://example.com/next")
+		// Use empty device ID and the already converted user UUID
+		emptyDeviceID := pgtype.UUID{Valid: false}
+		authURL, err := g.CreateFlow(t.Context(), emptyDeviceID, userUUID, "http://example.com/next")
 		require.NoError(t, err)
 		require.NotEmpty(t, authURL)
 
@@ -298,7 +304,7 @@ func TestCompleteFlow(t *testing.T) {
 		require.NoError(t, err)
 
 		// Complete the flow
-		flow, err := g.CompleteFlow(t.Context(), flowID, "test-auth-code")
+		flow, err := g.CompleteFlow(t.Context(), flowUUID, "test-auth-code")
 		require.NoError(t, err)
 		require.NotNil(t, flow)
 
@@ -361,7 +367,7 @@ func TestCompleteFlow(t *testing.T) {
 		require.NoError(t, err)
 
 		// Complete the flow - should fail due to unverified email
-		flow, err := g.CompleteFlow(t.Context(), flowID, "test-auth-code")
+		flow, err := g.CompleteFlow(t.Context(), flowUUID, "test-auth-code")
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrNoVerifiedEmails)
 		require.Zero(t, flow)
@@ -404,7 +410,7 @@ func TestCompleteFlow(t *testing.T) {
 		require.NoError(t, err)
 
 		// Complete the flow - should fail due to empty email
-		flow, err := g.CompleteFlow(t.Context(), flowID, "test-auth-code")
+		flow, err := g.CompleteFlow(t.Context(), flowUUID, "test-auth-code")
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrNoVerifiedEmails)
 		require.Zero(t, flow)
@@ -449,7 +455,7 @@ func TestCompleteFlow(t *testing.T) {
 		require.NoError(t, err)
 
 		// Complete the flow - should fail due to invalid code
-		flow, err := g.CompleteFlow(t.Context(), flowID, "invalid-code")
+		flow, err := g.CompleteFlow(t.Context(), flowUUID, "invalid-code")
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrCompletingFlow)
 		require.Zero(t, flow)
@@ -495,7 +501,7 @@ func TestCompleteFlow(t *testing.T) {
 		require.NoError(t, err)
 
 		// Complete the flow - should fail due to API error
-		flow, err := g.CompleteFlow(t.Context(), flowID, "test-auth-code")
+		flow, err := g.CompleteFlow(t.Context(), flowUUID, "test-auth-code")
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrInvalidResponse)
 		require.Zero(t, flow)
@@ -540,7 +546,7 @@ func TestCompleteFlow(t *testing.T) {
 		require.NoError(t, err)
 
 		// Complete the flow - should fail due to network error
-		flow, err := g.CompleteFlow(t.Context(), flowID, "test-auth-code")
+		flow, err := g.CompleteFlow(t.Context(), flowUUID, "test-auth-code")
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrCompletingFlow)
 		require.Contains(t, err.Error(), "network timeout")
@@ -565,7 +571,9 @@ func TestCompleteFlow(t *testing.T) {
 		})
 
 		// Try to complete a non-existent flow
-		flow, err := g.CompleteFlow(t.Context(), "nonexistent-flow-id", "test-auth-code")
+		nonExistentUUID, err := pgxtypes.UUIDFromString(uuid.New().String()) // Valid but non-existent UUID
+		require.NoError(t, err)
+		flow, err := g.CompleteFlow(t.Context(), nonExistentUUID, "test-auth-code")
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrCompletingFlow)
 		require.Zero(t, flow)
@@ -614,7 +622,7 @@ func TestCompleteFlow(t *testing.T) {
 		require.NoError(t, err)
 
 		// Complete the flow - should fail due to invalid JSON
-		flow, err := g.CompleteFlow(t.Context(), flowID, "test-auth-code")
+		flow, err := g.CompleteFlow(t.Context(), flowUUID, "test-auth-code")
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrCompletingFlow)
 
@@ -649,7 +657,9 @@ func TestAuthURLGeneration(t *testing.T) {
 	})
 
 	t.Run("ValidateAuthURLParameters", func(t *testing.T) {
-		authURL, err := g.CreateFlow(t.Context(), "", "", "http://localhost:3000/dashboard")
+		emptyDeviceID := pgtype.UUID{Valid: false}
+		emptyUserID := pgtype.UUID{Valid: false}
+		authURL, err := g.CreateFlow(t.Context(), emptyDeviceID, emptyUserID, "http://localhost:3000/dashboard")
 		require.NoError(t, err)
 
 		// Parse URL and validate OAuth2 parameters
@@ -759,7 +769,7 @@ func TestOAuth2Integration(t *testing.T) {
 		require.NoError(t, err)
 
 		// Complete flow - this should use the custom HTTP client
-		flow, err := g.CompleteFlow(t.Context(), flowID, "test-auth-code")
+		flow, err := g.CompleteFlow(t.Context(), flowUUID, "test-auth-code")
 		require.NoError(t, err)
 		require.NotNil(t, flow)
 
@@ -825,7 +835,7 @@ func TestErrorHandling(t *testing.T) {
 		require.NoError(t, err)
 
 		// Try to complete flow
-		flow, err := g.CompleteFlow(t.Context(), flowID, "invalid-code")
+		flow, err := g.CompleteFlow(t.Context(), flowUUID, "invalid-code")
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrCompletingFlow)
 
@@ -884,7 +894,7 @@ func TestErrorHandling(t *testing.T) {
 		require.NoError(t, err)
 
 		// Try to complete flow
-		flow, err := g.CompleteFlow(t.Context(), flowID, "test-auth-code")
+		flow, err := g.CompleteFlow(t.Context(), flowUUID, "test-auth-code")
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrInvalidResponse)
 		require.Zero(t, flow)
@@ -1090,8 +1100,10 @@ func TestGarbageCollection(t *testing.T) {
 		})
 
 		var ids []string
+		emptyDeviceID := pgtype.UUID{Valid: false}
+		emptyUserID := pgtype.UUID{Valid: false}
 		for i := 0; i < 3; i++ {
-			redirectURL, err := g.CreateFlow(t.Context(), "", "", "http://localhost:3000/dashboard")
+			redirectURL, err := g.CreateFlow(t.Context(), emptyDeviceID, emptyUserID, "http://localhost:3000/dashboard")
 			require.NoError(t, err)
 			u, err := url.Parse(redirectURL)
 			require.NoError(t, err)
