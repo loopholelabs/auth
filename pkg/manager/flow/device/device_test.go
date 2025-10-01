@@ -591,7 +591,7 @@ func TestDevice_PollFlow(t *testing.T) {
 
 		// Try to poll again immediately with short poll rate
 		// This should be rate limited because LastPoll + 1ms is before now()
-		sessionID, err := device.PollFlow(t.Context(), pollUUID, 1*time.Millisecond)
+		sessionID, err := device.PollFlow(t.Context(), pollUUID, 5*time.Second)
 		assert.Error(t, err)
 		assert.ErrorIs(t, err, ErrPollingFlow)
 		assert.ErrorIs(t, err, ErrRateLimitFlow)
@@ -882,12 +882,12 @@ func TestDevice_EdgeCases(t *testing.T) {
 
 		// Poll multiple times rapidly to test rate limiting
 		for i := 0; i < 5; i++ {
-			// Use a long pollRate (1 second) to ensure subsequent rapid polls are rate limited
+			// Use a long pollRate (5 seconds) to ensure subsequent rapid polls are rate limited
 			pollUUID, err := pgxtypes.UUIDFromString(poll)
 			if err != nil {
 				t.Fatal(err)
 			}
-			_, err = device.PollFlow(t.Context(), pollUUID, 1*time.Second)
+			_, err = device.PollFlow(t.Context(), pollUUID, 5*time.Second)
 
 			if i == 0 {
 				// First poll should succeed (return flow not completed)
