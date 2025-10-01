@@ -1,26 +1,21 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+
+@import "@loopholelabs/sigil/styles.css";
+@import "@loopholelabs/sigil/styles/sigil.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+    --font-commit-mono: "commitMonoFont";
+    --font-commit-mono-nerd: "commitMonoNerdFont";
+    --font-inter: "Inter", "Inter Fallback";
+}
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+    --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+    --font-mono: var(--font-commit-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+    --default-font-feature-settings: "ss02", "ss03", "ss04", "ss05", "cv02", "cv03", "cv06", "cv10";
 }
