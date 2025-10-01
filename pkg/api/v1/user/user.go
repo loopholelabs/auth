@@ -7,11 +7,16 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"time"
+
 	"net/http"
 	"strings"
 
+	"github.com/jackc/pgx/v5"
+
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/loopholelabs/auth/internal/db/generated"
+	"github.com/loopholelabs/auth/internal/db/pgxtypes"
 
 	"github.com/loopholelabs/logging/types"
 
@@ -76,13 +81,18 @@ func (g *User) info(ctx context.Context, _ *struct{}) (*UserInfoResponse, error)
 		return nil, huma.Error401Unauthorized("invalid session")
 	}
 
-	user, err := g.options.Manager.Database().Queries.GetUserByIdentifier(ctx, session.UserInfo.Identifier)
+	userIdentifier, err := pgxtypes.UUIDFromString(session.UserInfo.Identifier)
+	if err != nil {
+		return nil, huma.Error401Unauthorized("invalid session")
+	}
+
+	user, err := g.options.Manager.Database().Queries.GetUserByIdentifier(ctx, userIdentifier)
 	if err != nil {
 		g.logger.Error().Err(err).Msg("error retrieving user info")
 		return nil, huma.Error500InternalServerError("error retrieving user info")
 	}
 
-	organizations, err := g.options.Manager.Database().Queries.GetOrganizationsForUserIdentifier(ctx, session.UserInfo.Identifier)
+	organizations, err := g.options.Manager.Database().Queries.GetOrganizationsForUserIdentifier(ctx, userIdentifier)
 	if err != nil {
 		g.logger.Error().Err(err).Msg("error retrieving user memberships")
 		return nil, huma.Error500InternalServerError("error retrieving user memberships")
@@ -94,7 +104,7 @@ func (g *User) info(ctx context.Context, _ *struct{}) (*UserInfoResponse, error)
 		return nil, huma.Error500InternalServerError("error retrieving default organization")
 	}
 
-	identities, err := g.options.Manager.Database().Queries.GetAllIdentitiesByUserIdentifier(ctx, session.UserInfo.Identifier)
+	identities, err := g.options.Manager.Database().Queries.GetAllIdentitiesByUserIdentifier(ctx, userIdentifier)
 	if err != nil {
 		g.logger.Error().Err(err).Msg("error retrieving user identities")
 		return nil, huma.Error500InternalServerError("error retrieving user identities")
@@ -102,11 +112,21 @@ func (g *User) info(ctx context.Context, _ *struct{}) (*UserInfoResponse, error)
 
 	var organizationInfo []OrganizationInfo
 	for _, organization := range organizations {
+		createdAt, err := pgxtypes.TimeFromTimestamp(organization.CreatedAt)
+		if err != nil {
+			g.logger.Error().Err(err).Msg("error processing organization creation time")
+			return nil, huma.Error500InternalServerError("error processing organization data")
+		}
+		joinedAt, err := pgxtypes.TimeFromTimestamp(organization.MembershipCreatedAt)
+		if err != nil {
+			g.logger.Error().Err(err).Msg("error processing membership creation time")
+			return nil, huma.Error500InternalServerError("error processing organization data")
+		}
 		organizationInfo = append(organizationInfo, OrganizationInfo{
 			Name:      organization.Name,
-			CreatedAt: organization.CreatedAt,
+			CreatedAt: createdAt,
 			Role:      organization.MembershipRole,
-			JoinedAt:  organization.MembershipCreatedAt,
+			JoinedAt:  joinedAt,
 		})
 	}
 
@@ -118,24 +138,45 @@ func (g *User) info(ctx context.Context, _ *struct{}) (*UserInfoResponse, error)
 			g.logger.Error().Err(err).Msg("error retrieving user verified emails")
 			return nil, huma.Error500InternalServerError("error retrieving user verified emails")
 		}
+		createdAt, err := pgxtypes.TimeFromTimestamp(identity.CreatedAt)
+		if err != nil {
+			g.logger.Error().Err(err).Msg("error processing identity creation time")
+			return nil, huma.Error500InternalServerError("error processing identity data")
+		}
 		identityInfos = append(identityInfos, IdentityInfo{
-			Provider:       string(identity.Provider),
+			Provider:       identity.Provider,
 			VerifiedEmails: verifiedEmails,
-			CreatedAt:      identity.CreatedAt,
+			CreatedAt:      createdAt,
 		})
+	}
+
+	lastLogin, err := pgxtypes.TimeFromTimestamp(user.LastLogin)
+	if err != nil {
+		g.logger.Error().Err(err).Msg("error processing user last login")
+		return nil, huma.Error500InternalServerError("error processing user data")
+	}
+	userCreatedAt, err := pgxtypes.TimeFromTimestamp(user.CreatedAt)
+	if err != nil {
+		g.logger.Error().Err(err).Msg("error processing user creation time")
+		return nil, huma.Error500InternalServerError("error processing user data")
+	}
+	defaultOrgCreatedAt, err := pgxtypes.TimeFromTimestamp(defaultOrganization.CreatedAt)
+	if err != nil {
+		g.logger.Error().Err(err).Msg("error processing default organization creation time")
+		return nil, huma.Error500InternalServerError("error processing organization data")
 	}
 
 	return &UserInfoResponse{
 		Body: UserInfoResponseBody{
 			Name:      session.UserInfo.Name,
 			Email:     session.UserInfo.Email,
-			LastLogin: user.LastLogin,
-			CreatedAt: user.CreatedAt,
+			LastLogin: lastLogin,
+			CreatedAt: userCreatedAt,
 			DefaultOrganization: OrganizationInfo{
 				Name:      defaultOrganization.Name,
-				CreatedAt: defaultOrganization.CreatedAt,
+				CreatedAt: defaultOrgCreatedAt,
 				Role:      role.OwnerRole.String(),
-				JoinedAt:  user.CreatedAt,
+				JoinedAt:  userCreatedAt, // User created at same time as default org
 			},
 			Organizations: organizationInfo,
 			Identities:    identityInfos,
@@ -159,15 +200,23 @@ func (g *User) update(ctx context.Context, request *UserUpdateRequest) (*struct{
 		}
 	}
 
-	tx, err := g.options.Manager.Database().DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
+	// Convert the user identifier once for reuse throughout the function
+	userIdentifier, err := pgxtypes.UUIDFromString(session.UserInfo.Identifier)
+	if err != nil {
+		return nil, huma.Error401Unauthorized("invalid session")
+	}
+
+	tx, err := g.options.Manager.Database().BeginTx(ctx, sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
 		g.logger.Error().Err(err).Msg("error beginning transaction")
 		return nil, huma.Error500InternalServerError("error accessing database")
 	}
 
 	defer func() {
-		err := tx.Rollback()
-		if err != nil && !errors.Is(err, sql.ErrTxDone) {
+		rollbackCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		err := tx.Rollback(rollbackCtx)
+		if err != nil && !errors.Is(err, pgx.ErrTxClosed) {
 			g.logger.Error().Err(err).Msg("failed to rollback transaction")
 		}
 	}()
@@ -175,7 +224,7 @@ func (g *User) update(ctx context.Context, request *UserUpdateRequest) (*struct{
 	qtx := g.options.Manager.Database().Queries.WithTx(tx)
 
 	if request.Email != "" {
-		identities, err := qtx.GetAllIdentitiesByUserIdentifier(ctx, session.UserInfo.Identifier)
+		identities, err := qtx.GetAllIdentitiesByUserIdentifier(ctx, userIdentifier)
 		if err != nil {
 			g.logger.Error().Err(err).Msg("error retrieving user identities")
 			return nil, huma.Error500InternalServerError("error retrieving user identities")
@@ -206,7 +255,7 @@ func (g *User) update(ctx context.Context, request *UserUpdateRequest) (*struct{
 
 		num, err := qtx.UpdateUserPrimaryEmailByIdentifier(ctx, generated.UpdateUserPrimaryEmailByIdentifierParams{
 			PrimaryEmail: request.Email,
-			Identifier:   session.UserInfo.Identifier,
+			Identifier:   userIdentifier,
 		})
 		if err != nil {
 			g.logger.Error().Err(err).Msg("error updating user primary email")
@@ -221,7 +270,7 @@ func (g *User) update(ctx context.Context, request *UserUpdateRequest) (*struct{
 	if request.Name != "" {
 		num, err := qtx.UpdateUserNameByIdentifier(ctx, generated.UpdateUserNameByIdentifierParams{
 			Name:       request.Name,
-			Identifier: session.UserInfo.Identifier,
+			Identifier: userIdentifier,
 		})
 		if err != nil {
 			g.logger.Error().Err(err).Msg("error updating user name")
@@ -233,12 +282,12 @@ func (g *User) update(ctx context.Context, request *UserUpdateRequest) (*struct{
 		}
 	}
 
-	numInvalidations, err := qtx.CreateSessionInvalidationsFromSessionByUserIdentifier(ctx, session.UserInfo.Identifier)
+	numInvalidations, err := qtx.CreateSessionInvalidationsFromSessionByUserIdentifier(ctx, userIdentifier)
 	if err != nil {
 		g.logger.Error().Err(err).Msg("error creating session invalidations")
 		return nil, huma.Error500InternalServerError("error creating session invalidations")
 	}
-	numSessions, err := qtx.IncrementAllSessionGenerationByUserIdentifier(ctx, session.UserInfo.Identifier)
+	numSessions, err := qtx.IncrementAllSessionGenerationByUserIdentifier(ctx, userIdentifier)
 	if err != nil {
 		g.logger.Error().Err(err).Msg("error incrementing session generation")
 		return nil, huma.Error500InternalServerError("error incrementing session generation")
@@ -248,7 +297,7 @@ func (g *User) update(ctx context.Context, request *UserUpdateRequest) (*struct{
 		return nil, huma.Error500InternalServerError("invalid session state")
 	}
 
-	err = tx.Commit()
+	err = tx.Commit(ctx)
 	if err != nil {
 		g.logger.Error().Err(err).Msg("error committing transaction")
 		return nil, huma.Error500InternalServerError("error accessing database")

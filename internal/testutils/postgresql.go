@@ -4,23 +4,23 @@ package testutils
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
+	"net"
 	"testing"
 	"time"
 
-	"github.com/go-sql-driver/mysql"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-type MySQLContainer struct {
+type PostgreSQLContainer struct {
 	container testcontainers.Container
 	URL       string
 }
 
-func SetupMySQLContainer(t testing.TB) *MySQLContainer {
+func SetupPostgreSQLContainer(t testing.TB) *PostgreSQLContainer {
 	t.Helper()
 	_t, ok := t.(*testing.T)
 	if ok {
@@ -28,13 +28,14 @@ func SetupMySQLContainer(t testing.TB) *MySQLContainer {
 	}
 
 	req := testcontainers.ContainerRequest{
-		Image:        "mysql:8.0",
-		ExposedPorts: []string{"3306/tcp"},
+		Image:        "postgres:16",
+		ExposedPorts: []string{"5432/tcp"},
 		Env: map[string]string{
-			"MYSQL_ROOT_PASSWORD": "testpassword",
-			"MYSQL_DATABASE":      "testdb",
+			"POSTGRES_PASSWORD": "testpassword",
+			"POSTGRES_DB":       "testdb",
+			"POSTGRES_USER":     "postgres",
 		},
-		WaitingFor: wait.ForLog("ready for connections").
+		WaitingFor: wait.ForLog("database system is ready to accept connections").
 			WithOccurrence(2).
 			WithStartupTimeout(60 * time.Second),
 	}
@@ -43,17 +44,18 @@ func SetupMySQLContainer(t testing.TB) *MySQLContainer {
 		ContainerRequest: req,
 		Started:          true,
 	})
-	require.NoError(t, err, "failed to start MySQL container")
+	require.NoError(t, err, "failed to start PostgreSQL container")
 
 	host, err := container.Host(t.Context())
 	require.NoError(t, err, "failed to get container host")
 
-	port, err := container.MappedPort(t.Context(), "3306")
+	port, err := container.MappedPort(t.Context(), "5432")
 	require.NoError(t, err, "failed to get container port")
 
-	url := fmt.Sprintf("root:testpassword@tcp(%s:%s)/testdb?parseTime=true&multiStatements=true&loc=UTC", host, port.Port())
+	hostPort := net.JoinHostPort(host, port.Port())
+	url := fmt.Sprintf("postgres://postgres:testpassword@%s/testdb?sslmode=disable", hostPort)
 
-	mysqlContainer := &MySQLContainer{
+	postgresContainer := &PostgreSQLContainer{
 		container: container,
 		URL:       url,
 	}
@@ -66,28 +68,33 @@ func SetupMySQLContainer(t testing.TB) *MySQLContainer {
 		}
 	})
 
-	err = mysql.SetLogger(new(mysql.NopLogger))
-	require.NoError(t, err)
-
-	// Wait for MySQL to be truly ready
+	// Wait for PostgreSQL to be truly ready
 	maxRetries := 30
 	var lastErr error
 	for i := 0; i < maxRetries; i++ {
-		db, err := sql.Open("mysql", url)
+		config, err := pgxpool.ParseConfig(url)
 		if err == nil {
-			lastErr = db.PingContext(t.Context())
-			_ = db.Close()
-			if lastErr == nil {
-				break
+			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+			pool, err := pgxpool.NewWithConfig(ctx, config)
+			if err == nil {
+				lastErr = pool.Ping(ctx)
+				pool.Close()
+				cancel()
+				if lastErr == nil {
+					break
+				}
+			} else {
+				lastErr = err
 			}
+			cancel()
 		} else {
 			lastErr = err
 		}
 		if i == maxRetries-1 {
-			require.NoError(t, lastErr, "MySQL container not ready after %d retries", maxRetries)
+			require.NoError(t, lastErr, "PostgreSQL container not ready after %d retries", maxRetries)
 		}
 		time.Sleep(1 * time.Second)
 	}
 
-	return mysqlContainer
+	return postgresContainer
 }

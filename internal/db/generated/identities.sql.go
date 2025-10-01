@@ -7,24 +7,25 @@ package generated
 
 import (
 	"context"
-	"encoding/json"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createIdentity = `-- name: CreateIdentity :exec
 INSERT INTO identities (provider, provider_identifier, user_identifier, verified_emails, created_at)
-VALUES (?, ?, ?, ?,
+VALUES ($1, $2, $3, $4,
         CURRENT_TIMESTAMP)
 `
 
 type CreateIdentityParams struct {
-	Provider           IdentitiesProvider
+	Provider           string
 	ProviderIdentifier string
-	UserIdentifier     string
-	VerifiedEmails     json.RawMessage
+	UserIdentifier     pgtype.UUID
+	VerifiedEmails     []byte
 }
 
 func (q *Queries) CreateIdentity(ctx context.Context, arg CreateIdentityParams) error {
-	_, err := q.db.ExecContext(ctx, createIdentity,
+	_, err := q.db.Exec(ctx, createIdentity,
 		arg.Provider,
 		arg.ProviderIdentifier,
 		arg.UserIdentifier,
@@ -36,11 +37,11 @@ func (q *Queries) CreateIdentity(ctx context.Context, arg CreateIdentityParams) 
 const getAllIdentitiesByUserIdentifier = `-- name: GetAllIdentitiesByUserIdentifier :many
 SELECT provider, provider_identifier, user_identifier, verified_emails, created_at
 FROM identities
-WHERE user_identifier = ?
+WHERE user_identifier = $1
 `
 
-func (q *Queries) GetAllIdentitiesByUserIdentifier(ctx context.Context, userIdentifier string) ([]Identity, error) {
-	rows, err := q.db.QueryContext(ctx, getAllIdentitiesByUserIdentifier, userIdentifier)
+func (q *Queries) GetAllIdentitiesByUserIdentifier(ctx context.Context, userIdentifier pgtype.UUID) ([]Identity, error) {
+	rows, err := q.db.Query(ctx, getAllIdentitiesByUserIdentifier, userIdentifier)
 	if err != nil {
 		return nil, err
 	}
@@ -59,9 +60,6 @@ func (q *Queries) GetAllIdentitiesByUserIdentifier(ctx context.Context, userIden
 		}
 		items = append(items, i)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -71,17 +69,17 @@ func (q *Queries) GetAllIdentitiesByUserIdentifier(ctx context.Context, userIden
 const getIdentityByProviderAndProviderIdentifier = `-- name: GetIdentityByProviderAndProviderIdentifier :one
 SELECT provider, provider_identifier, user_identifier, verified_emails, created_at
 FROM identities
-WHERE provider = ?
-  AND provider_identifier = ? LIMIT 1
+WHERE provider = $1
+  AND provider_identifier = $2 LIMIT 1
 `
 
 type GetIdentityByProviderAndProviderIdentifierParams struct {
-	Provider           IdentitiesProvider
+	Provider           string
 	ProviderIdentifier string
 }
 
 func (q *Queries) GetIdentityByProviderAndProviderIdentifier(ctx context.Context, arg GetIdentityByProviderAndProviderIdentifierParams) (Identity, error) {
-	row := q.db.QueryRowContext(ctx, getIdentityByProviderAndProviderIdentifier, arg.Provider, arg.ProviderIdentifier)
+	row := q.db.QueryRow(ctx, getIdentityByProviderAndProviderIdentifier, arg.Provider, arg.ProviderIdentifier)
 	var i Identity
 	err := row.Scan(
 		&i.Provider,

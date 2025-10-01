@@ -21,8 +21,8 @@ import (
 )
 
 func setupTestEnvironment(t *testing.T, enableGitHub bool) humatest.TestAPI {
-	// Setup MySQL container
-	container := testutils.SetupMySQLContainer(t)
+	// Setup PostgreSQL container
+	container := testutils.SetupPostgreSQLContainer(t)
 	logger := logging.Test(t, logging.Zerolog, "test")
 	database, err := db.New(container.URL, logger)
 	require.NoError(t, err)
@@ -129,7 +129,8 @@ func TestGitHubCallback(t *testing.T) {
 		api := setupTestEnvironment(t, true)
 
 		resp := api.Get("/github/callback?state=invalid-state&code=test-code")
-		assert.Equal(t, 404, resp.Result().StatusCode)
+		// Now returns 400 because state is not a valid UUID
+		assert.Equal(t, 400, resp.Result().StatusCode)
 	})
 
 	t.Run("GitHubNotEnabled", func(t *testing.T) {

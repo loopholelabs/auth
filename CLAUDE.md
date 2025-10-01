@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a standalone authentication service for Loophole Labs that implements a multi-tenant SaaS authentication system.
 It provides OAuth2 (GitHub, Google), Magic Link authentication, Device Code flow, and comprehensive session management
-with a MySQL 8+ backend. The service maintains complete data isolation from business logic services and uses JWT-based
+with a PostgreSQL 16+ backend. The service maintains complete data isolation from business logic services and uses JWT-based
 authentication with EdDSA (Ed25519) signing.
 
 **Current Status**: Core authentication flows and session management are implemented. Organization/membership management
@@ -60,27 +60,30 @@ make generate
 
 ### Testing
 
-```bash
-# Run all tests (uses 5min timeout for container-based tests)
-make test
+**IMPORTANT**: Tests MUST be run with the `test` build tag. Always use `make test-specific` unless the user explicitly requests otherwise.
 
-# Run specific tests
+```bash
+# PREFERRED: Run specific tests (includes -tags=test automatically)
 make test-specific TEST_ARGS="./pkg/manager/..."
 
-# Run full test suite with appropriate timeout
-go test -v ./... -timeout 5m
+# Run all tests (only if user explicitly asks)
+make test
 
-# Run single test with shorter timeout (if you know it's fast)
-go test -v ./pkg/manager/configuration/ -run TestKeyString -timeout 30s
+# If you must use go test directly, ALWAYS include -tags=test
+go test -v -tags=test ./pkg/manager/... -timeout 5m
 
-# Run tests without cache
-go test -count=1 -v ./path/to/package -timeout 5m
+# WRONG - Missing test tag (will fail)
+go test -v ./pkg/manager/... -timeout 5m  # DO NOT USE
+
+# Examples with test tag:
+go test -v -tags=test ./pkg/manager/configuration/ -run TestKeyString -timeout 30s
+go test -count=1 -v -tags=test ./path/to/package -timeout 5m
 ```
 
 **Important Test Timeout Considerations**:
 
-- **Default timeout**: Use 5 minutes (`-timeout 5m`) for most test runs as tests spin up MySQL containers
-- **Container startup**: Each test with database access creates a new MySQL container (4-10 seconds startup)
+- **Default timeout**: Use 5 minutes (`-timeout 5m`) for most test runs as tests spin up PostgreSQL containers
+- **Container startup**: Each test with database access creates a new PostgreSQL container (4-10 seconds startup)
 - **Test isolation**: Each test gets its own container to prevent state pollution
 - **Quick tests**: For non-database tests (like `TestKeyString`), 30s timeout is sufficient
 - **Debugging**: If tests timeout, run them individually to identify slow tests
@@ -102,6 +105,70 @@ go run cmd/main.go api --log "" --log-level debug --config .config.yaml
 
 # The server listens on 127.0.0.1:8080 by default
 # Note: Ask the user to run this command in the background if you need to test the API
+```
+
+## Input Validation and Documentation Pattern
+
+**Critical Rule**: API handlers MUST validate inputs before passing to manager functions.
+
+### API Handler Requirements
+
+1. Convert all UUID/timestamp inputs to pgx types using pgxtypes functions
+2. Return 400 Bad Request if conversion fails
+3. Add comments documenting validation status:
+   ```go
+   // Input validated: userID is a valid pgtype.UUID
+   // Non-PGX type: email is a string (not for direct database use)
+   result, err := manager.SomeFunction(ctx, userID, email)
+   ```
+
+### Manager Function Requirements
+
+1. Accept pgx types as parameters (not strings that need conversion)
+2. Add header comment indicating API handler usage:
+   ```go
+   // FunctionName does X
+   // Called from API handler - inputs should be pre-validated pgx types
+   // Defensive check: validates param.Valid (returns error → 500 if invalid)
+   ```
+3. Perform defensive validation (check `.Valid`):
+   ```go
+   if !identifier.Valid {
+       logger.Error().Msg("FunctionName called with invalid identifier - API handler validation failed")
+       return errors.Join(ErrFunctionName, ErrInvalidIdentifier)
+   }
+   ```
+
+### Why This Pattern?
+
+- **400 errors**: Invalid client input (caught at API boundary)
+- **500 errors**: Programming errors (API handler forgot to validate)
+- **Clear accountability**: Comments document where validation happens
+- **Defense in depth**: Manager functions still check, but log it as a bug
+
+### Example Anti-patterns (DO NOT DO):
+
+```go
+// BAD: Manager function converting strings
+func CompleteFlow(ctx context.Context, identifier string) error {
+    uuid, err := pgxtypes.UUIDFromString(identifier)  // NO! Should be done in API handler
+    // ...
+}
+
+// BAD: API handler not validating
+func callback(ctx context.Context, request *Request) (*Response, error) {
+    // NO! Passing raw string without validation
+    result, err := manager.CompleteFlow(ctx, request.State)
+    // ...
+}
+
+// BAD: No documentation of validation
+func callback(ctx context.Context, request *Request) (*Response, error) {
+    stateUUID, _ := pgxtypes.UUIDFromString(request.State)
+    // Missing comment about validation!
+    result, err := manager.CompleteFlow(ctx, stateUUID)
+    // ...
+}
 ```
 
 ## Architecture Overview
@@ -156,7 +223,7 @@ For complete architecture details, see [docs/SPECIFICATION.md](docs/SPECIFICATIO
 
 - Migrations in `internal/db/migrations/` using Goose
 - SQLC for type-safe query generation from `internal/db/queries/`
-- MySQL with serializable transaction isolation for critical operations
+- PostgreSQL with appropriate transaction isolation levels (READ COMMITTED for most operations)
 
 **Key Tables** (see [Section 2](docs/SPECIFICATION.md#section-2-data-model--current-implementation) of specification)
 
@@ -180,8 +247,8 @@ For complete architecture details, see [docs/SPECIFICATION.md](docs/SPECIFICATIO
 
 **Test Patterns**
 
-- Use `testutils.SetupMySQLContainer(t)` for database tests
-- Each test gets isolated MySQL container to avoid state pollution
+- Use `testutils.SetupPostgreSQLContainer(t)` for database tests
+- Each test gets isolated PostgreSQL container to avoid state pollution
 - Use `t.Context()` for context passing
 - Use `t.Cleanup()` for resource cleanup
 - Use `require` package for assertions (fail-fast)
@@ -229,28 +296,28 @@ errors.Join(ErrCreatingSession, err)
 **Pattern for Critical Operations**
 
 ```go
-tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
+tx, err := db.BeginTx(ctx, sql.TxOptions{Isolation: sql.LevelReadCommitted})
 defer func () {
-if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
+if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
 logger.Error().Err(err).Msg("failed to rollback")
 }
 }()
 // ... operations ...
-err = tx.Commit()
+err = tx.Commit(ctx)
 ```
 
 ### SQL Queries
 
 **Upsert Pattern**
-When modifying queries in `internal/db/queries/`, use MySQL's ON DUPLICATE KEY UPDATE:
+When modifying queries in `internal/db/queries/`, use PostgreSQL's ON CONFLICT:
 
 ```sql
 -- name: SetConfiguration :exec
 INSERT INTO configurations (configuration_key, configuration_value, updated_at)
-VALUES (?, ?, CURRENT_TIMESTAMP) ON DUPLICATE KEY
-UPDATE
-    configuration_value =
-VALUES (configuration_value), updated_at = CURRENT_TIMESTAMP;
+VALUES ($1, $2, CURRENT_TIMESTAMP) 
+ON CONFLICT (configuration_key) DO UPDATE SET
+    configuration_value = EXCLUDED.configuration_value,
+    updated_at = CURRENT_TIMESTAMP;
 ```
 
 ### Provider Implementation
@@ -318,7 +385,7 @@ goose -dir internal/db/migrations create my_change sql
 3. Run migration:
 
 ```bash
-goose -dir internal/db/migrations mysql "user:pass@tcp(localhost:3306)/db" up
+goose -dir internal/db/migrations postgres "postgresql://user:pass@localhost:5432/db?sslmode=disable" up
 ```
 
 4. Update queries in `internal/db/queries/` if needed
@@ -388,6 +455,10 @@ See [Section 6.2](docs/SPECIFICATION.md#62-pending-implementation) for complete 
 - Single `identities` table for all providers (not separate tables)
 - `machine_keys` table exists for future reporting-only access
 - Session invalidations have unique constraint preventing duplicates
+- Uses PostgreSQL 16+ with pgx/v5 native types for performance
+- PostgreSQL handles microsecond timestamp precision (no truncation needed)
+- Uses CHECK constraints instead of ENUMs for provider validation
+- Transaction isolation level: READ COMMITTED for most operations
 
 ## Debugging Tips
 
@@ -401,7 +472,7 @@ See [Section 6.2](docs/SPECIFICATION.md#62-pending-implementation) for complete 
 
 **Database Connection Issues**
 
-- Verify MySQL container is ready (check logs)
+- Verify PostgreSQL container is ready (check logs)
 - Ensure migrations ran successfully
 - Check connection string format
 
@@ -415,7 +486,7 @@ See [Section 6.2](docs/SPECIFICATION.md#62-pending-implementation) for complete 
 
 **"Duplicate entry for key"**
 
-- Use UPSERT pattern (INSERT ... ON DUPLICATE KEY UPDATE)
+- Use UPSERT pattern (INSERT ... ON CONFLICT)
 - Check for unique constraint violations
 
 **"sql: database is closed"**

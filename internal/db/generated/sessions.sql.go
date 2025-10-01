@@ -7,25 +7,26 @@ package generated
 
 import (
 	"context"
-	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createSession = `-- name: CreateSession :exec
 INSERT INTO sessions (identifier, organization_identifier, user_identifier, generation, expires_at, created_at)
-VALUES (?, ?, ?, ?,
-        ?, CURRENT_TIMESTAMP)
+VALUES ($1, $2, $3, $4,
+        $5, CURRENT_TIMESTAMP)
 `
 
 type CreateSessionParams struct {
-	Identifier             string
-	OrganizationIdentifier string
-	UserIdentifier         string
-	Generation             uint32
-	ExpiresAt              time.Time
+	Identifier             pgtype.UUID
+	OrganizationIdentifier pgtype.UUID
+	UserIdentifier         pgtype.UUID
+	Generation             int32
+	ExpiresAt              pgtype.Timestamp
 }
 
 func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) error {
-	_, err := q.db.ExecContext(ctx, createSession,
+	_, err := q.db.Exec(ctx, createSession,
 		arg.Identifier,
 		arg.OrganizationIdentifier,
 		arg.UserIdentifier,
@@ -42,35 +43,35 @@ WHERE expires_at <= NOW()
 `
 
 func (q *Queries) DeleteExpiredSessions(ctx context.Context) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deleteExpiredSessions)
+	result, err := q.db.Exec(ctx, deleteExpiredSessions)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected()
+	return result.RowsAffected(), nil
 }
 
 const deleteSessionByIdentifier = `-- name: DeleteSessionByIdentifier :execrows
 DELETE
 FROM sessions
-WHERE identifier = ?
+WHERE identifier = $1
 `
 
-func (q *Queries) DeleteSessionByIdentifier(ctx context.Context, identifier string) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deleteSessionByIdentifier, identifier)
+func (q *Queries) DeleteSessionByIdentifier(ctx context.Context, identifier pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteSessionByIdentifier, identifier)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected()
+	return result.RowsAffected(), nil
 }
 
 const getSessionByIdentifier = `-- name: GetSessionByIdentifier :one
 SELECT identifier, organization_identifier, user_identifier, generation, expires_at, created_at
 FROM sessions
-WHERE identifier = ? LIMIT 1
+WHERE identifier = $1 LIMIT 1
 `
 
-func (q *Queries) GetSessionByIdentifier(ctx context.Context, identifier string) (Session, error) {
-	row := q.db.QueryRowContext(ctx, getSessionByIdentifier, identifier)
+func (q *Queries) GetSessionByIdentifier(ctx context.Context, identifier pgtype.UUID) (Session, error) {
+	row := q.db.QueryRow(ctx, getSessionByIdentifier, identifier)
 	var i Session
 	err := row.Scan(
 		&i.Identifier,
@@ -86,17 +87,17 @@ func (q *Queries) GetSessionByIdentifier(ctx context.Context, identifier string)
 const getSessionByIdentifierAndUserIdentifier = `-- name: GetSessionByIdentifierAndUserIdentifier :one
 SELECT identifier, organization_identifier, user_identifier, generation, expires_at, created_at
 FROM sessions
-WHERE identifier = ?
-  AND user_identifier = ? LIMIT 1
+WHERE identifier = $1
+  AND user_identifier = $2 LIMIT 1
 `
 
 type GetSessionByIdentifierAndUserIdentifierParams struct {
-	Identifier     string
-	UserIdentifier string
+	Identifier     pgtype.UUID
+	UserIdentifier pgtype.UUID
 }
 
 func (q *Queries) GetSessionByIdentifierAndUserIdentifier(ctx context.Context, arg GetSessionByIdentifierAndUserIdentifierParams) (Session, error) {
-	row := q.db.QueryRowContext(ctx, getSessionByIdentifierAndUserIdentifier, arg.Identifier, arg.UserIdentifier)
+	row := q.db.QueryRow(ctx, getSessionByIdentifierAndUserIdentifier, arg.Identifier, arg.UserIdentifier)
 	var i Session
 	err := row.Scan(
 		&i.Identifier,
@@ -112,51 +113,51 @@ func (q *Queries) GetSessionByIdentifierAndUserIdentifier(ctx context.Context, a
 const incrementAllSessionGenerationByUserIdentifier = `-- name: IncrementAllSessionGenerationByUserIdentifier :execrows
 UPDATE sessions
 SET generation = generation + 1
-WHERE user_identifier = ?
+WHERE user_identifier = $1
 `
 
-func (q *Queries) IncrementAllSessionGenerationByUserIdentifier(ctx context.Context, userIdentifier string) (int64, error) {
-	result, err := q.db.ExecContext(ctx, incrementAllSessionGenerationByUserIdentifier, userIdentifier)
+func (q *Queries) IncrementAllSessionGenerationByUserIdentifier(ctx context.Context, userIdentifier pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, incrementAllSessionGenerationByUserIdentifier, userIdentifier)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected()
+	return result.RowsAffected(), nil
 }
 
 const updateSessionExpiryByIdentifier = `-- name: UpdateSessionExpiryByIdentifier :execrows
 UPDATE sessions
-SET expires_at = ?
-WHERE identifier = ?
+SET expires_at = $1
+WHERE identifier = $2
 `
 
 type UpdateSessionExpiryByIdentifierParams struct {
-	ExpiresAt  time.Time
-	Identifier string
+	ExpiresAt  pgtype.Timestamp
+	Identifier pgtype.UUID
 }
 
 func (q *Queries) UpdateSessionExpiryByIdentifier(ctx context.Context, arg UpdateSessionExpiryByIdentifierParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, updateSessionExpiryByIdentifier, arg.ExpiresAt, arg.Identifier)
+	result, err := q.db.Exec(ctx, updateSessionExpiryByIdentifier, arg.ExpiresAt, arg.Identifier)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected()
+	return result.RowsAffected(), nil
 }
 
 const updateSessionGenerationByIdentifier = `-- name: UpdateSessionGenerationByIdentifier :execrows
 UPDATE sessions
-SET generation = ?
-WHERE identifier = ?
+SET generation = $1
+WHERE identifier = $2
 `
 
 type UpdateSessionGenerationByIdentifierParams struct {
-	Generation uint32
-	Identifier string
+	Generation int32
+	Identifier pgtype.UUID
 }
 
 func (q *Queries) UpdateSessionGenerationByIdentifier(ctx context.Context, arg UpdateSessionGenerationByIdentifierParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, updateSessionGenerationByIdentifier, arg.Generation, arg.Identifier)
+	result, err := q.db.Exec(ctx, updateSessionGenerationByIdentifier, arg.Generation, arg.Identifier)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected()
+	return result.RowsAffected(), nil
 }

@@ -6,12 +6,13 @@ import (
 	"context"
 	"database/sql"
 	"embed"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
 
-	"github.com/go-sql-driver/mysql"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 
 	"github.com/loopholelabs/logging/types"
@@ -19,7 +20,7 @@ import (
 	"github.com/loopholelabs/auth/internal/db/generated"
 )
 
-//go:generate go tool github.com/sqlc-dev/sqlc/cmd/sqlc generate --file sqlc.yaml
+//go:generate go tool sqlc generate --file sqlc.yaml
 
 const (
 	pingTimeout  = time.Second * 30
@@ -27,25 +28,14 @@ const (
 	maxOpenConns = 25
 )
 
-var (
-	ErrMissingParseTimeOption       = errors.New("missing parse time option")
-	ErrMissingMultiStatementsOption = errors.New("missing multi statements option")
-	ErrMissingLocationOption        = errors.New("missing location option")
-)
-
 //go:embed migrations/*.sql
 var Migrations embed.FS
-
-const (
-	parseTimeOption       = "parseTime=true"
-	multiStatementsOption = "multiStatements=true"
-	locationOption        = "loc=UTC"
-)
 
 type DB struct {
 	logger  types.Logger
 	Queries *generated.Queries
-	DB      *sql.DB
+	Pool    *pgxpool.Pool
+	DB      *sql.DB // sql.DB interface for compatibility
 }
 
 type gooseLogger struct {
@@ -60,76 +50,97 @@ func (l *gooseLogger) Printf(format string, v ...any) {
 	l.logger.Debug().Msgf(strings.TrimSpace(format), v...)
 }
 
-type mysqlLogger struct {
-	logger types.Logger
-}
-
-func (l *mysqlLogger) Print(v ...any) {
-	l.logger.Debug().Msg(fmt.Sprint(v...))
-}
-
 func New(url string, logger types.Logger) (*DB, error) {
-	if !strings.Contains(url, parseTimeOption) {
-		return nil, fmt.Errorf("invalid database url: %w", ErrMissingParseTimeOption)
-	}
-
-	if !strings.Contains(url, multiStatementsOption) {
-		return nil, fmt.Errorf("invalid database url: %w", ErrMissingMultiStatementsOption)
-	}
-
-	if !strings.Contains(url, locationOption) {
-		return nil, fmt.Errorf("invalid database url: %w", ErrMissingLocationOption)
-	}
-
 	l := logger.SubLogger("DATABASE")
 
-	// Set MySQL Logger
-	err := mysql.SetLogger(&mysqlLogger{logger: l.SubLogger("MYSQL")})
+	// Parse PostgreSQL connection config
+	config, err := pgxpool.ParseConfig(url)
 	if err != nil {
-		return nil, fmt.Errorf("failed to set mysql logger: %w", err)
+		return nil, fmt.Errorf("failed to parse database url: %w", err)
 	}
+
+	// Set connection pool settings
+	config.MaxConns = maxOpenConns
+	config.MinConns = 2
+	config.MaxConnLifetime = maxLifetime
+
+	// Create pool
+	pool, err := pgxpool.NewWithConfig(context.Background(), config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to database: %w", err)
+	}
+
+	// Ping with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), pingTimeout)
+	defer cancel()
+
+	err = pool.Ping(ctx)
+	if err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("failed to ping database: %w", err)
+	}
+
+	// Create sql.DB for goose migrations
+	sqlDB := stdlib.OpenDBFromPool(pool)
 
 	// Set Goose Logger
 	goose.SetBaseFS(Migrations)
 	goose.SetLogger(&gooseLogger{logger: l.SubLogger("GOOSE")})
 
-	db, err := sql.Open("mysql", url)
+	err = goose.SetDialect("postgres")
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
-	}
-
-	db.SetMaxOpenConns(maxOpenConns)
-	db.SetMaxIdleConns(maxOpenConns)
-	db.SetConnMaxLifetime(maxLifetime)
-
-	ctx, cancel := context.WithTimeout(context.Background(), pingTimeout)
-	defer cancel()
-
-	err = db.PingContext(ctx)
-	if err != nil {
-		_ = db.Close()
-		return nil, fmt.Errorf("failed to ping database: %w", err)
-	}
-
-	err = goose.SetDialect("mysql")
-	if err != nil {
-		_ = db.Close()
+		pool.Close()
 		return nil, fmt.Errorf("failed to set database dialect: %w", err)
 	}
 
-	err = goose.Up(db, "migrations")
+	err = goose.Up(sqlDB, "migrations")
 	if err != nil {
-		_ = db.Close()
+		pool.Close()
 		return nil, fmt.Errorf("failed apply database migrations: %w", err)
 	}
 
 	return &DB{
 		logger:  l,
-		Queries: generated.New(db),
-		DB:      db,
+		Queries: generated.New(pool),
+		Pool:    pool,
+		DB:      sqlDB,
 	}, nil
 }
 
 func (db *DB) Close() error {
-	return db.DB.Close()
+	// Close both the sql.DB and the pool
+	// The sql.DB is used for migrations, the pool for queries
+	if db.DB != nil {
+		if err := db.DB.Close(); err != nil {
+			return err
+		}
+	}
+	if db.Pool != nil {
+		db.Pool.Close()
+	}
+	return nil
+}
+
+// BeginTx starts a new pgx transaction with the given options
+func (db *DB) BeginTx(ctx context.Context, opts sql.TxOptions) (pgx.Tx, error) {
+	// Convert SQL isolation level to pgx isolation level
+	var pgxOpts pgx.TxOptions
+	switch opts.Isolation {
+	case sql.LevelReadCommitted:
+		pgxOpts.IsoLevel = pgx.ReadCommitted
+	case sql.LevelRepeatableRead:
+		pgxOpts.IsoLevel = pgx.RepeatableRead
+	case sql.LevelSerializable:
+		pgxOpts.IsoLevel = pgx.Serializable
+	default:
+		pgxOpts.IsoLevel = pgx.ReadCommitted
+	}
+
+	if opts.ReadOnly {
+		pgxOpts.AccessMode = pgx.ReadOnly
+	} else {
+		pgxOpts.AccessMode = pgx.ReadWrite
+	}
+
+	return db.Pool.BeginTx(ctx, pgxOpts)
 }

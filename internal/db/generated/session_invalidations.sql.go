@@ -7,22 +7,23 @@ package generated
 
 import (
 	"context"
-	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createSessionInvalidation = `-- name: CreateSessionInvalidation :exec
 INSERT INTO session_invalidations (session_identifier, generation, expires_at, created_at)
-VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
 `
 
 type CreateSessionInvalidationParams struct {
-	SessionIdentifier string
-	Generation        uint32
-	ExpiresAt         time.Time
+	SessionIdentifier pgtype.UUID
+	Generation        int32
+	ExpiresAt         pgtype.Timestamp
 }
 
 func (q *Queries) CreateSessionInvalidation(ctx context.Context, arg CreateSessionInvalidationParams) error {
-	_, err := q.db.ExecContext(ctx, createSessionInvalidation, arg.SessionIdentifier, arg.Generation, arg.ExpiresAt)
+	_, err := q.db.Exec(ctx, createSessionInvalidation, arg.SessionIdentifier, arg.Generation, arg.ExpiresAt)
 	return err
 }
 
@@ -30,15 +31,15 @@ const createSessionInvalidationsFromSessionByUserIdentifier = `-- name: CreateSe
 INSERT INTO session_invalidations (session_identifier, generation, expires_at)
 SELECT identifier, generation, expires_at
 FROM sessions
-WHERE user_identifier = ?
+WHERE user_identifier = $1
 `
 
-func (q *Queries) CreateSessionInvalidationsFromSessionByUserIdentifier(ctx context.Context, userIdentifier string) (int64, error) {
-	result, err := q.db.ExecContext(ctx, createSessionInvalidationsFromSessionByUserIdentifier, userIdentifier)
+func (q *Queries) CreateSessionInvalidationsFromSessionByUserIdentifier(ctx context.Context, userIdentifier pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, createSessionInvalidationsFromSessionByUserIdentifier, userIdentifier)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected()
+	return result.RowsAffected(), nil
 }
 
 const deleteExpiredSessionInvalidations = `-- name: DeleteExpiredSessionInvalidations :execrows
@@ -48,11 +49,11 @@ WHERE expires_at <= NOW()
 `
 
 func (q *Queries) DeleteExpiredSessionInvalidations(ctx context.Context) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deleteExpiredSessionInvalidations)
+	result, err := q.db.Exec(ctx, deleteExpiredSessionInvalidations)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected()
+	return result.RowsAffected(), nil
 }
 
 const getAllSessionInvalidations = `-- name: GetAllSessionInvalidations :many
@@ -61,7 +62,7 @@ FROM session_invalidations
 `
 
 func (q *Queries) GetAllSessionInvalidations(ctx context.Context) ([]SessionInvalidation, error) {
-	rows, err := q.db.QueryContext(ctx, getAllSessionInvalidations)
+	rows, err := q.db.Query(ctx, getAllSessionInvalidations)
 	if err != nil {
 		return nil, err
 	}
@@ -78,9 +79,6 @@ func (q *Queries) GetAllSessionInvalidations(ctx context.Context) ([]SessionInva
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

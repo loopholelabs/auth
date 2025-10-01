@@ -7,21 +7,22 @@ package generated
 
 import (
 	"context"
-	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createSessionRevocation = `-- name: CreateSessionRevocation :exec
 INSERT INTO session_revocations (session_identifier, expires_at, created_at)
-VALUES (?, ?, CURRENT_TIMESTAMP)
+VALUES ($1, $2, CURRENT_TIMESTAMP)
 `
 
 type CreateSessionRevocationParams struct {
-	SessionIdentifier string
-	ExpiresAt         time.Time
+	SessionIdentifier pgtype.UUID
+	ExpiresAt         pgtype.Timestamp
 }
 
 func (q *Queries) CreateSessionRevocation(ctx context.Context, arg CreateSessionRevocationParams) error {
-	_, err := q.db.ExecContext(ctx, createSessionRevocation, arg.SessionIdentifier, arg.ExpiresAt)
+	_, err := q.db.Exec(ctx, createSessionRevocation, arg.SessionIdentifier, arg.ExpiresAt)
 	return err
 }
 
@@ -32,11 +33,11 @@ WHERE expires_at <= NOW()
 `
 
 func (q *Queries) DeleteExpiredSessionRevocations(ctx context.Context) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deleteExpiredSessionRevocations)
+	result, err := q.db.Exec(ctx, deleteExpiredSessionRevocations)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected()
+	return result.RowsAffected(), nil
 }
 
 const getAllSessionRevocations = `-- name: GetAllSessionRevocations :many
@@ -45,7 +46,7 @@ FROM session_revocations
 `
 
 func (q *Queries) GetAllSessionRevocations(ctx context.Context) ([]SessionRevocation, error) {
-	rows, err := q.db.QueryContext(ctx, getAllSessionRevocations)
+	rows, err := q.db.Query(ctx, getAllSessionRevocations)
 	if err != nil {
 		return nil, err
 	}
@@ -58,9 +59,6 @@ func (q *Queries) GetAllSessionRevocations(ctx context.Context) ([]SessionRevoca
 		}
 		items = append(items, i)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -70,11 +68,11 @@ func (q *Queries) GetAllSessionRevocations(ctx context.Context) ([]SessionRevoca
 const getSessionRevocationBySessionIdentifier = `-- name: GetSessionRevocationBySessionIdentifier :one
 SELECT session_identifier, expires_at, created_at
 FROM session_revocations
-WHERE session_identifier = ? LIMIT 1
+WHERE session_identifier = $1 LIMIT 1
 `
 
-func (q *Queries) GetSessionRevocationBySessionIdentifier(ctx context.Context, sessionIdentifier string) (SessionRevocation, error) {
-	row := q.db.QueryRowContext(ctx, getSessionRevocationBySessionIdentifier, sessionIdentifier)
+func (q *Queries) GetSessionRevocationBySessionIdentifier(ctx context.Context, sessionIdentifier pgtype.UUID) (SessionRevocation, error) {
+	row := q.db.QueryRow(ctx, getSessionRevocationBySessionIdentifier, sessionIdentifier)
 	var i SessionRevocation
 	err := row.Scan(&i.SessionIdentifier, &i.ExpiresAt, &i.CreatedAt)
 	return i, err

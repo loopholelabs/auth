@@ -21,8 +21,8 @@ import (
 )
 
 func setupTestEnvironment(t *testing.T, enableMagic bool) humatest.TestAPI {
-	// Setup MySQL container
-	container := testutils.SetupMySQLContainer(t)
+	// Setup PostgreSQL container
+	container := testutils.SetupPostgreSQLContainer(t)
 	logger := logging.Test(t, logging.Zerolog, "test")
 	database, err := db.New(container.URL, logger)
 	require.NoError(t, err)
@@ -135,7 +135,7 @@ func TestMagicLogin(t *testing.T) {
 
 	t.Run("WithDeviceCode", func(t *testing.T) {
 		// Setup with both Magic and Device enabled
-		container := testutils.SetupMySQLContainer(t)
+		container := testutils.SetupPostgreSQLContainer(t)
 		logger := logging.Test(t, logging.Zerolog, "test")
 		database, err := db.New(container.URL, logger)
 		require.NoError(t, err)

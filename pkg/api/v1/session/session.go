@@ -6,14 +6,19 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"time"
+
 	"net/http"
 	"strings"
+
+	"github.com/jackc/pgx/v5"
 
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/loopholelabs/logging/types"
 
 	"github.com/loopholelabs/auth/internal/db/generated"
+	"github.com/loopholelabs/auth/internal/db/pgxtypes"
 	"github.com/loopholelabs/auth/pkg/api/middleware"
 	"github.com/loopholelabs/auth/pkg/api/middleware/fiber"
 	"github.com/loopholelabs/auth/pkg/api/options"
@@ -138,24 +143,34 @@ func (g *Session) revoke(ctx context.Context, request *SessionRevokeRequest) (*S
 		return nil, huma.Error401Unauthorized("invalid session")
 	}
 
-	tx, err := g.options.Manager.Database().DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
+	tx, err := g.options.Manager.Database().BeginTx(ctx, sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
 		g.logger.Error().Err(err).Msg("error beginning transaction")
 		return nil, huma.Error500InternalServerError("error accessing database")
 	}
 
 	defer func() {
-		err := tx.Rollback()
-		if err != nil && !errors.Is(err, sql.ErrTxDone) {
+		rollbackCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		err := tx.Rollback(rollbackCtx)
+		if err != nil && !errors.Is(err, pgx.ErrTxClosed) {
 			g.logger.Error().Err(err).Msg("failed to rollback transaction")
 		}
 	}()
 
 	qtx := g.options.Manager.Database().Queries.WithTx(tx)
+	identifier, err := pgxtypes.UUIDFromString(request.Identifier)
+	if err != nil {
+		return nil, huma.Error400BadRequest("invalid identifier")
+	}
+	userIdentifier, err := pgxtypes.UUIDFromString(session.UserInfo.Identifier)
+	if err != nil {
+		return nil, huma.Error401Unauthorized("invalid session")
+	}
 
 	revocableSession, err := qtx.GetSessionByIdentifierAndUserIdentifier(ctx, generated.GetSessionByIdentifierAndUserIdentifierParams{
-		Identifier:     request.Identifier,
-		UserIdentifier: session.UserInfo.Identifier,
+		Identifier:     identifier,
+		UserIdentifier: userIdentifier,
 	})
 	if err != nil {
 		if !errors.Is(err, sql.ErrNoRows) {
@@ -184,18 +199,31 @@ func (g *Session) revoke(ctx context.Context, request *SessionRevokeRequest) (*S
 		return nil, huma.Error500InternalServerError("error revoking session")
 	}
 
-	err = tx.Commit()
+	err = tx.Commit(ctx)
 	if err != nil {
 		g.logger.Error().Err(err).Msg("error committing transaction")
 		return nil, huma.Error500InternalServerError("error accessing database")
 	}
 
+	identifierStr, err := pgxtypes.StringFromUUID(revocableSession.Identifier)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("error processing session identifier")
+	}
+	expiresAt, err := pgxtypes.TimeFromTimestamp(revocableSession.ExpiresAt)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("error processing session expiry")
+	}
+	createdAt, err := pgxtypes.TimeFromTimestamp(revocableSession.CreatedAt)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("error processing session creation time")
+	}
+
 	return &SessionRevokeResponse{
 		Body: SessionRevokeResponseBody{
-			Identifier: revocableSession.Identifier,
-			Generation: revocableSession.Generation,
-			ExpiresAt:  revocableSession.ExpiresAt,
-			CreatedAt:  revocableSession.CreatedAt,
+			Identifier: identifierStr,
+			Generation: uint32(revocableSession.Generation), //nolint:gosec // Generation is always non-negative
+			ExpiresAt:  expiresAt,
+			CreatedAt:  createdAt,
 		},
 	}, nil
 }

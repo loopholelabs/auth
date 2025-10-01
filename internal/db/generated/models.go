@@ -5,234 +5,145 @@
 package generated
 
 import (
-	"database/sql"
-	"database/sql/driver"
-	"encoding/json"
-	"fmt"
-	"time"
+	"github.com/jackc/pgx/v5/pgtype"
 )
-
-type IdentitiesProvider string
-
-const (
-	IdentitiesProviderGITHUB IdentitiesProvider = "GITHUB"
-	IdentitiesProviderGOOGLE IdentitiesProvider = "GOOGLE"
-	IdentitiesProviderMAGIC  IdentitiesProvider = "MAGIC"
-)
-
-func (e *IdentitiesProvider) Scan(src interface{}) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = IdentitiesProvider(s)
-	case string:
-		*e = IdentitiesProvider(s)
-	default:
-		return fmt.Errorf("unsupported scan type for IdentitiesProvider: %T", src)
-	}
-	return nil
-}
-
-type NullIdentitiesProvider struct {
-	IdentitiesProvider IdentitiesProvider
-	Valid              bool // Valid is true if IdentitiesProvider is not NULL
-}
-
-// Scan implements the Scanner interface.
-func (ns *NullIdentitiesProvider) Scan(value interface{}) error {
-	if value == nil {
-		ns.IdentitiesProvider, ns.Valid = "", false
-		return nil
-	}
-	ns.Valid = true
-	return ns.IdentitiesProvider.Scan(value)
-}
-
-// Value implements the driver Valuer interface.
-func (ns NullIdentitiesProvider) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return string(ns.IdentitiesProvider), nil
-}
-
-type InvitationsStatus string
-
-const (
-	InvitationsStatusPending  InvitationsStatus = "pending"
-	InvitationsStatusAccepted InvitationsStatus = "accepted"
-)
-
-func (e *InvitationsStatus) Scan(src interface{}) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = InvitationsStatus(s)
-	case string:
-		*e = InvitationsStatus(s)
-	default:
-		return fmt.Errorf("unsupported scan type for InvitationsStatus: %T", src)
-	}
-	return nil
-}
-
-type NullInvitationsStatus struct {
-	InvitationsStatus InvitationsStatus
-	Valid             bool // Valid is true if InvitationsStatus is not NULL
-}
-
-// Scan implements the Scanner interface.
-func (ns *NullInvitationsStatus) Scan(value interface{}) error {
-	if value == nil {
-		ns.InvitationsStatus, ns.Valid = "", false
-		return nil
-	}
-	ns.Valid = true
-	return ns.InvitationsStatus.Scan(value)
-}
-
-// Value implements the driver Valuer interface.
-func (ns NullInvitationsStatus) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return string(ns.InvitationsStatus), nil
-}
 
 type ApiKey struct {
 	Identifier             string
-	Salt                   string
+	Salt                   pgtype.UUID
 	Hash                   []byte
-	OrganizationIdentifier string
+	OrganizationIdentifier pgtype.UUID
 	Role                   string
-	CreatedAt              time.Time
+	CreatedAt              pgtype.Timestamp
 }
 
 type Configuration struct {
 	ConfigurationKey   string
 	ConfigurationValue string
-	UpdatedAt          time.Time
+	UpdatedAt          pgtype.Timestamp
 }
 
 type DeviceCodeFlow struct {
-	Identifier        string
-	SessionIdentifier sql.NullString
+	Identifier        pgtype.UUID
+	SessionIdentifier pgtype.UUID
 	Code              string
-	Poll              string
-	LastPoll          time.Time
-	CreatedAt         time.Time
+	Poll              pgtype.UUID
+	LastPoll          pgtype.Timestamp
+	CreatedAt         pgtype.Timestamp
 }
 
 type GithubOauthFlow struct {
-	Identifier       string
+	Identifier       pgtype.UUID
 	Verifier         string
 	Challenge        string
-	DeviceIdentifier sql.NullString
-	UserIdentifier   sql.NullString
+	DeviceIdentifier pgtype.UUID
+	UserIdentifier   pgtype.UUID
 	NextUrl          string
-	CreatedAt        time.Time
+	CreatedAt        pgtype.Timestamp
 }
 
 type GoogleOauthFlow struct {
-	Identifier       string
+	Identifier       pgtype.UUID
 	Verifier         string
 	Challenge        string
-	DeviceIdentifier sql.NullString
-	UserIdentifier   sql.NullString
+	DeviceIdentifier pgtype.UUID
+	UserIdentifier   pgtype.UUID
 	NextUrl          string
-	CreatedAt        time.Time
+	CreatedAt        pgtype.Timestamp
 }
 
 type Identity struct {
-	Provider           IdentitiesProvider
+	Provider           string
 	ProviderIdentifier string
-	UserIdentifier     string
-	VerifiedEmails     json.RawMessage
-	CreatedAt          time.Time
+	UserIdentifier     pgtype.UUID
+	VerifiedEmails     []byte
+	CreatedAt          pgtype.Timestamp
 }
 
 type Invitation struct {
-	Identifier             uint32
-	OrganizationIdentifier string
-	InviterUserIdentifier  string
+	Identifier             int32
+	OrganizationIdentifier pgtype.UUID
+	InviterUserIdentifier  pgtype.UUID
 	Role                   string
 	Hash                   []byte
-	Status                 InvitationsStatus
-	ExpiresAt              time.Time
-	CreatedAt              time.Time
+	Status                 string
+	ExpiresAt              pgtype.Timestamp
+	CreatedAt              pgtype.Timestamp
 }
 
 type MachineKey struct {
 	Identifier             string
-	Salt                   string
+	Salt                   pgtype.UUID
 	Hash                   []byte
-	OrganizationIdentifier string
+	OrganizationIdentifier pgtype.UUID
 	Kind                   string
-	CreatedAt              time.Time
+	CreatedAt              pgtype.Timestamp
 }
 
 type MagicLinkFlow struct {
-	Identifier       string
-	Salt             string
+	Identifier       pgtype.UUID
+	Salt             pgtype.UUID
 	Hash             []byte
 	EmailAddress     string
-	DeviceIdentifier sql.NullString
-	UserIdentifier   sql.NullString
+	DeviceIdentifier pgtype.UUID
+	UserIdentifier   pgtype.UUID
 	NextUrl          string
-	CreatedAt        time.Time
+	CreatedAt        pgtype.Timestamp
 }
 
 type Membership struct {
-	UserIdentifier         string
-	OrganizationIdentifier string
+	UserIdentifier         pgtype.UUID
+	OrganizationIdentifier pgtype.UUID
 	Role                   string
-	CreatedAt              time.Time
+	CreatedAt              pgtype.Timestamp
 }
 
 type Organization struct {
-	Identifier string
+	Identifier pgtype.UUID
 	Name       string
 	IsDefault  bool
-	CreatedAt  time.Time
+	CreatedAt  pgtype.Timestamp
 }
 
 type ServiceKey struct {
 	Identifier             string
-	Salt                   string
+	Salt                   pgtype.UUID
 	Hash                   []byte
-	OrganizationIdentifier string
-	UserIdentifier         string
+	OrganizationIdentifier pgtype.UUID
+	UserIdentifier         pgtype.UUID
 	Role                   string
-	ResourceIds            json.RawMessage
-	ExpiresAt              time.Time
-	CreatedAt              time.Time
+	ResourceIds            []byte
+	ExpiresAt              pgtype.Timestamp
+	CreatedAt              pgtype.Timestamp
 }
 
 type Session struct {
-	Identifier             string
-	OrganizationIdentifier string
-	UserIdentifier         string
-	Generation             uint32
-	ExpiresAt              time.Time
-	CreatedAt              time.Time
+	Identifier             pgtype.UUID
+	OrganizationIdentifier pgtype.UUID
+	UserIdentifier         pgtype.UUID
+	Generation             int32
+	ExpiresAt              pgtype.Timestamp
+	CreatedAt              pgtype.Timestamp
 }
 
 type SessionInvalidation struct {
-	SessionIdentifier string
-	Generation        uint32
-	ExpiresAt         time.Time
-	CreatedAt         time.Time
+	SessionIdentifier pgtype.UUID
+	Generation        int32
+	ExpiresAt         pgtype.Timestamp
+	CreatedAt         pgtype.Timestamp
 }
 
 type SessionRevocation struct {
-	SessionIdentifier string
-	ExpiresAt         time.Time
-	CreatedAt         time.Time
+	SessionIdentifier pgtype.UUID
+	ExpiresAt         pgtype.Timestamp
+	CreatedAt         pgtype.Timestamp
 }
 
 type User struct {
-	Identifier                    string
+	Identifier                    pgtype.UUID
 	Name                          string
 	PrimaryEmail                  string
-	DefaultOrganizationIdentifier string
-	LastLogin                     time.Time
-	CreatedAt                     time.Time
+	DefaultOrganizationIdentifier pgtype.UUID
+	LastLogin                     pgtype.Timestamp
+	CreatedAt                     pgtype.Timestamp
 }
