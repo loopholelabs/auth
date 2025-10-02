@@ -34,7 +34,13 @@ test-specific: generate
 .PHONY: lint
 lint: generate
 	GOOS=linux golangci-lint run --fix ./...
+	cd frontend && bun lint
 
 .PHONY: build
 build: generate
-	docker run --rm -v .:/root/auth $(BUILD_DOCKER_IMAGE) bash -c "go build $(DEFAULT_BUILD_ARGS) -o build/auth cmd/main.go"
+	#docker run --rm -v .:/root/auth $(BUILD_DOCKER_IMAGE) bash -c "go build $(DEFAULT_BUILD_ARGS) -o build/auth cmd/main.go"
+	docker run --rm -v .:/root/auth $(BUILD_DOCKER_IMAGE) bash -c "cd frontend && bun install && bun run build"
+
+.PHONY: clean
+clean:
+	rm -rf ./build
